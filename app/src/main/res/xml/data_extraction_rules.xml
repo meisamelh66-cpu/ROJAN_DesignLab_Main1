@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+   ROJAN AI: role_preferences excluded from both cloud-backup and
+   device-transfer for the same reason documented in backup_rules.xml —
+   this is the API 31+ mechanism (the one that actually applies on most
+   current devices; backup_rules.xml is the pre-31 fallback).
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="datastore/role_preferences.preferences_pb"/>
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="datastore/role_preferences.preferences_pb"/>
+    </device-transfer>
+</data-extraction-rules>

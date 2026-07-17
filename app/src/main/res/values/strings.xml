@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">ROJAN_DesignLab</string>
+
+    <!-- Role Selection flow: transient status/error copy on the Welcome screen -->
+    <string name="status_saving_role">در حال ذخیره انتخاب شما…</string>
+    <string name="status_restoring_session">در حال بازیابی نشست شما…</string>
+    <string name="error_role_selection_generic">مشکلی در ذخیره‌سازی نقش شما پیش آمد.</string>
+    <string name="action_retry">تلاش مجدد</string>
+    <string name="cd_error_icon">خطا</string>
+
+    <!-- Role Selection flow: placeholder dashboard/home destinations -->
+    <string name="dashboard_customer_title">خانه مشتری</string>
+    <string name="dashboard_customer_subtitle">به‌زودی می‌توانید نوبت‌های خود را از همین‌جا مدیریت کنید</string>
+    <string name="dashboard_manager_title">داشبورد مدیر سالن</string>
+    <string name="dashboard_manager_subtitle">مدیریت کسب‌وکار، کارکنان و گزارش‌ها به‌زودی در دسترس است</string>
+    <string name="dashboard_stylist_title">داشبورد متخصص زیبایی</string>
+    <string name="dashboard_stylist_subtitle">مدیریت نوبت‌ها و مشتریان به‌زودی در دسترس است</string>
+    <string name="dashboard_seller_title">داشبورد فروشنده</string>
+    <string name="dashboard_seller_subtitle">مدیریت محصولات و سفارش‌ها به‌زودی در دسترس است</string>
+</resources>

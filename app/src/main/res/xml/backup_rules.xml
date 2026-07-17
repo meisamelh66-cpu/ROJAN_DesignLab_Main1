@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+   ROJAN AI: the role_preferences DataStore file is deliberately excluded
+   below. This file backs session/role restore (RoleDataStore.kt) — if
+   Android's Auto Backup silently restores it onto what a user/tester
+   believes is a fresh install (e.g. after uninstall+reinstall, or on a
+   new device signed into the same account), the app would correctly
+   read a real but stale role from a previous install and route straight
+   to that role's dashboard instead of Welcome. Excluding it here is what
+   makes "fresh install always starts at Welcome" actually true, not just
+   true in the code path that assumes DataStore is genuinely empty.
+
+   DataStore (Preferences) files live under the "file" domain at
+   datastore/<name>.preferences_pb — NOT the "sharedpref" domain the
+   default template below shows, which would not have excluded this file.
+-->
+<full-backup-content>
+    <exclude domain="file" path="datastore/role_preferences.preferences_pb"/>
+</full-backup-content>

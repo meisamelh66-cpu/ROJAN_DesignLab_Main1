@@ -1,0 +1,37 @@
+# Built application files
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Gradle
+.gradle
+.gradletasknamecache
+.kotlin/
+/build
+
+# Local configuration file (SDK path, machine-specific)
+local.properties
+
+# Native build
+.externalNativeBuild
+.cxx
+
+# Log & profiling
+*.log
+*.hprof
+
+# Android Studio captures
+/captures
+
+# IntelliJ / Android Studio project files
+*.iml
+.idea/
+
+# Signing keys - never commit keystores
+*.jks
+*.keystore
+
+# macOS
+.DS_Store
