@@ -1,6 +1,5 @@
 package ai.rojan.designlab.screens.customer
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,20 +17,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Storefront
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
 import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTextPrimary
@@ -39,6 +36,7 @@ import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.theme.RojanVividMagenta
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
+import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
 /**
  * Customer Home favorite salons.
@@ -52,6 +50,11 @@ import ai.rojan.designlab.ui.components.icon.RojanIconContainer
  * already reads and mutates. This reconciles what used to be two
  * entirely separate "favorites" concepts (this section's own static
  * fake list vs. Journey 2's real toggleable state) into one.
+ *
+ * Home Screen Production Pass, Task 9: the favorite-heart badge now
+ * renders through [RojanIconContainer] at [RojanIconSize.Small] (14dp)
+ * instead of a raw `Icon` + bespoke 16dp — every other icon on this
+ * screen already goes through the shared primitive.
  */
 @Composable
 fun FavoriteSalons(ecosystemViewModel: CustomerEcosystemViewModel) {
@@ -65,7 +68,7 @@ fun FavoriteSalons(ecosystemViewModel: CustomerEcosystemViewModel) {
         items(favoriteSalons) { salon ->
             Box(
                 modifier = Modifier
-                    .size(width = 160.dp, height = 190.dp)
+                    .size(width = RojanDimens.CardWidthStandard, height = RojanDimens.CardHeightStandard)
                     .background(salon.colorSeed.copy(alpha = 0.30f), RojanShapes.Small)
             ) {
                 GlassSurface(
@@ -91,10 +94,9 @@ fun FavoriteSalons(ecosystemViewModel: CustomerEcosystemViewModel) {
                                 contentAlignment = Alignment.Center,
                             ) {
                                 if (salon.assetRes != null) {
-                                    Image(
-                                        painter = painterResource(id = salon.assetRes),
+                                    RojanSampleImage(
+                                        resId = salon.assetRes,
                                         contentDescription = salon.name,
-                                        contentScale = ContentScale.Crop,
                                         modifier = Modifier.fillMaxSize(),
                                     )
                                 } else {
@@ -102,19 +104,19 @@ fun FavoriteSalons(ecosystemViewModel: CustomerEcosystemViewModel) {
     imageVector = Icons.Filled.Storefront,
     contentDescription = null,
     tint = RojanTextPrimary,
-    sizeOverride = 32.dp,
+    size = RojanIconSize.Large,
 )
                                 }
                             }
 
-                            Icon(
+                            RojanIconContainer(
                                 imageVector = Icons.Filled.Favorite,
                                 contentDescription = "علاقه‌مندی",
                                 tint = RojanVividMagenta,
+                                size = RojanIconSize.Small,
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
-                                    .padding(RojanDimens.SpaceXS)
-                                    .size(16.dp),
+                                    .padding(RojanDimens.SpaceXS),
                             )
                         }
 
@@ -134,7 +136,7 @@ fun FavoriteSalons(ecosystemViewModel: CustomerEcosystemViewModel) {
     imageVector = Icons.Filled.Star,
     contentDescription = "امتیاز",
     tint = RojanTextSecondary,
-    sizeOverride = 14.dp,
+    size = RojanIconSize.Small,
 )
                             Text(
                                 text = salon.rating,

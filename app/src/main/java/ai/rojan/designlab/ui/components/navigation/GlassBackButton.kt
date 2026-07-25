@@ -55,7 +55,7 @@ fun GlassBackButton(
             Image(
                 painter = painterResource(id = R.drawable.ic_nav_back),
                 contentDescription = "بازگشت",
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(RojanDimens.IconSizeMedium),
             )
         }
     }

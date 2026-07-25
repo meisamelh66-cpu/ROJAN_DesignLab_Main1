@@ -87,7 +87,7 @@ fun ServiceCategoriesScreen(
                                     Image(
                                         painter = painterResource(id = category.iconRes),
                                         contentDescription = category.label,
-                                        modifier = Modifier.size(32.dp),
+                                        modifier = Modifier.size(RojanDimens.IconSizeLarge),
                                     )
                                 } else if (category.fallbackIcon != null) {
                                     Icon(

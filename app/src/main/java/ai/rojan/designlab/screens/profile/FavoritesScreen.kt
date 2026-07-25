@@ -31,6 +31,7 @@ import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
 import ai.rojan.designlab.ui.background.PremiumBackground
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
+import ai.rojan.designlab.ui.components.state.RojanEmptyState
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanRatingGold
 import ai.rojan.designlab.ui.theme.RojanShapes
@@ -70,13 +71,23 @@ fun FavoritesScreen(
             item { GlassBackButton(onClick = onBackClick) }
             item { Text("علاقه‌مندی‌ها", style = RojanTypography.HeroTitle, color = RojanTextOnGlass) }
 
-            items(favoriteSalons) { salon ->
-                FavoriteSalonCard(
-                    salon = salon,
-                    isFavorite = true,
-                    onClick = { onSalonClick(salon.id) },
-                    onToggleFavorite = { ecosystemViewModel.toggleFavoriteSalon(salon.id) },
-                )
+            if (favoriteSalons.isEmpty()) {
+                item {
+                    RojanEmptyState(
+                        title = "علاقه‌مندی‌ای ندارید",
+                        description = "سالن‌های مورد علاقه خود را اینجا ذخیره کنید",
+                        icon = Icons.Filled.FavoriteBorder,
+                    )
+                }
+            } else {
+                items(favoriteSalons) { salon ->
+                    FavoriteSalonCard(
+                        salon = salon,
+                        isFavorite = true,
+                        onClick = { onSalonClick(salon.id) },
+                        onToggleFavorite = { ecosystemViewModel.toggleFavoriteSalon(salon.id) },
+                    )
+                }
             }
         }
     }
@@ -113,7 +124,7 @@ private fun FavoriteSalonCard(
             Column(modifier = Modifier.weight(1f).padding(horizontal = RojanDimens.SpaceSM)) {
                 Text(salon.name, style = RojanTypography.Body, color = RojanTextPrimary)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Star, contentDescription = null, tint = RojanRatingGold, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Filled.Star, contentDescription = null, tint = RojanRatingGold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
                     Text(" ${salon.rating}", style = RojanTypography.Caption, color = RojanTextSecondary)
                 }
             }

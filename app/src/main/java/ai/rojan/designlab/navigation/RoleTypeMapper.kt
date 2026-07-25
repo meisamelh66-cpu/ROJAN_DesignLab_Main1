@@ -14,7 +14,4 @@ fun RoleType.toDomainRole(): Role = when (this) {
 
     RoleType.SALON_MANAGER ->
         Role.SALON_MANAGER
-
-    RoleType.PRODUCT_SELLER ->
-        Role.SELLER
 }

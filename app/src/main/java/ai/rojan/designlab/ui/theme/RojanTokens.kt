@@ -319,3 +319,15 @@ val RojanLuxuryHint = Color(0xFFB5A9BE)
 
 /** Disabled text on dark surfaces. */
 val RojanLuxuryDisabled = Color(0xFFC6BECF)
+
+// =====================================
+// ROJAN AI - LOADING SYSTEM
+// =====================================
+
+/** [PremiumLoadingBar] track — faint translucent white. */
+val RojanLoadingTrack = Color(0x22FFFFFF)
+
+/** [PremiumLoadingBar] sweeping glow gradient — warm amber, distinct from [RojanRatingGold]. */
+val RojanLoadingGlowStart = Color(0xFFFFE8C7)
+val RojanLoadingGlowMid = Color(0xFFF6C47C)
+val RojanLoadingGlowEnd = Color(0xFFE9A857)

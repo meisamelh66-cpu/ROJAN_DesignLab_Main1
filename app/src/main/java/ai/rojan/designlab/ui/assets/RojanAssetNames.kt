@@ -114,5 +114,4 @@ object RojanAssetNames {
     const val ROLE_CUSTOMER = "ic_role_customer"
     const val ROLE_MANAGER = "ic_role_manager"
     const val ROLE_SPECIALIST = "ic_role_specialist"
-    const val ROLE_SELLER = "ic_role_seller"
 }

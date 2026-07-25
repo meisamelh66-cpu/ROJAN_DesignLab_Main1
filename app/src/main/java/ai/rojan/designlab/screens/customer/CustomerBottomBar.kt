@@ -2,7 +2,9 @@ package ai.rojan.designlab.screens.customer
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +18,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
@@ -27,6 +30,7 @@ import ai.rojan.designlab.R
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
+import ai.rojan.designlab.ui.components.interaction.rojanPressedShadow
 import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
@@ -93,9 +97,14 @@ fun CustomerBottomBar(
             tabs.forEach { item ->
                 val isActive = item.tab == activeTab
                 val tint = if (isActive) RojanAIGlow else RojanTextSecondary
+                val interactionSource = remember { MutableInteractionSource() }
 
                 Column(
-                    modifier = Modifier.clickable { onTabSelected(item.tab) },
+                    modifier = Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = LocalIndication.current,
+                        onClick = { onTabSelected(item.tab) },
+                    ),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     if (item.assetRes != null) {
@@ -115,7 +124,7 @@ fun CustomerBottomBar(
                     }
                     Text(
                         text = item.label,
-                        style = RojanTypography.Caption,
+                        style = RojanTypography.Caption.rojanPressedShadow(interactionSource),
                         color = tint,
                     )
                 }

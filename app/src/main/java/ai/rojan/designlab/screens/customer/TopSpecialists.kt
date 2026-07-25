@@ -1,6 +1,5 @@
 package ai.rojan.designlab.screens.customer
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,21 +21,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTextPrimary
 import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
+import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
 /**
  * Customer Home top specialists — Design Board v1.0, Secondary Features
@@ -49,6 +47,11 @@ import ai.rojan.designlab.ui.components.icon.RojanIconContainer
  * canonical source Journey 1 already uses. `DemoSpecialist.assetRes`
  * (added earlier but never populated) is now wired to the real
  * `avatar_01..04` placeholder assets.
+ *
+ * Home Screen Production Pass, Task 7/8: card size moved from a raw
+ * `160.dp`/`190.dp` pair onto [RojanDimens.CardWidthStandard]/
+ * [RojanDimens.CardHeightStandard] — zero visual change, see
+ * [FeaturedSalons]'s identical note.
  */
 @Composable
 fun TopSpecialists() {
@@ -60,7 +63,7 @@ fun TopSpecialists() {
         items(catalogEngine.allSpecialists()) { specialist ->
             Box(
                 modifier = Modifier
-                    .size(width = 160.dp, height = 190.dp)
+                    .size(width = RojanDimens.CardWidthStandard, height = RojanDimens.CardHeightStandard)
                     .background(specialist.colorSeed.copy(alpha = 0.30f), RojanShapes.Small)
             ) {
                 GlassSurface(
@@ -83,20 +86,18 @@ fun TopSpecialists() {
                             contentAlignment = Alignment.Center,
                         ) {
                             if (specialist.assetRes != null) {
-                                Image(
-                                    painter = painterResource(id = specialist.assetRes),
+                                RojanSampleImage(
+                                    resId = specialist.assetRes,
                                     contentDescription = specialist.name,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(CircleShape),
+                                    shape = CircleShape,
+                                    modifier = Modifier.fillMaxSize(),
                                 )
                             } else {
                                 RojanIconContainer(
     imageVector = Icons.Filled.Person,
     contentDescription = null,
     tint = RojanTextPrimary,
-    sizeOverride = 32.dp,
+    size = RojanIconSize.Large,
 )
                             }
                         }
@@ -127,7 +128,7 @@ fun TopSpecialists() {
     imageVector = Icons.Filled.Star,
     contentDescription = "امتیاز",
     tint = RojanTextSecondary,
-    sizeOverride = 14.dp,
+    size = RojanIconSize.Small,
 )
                             Text(
                                 text = specialist.rating,

@@ -11,5 +11,4 @@ enum class Role {
     CUSTOMER,
     SALON_MANAGER,
     STYLIST,
-    SELLER,
 }

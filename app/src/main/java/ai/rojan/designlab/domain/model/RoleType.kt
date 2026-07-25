@@ -9,6 +9,4 @@ enum class RoleType {
 
     BEAUTY_SPECIALIST,
 
-    PRODUCT_SELLER
-
 }

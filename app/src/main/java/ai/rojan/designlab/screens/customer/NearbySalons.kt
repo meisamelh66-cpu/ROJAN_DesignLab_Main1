@@ -1,6 +1,5 @@
 package ai.rojan.designlab.screens.customer
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,19 +22,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTextPrimary
 import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
+import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
 /**
  * Customer Home nearby salons — Design Board v1.0, Secondary Features
@@ -53,6 +52,14 @@ import ai.rojan.designlab.ui.components.icon.RojanIconContainer
  * with its own separate click handling; rather than recreating that
  * deleted component (a duplicate) or restoring it (dead code), this is
  * the single shared implementation both screens now use.
+ *
+ * Home Screen Production Pass, Task 7/8: card size moved from a raw
+ * `160.dp`/`190.dp` pair onto [RojanDimens.CardWidthStandard]/
+ * [RojanDimens.CardHeightStandard] — zero visual change, see
+ * [FeaturedSalons]'s identical note. This component is shared with
+ * [ai.rojan.designlab.screens.booking.BookingLandingScreen], so this is
+ * a token-sourcing fix on both screens at once, not a Home-only change —
+ * safe since the token's value is identical to the literal it replaces.
  */
 @Composable
 fun NearbySalons(onSalonClick: ((String) -> Unit)? = null) {
@@ -64,7 +71,7 @@ fun NearbySalons(onSalonClick: ((String) -> Unit)? = null) {
         items(catalogEngine.allSalons()) { salon ->
             Box(
                 modifier = Modifier
-                    .size(width = 160.dp, height = 190.dp)
+                    .size(width = RojanDimens.CardWidthStandard, height = RojanDimens.CardHeightStandard)
                     .background(salon.colorSeed.copy(alpha = 0.30f), RojanShapes.Small)
             ) {
                 GlassSurface(
@@ -87,10 +94,9 @@ fun NearbySalons(onSalonClick: ((String) -> Unit)? = null) {
                             contentAlignment = Alignment.Center,
                         ) {
                             if (salon.assetRes != null) {
-                                Image(
-                                    painter = painterResource(id = salon.assetRes),
+                                RojanSampleImage(
+                                    resId = salon.assetRes,
                                     contentDescription = salon.name,
-                                    contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             } else {
@@ -98,7 +104,7 @@ fun NearbySalons(onSalonClick: ((String) -> Unit)? = null) {
     imageVector = Icons.Filled.Storefront,
     contentDescription = null,
     tint = RojanTextPrimary,
-    sizeOverride = 32.dp,
+    size = RojanIconSize.Large,
 )
                             }
                         }
@@ -119,7 +125,7 @@ fun NearbySalons(onSalonClick: ((String) -> Unit)? = null) {
     imageVector = Icons.Filled.LocationOn,
     contentDescription = "فاصله",
     tint = RojanTextSecondary,
-    sizeOverride = 14.dp,
+    size = RojanIconSize.Small,
 )
                             Text(
                                 text = "${salon.distanceKm} کیلومتر",
@@ -136,7 +142,7 @@ fun NearbySalons(onSalonClick: ((String) -> Unit)? = null) {
     imageVector = Icons.Filled.Star,
     contentDescription = "امتیاز",
     tint = RojanTextSecondary,
-    sizeOverride = 14.dp,
+    size = RojanIconSize.Small,
 )
                             Text(
                                 text = salon.rating,

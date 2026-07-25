@@ -38,6 +38,7 @@ import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.ui.background.PremiumBackground
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
+import ai.rojan.designlab.ui.components.state.RojanEmptyState
 import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
@@ -47,6 +48,7 @@ import ai.rojan.designlab.ui.theme.RojanTextPrimary
 import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
+import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
 /**
  * Journey 1, Screen 1: Search.
@@ -131,6 +133,13 @@ fun SearchScreen(
 
             Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
 
+            if (results.isEmpty()) {
+                RojanEmptyState(
+                    title = "نتیجه‌ای یافت نشد",
+                    description = "سالن یا خدمت دیگری را جستجو کنید",
+                    icon = Icons.Filled.Search,
+                )
+            } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
                 items(results) { salon ->
                     GlassSurface(
@@ -173,7 +182,7 @@ fun SearchScreen(
     imageVector = Icons.Filled.Star,
     contentDescription = null,
     tint = RojanTextSecondary,
-    sizeOverride = 14.dp,
+    size = RojanIconSize.Small,
 )
                                     Text(
                                         text = " ${salon.rating}  •  ",
@@ -184,7 +193,7 @@ fun SearchScreen(
     imageVector = Icons.Filled.LocationOn,
     contentDescription = null,
     tint = RojanTextSecondary,
-    sizeOverride = 14.dp,
+    size = RojanIconSize.Small,
 )
                                     Text(
                                         text = " ${salon.distanceKm} کیلومتر",
@@ -202,6 +211,7 @@ fun SearchScreen(
                         }
                     }
                 }
+            }
             }
         }
     }

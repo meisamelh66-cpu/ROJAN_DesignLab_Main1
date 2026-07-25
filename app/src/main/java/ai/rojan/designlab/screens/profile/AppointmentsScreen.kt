@@ -32,6 +32,7 @@ import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
 import ai.rojan.designlab.ui.background.PremiumBackground
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
+import ai.rojan.designlab.ui.components.state.RojanEmptyState
 import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanErrorText
@@ -89,6 +90,15 @@ fun AppointmentsScreen(
 
             if (ecosystemViewModel.lastEvents.isNotEmpty()) {
                 item { EventCascadeSummary(ecosystemViewModel.lastEvents) }
+            }
+
+            if (upcoming.isEmpty() && past.isEmpty()) {
+                item {
+                    RojanEmptyState(
+                        title = "هنوز نوبتی ندارید",
+                        description = "برای رزرو نوبت جدید به صفحه اصلی بازگردید",
+                    )
+                }
             }
 
             if (upcoming.isNotEmpty()) {

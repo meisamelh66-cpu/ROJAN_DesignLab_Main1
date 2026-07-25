@@ -31,6 +31,7 @@ import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.theme.RojanVividPurple
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
+import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
 /**
  * Customer Home promotions — Design Board v1.0, Secondary Features layer,
@@ -78,7 +79,7 @@ fun PromotionsSection() {
     imageVector = Icons.Filled.AutoAwesome,
     contentDescription = null,
     tint = RojanVividPurple,
-    sizeOverride = 16.dp,
+    size = RojanIconSize.Small,
 )
                                 Text(
                                     text = promotion.title,

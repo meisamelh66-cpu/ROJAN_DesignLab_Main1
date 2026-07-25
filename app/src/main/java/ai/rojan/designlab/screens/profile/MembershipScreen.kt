@@ -29,6 +29,7 @@ import ai.rojan.designlab.ui.theme.RojanTextPrimary
 import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
+import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
 /**
  * Journey 2, Screen 6: Membership — progress-to-next-tier now reads
@@ -63,7 +64,7 @@ fun MembershipScreen(
     imageVector = Icons.Filled.WorkspacePremium,
     contentDescription = null,
     tint = RojanAIGlow,
-    sizeOverride = 56.dp,
+    size = RojanIconSize.XLarge,
 )
                     Text("سطح ${tier.currentTierName}", style = RojanTypography.HeroTitle, color = RojanTextPrimary)
                     Text(

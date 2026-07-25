@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import ai.rojan.designlab.data.demo.DemoService
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
@@ -34,6 +35,7 @@ import ai.rojan.designlab.ui.theme.RojanTextPrimary
 import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
+import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
 /**
  * Code Cleanup pass: migrated off its previous local `fakeRecommendations`
@@ -74,6 +76,21 @@ private fun confidenceFor(service: DemoService): String =
  * confidence indicator are what actually carry the "ROJAN AI understands
  * my beauty needs" feeling per the Board's brief — through specific,
  * personal-sounding copy, not through visual spectacle.
+ *
+ * Home Screen Production Pass, Task 7/8: card width was 170dp, the only
+ * outlier among this screen's 5 identically-structured horizontal-scroll
+ * cards (the other 4 already use 160dp) — moved onto
+ * [RojanDimens.CardWidthStandard]/[RojanDimens.CardHeightStandard], the
+ * exact token that exists for this pair (see its own doc comment). Task
+ * 9: the star-badge icon moves from a bespoke 24dp onto
+ * [RojanIconSize.Medium] (20dp).
+ *
+ * Production Asset Normalization: the badge circle now shows the
+ * service's real sample image ([RojanSampleImage], circular crop) when
+ * [DemoService.assetRes] is set — the star icon remains only as the
+ * fallback for the null case, matching every other card's
+ * image-with-icon-fallback pattern (previously this was the one card
+ * family with no image slot at all, icon-only).
  */
 @Composable
 fun RecommendedServices() {
@@ -85,7 +102,7 @@ fun RecommendedServices() {
         items(catalogEngine.allServices()) { service ->
             Box(
                 modifier = Modifier
-                    .size(width = 170.dp, height = 190.dp)
+                    .size(width = RojanDimens.CardWidthStandard, height = RojanDimens.CardHeightStandard)
                     .background(RojanAIGlow.copy(alpha = 0.12f), RojanShapes.Small)
             ) {
                 GlassSurface(
@@ -109,7 +126,7 @@ fun RecommendedServices() {
     imageVector = Icons.Filled.AutoAwesome,
     contentDescription = null,
     tint = RojanAIGlow,
-    sizeOverride = 14.dp,
+    size = RojanIconSize.Small,
 )
                             Text(
                                 text = "پیشنهاد AI برای شما",
@@ -126,12 +143,21 @@ fun RecommendedServices() {
                                 .background(RojanAIGlow.copy(alpha = 0.12f), CircleShape),
                             contentAlignment = Alignment.Center,
                         ) {
-                            RojanIconContainer(
+                            if (service.assetRes != null) {
+                                RojanSampleImage(
+                                    resId = service.assetRes,
+                                    contentDescription = service.name,
+                                    shape = CircleShape,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            } else {
+                                RojanIconContainer(
     imageVector = Icons.Filled.Star,
     contentDescription = null,
     tint = RojanTextPrimary,
-    sizeOverride = 24.dp,
+    size = RojanIconSize.Medium,
 )
+                            }
                         }
 
                         Text(

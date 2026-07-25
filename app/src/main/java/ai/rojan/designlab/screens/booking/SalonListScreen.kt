@@ -1,8 +1,9 @@
 package ai.rojan.designlab.screens.booking
 
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,14 +24,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.data.demo.DemoSalon
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.ui.background.PremiumBackground
 import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.ui.components.image.RojanSampleImage
+import ai.rojan.designlab.ui.components.interaction.rojanPressedShadow
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanRatingGold
@@ -99,10 +100,15 @@ fun SalonListScreen(
 
 @Composable
 private fun MinimalSalonCard(salon: DemoSalon, onClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick,
+            ),
         shape = RojanShapes.Small,
     ) {
         Row(
@@ -119,10 +125,9 @@ private fun MinimalSalonCard(salon: DemoSalon, onClick: () -> Unit) {
                 contentAlignment = Alignment.Center,
             ) {
                 if (salon.assetRes != null) {
-                    Image(
-                        painter = painterResource(id = salon.assetRes),
+                    RojanSampleImage(
+                        resId = salon.assetRes,
                         contentDescription = salon.name,
-                        contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
                     )
                 } else {
@@ -131,15 +136,19 @@ private fun MinimalSalonCard(salon: DemoSalon, onClick: () -> Unit) {
             }
 
             Column {
-                Text(salon.name, style = RojanTypography.Body, color = RojanTextPrimary)
+                Text(
+                    salon.name,
+                    style = RojanTypography.Body.rojanPressedShadow(interactionSource),
+                    color = RojanTextPrimary,
+                )
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS)) {
-                    Icon(Icons.Filled.Star, contentDescription = "امتیاز", tint = RojanRatingGold, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Filled.Star, contentDescription = "امتیاز", tint = RojanRatingGold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
                     Text(salon.rating, style = RojanTypography.Caption, color = RojanTextSecondary)
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS)) {
-                    Icon(Icons.Filled.LocationOn, contentDescription = null, tint = RojanTextSecondary, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Filled.LocationOn, contentDescription = null, tint = RojanTextSecondary, modifier = Modifier.size(RojanDimens.IconSizeSmall))
                     Text("${salon.distanceKm} km", style = RojanTypography.Caption, color = RojanTextSecondary)
                 }
             }

@@ -66,24 +66,6 @@ fun RoleRow(
 
         RoleCard3D(
 
-            title = "فروشنده",
-
-            subtitle = "فروش و مدیریت محصولات",
-
-            modifier = Modifier.weight(1f),
-
-            onClick = {
-                onRoleSelected(
-                    RoleType.PRODUCT_SELLER
-                )
-            }
-
-        )
-
-
-
-        RoleCard3D(
-
             title = "متخصص",
 
             subtitle = "خدمات و مدیریت نوبت‌ها",

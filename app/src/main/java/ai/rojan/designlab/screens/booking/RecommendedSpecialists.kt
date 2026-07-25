@@ -1,7 +1,9 @@
 package ai.rojan.designlab.screens.booking
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,8 +16,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -25,10 +25,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.data.demo.DemoSpecialist
+import ai.rojan.designlab.ui.components.buttons.PremiumButton
+import ai.rojan.designlab.ui.components.interaction.rojanPressedShadow
 import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanAvatarGradientStart
 import ai.rojan.designlab.ui.theme.RojanDimens
@@ -76,6 +79,8 @@ private fun SpecialistPremiumCard(
     onClick: () -> Unit,
 ) {
 
+    val interactionSource = remember { MutableInteractionSource() }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -83,7 +88,11 @@ private fun SpecialistPremiumCard(
                 elevation = RojanShadows.PremiumElevation,
                 shape = RojanShapes.GlassCard
             )
-            .clickable(onClick = onClick),
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick,
+            ),
         shape = RojanShapes.GlassCard
     ) {
 
@@ -129,7 +138,8 @@ private fun SpecialistPremiumCard(
 
                     Text(
                         text = specialist.name,
-                        fontSize = RojanDimens.SubtitleSize,
+                        style = TextStyle(fontSize = RojanDimens.SubtitleSize)
+                            .rojanPressedShadow(interactionSource),
                         color = RojanTextPrimary
                     )
 
@@ -167,14 +177,11 @@ private fun SpecialistPremiumCard(
 
             Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))
 
-            Button(
+            PremiumButton(
+                text = "مشاهده و رزرو",
                 onClick = onClick,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RojanShapes.PremiumButton,
-                colors = ButtonDefaults.buttonColors(containerColor = RojanAIGlow)
-            ) {
-                Text(text = "مشاهده و رزرو", style = RojanTypography.Button)
-            }
+            )
         }
     }
 }

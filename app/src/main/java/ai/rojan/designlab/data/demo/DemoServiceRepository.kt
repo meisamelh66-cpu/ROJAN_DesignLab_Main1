@@ -1,5 +1,6 @@
 package ai.rojan.designlab.data.demo
 
+import ai.rojan.designlab.ui.assets.SampleImageProvider
 import ai.rojan.designlab.ui.theme.RojanAquaMint
 import ai.rojan.designlab.ui.theme.RojanBlushPink
 import ai.rojan.designlab.ui.theme.RojanPearlPink
@@ -22,6 +23,7 @@ object DemoServiceRepository {
             categoryLabel = "مو",
             additionalSalonIds = listOf("salon_02", "salon_03"),
             colorSeed = RojanSoftLavender,
+            assetRes = SampleImageProvider.forService("service_01"),
         ),
         DemoService(
             id = "service_02",
@@ -37,6 +39,7 @@ object DemoServiceRepository {
             categoryLabel = "پوست",
             additionalSalonIds = listOf("salon_01"),
             colorSeed = RojanAquaMint,
+            assetRes = SampleImageProvider.forService("service_02"),
         ),
         DemoService(
             id = "service_03",
@@ -52,6 +55,7 @@ object DemoServiceRepository {
             categoryLabel = "آرایش",
             additionalSalonIds = listOf("salon_04"),
             colorSeed = RojanBlushPink,
+            assetRes = SampleImageProvider.forService("service_03"),
         ),
         DemoService(
             id = "service_04",
@@ -67,6 +71,7 @@ object DemoServiceRepository {
             categoryLabel = "ناخن",
             additionalSalonIds = listOf("salon_01", "salon_02"),
             colorSeed = RojanPearlPink,
+            assetRes = SampleImageProvider.forService("service_04"),
         ),
         DemoService(
             id = "service_05",
@@ -82,6 +87,7 @@ object DemoServiceRepository {
             categoryLabel = "اپیلاسیون",
             additionalSalonIds = listOf("salon_03"),
             colorSeed = RojanAquaMint,
+            assetRes = SampleImageProvider.forService("service_05"),
         ),
         DemoService(
             id = "service_06",
@@ -97,6 +103,7 @@ object DemoServiceRepository {
             categoryLabel = "ماساژ",
             additionalSalonIds = listOf("salon_02"),
             colorSeed = RojanSoftLavender,
+            assetRes = SampleImageProvider.forService("service_06"),
         ),
         DemoService(
             id = "service_07",
@@ -111,6 +118,7 @@ object DemoServiceRepository {
             salonId = "salon_02",
             categoryLabel = "ابرو",
             colorSeed = RojanBlushPink,
+            assetRes = SampleImageProvider.forService("service_07"),
         ),
         DemoService(
             id = "service_08",
@@ -126,6 +134,7 @@ object DemoServiceRepository {
             categoryLabel = "لیزر",
             additionalSalonIds = listOf("salon_01"),
             colorSeed = RojanPearlPink,
+            assetRes = SampleImageProvider.forService("service_08"),
         ),
     )
 

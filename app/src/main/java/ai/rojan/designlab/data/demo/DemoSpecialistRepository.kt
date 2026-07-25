@@ -1,6 +1,6 @@
 package ai.rojan.designlab.data.demo
 
-import ai.rojan.designlab.R
+import ai.rojan.designlab.ui.assets.SampleImageProvider
 import ai.rojan.designlab.ui.theme.RojanAquaMint
 import ai.rojan.designlab.ui.theme.RojanBlushPink
 import ai.rojan.designlab.ui.theme.RojanPearlPink
@@ -22,7 +22,7 @@ object DemoSpecialistRepository {
             languages = listOf("فارسی", "انگلیسی"),
             salonId = "salon_01",
             colorSeed = RojanSoftLavender,
-            assetRes = R.drawable.avatar_01,
+            assetRes = SampleImageProvider.forSpecialist("specialist_01"),
         ),
         DemoSpecialist(
             id = "specialist_02",
@@ -37,7 +37,7 @@ object DemoSpecialistRepository {
             languages = listOf("فارسی"),
             salonId = "salon_03",
             colorSeed = RojanAquaMint,
-            assetRes = R.drawable.avatar_02,
+            assetRes = SampleImageProvider.forSpecialist("specialist_02"),
         ),
         DemoSpecialist(
             id = "specialist_03",
@@ -52,7 +52,7 @@ object DemoSpecialistRepository {
             languages = listOf("فارسی", "انگلیسی", "ترکی استانبولی"),
             salonId = "salon_02",
             colorSeed = RojanBlushPink,
-            assetRes = R.drawable.avatar_03,
+            assetRes = SampleImageProvider.forSpecialist("specialist_03"),
         ),
         DemoSpecialist(
             id = "specialist_04",
@@ -67,7 +67,7 @@ object DemoSpecialistRepository {
             languages = listOf("فارسی"),
             salonId = "salon_04",
             colorSeed = RojanPearlPink,
-            assetRes = R.drawable.avatar_04,
+            assetRes = SampleImageProvider.forSpecialist("specialist_04"),
         ),
     )
 

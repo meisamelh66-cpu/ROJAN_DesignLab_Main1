@@ -17,12 +17,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Shared minimal layout for the four role dashboards.
+ * Shared minimal layout for the Manager and Stylist dashboards.
  *
  * Production Readiness Fix 1: previously used `GradientBackground` (the
  * original light-pastel component), while Customer Home had already
  * moved to [PremiumBackground] (the Dark Lavender Luxury Canvas) —
- * meaning Manager/Specialist/Seller looked like a different, older app.
+ * meaning Manager/Specialist looked like a different, older app.
  * Now unified. Text colors were *also* corrected here, not left as-is:
  * this title/subtitle sits directly on the dark canvas with no glass
  * card underneath it, so per the Background System's two-surface text

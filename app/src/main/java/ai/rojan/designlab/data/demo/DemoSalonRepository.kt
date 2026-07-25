@@ -1,6 +1,6 @@
 package ai.rojan.designlab.data.demo
 
-import ai.rojan.designlab.R
+import ai.rojan.designlab.ui.assets.SampleImageProvider
 import ai.rojan.designlab.ui.theme.RojanAquaMint
 import ai.rojan.designlab.ui.theme.RojanBlushPink
 import ai.rojan.designlab.ui.theme.RojanPearlPink
@@ -26,7 +26,7 @@ object DemoSalonRepository {
             phone = "021-8877-4455",
             facilities = listOf("پارکینگ اختصاصی", "اتاق VIP", "پذیرایی رایگان", "دسترسی معلولین"),
             colorSeed = RojanSoftLavender,
-            assetRes = R.drawable.salon_01,
+            assetRes = SampleImageProvider.forSalon("salon_01"),
         ),
         DemoSalon(
             id = "salon_02",
@@ -40,7 +40,7 @@ object DemoSalonRepository {
             phone = "021-2266-7788",
             facilities = listOf("پارکینگ اختصاصی", "کافی‌شاپ داخلی", "وای‌فای رایگان"),
             colorSeed = RojanAquaMint,
-            assetRes = R.drawable.salon_02,
+            assetRes = SampleImageProvider.forSalon("salon_02"),
         ),
         DemoSalon(
             id = "salon_03",
@@ -54,7 +54,7 @@ object DemoSalonRepository {
             phone = "021-2244-9911",
             facilities = listOf("سونا و جکوزی", "اتاق VIP", "پذیرایی رایگان"),
             colorSeed = RojanBlushPink,
-            assetRes = R.drawable.salon_03,
+            assetRes = SampleImageProvider.forSalon("salon_03"),
         ),
         DemoSalon(
             id = "salon_04",
@@ -68,7 +68,7 @@ object DemoSalonRepository {
             phone = "021-8899-1122",
             facilities = listOf("پارکینگ اختصاصی", "وای‌فای رایگان", "دسترسی معلولین"),
             colorSeed = RojanPearlPink,
-            assetRes = R.drawable.salon_placeholder,
+            assetRes = SampleImageProvider.forSalon("salon_04"),
         ),
     )
 

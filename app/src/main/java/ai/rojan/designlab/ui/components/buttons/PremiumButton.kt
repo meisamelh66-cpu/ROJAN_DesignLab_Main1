@@ -1,11 +1,13 @@
 package ai.rojan.designlab.ui.components.buttons
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -13,6 +15,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
+import ai.rojan.designlab.ui.components.interaction.rojanPressedShadow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanGradients
 import ai.rojan.designlab.ui.theme.RojanShadows
@@ -65,17 +68,18 @@ import ai.rojan.designlab.ui.theme.RojanTypography
 fun PremiumButton(
     text: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier.size(
+        width = RojanDimens.ButtonWidth,
+        height = RojanDimens.ButtonHeight
+    ),
     enabled: Boolean = true,
     loading: Boolean = false,
 ) {
     val isInteractive = enabled && !loading
+    val interactionSource = remember { MutableInteractionSource() }
 
     Box(
-        modifier = Modifier
-            .size(
-                width = RojanDimens.ButtonWidth,
-                height = RojanDimens.ButtonHeight
-            )
+        modifier = modifier
             .let {
                 if (isInteractive) {
                     it.shadow(
@@ -94,7 +98,11 @@ fun PremiumButton(
             )
             .alpha(if (isInteractive) 1f else 0.5f)
             .let {
-                if (isInteractive) it.rojanPressable(onClick = onClick) else it
+                if (isInteractive) {
+                    it.rojanPressable(onClick = onClick, interactionSource = interactionSource)
+                } else {
+                    it
+                }
             },
 
         contentAlignment = Alignment.Center
@@ -108,7 +116,7 @@ fun PremiumButton(
         } else {
             Text(
                 text = text,
-                style = RojanTypography.Button,
+                style = RojanTypography.Button.rojanPressedShadow(interactionSource),
                 color = RojanTextOnGlass,
             )
         }

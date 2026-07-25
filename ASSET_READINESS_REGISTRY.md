@@ -24,7 +24,7 @@ Target filenames are centralized in `ui/assets/RojanAssetNames.kt` — one sourc
 | 6 | AI Assets | `AISearchBar.kt`, `RecommendedServices.kt` | Not yet applied | 📋 Registered — usage-boundary rule ("AI sections only") noted for whoever applies the pattern next |
 | 7 | Specialist Avatars | `TopSpecialists.kt` | ✅ **Implemented** | Ready — includes circular clipping for real photos |
 | 8 | Salon Images | `FeaturedSalons.kt` | ✅ **Implemented** | `NearbySalons.kt`/`FavoriteSalons.kt` share the identical card shape — same pattern recommended, not done this pass |
-| 9 | Product Assets | *(no current consumer — Marketplace/Seller screens don't exist yet)* | Not applicable yet | 📋 Registered, no component to wire |
+| 9 | Product Assets | *(no current consumer — Marketplace screens don't exist yet)* | Not applicable yet | 📋 Registered, no component to wire |
 | 10 | Status Assets | *(no current consumer — `EmptyState.kt`/`LoadingState.kt` remain unimplemented stubs)* | Not applicable yet | 📋 Registered, correctly deferred per every prior audit |
 | 11 | Decorative Assets | `PremiumBackground.kt` (Atmosphere layer, currently omitted) | Not yet applied | 📋 Registered — these map to the Background System's deliberately-omitted Atmosphere layer, not a gap |
 | 12 | Authentication Assets | *(no current consumer — auth screens don't exist yet, per the Product Roadmap's Phase 2)* | Not applicable yet | 📋 Registered, no component to wire |

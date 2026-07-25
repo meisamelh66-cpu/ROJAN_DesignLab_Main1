@@ -117,7 +117,7 @@ fun SpecialistProfileScreen(
                                 modifier = Modifier.padding(horizontal = RojanDimens.SpaceSM, vertical = RojanDimens.SpaceXS),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Icon(Icons.Filled.CheckCircle, null, tint = RojanAIGlow, modifier = Modifier.size(14.dp))
+                                Icon(Icons.Filled.CheckCircle, null, tint = RojanAIGlow, modifier = Modifier.size(RojanDimens.IconSizeSmall))
                                 Text(" $skill", style = RojanTypography.Caption, color = RojanTextPrimary)
                             }
                         }
@@ -155,7 +155,7 @@ fun SpecialistProfileScreen(
                         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                             Text(review.authorName, style = RojanTypography.Caption, color = RojanTextPrimary)
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.Star, null, tint = RojanRatingGold, modifier = Modifier.size(14.dp))
+                                Icon(Icons.Filled.Star, null, tint = RojanRatingGold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
                                 Text(" ${review.rating}", style = RojanTypography.Caption, color = RojanTextSecondary)
                             }
                         }

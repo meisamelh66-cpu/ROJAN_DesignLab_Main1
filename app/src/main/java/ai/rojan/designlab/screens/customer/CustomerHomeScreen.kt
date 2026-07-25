@@ -63,7 +63,8 @@ fun CustomerHomeScreen(
     onFavoritesClick: () -> Unit = {},
 ) {
     PremiumBackground(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
+        softenForContent = true,
     ) {
         LazyColumn(
             modifier = Modifier

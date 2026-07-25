@@ -1,5 +1,5 @@
 package ai.rojan.designlab.ui.components.glass
-
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -86,10 +86,10 @@ import ai.rojan.designlab.ui.theme.RojanShadows
 fun GlassSurface(
     modifier: Modifier = Modifier,
     shape: Shape,
-    glassAlpha: Float = 0.38f,
-    glassSecondaryAlpha: Float = 0.12f,
-    borderAlpha: Float = 0.10f,
-    borderSecondaryAlpha: Float = 0.03f,
+    glassAlpha: Float = 0.40f,
+    glassSecondaryAlpha: Float = 0.14f,
+    borderAlpha: Float = 0.18f,
+    borderSecondaryAlpha: Float = 0.08f,
     elevation: Dp = RojanShadows.FloatingElevation,
     showHighlight: Boolean = true,
     content: @Composable () -> Unit
@@ -113,18 +113,23 @@ fun GlassSurface(
                 shape = shape
             )
             .border(
-                width = Dp.Hairline,
+                width = 0.38.dp,
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        RojanGlassBorder.copy(alpha = borderAlpha),
-                        RojanGlassBorder.copy(alpha = borderSecondaryAlpha)
-                    )
+                        Color.White.copy(alpha = borderAlpha),
+                        Color.White.copy(alpha = borderSecondaryAlpha)
+                    ),
+                    start = Offset.Zero,
+                    end = Offset(600f, 600f)
                 ),
                 shape = shape
             )
     ) {
+
         if (showHighlight) {
+
             val density = LocalDensity.current
+
             val highlightRadiusPx = with(density) {
                 (maxWidth.coerceAtLeast(maxHeight) * 0.35f).toPx()
             }
@@ -135,8 +140,9 @@ fun GlassSurface(
                     .background(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.20f),
-                                Color.White.copy(alpha = 0f)
+                                Color.White.copy(alpha = 0.26f),
+                                Color.White.copy(alpha = 0.08f),
+                                Color.Transparent
                             ),
                             center = Offset.Zero,
                             radius = highlightRadiusPx.coerceAtLeast(1f)

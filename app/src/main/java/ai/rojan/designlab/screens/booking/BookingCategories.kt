@@ -1,6 +1,7 @@
 package ai.rojan.designlab.screens.booking
 
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,6 +24,7 @@ import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
+import ai.rojan.designlab.ui.components.interaction.rojanPressedShadow
 import ai.rojan.designlab.ui.theme.RojanCategoryMakeupIcon
 import ai.rojan.designlab.ui.theme.RojanCategoryNailsIcon
 import ai.rojan.designlab.ui.theme.RojanCategorySkinIcon
@@ -89,8 +92,9 @@ data class CategoryData(
 
 @Composable
 private fun Category3DCard(item: CategoryData, onClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
     GlassSurface(
-        modifier = Modifier.rojanPressable(onClick = onClick),
+        modifier = Modifier.rojanPressable(onClick = onClick, interactionSource = interactionSource),
         shape = RojanShapes.GlassCard,
     ) {
         Column(
@@ -108,7 +112,7 @@ private fun Category3DCard(item: CategoryData, onClick: () -> Unit) {
 
             Text(
                 text = item.title,
-                style = RojanTypography.CardTitle,
+                style = RojanTypography.CardTitle.rojanPressedShadow(interactionSource),
                 color = RojanTextPrimary,
             )
         }

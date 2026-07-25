@@ -23,6 +23,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
+import ai.rojan.designlab.ui.theme.RojanLoadingGlowEnd
+import ai.rojan.designlab.ui.theme.RojanLoadingGlowMid
+import ai.rojan.designlab.ui.theme.RojanLoadingGlowStart
+import ai.rojan.designlab.ui.theme.RojanLoadingTrack
+
 /**
  * ROJAN DesignLab
  * Premium Loading Bar
@@ -32,12 +37,12 @@ import androidx.compose.ui.unit.dp
 fun PremiumLoadingBar(
     modifier: Modifier = Modifier,
     height: Dp = 3.dp,
-    trackColor: Color = Color(0x22FFFFFF),
+    trackColor: Color = RojanLoadingTrack,
     glowColors: List<Color> = listOf(
         Color.Transparent,
-        Color(0xFFFFE8C7),
-        Color(0xFFF6C47C),
-        Color(0xFFE9A857),
+        RojanLoadingGlowStart,
+        RojanLoadingGlowMid,
+        RojanLoadingGlowEnd,
         Color.Transparent
     ),
     durationMillis: Int = 2500,

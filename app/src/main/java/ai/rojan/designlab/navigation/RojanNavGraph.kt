@@ -31,7 +31,6 @@ import ai.rojan.designlab.screens.bookingflow.BookingSuccessScreen
 import ai.rojan.designlab.screens.bookingflow.BookingTimeScreen
 import ai.rojan.designlab.screens.customer.CustomerHomeScreen
 import ai.rojan.designlab.screens.dashboard.ManagerDashboardScreen
-import ai.rojan.designlab.screens.dashboard.SellerDashboardScreen
 import ai.rojan.designlab.screens.dashboard.StylistDashboardScreen
 import ai.rojan.designlab.screens.profile.AppointmentDetailsScreen
 import ai.rojan.designlab.screens.profile.AppointmentsScreen
@@ -162,7 +161,7 @@ private fun customerEcosystemViewModelFor(
  * NEW phone/OTP system at all, so guarding against `PersonRole` here
  * would incorrectly block the majority of legitimate customers, a real
  * regression, not a fix. Guarding against the OLD `Role` (which
- * genuinely does gate SALON_MANAGER/STYLIST/SELLER away from
+ * genuinely does gate SALON_MANAGER/STYLIST away from
  * CUSTOMER_HOME already) is the correct, safe check for what this audit
  * actually asked to prevent: "unauthorized roles cannot access Customer
  * appointment screens."
@@ -895,26 +894,6 @@ fun RojanNavGraph() {
                 ) {
 
                     StylistDashboardScreen(
-                        onBackClick = { navController.navigate(RojanDestinations.WELCOME) }
-                    )
-
-                }
-
-
-
-
-
-                composable(
-                    route = RojanDestinations.SELLER_DASHBOARD,
-                    enterTransition = {
-                        motionEnter
-                    },
-                    exitTransition = {
-                        motionExit
-                    }
-                ) {
-
-                    SellerDashboardScreen(
                         onBackClick = { navController.navigate(RojanDestinations.WELCOME) }
                     )
 

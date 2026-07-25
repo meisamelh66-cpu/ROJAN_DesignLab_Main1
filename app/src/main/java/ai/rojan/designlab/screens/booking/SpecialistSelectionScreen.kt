@@ -128,7 +128,7 @@ private fun SpecialistRow(specialist: DemoSpecialist, onClick: () -> Unit) {
                 Text(specialist.name, style = RojanTypography.Body, color = RojanTextPrimary)
                 Text(specialist.title, style = RojanTypography.Caption, color = RojanTextSecondary)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS)) {
-                    Icon(Icons.Filled.Star, contentDescription = "امتیاز", tint = RojanRatingGold, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Filled.Star, contentDescription = "امتیاز", tint = RojanRatingGold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
                     Text(specialist.rating, style = RojanTypography.Caption, color = RojanTextSecondary)
                 }
             }

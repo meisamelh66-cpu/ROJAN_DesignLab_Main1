@@ -23,6 +23,7 @@ import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
 import ai.rojan.designlab.ui.background.PremiumBackground
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
+import ai.rojan.designlab.ui.components.state.RojanEmptyState
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanRatingGold
 import ai.rojan.designlab.ui.theme.RojanShapes
@@ -47,8 +48,18 @@ fun MyReviewsScreen(
             item { GlassBackButton(onClick = onBackClick) }
             item { Text("نظرات من", style = RojanTypography.HeroTitle, color = RojanTextOnGlass) }
 
-            items(ecosystemViewModel.state.reviews) { review ->
-                MyReviewCard(review)
+            if (ecosystemViewModel.state.reviews.isEmpty()) {
+                item {
+                    RojanEmptyState(
+                        title = "هنوز نظری ثبت نکرده‌اید",
+                        description = "پس از دریافت خدمت می‌توانید نظر خود را ثبت کنید",
+                        icon = Icons.Filled.Star,
+                    )
+                }
+            } else {
+                items(ecosystemViewModel.state.reviews) { review ->
+                    MyReviewCard(review)
+                }
             }
         }
     }
@@ -65,7 +76,7 @@ private fun MyReviewCard(review: DemoUserReview) {
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                 Text(review.salonName, style = RojanTypography.Body, color = RojanTextPrimary)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Star, contentDescription = null, tint = RojanRatingGold, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Filled.Star, contentDescription = null, tint = RojanRatingGold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
                     Text(" ${review.rating}", style = RojanTypography.Caption, color = RojanTextSecondary)
                 }
             }

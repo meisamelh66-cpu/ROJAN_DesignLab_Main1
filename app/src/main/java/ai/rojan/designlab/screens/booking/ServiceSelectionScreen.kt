@@ -1,7 +1,9 @@
 package ai.rojan.designlab.screens.booking
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,6 +32,7 @@ import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.ui.background.PremiumBackground
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.ui.components.interaction.rojanPressedShadow
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
@@ -100,10 +103,16 @@ private fun ServiceSelectionRow(
     isSelected: Boolean,
     onToggle: () -> Unit,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onToggle),
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onClick = onToggle,
+            ),
         shape = RojanShapes.Small,
     ) {
         Row(
@@ -114,7 +123,11 @@ private fun ServiceSelectionRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(service.name, style = RojanTypography.Body, color = RojanTextPrimary)
+                Text(
+                    service.name,
+                    style = RojanTypography.Body.rojanPressedShadow(interactionSource),
+                    color = RojanTextPrimary,
+                )
                 Text(
                     "${service.durationMinutes} دقیقه",
                     style = RojanTypography.Caption,

@@ -10,7 +10,7 @@
 |---|---|
 | Foundation (auth-free session/role routing, Splash, Welcome) | ✅ Complete, twice-fixed for real device reliability |
 | Customer Home | ✅ All 13 sections implemented, dark canvas applied, 4 components asset-wired |
-| Manager / Specialist / Seller Dashboards | 🔴 **Still placeholder-only** — see Section 2 |
+| Manager / Specialist Dashboards | 🔴 **Still placeholder-only** — see Section 2 |
 | Design token system | ✅ In active use across Customer Home; **not applied to dashboards** |
 | Asset pipeline | 🟡 20 of 63 registered assets ready (32%) — see Section 3 |
 | Real device / build confirmation | 🔴 **Never executed**, at any point in this engagement |
@@ -25,7 +25,7 @@
 - **Package organization is coherent** for what exists: `screens/customer/` has its own `models/`, `state/`, `viewmodel/` sub-packages ready for real data-binding, even though currently unused (fake data only).
 
 ### Technical Debt (confirmed)
-- **`DashboardPlaceholder.kt` still uses `GradientBackground`** (the original light-pastel component), not `PremiumBackground` (the Dark Lavender Luxury Canvas). This means **Manager, Specialist, and Seller currently see a completely different visual system than Customer** — old light theme vs. new dark theme. This is the single most significant architecture/consistency finding in this audit.
+- **`DashboardPlaceholder.kt` still uses `GradientBackground`** (the original light-pastel component), not `PremiumBackground` (the Dark Lavender Luxury Canvas). This means **Manager and Specialist currently see a completely different visual system than Customer** — old light theme vs. new dark theme. This is the single most significant architecture/consistency finding in this audit.
 - `DashboardPlaceholder.kt` also has zero design-token usage — raw `24.dp`, `22.sp`, `14.sp`, `8.dp` throughout, never migrated (it was never in scope for any Customer Home phase).
 - **Zero back-navigation exists anywhere in the app** — confirmed by an app-wide search for `popBackStack`, `navigateUp`, `TopAppBar`, or any back-icon pattern: none found. Once past Welcome, there is no in-app way back to it or between roles except the OS back button (which, given `NavHost`'s single-destination-tree-per-restore-state design, likely exits the app rather than returning to Welcome).
 - **No `key =` parameter on any of the 9 `LazyRow`/`LazyColumn` `items()` calls** across Customer Home. Harmless today (small, static fake lists), but a real recomposition-efficiency risk once these bind to real, dynamic data — items will be recomposed by position rather than identity, which shows up as visible jank on reorder/insert/delete with real data.
@@ -41,7 +41,7 @@
 ### Customer Home
 Internally consistent — dark canvas, pastel glass, consistent card language across the 7 "compact card" sections (acknowledged minor size variance: 160/170/190dp widths, 150/190dp heights — cosmetic, previously documented, not re-litigated here).
 
-### Manager / Specialist / Seller Dashboards
+### Manager / Specialist Dashboards
 **Not comparable to Customer Home at all** — each is a single centered title + subtitle on the old light background. No icons (excessive or otherwise — there's nothing to be excessive), no components, no spacing system in use, no visual density concerns because there's no content. The relevant finding isn't "these have UI problems" — it's that **they don't have UI yet**, and what little they have doesn't match the rest of the app's current visual direction.
 
 ### Cross-cutting
@@ -93,7 +93,7 @@ Internally consistent — dark canvas, pastel glass, consistent card language ac
 ## Recommended Next Phase
 
 **Close the Customer Home ↔ Dashboard gap before adding anything new.** Concretely, in order:
-1. Migrate `DashboardPlaceholder.kt` to `PremiumBackground` + design tokens — this alone would resolve the single largest consistency finding in this audit, for all 3 non-Customer roles at once, with one file change.
+1. Migrate `DashboardPlaceholder.kt` to `PremiumBackground` + design tokens — this alone would resolve the single largest consistency finding in this audit, for both non-Customer roles at once, with one file change.
 2. Resolve the `RojanAssetNames.kt` naming-convention split before wiring the next asset batch.
 3. Add a minimal back/role-switch navigation affordance — currently a genuine structural gap, not a polish item.
 4. Real-device build confirmation — still the highest-leverage single action available, unchanged recommendation from every prior audit.

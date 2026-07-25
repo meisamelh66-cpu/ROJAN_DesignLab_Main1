@@ -1,6 +1,5 @@
 package ai.rojan.designlab.screens.customer
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,19 +22,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTextPrimary
 import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
+import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
 /**
  * Customer Home featured salons — Design Board v1.0, Secondary Features
@@ -50,6 +49,18 @@ import ai.rojan.designlab.ui.components.icon.RojanIconContainer
  * wording for the same 4 salons. `DemoSalon` gained an `assetRes` field
  * to preserve this widget's real-asset-image capability exactly as it
  * was.
+ *
+ * Home Screen Production Pass, Task 7/8: card size moved from a raw
+ * `160.dp`/`190.dp` pair onto [RojanDimens.CardWidthStandard]/
+ * [RojanDimens.CardHeightStandard] — the token that already existed for
+ * exactly this value (see its own doc comment); zero visual change,
+ * removes a magic-number duplicate of the token.
+ *
+ * Production Asset Normalization: the photo now renders through
+ * [RojanSampleImage] instead of a raw `Image` — same visual result, but
+ * the image is now actually clipped to its own shape (it wasn't before;
+ * only the background behind it was) and the crop/loading behavior is
+ * shared with every other sample-image card in the app.
  */
 @Composable
 fun FeaturedSalons() {
@@ -61,7 +72,7 @@ fun FeaturedSalons() {
         items(catalogEngine.allSalons()) { salon ->
             Box(
                 modifier = Modifier
-                    .size(width = 160.dp, height = 190.dp)
+                    .size(width = RojanDimens.CardWidthStandard, height = RojanDimens.CardHeightStandard)
                     // Visual Refinement: tint reduced 0.30f -> 0.25f (~17%). No
                     // literal "dark overlay on the salon photo" exists in this
                     // component (the Image draws opaque, fully covering this
@@ -90,10 +101,9 @@ fun FeaturedSalons() {
                             contentAlignment = Alignment.Center,
                         ) {
                             if (salon.assetRes != null) {
-                                Image(
-                                    painter = painterResource(id = salon.assetRes),
+                                RojanSampleImage(
+                                    resId = salon.assetRes,
                                     contentDescription = salon.name,
-                                    contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             } else {
@@ -101,7 +111,7 @@ fun FeaturedSalons() {
     imageVector = Icons.Filled.Storefront,
     contentDescription = null,
     tint = RojanTextPrimary,
-    sizeOverride = 32.dp,
+    size = RojanIconSize.Large,
 )
                             }
                         }
@@ -122,7 +132,7 @@ fun FeaturedSalons() {
     imageVector = Icons.Filled.Star,
     contentDescription = "امتیاز",
     tint = RojanTextSecondary,
-    sizeOverride = 14.dp,
+    size = RojanIconSize.Small,
 )
                             Text(
                                 text = salon.rating,
@@ -139,7 +149,7 @@ fun FeaturedSalons() {
     imageVector = Icons.Filled.LocationOn,
     contentDescription = null,
     tint = RojanTextSecondary,
-    sizeOverride = 14.dp,
+    size = RojanIconSize.Small,
 )
                             Text(
                                 text = salon.tagline,

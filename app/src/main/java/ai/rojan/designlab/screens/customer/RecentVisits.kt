@@ -31,6 +31,7 @@ import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.theme.RojanVividPurple
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
+import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
 /**
  * Customer Home recent visits.
@@ -106,7 +107,7 @@ fun RecentVisits(ecosystemViewModel: CustomerEcosystemViewModel) {
     imageVector = Icons.Filled.CalendarMonth,
     contentDescription = null,
     tint = RojanVividPurple,
-    sizeOverride = 14.dp,
+    size = RojanIconSize.Small,
 )
                             Text(
                                 text = "رزرو مجدد",

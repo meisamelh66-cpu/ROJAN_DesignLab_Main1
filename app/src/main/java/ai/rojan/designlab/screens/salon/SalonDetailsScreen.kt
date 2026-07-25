@@ -48,6 +48,7 @@ import ai.rojan.designlab.ui.theme.RojanTextPrimary
 import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
+import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
 /**
  * Journey 1, Screen 2: Salon Details.
@@ -124,7 +125,7 @@ fun SalonDetailsScreen(
     imageVector = Icons.Filled.Storefront,
     contentDescription = null,
     tint = RojanTextOnGlass,
-    sizeOverride = 56.dp,
+    size = RojanIconSize.XLarge,
 )
                 }
             }
@@ -248,7 +249,7 @@ fun SalonDetailsScreen(
                         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                             Text(review.authorName, style = RojanTypography.Caption, color = RojanTextPrimary)
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.Star, null, tint = RojanRatingGold, modifier = Modifier.size(14.dp))
+                                Icon(Icons.Filled.Star, null, tint = RojanRatingGold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
                                 Text(" ${review.rating}", style = RojanTypography.Caption, color = RojanTextSecondary)
                             }
                         }

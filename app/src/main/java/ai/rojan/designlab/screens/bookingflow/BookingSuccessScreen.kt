@@ -27,6 +27,7 @@ import ai.rojan.designlab.ui.theme.RojanTextOnDarkSurface
 import ai.rojan.designlab.ui.theme.RojanTextOnGlass
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
+import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
 /**
  * Journey 1, Screen 8: Success — end of the flow.
@@ -62,7 +63,7 @@ fun BookingSuccessScreen(
     imageVector = Icons.Filled.CheckCircle,
     contentDescription = null,
     tint = RojanAIGlow,
-    sizeOverride = 56.dp,
+    size = RojanIconSize.XLarge,
 )
             }
 

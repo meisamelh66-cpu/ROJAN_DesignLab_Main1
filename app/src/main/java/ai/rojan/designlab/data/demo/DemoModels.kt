@@ -8,10 +8,12 @@ import androidx.compose.ui.graphics.Color
  * Plain data classes, no persistence, no networking, no Clean
  * Architecture domain/data layering — deliberately lightweight, per this
  * phase's explicit "DO NOT connect Backend / DO NOT add networking"
- * scope. [colorSeed] stands in for a real photo asset (per "use only
- * existing assets, keep placeholder if none exists") — the same tinted
- * illustration-placeholder approach already used throughout Customer
- * Home and Booking, not a new visual concept.
+ * scope. [colorSeed] tints each card's own background/glow — a separate
+ * concern from [DemoSalon.assetRes]/[DemoSpecialist.assetRes]/
+ * [DemoService.assetRes], which (Production Asset Normalization pass)
+ * now always resolve to a real image via
+ * [ai.rojan.designlab.ui.assets.SampleImageProvider] rather than falling
+ * back to an icon-on-tinted-background placeholder.
  */
 data class DemoSalon(
     val id: String,
@@ -62,6 +64,8 @@ data class DemoService(
     val categoryLabel: String = "",
     /** Booking Experience Refactor, Salon List filtering: other salons that ALSO genuinely offer this same service - [salonId] stays the "primary" salon (unchanged for every existing single-salon call site), this is additive. [offeredBySalonIds] (below) is the real, complete list to filter against. */
     val additionalSalonIds: List<String> = emptyList(),
+    /** Production Asset Normalization: real asset image when available, sourced from [ai.rojan.designlab.ui.assets.SampleImageProvider] — mirrors [DemoSalon.assetRes]/[DemoSpecialist.assetRes], which this field didn't previously exist alongside. */
+    val assetRes: Int? = null,
 ) {
     /** Every salon that genuinely offers this service - the real basis for "salons capable of providing this service," not just [salonId] alone. */
     val offeredBySalonIds: List<String> get() = listOf(salonId) + additionalSalonIds

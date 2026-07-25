@@ -71,7 +71,7 @@ private fun TimelineCard(entry: DemoBeautyTimelineEntry) {
                 .padding(RojanDimens.SpaceMD),
             verticalAlignment = Alignment.Top,
         ) {
-            Icon(Icons.Filled.History, contentDescription = null, tint = RojanAIGlow, modifier = Modifier.size(20.dp))
+            Icon(Icons.Filled.History, contentDescription = null, tint = RojanAIGlow, modifier = Modifier.size(RojanDimens.IconSizeMedium))
             Column(modifier = Modifier.padding(start = RojanDimens.SpaceSM)) {
                 Text(entry.serviceName, style = RojanTypography.Body, color = RojanTextPrimary)
                 Text("${entry.salonName} • ${entry.dateLabel}", style = RojanTypography.Caption, color = RojanTextSecondary)

@@ -9,7 +9,6 @@ object RojanDestinations {
     const val CUSTOMER_HOME = "customer_home"
     const val MANAGER_DASHBOARD = "manager_dashboard"
     const val STYLIST_DASHBOARD = "stylist_dashboard"
-    const val SELLER_DASHBOARD = "seller_dashboard"
 
     // ── Journey 1: Search → Salon → Specialist → Service → Booking ──
     const val BOOKING_FLOW_GRAPH = "booking_flow_graph"
@@ -88,6 +87,5 @@ object RojanDestinations {
         Role.CUSTOMER -> CUSTOMER_HOME
         Role.SALON_MANAGER -> MANAGER_DASHBOARD
         Role.STYLIST -> STYLIST_DASHBOARD
-        Role.SELLER -> SELLER_DASHBOARD
     }
 }

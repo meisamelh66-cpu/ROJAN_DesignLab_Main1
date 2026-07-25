@@ -3,18 +3,22 @@ package ai.rojan.designlab.components.hero
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Text
 
+import ai.rojan.designlab.components.IllustrationPlaceholder
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.theme.RojanDimens
@@ -56,6 +60,18 @@ import ai.rojan.designlab.ui.theme.RojanTypography
  * so this card just requests the Premium tier explicitly via
  * `elevation = RojanShadows.PremiumElevation` rather than maintaining a
  * second, separate shadow mechanism alongside the shared one.
+ *
+ * Home Screen Production Pass, Task 5: the title/subtitle block now sits
+ * beside [IllustrationPlaceholder] (the approved `hero_calendar` 3D
+ * illustration — see that component's own doc comment) in a `Row`
+ * instead of alone in a fully centered `Column`, balancing the card's
+ * left/right visual weight. [PremiumButton] deliberately stays outside
+ * that `Row`, full-width-centered exactly as before: it has a fixed
+ * [RojanDimens.ButtonWidth] (240dp), which does not fit beside the
+ * illustration in the narrower half of the card on real phone widths —
+ * keeping it in its own row below preserves the exact fit this card's
+ * [RojanDimens.HeroHeight] budget was already tuned for (see
+ * [PremiumButton]'s own doc comment) with zero risk of overflow.
  */
 @Composable
 fun HeroBookingCard(
@@ -87,23 +103,41 @@ fun HeroBookingCard(
 
             ) {
 
-                Text(
-                    text = "رزرو نوبت زیبایی",
-                    style = RojanTypography.HeroTitle,
-                    color = RojanTextOnGlass,
-                    textAlign = TextAlign.Center
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
 
-                Spacer(
-                    modifier = Modifier.height(RojanDimens.SpaceSM)
-                )
+                    Column(modifier = Modifier.weight(1f)) {
 
-                Text(
-                    text = "بهترین متخصصان زیبایی در کنار شما\nنوبت خود را سریع و آسان رزرو کنید",
-                    style = RojanTypography.Body,
-                    color = RojanTextOnDarkSurface,
-                    textAlign = TextAlign.Center
-                )
+                        Text(
+                            text = "رزرو نوبت زیبایی",
+                            style = RojanTypography.HeroTitle,
+                            color = RojanTextOnGlass,
+                            textAlign = TextAlign.Start
+                        )
+
+                        Spacer(
+                            modifier = Modifier.height(RojanDimens.SpaceSM)
+                        )
+
+                        Text(
+                            text = "بهترین متخصصان زیبایی در کنار شما\nنوبت خود را سریع و آسان رزرو کنید",
+                            style = RojanTypography.Body,
+                            color = RojanTextOnDarkSurface,
+                            textAlign = TextAlign.Start
+                        )
+                    }
+
+                    Spacer(
+                        modifier = Modifier.width(RojanDimens.SpaceMD)
+                    )
+
+                    IllustrationPlaceholder(
+                        size = 110.dp,
+                    )
+                }
 
                 Spacer(
                     modifier = Modifier.height(RojanDimens.SpaceLG)

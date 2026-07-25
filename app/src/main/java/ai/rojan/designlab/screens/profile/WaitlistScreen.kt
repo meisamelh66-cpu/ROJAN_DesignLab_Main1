@@ -21,6 +21,7 @@ import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanErrorText
+import ai.rojan.designlab.ui.theme.RojanLuxurySecondaryBody
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTextOnGlass
 import ai.rojan.designlab.ui.theme.RojanTextPrimary
@@ -57,7 +58,7 @@ fun WaitlistScreen(
                 Text(
                     text = "شما در حال حاضر در هیچ لیست انتظاری نیستید",
                     style = RojanTypography.Body,
-                    color = RojanTextSecondary,
+                    color = RojanLuxurySecondaryBody,
                 )
             }
 

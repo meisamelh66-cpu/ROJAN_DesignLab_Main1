@@ -31,6 +31,7 @@ import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.theme.RojanVividPurple
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
+import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
 /**
  * Customer Home upcoming bookings.
@@ -107,7 +108,7 @@ fun UpcomingBookings(ecosystemViewModel: CustomerEcosystemViewModel) {
     imageVector = Icons.Filled.CalendarMonth,
     contentDescription = null,
     tint = RojanTextSecondary,
-    sizeOverride = 14.dp,
+    size = RojanIconSize.Small,
 )
                             Text(
                                 text = "${booking.dateLabel}، ${booking.time}",

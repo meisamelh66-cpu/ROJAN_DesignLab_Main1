@@ -24,6 +24,7 @@ import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
 import ai.rojan.designlab.ui.background.PremiumBackground
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
+import ai.rojan.designlab.ui.components.state.RojanEmptyState
 import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
@@ -51,6 +52,7 @@ fun CouponsScreen(
     val catalogEngine = remember { CatalogEngine() }
     val referencePrice = catalogEngine.firstService()?.price ?: 0
     val usedCouponIds = ecosystemViewModel.state.usedCouponIds
+    val coupons = ecosystemViewModel.allCoupons()
 
     PremiumBackground {
         LazyColumn(
@@ -62,17 +64,27 @@ fun CouponsScreen(
             item { GlassBackButton(onClick = onBackClick) }
             item { Text("کدهای تخفیف", style = RojanTypography.HeroTitle, color = RojanTextOnGlass) }
 
-            items(ecosystemViewModel.allCoupons()) { coupon ->
-                CouponCard(
-                    coupon = coupon,
-                    isUsed = coupon.id in usedCouponIds,
-                    onRedeem = {
-                        // Result surfaces via isUsed flipping (redeemed) or staying
-                        // used (rejected) - state-driven UI is the primary feedback
-                        // mechanism here, consistent with the rest of this app.
-                        ecosystemViewModel.redeemCoupon(coupon, referencePrice)
-                    },
-                )
+            if (coupons.isEmpty()) {
+                item {
+                    RojanEmptyState(
+                        title = "کد تخفیفی موجود نیست",
+                        description = "در حال حاضر کد تخفیفی برای شما وجود ندارد",
+                        icon = Icons.Filled.CardGiftcard,
+                    )
+                }
+            } else {
+                items(coupons) { coupon ->
+                    CouponCard(
+                        coupon = coupon,
+                        isUsed = coupon.id in usedCouponIds,
+                        onRedeem = {
+                            // Result surfaces via isUsed flipping (redeemed) or staying
+                            // used (rejected) - state-driven UI is the primary feedback
+                            // mechanism here, consistent with the rest of this app.
+                            ecosystemViewModel.redeemCoupon(coupon, referencePrice)
+                        },
+                    )
+                }
             }
         }
     }
