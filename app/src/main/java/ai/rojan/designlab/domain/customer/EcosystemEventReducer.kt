@@ -86,6 +86,9 @@ class EcosystemEventReducer {
                 appointments = state.appointments + event.newAppointment,
             )
 
+        is EcosystemEvent.AppointmentBooked ->
+            state.copy(appointments = state.appointments + event.appointment)
+
         is EcosystemEvent.CouponRedeemed ->
             state.copy(usedCouponIds = state.usedCouponIds + event.couponId)
 

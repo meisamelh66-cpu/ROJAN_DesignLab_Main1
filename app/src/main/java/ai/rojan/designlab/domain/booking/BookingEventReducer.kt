@@ -15,7 +15,7 @@ class BookingEventReducer {
         is BookingEvent.SpecialistSelected -> state.copy(specialistId = event.specialistId)
         is BookingEvent.ServiceSelected -> state.copy(serviceId = event.serviceId)
         is BookingEvent.PackageSelected -> state.copy(packageId = event.packageId)
-        is BookingEvent.DateSelected -> state.copy(selectedDateKey = event.dateKey)
+        is BookingEvent.DateSelected -> state.copy(selectedDateKey = event.dateKey, selectedTime = null)
         is BookingEvent.TimeSelected -> state.copy(selectedTime = event.time)
         is BookingEvent.PromotionApplied -> state.copy(promotionId = event.promotionId)
         is BookingEvent.CouponApplied -> state.copy(couponId = event.couponId)

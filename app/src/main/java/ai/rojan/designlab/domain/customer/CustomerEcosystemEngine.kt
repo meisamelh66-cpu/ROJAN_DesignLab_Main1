@@ -1,6 +1,7 @@
 package ai.rojan.designlab.domain.customer
 
 import ai.rojan.designlab.data.demo.AppointmentStatus
+import ai.rojan.designlab.data.demo.DemoAppointment
 import ai.rojan.designlab.data.demo.DemoBeautyTimelineEntry
 import ai.rojan.designlab.data.demo.DemoCoupon
 import ai.rojan.designlab.data.demo.DemoUserReview
@@ -278,6 +279,44 @@ class CustomerEcosystemEngine(
     fun spendFromWallet(state: CustomerEcosystemState, amount: Int, sourceLabel: String, dateLabel: String): List<EcosystemEvent> {
         if (amount > state.walletBalance) return listOf(EcosystemEvent.WalletDebitRejected)
         return listOf(EcosystemEvent.WalletDebited(amount, sourceLabel, dateLabel))
+    }
+
+    /**
+     * Customer Journey Audit (Booking Success P0): turns a completed
+     * [ai.rojan.designlab.domain.booking.BookingState] into a real, visible
+     * [DemoAppointment] — same shape as [WaitlistEngine.checkForPromotion]'s
+     * own [DemoAppointment] construction, reusing the existing model
+     * rather than inventing a parallel one. ID scheme matches the
+     * existing wallet-transaction convention (list size + a distinguishing
+     * hash) since, unlike a promoted waitlist entry, a fresh booking has
+     * no prior entity ID to derive from.
+     */
+    fun bookAppointment(
+        state: CustomerEcosystemState,
+        salonName: String,
+        serviceName: String,
+        specialistName: String,
+        serviceId: String,
+        specialistId: String?,
+        dateKey: String,
+        dateLabel: String,
+        time: String,
+        price: Int,
+    ): List<EcosystemEvent> {
+        val appointment = DemoAppointment(
+            id = "appt_${state.appointments.size}_${serviceId.hashCode()}",
+            salonName = salonName,
+            serviceName = serviceName,
+            specialistName = specialistName,
+            dateLabel = dateLabel,
+            time = time,
+            status = AppointmentStatus.UPCOMING,
+            price = price,
+            relatedServiceId = serviceId,
+            specialistId = specialistId,
+            dateKey = dateKey,
+        )
+        return listOf(EcosystemEvent.AppointmentBooked(appointment))
     }
 
     // ── Category 2 (Deterministic Computations) — simple static catalog

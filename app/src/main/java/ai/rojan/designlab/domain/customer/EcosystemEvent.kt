@@ -83,6 +83,12 @@ sealed interface EcosystemEvent {
     ) : EcosystemEvent
 
 
+    /** Customer Journey Audit (Booking Success P0): a completed booking becomes a real, visible appointment. */
+    data class AppointmentBooked(
+        val appointment: DemoAppointment,
+    ) : EcosystemEvent
+
+
     data class CouponRedeemed(
         val couponId: String,
         val discountAmount: Int

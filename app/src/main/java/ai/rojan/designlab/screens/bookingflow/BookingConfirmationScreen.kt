@@ -122,6 +122,7 @@ fun BookingConfirmationScreen(
                 PremiumButton(
                     text = "تایید نهایی رزرو",
                     onClick = onConfirmClick,
+                    enabled = bookingViewModel.isReadyForConfirmation(),
                 )
             }
         }

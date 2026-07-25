@@ -151,6 +151,7 @@ private fun describeEvent(event: EcosystemEvent): String = when (event) {
     is EcosystemEvent.CouponRejected -> "کد تخفیف قابل استفاده نیست"
     is EcosystemEvent.ReviewRejected -> "نظر شما قبلاً ثبت شده است"
     is EcosystemEvent.NotificationEnqueued -> "اعلان جدید ثبت شد"
+    is EcosystemEvent.AppointmentBooked -> "نوبت شما با موفقیت رزرو شد"
     is EcosystemEvent.AppointmentStatusChanged -> "وضعیت نوبت به‌روزرسانی شد"
     is EcosystemEvent.AppointmentRescheduled -> "زمان نوبت تغییر کرد"
     is EcosystemEvent.WaitlistJoined -> "به لیست انتظار اضافه شدید"

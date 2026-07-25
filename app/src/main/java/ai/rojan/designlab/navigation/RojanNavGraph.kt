@@ -126,24 +126,17 @@ private fun bookingViewModelFor(
     )
 }
 
-/**
- * Obtains the single [CustomerEcosystemViewModel] instance shared by
- * every screen inside the [RojanDestinations.PROFILE_GRAPH] sub-graph —
- * identical pattern and reasoning to [bookingViewModelFor].
- */
-@Composable
-private fun customerEcosystemViewModelFor(
-    navController: NavController,
-    backStackEntry: NavBackStackEntry,
-): CustomerEcosystemViewModel {
-    val parentEntry = remember(backStackEntry) {
-        navController.getBackStackEntry(RojanDestinations.PROFILE_GRAPH)
-    }
-    return viewModel(
-        viewModelStoreOwner = parentEntry,
-        factory = CustomerEcosystemViewModelFactory(),
-    )
-}
+// Customer Journey Audit (Booking Success P0): CustomerEcosystemViewModel
+// used to be obtained per-nested-graph (a separate instance for
+// CUSTOMER_HOME, PROFILE_GRAPH, and BookingTimeScreen each) - meaning a
+// booking completed via Search -> ... -> Confirmation had no reliable,
+// always-present instance to record an appointment into (PROFILE_GRAPH's
+// back-stack entry doesn't exist until the user has actually visited
+// Profile/Appointments/Favorites at least once in the session, so
+// obtaining it there would crash for the common "Home -> Search"
+// direct path). Hoisted to session scope instead - obtained once below,
+// alongside sessionViewModel/authViewModel, and threaded through to
+// every consumer that previously created its own local instance.
 
 /**
  * Production Readiness Audit (V1.0 Module 6): real navigation guard for
@@ -210,6 +203,10 @@ fun RojanNavGraph() {
 
     val authViewModel: AuthViewModel = viewModel(
         factory = AuthViewModelFactory()
+    )
+
+    val customerEcosystemViewModel: CustomerEcosystemViewModel = viewModel(
+        factory = CustomerEcosystemViewModelFactory()
     )
 
 
@@ -489,10 +486,22 @@ fun RojanNavGraph() {
                     ) { backStackEntry ->
                         val bookingViewModel = bookingViewModelFor(navController, backStackEntry)
                         val specialistId = backStackEntry.arguments?.getString("specialistId") ?: ""
+                        val catalogEngineForSpecialist = CatalogEngine()
+                        val salonIdForSpecialist = catalogEngineForSpecialist.findSpecialistById(specialistId)?.salonId
                         SpecialistProfileScreen(
                             specialistId = specialistId,
                             onBackClick = { navController.popBackStack() },
                             onServiceClick = { serviceId ->
+                                // P0 fix: this path (Salon Details → a specific
+                                // specialist → Service Details) previously never
+                                // recorded salonId, leaving BookingState.salonId
+                                // null through Confirmation/Success. The specialist
+                                // already knows their own salon, so record it from
+                                // there rather than requiring this screen's caller
+                                // to have passed one in.
+                                if (salonIdForSpecialist != null) {
+                                    bookingViewModel.onSalonSelected(salonIdForSpecialist)
+                                }
                                 bookingViewModel.onSpecialistSelected(specialistId)
                                 bookingViewModel.onIntentDetected(BookingIntent.SPECIALIST)
                                 navController.navigate(RojanDestinations.serviceDetails(serviceId))
@@ -556,14 +565,10 @@ fun RojanNavGraph() {
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
                         val bookingViewModel = bookingViewModelFor(navController, backStackEntry)
-                        val timeScreenEcosystemViewModel: CustomerEcosystemViewModel = viewModel(
-                            viewModelStoreOwner = backStackEntry,
-                            factory = CustomerEcosystemViewModelFactory(),
-                        )
                         BookingTimeScreen(
                             dateKey = bookingViewModel.state.selectedDateKey ?: "today",
                             bookingViewModel = bookingViewModel,
-                            ecosystemViewModel = timeScreenEcosystemViewModel,
+                            ecosystemViewModel = customerEcosystemViewModel,
                             onBackClick = { navController.popBackStack() },
                             onTimeSelected = { time ->
                                 bookingViewModel.onTimeSelected(time)
@@ -586,7 +591,36 @@ fun RojanNavGraph() {
                         BookingConfirmationScreen(
                             bookingViewModel = bookingViewModel,
                             onBackClick = { navController.popBackStack() },
-                            onConfirmClick = { navController.navigate(RojanDestinations.BOOKING_SUCCESS) },
+                            onConfirmClick = {
+                                // Customer Journey Audit (Booking Success P0): record the
+                                // completed booking as a real appointment before leaving
+                                // this graph - BookingViewModel's state is destroyed once
+                                // the sub-graph pops on Success's "Done", so this is the
+                                // last point it's readable. Mirrors exactly what this same
+                                // screen already displays (same fallback strings), so the
+                                // recorded appointment matches what the user confirmed.
+                                val confirmedState = bookingViewModel.state
+                                val catalogEngineForConfirm = CatalogEngine()
+                                val service = confirmedState.serviceId?.let { catalogEngineForConfirm.findServiceById(it) }
+                                val dateLabel = confirmedState.selectedDateKey?.let { catalogEngineForConfirm.dateLabelFor(it) }
+                                val time = confirmedState.selectedTime
+                                if (service != null && confirmedState.selectedDateKey != null && dateLabel != null && time != null) {
+                                    val salon = confirmedState.salonId?.let { catalogEngineForConfirm.findSalonById(it) }
+                                    val specialist = confirmedState.specialistId?.let { catalogEngineForConfirm.findSpecialistById(it) }
+                                    customerEcosystemViewModel.bookAppointment(
+                                        salonName = salon?.name ?: "—",
+                                        serviceName = service.name,
+                                        specialistName = specialist?.name ?: "انتخاب خودکار",
+                                        serviceId = service.id,
+                                        specialistId = specialist?.id,
+                                        dateKey = confirmedState.selectedDateKey,
+                                        dateLabel = dateLabel,
+                                        time = time,
+                                        price = service.discountPrice ?: service.price,
+                                    )
+                                }
+                                navController.navigate(RojanDestinations.BOOKING_SUCCESS)
+                            },
                         )
                     }
 
@@ -623,13 +657,9 @@ fun RojanNavGraph() {
                     exitTransition = {
                         motionExit
                     }
-                ) { backStackEntry ->
-                    val homeEcosystemViewModel: CustomerEcosystemViewModel = viewModel(
-                        viewModelStoreOwner = backStackEntry,
-                        factory = CustomerEcosystemViewModelFactory(),
-                    )
+                ) {
                     CustomerHomeScreen(
-                        ecosystemViewModel = homeEcosystemViewModel,
+                        ecosystemViewModel = customerEcosystemViewModel,
                         onProfileClick = { navController.navigate(RojanDestinations.PROFILE) },
                         onBookAppointmentClick = { navController.navigate(RojanDestinations.AUTH) },
                         onBookingsClick = { navController.navigate(RojanDestinations.APPOINTMENTS) },
@@ -651,7 +681,7 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModelFor(navController, backStackEntry)
+                        val ecosystemViewModel = customerEcosystemViewModel
                         ProfileScreen(
                             ecosystemViewModel = ecosystemViewModel,
                             onBackClick = { navController.popBackStack() },
@@ -678,7 +708,7 @@ fun RojanNavGraph() {
                             sessionViewModel = sessionViewModel,
                             onAccessDenied = { navController.popBackStack() },
                         ) {
-                            val ecosystemViewModel = customerEcosystemViewModelFor(navController, backStackEntry)
+                            val ecosystemViewModel = customerEcosystemViewModel
                             AppointmentsScreen(
                                 ecosystemViewModel = ecosystemViewModel,
                                 onBackClick = { navController.popBackStack() },
@@ -702,7 +732,7 @@ fun RojanNavGraph() {
                             sessionViewModel = sessionViewModel,
                             onAccessDenied = { navController.popBackStack() },
                         ) {
-                            val ecosystemViewModel = customerEcosystemViewModelFor(navController, backStackEntry)
+                            val ecosystemViewModel = customerEcosystemViewModel
                             WaitlistScreen(
                                 ecosystemViewModel = ecosystemViewModel,
                                 onBackClick = { navController.popBackStack() },
@@ -720,7 +750,7 @@ fun RojanNavGraph() {
                             sessionViewModel = sessionViewModel,
                             onAccessDenied = { navController.popBackStack() },
                         ) {
-                            val ecosystemViewModel = customerEcosystemViewModelFor(navController, backStackEntry)
+                            val ecosystemViewModel = customerEcosystemViewModel
                             val appointmentId = backStackEntry.arguments?.getString("appointmentId") ?: ""
                             RescheduleAppointmentScreen(
                                 appointmentId = appointmentId,
@@ -740,7 +770,7 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModelFor(navController, backStackEntry)
+                        val ecosystemViewModel = customerEcosystemViewModel
                         val appointmentId = backStackEntry.arguments?.getString("appointmentId") ?: ""
                         AppointmentDetailsScreen(
                             appointmentId = appointmentId,
@@ -765,7 +795,7 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModelFor(navController, backStackEntry)
+                        val ecosystemViewModel = customerEcosystemViewModel
                         FavoritesScreen(
                             ecosystemViewModel = ecosystemViewModel,
                             onBackClick = { navController.popBackStack() },
@@ -781,7 +811,7 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModelFor(navController, backStackEntry)
+                        val ecosystemViewModel = customerEcosystemViewModel
                         WalletScreen(
                             ecosystemViewModel = ecosystemViewModel,
                             onBackClick = { navController.popBackStack() },
@@ -796,7 +826,7 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModelFor(navController, backStackEntry)
+                        val ecosystemViewModel = customerEcosystemViewModel
                         CouponsScreen(
                             ecosystemViewModel = ecosystemViewModel,
                             onBackClick = { navController.popBackStack() },
@@ -811,7 +841,7 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModelFor(navController, backStackEntry)
+                        val ecosystemViewModel = customerEcosystemViewModel
                         MembershipScreen(
                             ecosystemViewModel = ecosystemViewModel,
                             onBackClick = { navController.popBackStack() },
@@ -826,7 +856,7 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModelFor(navController, backStackEntry)
+                        val ecosystemViewModel = customerEcosystemViewModel
                         LoyaltyScreen(
                             ecosystemViewModel = ecosystemViewModel,
                             onBackClick = { navController.popBackStack() },
@@ -841,7 +871,7 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModelFor(navController, backStackEntry)
+                        val ecosystemViewModel = customerEcosystemViewModel
                         MyReviewsScreen(ecosystemViewModel = ecosystemViewModel, onBackClick = { navController.popBackStack() })
                     }
 
@@ -853,7 +883,7 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModelFor(navController, backStackEntry)
+                        val ecosystemViewModel = customerEcosystemViewModel
                         BeautyTimelineScreen(ecosystemViewModel = ecosystemViewModel, onBackClick = { navController.popBackStack() })
                     }
 

@@ -131,6 +131,21 @@ class CustomerEcosystemViewModel(
         dispatch(engine.spendFromWallet(state, amount, sourceLabel, dateLabel))
     }
 
+    /** Customer Journey Audit (Booking Success P0): records a completed booking as a real appointment. */
+    fun bookAppointment(
+        salonName: String,
+        serviceName: String,
+        specialistName: String,
+        serviceId: String,
+        specialistId: String?,
+        dateKey: String,
+        dateLabel: String,
+        time: String,
+        price: Int,
+    ) {
+        dispatch(engine.bookAppointment(state, salonName, serviceName, specialistName, serviceId, specialistId, dateKey, dateLabel, time, price))
+    }
+
     fun clearLastEvents() {
         lastEvents = emptyList()
     }

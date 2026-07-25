@@ -63,6 +63,13 @@ fun BookingDateScreen(
     val dates = catalogEngine.availableDates()
 
     LaunchedEffect(Unit) {
+        // Back-navigation fix: only auto-advance on a genuinely fresh entry
+        // into this screen (no date recorded yet for this booking session).
+        // Without this guard, this effect re-runs every time the user
+        // navigates back into this screen too - defeating Back whenever
+        // today has no availability, since it would just auto-forward
+        // again instead of showing the date list to reconsider.
+        if (bookingViewModel.state.selectedDateKey != null) return@LaunchedEffect
         val today = dates.firstOrNull() ?: return@LaunchedEffect
         val todayHasAvailability = bookingEngine.hasAnyAvailability(today.first, durationMinutes, specialistId)
         if (!todayHasAvailability) {
