@@ -16,12 +16,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -33,6 +38,7 @@ import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.components.interaction.rojanPressedShadow
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
+import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanRatingGold
 import ai.rojan.designlab.ui.theme.RojanShapes
@@ -71,6 +77,23 @@ fun SalonListScreen(
     val matchingSalons = remember(selectedServiceIds) {
         catalogEngine.salonsOfferingAllServices(selectedServiceIds)
     }
+    var searchQuery by remember { mutableStateOf("") }
+    val displayedSalons = remember(matchingSalons, searchQuery) {
+        if (searchQuery.isBlank()) {
+            matchingSalons
+        } else {
+            val searchMatchIds = catalogEngine.searchSalons(searchQuery).map { it.id }.toSet()
+            matchingSalons.filter { it.id in searchMatchIds }
+        }
+    }
+    var sortOption by remember { mutableStateOf(SalonSortOption.ALL) }
+    val sortedSalons = remember(displayedSalons, sortOption) {
+        if (sortOption == SalonSortOption.NEAREST) {
+            displayedSalons.sortedBy { parseDistanceKm(it.distanceKm) }
+        } else {
+            displayedSalons
+        }
+    }
 
     PremiumBackground {
         Column(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD)) {
@@ -86,12 +109,17 @@ fun SalonListScreen(
                         Box {}
                     }
                     if (onBusinessLoginClick != null) {
-                        Text(
-                            text = "ورود کسب‌وکار",
-                            style = RojanTypography.Caption,
-                            color = RojanTextSecondary,
+                        GlassSurface(
                             modifier = Modifier.clickable(onClick = onBusinessLoginClick),
-                        )
+                            shape = RojanShapes.Small,
+                        ) {
+                            Text(
+                                text = "ورود کسب‌وکار",
+                                style = RojanTypography.Caption,
+                                color = RojanTextSecondary,
+                                modifier = Modifier.padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
+                            )
+                        }
                     }
                 }
             }
@@ -103,7 +131,34 @@ fun SalonListScreen(
                 modifier = Modifier.padding(vertical = RojanDimens.SpaceMD),
             )
 
-            if (matchingSalons.isEmpty()) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("جستجوی سالن...") },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = RojanTextSecondary) },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = RojanDimens.SpaceMD),
+            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+                modifier = Modifier.padding(bottom = RojanDimens.SpaceMD),
+            ) {
+                SalonFilterChip(
+                    label = "همه",
+                    selected = sortOption == SalonSortOption.ALL,
+                    onClick = { sortOption = SalonSortOption.ALL },
+                )
+                SalonFilterChip(
+                    label = "نزدیک من",
+                    selected = sortOption == SalonSortOption.NEAREST,
+                    onClick = { sortOption = SalonSortOption.NEAREST },
+                )
+            }
+
+            if (sortedSalons.isEmpty()) {
                 Text(
                     text = "سالنی با تمام خدمات انتخابی یافت نشد",
                     style = RojanTypography.Body,
@@ -111,12 +166,33 @@ fun SalonListScreen(
                 )
             }
 
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
-                items(matchingSalons) { salon ->
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD)) {
+                items(sortedSalons) { salon ->
                     MinimalSalonCard(salon = salon, onClick = { onSalonSelected(salon.id) })
                 }
             }
         }
+    }
+}
+
+private enum class SalonSortOption { ALL, NEAREST }
+
+private fun parseDistanceKm(distanceKm: String): Double =
+    distanceKm.takeWhile { it.isDigit() || it == '.' }.toDoubleOrNull() ?: Double.MAX_VALUE
+
+@Composable
+private fun SalonFilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    GlassSurface(
+        modifier = Modifier.clickable(onClick = onClick),
+        shape = RojanShapes.Small,
+        glassAlpha = if (selected) 0.55f else 0.40f,
+    ) {
+        Text(
+            text = label,
+            style = RojanTypography.Caption,
+            color = if (selected) RojanAIGlow else RojanTextSecondary,
+            modifier = Modifier.padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
+        )
     }
 }
 
