@@ -64,6 +64,8 @@ fun SalonListScreen(
     selectedServiceIds: List<String>,
     onBackClick: () -> Unit,
     onSalonSelected: (String) -> Unit,
+    showBackButton: Boolean = true,
+    onBusinessLoginClick: (() -> Unit)? = null,
 ) {
     val catalogEngine = remember { CatalogEngine() }
     val matchingSalons = remember(selectedServiceIds) {
@@ -72,7 +74,27 @@ fun SalonListScreen(
 
     PremiumBackground {
         Column(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD)) {
-            GlassBackButton(onClick = onBackClick)
+            if (showBackButton || onBusinessLoginClick != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (showBackButton) {
+                        GlassBackButton(onClick = onBackClick)
+                    } else {
+                        Box {}
+                    }
+                    if (onBusinessLoginClick != null) {
+                        Text(
+                            text = "ورود کسب‌وکار",
+                            style = RojanTypography.Caption,
+                            color = RojanTextSecondary,
+                            modifier = Modifier.clickable(onClick = onBusinessLoginClick),
+                        )
+                    }
+                }
+            }
 
             Text(
                 text = "انتخاب سالن",

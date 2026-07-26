@@ -47,19 +47,16 @@ import ai.rojan.designlab.ui.components.icon.RojanIconSize
  * a separate mock distance string.
  * Root Cause Build Analysis: [onSalonClick] added (optional, defaults
  * to `null` so Customer Home's existing parameterless `NearbySalons()`
- * call is unaffected) — [ai.rojan.designlab.screens.booking.BookingLandingScreen]
- * previously called a since-deleted `NearbySalonsSection` composable
- * with its own separate click handling; rather than recreating that
- * deleted component (a duplicate) or restoring it (dead code), this is
- * the single shared implementation both screens now use.
+ * call is unaffected).
  *
  * Home Screen Production Pass, Task 7/8: card size moved from a raw
  * `160.dp`/`190.dp` pair onto [RojanDimens.CardWidthStandard]/
  * [RojanDimens.CardHeightStandard] — zero visual change, see
- * [FeaturedSalons]'s identical note. This component is shared with
- * [ai.rojan.designlab.screens.booking.BookingLandingScreen], so this is
- * a token-sourcing fix on both screens at once, not a Home-only change —
- * safe since the token's value is identical to the literal it replaces.
+ * [FeaturedSalons]'s identical note.
+ *
+ * UX Refactor Phase 1: previously also shared with `BookingLandingScreen`
+ * (the old, duplicate "Journey 1 landing" screen), which was deleted —
+ * Customer Home is now the single canonical landing screen.
  */
 @Composable
 fun NearbySalons(onSalonClick: ((String) -> Unit)? = null) {

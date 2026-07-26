@@ -5,7 +5,12 @@ import ai.rojan.designlab.domain.model.Role
 /** Centralized navigation route constants — avoids magic route strings scattered across composables. */
 object RojanDestinations {
     const val WELCOME = "welcome"
-    const val BOOKING_LANDING = "booking_landing"
+    // UX Refactor Phase 1: the default entry point for a customer with no
+    // persisted Role yet — an unfiltered, unauthenticated salon browse
+    // list, per the confirmed "Splash → Member Salons List" new-customer
+    // flow. WELCOME still exists but is now a secondary entry point
+    // (Manager/Specialist "business login" only), not the default landing.
+    const val MEMBER_SALONS_LIST = "member_salons_list"
     const val CUSTOMER_HOME = "customer_home"
     const val MANAGER_DASHBOARD = "manager_dashboard"
     const val STYLIST_DASHBOARD = "stylist_dashboard"
@@ -20,11 +25,12 @@ object RojanDestinations {
     const val BOOKING_CONFIRMATION = "booking_confirmation"
     const val BOOKING_SUCCESS = "booking_success"
 
-    // ── Booking Experience Refactor: Auth (Mock) → Categories → Services → Salon List → ... ──
+    // ── Login/OTP (only when booking) + salon-first booking flow ──
+    // UX Refactor Phase 1: the category-first pre-salon pickers
+    // (SERVICE_CATEGORIES/SERVICE_SELECTION) were removed — both target
+    // flows pick the salon first, then narrow services within it.
     const val AUTH = "auth"
     const val FIRST_TIME_NAME = "first_time_name"
-    const val SERVICE_CATEGORIES = "service_categories"
-    const val SERVICE_SELECTION = "service_selection/{categoryLabel}"
     const val SALON_LIST = "salon_list/{selectedServiceIds}"
     fun salonList(selectedServiceIds: List<String>) = "salon_list/${selectedServiceIds.joinToString(",")}"
     const val SPECIALIST_SELECTION = "specialist_selection/{salonId}"
@@ -33,8 +39,6 @@ object RojanDestinations {
     // never wired to a composable; payment lives inside
     // BookingConfirmationScreen instead, per "Do NOT increase the
     // number of booking steps."
-
-    fun serviceSelection(categoryLabel: String) = "service_selection/$categoryLabel"
 
     const val SALON_DETAILS = "salon_details/{salonId}?selectedServiceIds={selectedServiceIds}"
 

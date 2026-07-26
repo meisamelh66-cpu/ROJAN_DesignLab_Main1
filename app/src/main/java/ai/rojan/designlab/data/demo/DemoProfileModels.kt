@@ -19,6 +19,8 @@ data class DemoAppointment(
     val specialistId: String? = null,
     /** Appointment System completion (V1.0 Module 6 - Waiting List): the machine-matchable date key (e.g. "today") behind [dateLabel]'s display string - needed to check this exact date against BookingEngine/waitlist entries without fragile label-string matching. */
     val dateKey: String? = null,
+    /** UX Refactor Phase 1: lets "Previous Salons" (Customer Home) navigate to the actual salon rather than just displaying [salonName] as text. Nullable since existing demo entries predate this field. */
+    val salonId: String? = null,
 )
 
 data class DemoWalletTransaction(

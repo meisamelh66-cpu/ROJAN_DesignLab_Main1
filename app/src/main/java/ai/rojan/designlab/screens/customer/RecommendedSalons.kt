@@ -15,7 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -24,7 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-import ai.rojan.designlab.data.demo.DemoService
+import ai.rojan.designlab.data.demo.DemoSalon
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.image.RojanSampleImage
@@ -38,68 +38,41 @@ import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
 /**
- * Code Cleanup pass: migrated off its previous local `fakeRecommendations`
- * list (which duplicated service names under different labels) onto
- * [CatalogEngine.allServices] — real [DemoService] data. "AI reason" and
- * "confidence" remain demo flavor text (no real recommendation engine
- * exists, per [ai.rojan.designlab.domain.ai.NoOpAiRecommendationProvider]) —
- * but now describe genuinely real services, not a separate duplicate
- * dataset invented just for this section.
+ * UX Refactor Phase 1: renamed from "RecommendedServices" and repointed
+ * from [CatalogEngine.allServices] to [CatalogEngine.allSalons] — the
+ * target Customer Home spec calls for "ROJAN AI Recommended Salons," not
+ * services. "AI reason" and "confidence" remain demo flavor text (no
+ * real recommendation engine exists, per
+ * [ai.rojan.designlab.domain.ai.NoOpAiRecommendationProvider]), same as
+ * before this rename — only the entity being recommended changed.
+ *
+ * Visual language (AI badge, card size, glass construction) is
+ * unchanged from the previous services version, per the Design Board's
+ * "AI identity visible but subtle" rule — see the original
+ * RecommendedServices doc history in version control for the full
+ * rationale.
+ *
+ * [onSalonClick] wires this section to real navigation (Salon Profile) —
+ * previously `clickable {}` (dead).
  */
-private fun aiReasonFor(service: DemoService): String = when (service.categoryLabel) {
-    "مو" -> "بر اساس انتخاب‌های قبلی شما"
-    "پوست" -> "متناسب با نوع پوست شما"
-    "ناخن" -> "بر اساس علاقه‌مندی‌های شما"
-    else -> "پیشنهاد ویژه برای شما"
-}
+private fun aiReasonFor(salon: DemoSalon): String =
+    if (salon.facilities.isNotEmpty()) {
+        "بر اساس امکانات و سلیقه شما"
+    } else {
+        "بر اساس بازدیدهای قبلی شما"
+    }
 
-private fun confidenceFor(service: DemoService): String =
-    "${90 + (service.id.hashCode().mod(10))}٪ تطابق"
+private fun confidenceFor(salon: DemoSalon): String =
+    "${90 + (salon.id.hashCode().mod(10))}٪ تطابق"
 
-/**
- * Customer Home AI recommendations — Design Board v1.0, AI-personalized
- * layer. Priority similar to [FeaturedSalons]/[TopSpecialists], below
- * HeroBookingCard/AISearchBar.
- *
- * AI identity is expressed through exactly one small element per card —
- * a compact "پیشنهاد AI برای شما" label with an [RojanAIGlow]-tinted
- * sparkle icon — not through a differently-colored card, a glow border,
- * or any per-card visual effect. This is deliberate: the Board explicitly
- * asks for AI identity that's "visible but subtle" and warns against
- * "excessive AI decoration" and "neon futuristic style." Everything else
- * about the card (size, glass construction, typography) matches
- * FeaturedSalons/TopSpecialists exactly, so the "AI-ness" of this section
- * reads as one quiet signal layered onto the same trusted visual
- * language, not a different, flashier design system bolted on for AI.
- *
- * The "AI reason" text (e.g. "بر اساس انتخاب‌های قبلی شما") and the
- * confidence indicator are what actually carry the "ROJAN AI understands
- * my beauty needs" feeling per the Board's brief — through specific,
- * personal-sounding copy, not through visual spectacle.
- *
- * Home Screen Production Pass, Task 7/8: card width was 170dp, the only
- * outlier among this screen's 5 identically-structured horizontal-scroll
- * cards (the other 4 already use 160dp) — moved onto
- * [RojanDimens.CardWidthStandard]/[RojanDimens.CardHeightStandard], the
- * exact token that exists for this pair (see its own doc comment). Task
- * 9: the star-badge icon moves from a bespoke 24dp onto
- * [RojanIconSize.Medium] (20dp).
- *
- * Production Asset Normalization: the badge circle now shows the
- * service's real sample image ([RojanSampleImage], circular crop) when
- * [DemoService.assetRes] is set — the star icon remains only as the
- * fallback for the null case, matching every other card's
- * image-with-icon-fallback pattern (previously this was the one card
- * family with no image slot at all, icon-only).
- */
 @Composable
-fun RecommendedServices() {
+fun RecommendedSalons(onSalonClick: (String) -> Unit = {}) {
     val catalogEngine = remember { CatalogEngine() }
 
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
     ) {
-        items(catalogEngine.allServices()) { service ->
+        items(catalogEngine.allSalons()) { salon ->
             Box(
                 modifier = Modifier
                     .size(width = RojanDimens.CardWidthStandard, height = RojanDimens.CardHeightStandard)
@@ -108,7 +81,7 @@ fun RecommendedServices() {
                 GlassSurface(
                     modifier = Modifier
                         .fillMaxSize()
-                        .clickable { },
+                        .clickable { onSalonClick(salon.id) },
                     shape = RojanShapes.Small,
                 ) {
                     Column(
@@ -143,16 +116,16 @@ fun RecommendedServices() {
                                 .background(RojanAIGlow.copy(alpha = 0.12f), CircleShape),
                             contentAlignment = Alignment.Center,
                         ) {
-                            if (service.assetRes != null) {
+                            if (salon.assetRes != null) {
                                 RojanSampleImage(
-                                    resId = service.assetRes,
-                                    contentDescription = service.name,
+                                    resId = salon.assetRes,
+                                    contentDescription = salon.name,
                                     shape = CircleShape,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             } else {
                                 RojanIconContainer(
-    imageVector = Icons.Filled.Star,
+    imageVector = Icons.Filled.Storefront,
     contentDescription = null,
     tint = RojanTextPrimary,
     size = RojanIconSize.Medium,
@@ -161,7 +134,7 @@ fun RecommendedServices() {
                         }
 
                         Text(
-                            text = service.name,
+                            text = salon.name,
                             style = RojanTypography.Caption,
                             color = RojanTextPrimary,
                             maxLines = 1,
@@ -169,7 +142,7 @@ fun RecommendedServices() {
                         )
 
                         Text(
-                            text = aiReasonFor(service),
+                            text = aiReasonFor(salon),
                             style = RojanTypography.Caption,
                             color = RojanTextSecondary,
                             maxLines = 2,
@@ -177,7 +150,7 @@ fun RecommendedServices() {
                         )
 
                         Text(
-                            text = confidenceFor(service),
+                            text = confidenceFor(salon),
                             style = RojanTypography.Caption,
                             color = RojanTextSecondary,
                         )

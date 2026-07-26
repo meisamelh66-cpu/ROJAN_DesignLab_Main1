@@ -142,8 +142,9 @@ class CustomerEcosystemViewModel(
         dateLabel: String,
         time: String,
         price: Int,
+        salonId: String? = null,
     ) {
-        dispatch(engine.bookAppointment(state, salonName, serviceName, specialistName, serviceId, specialistId, dateKey, dateLabel, time, price))
+        dispatch(engine.bookAppointment(state, salonName, serviceName, specialistName, serviceId, specialistId, dateKey, dateLabel, time, price, salonId))
     }
 
     fun clearLastEvents() {

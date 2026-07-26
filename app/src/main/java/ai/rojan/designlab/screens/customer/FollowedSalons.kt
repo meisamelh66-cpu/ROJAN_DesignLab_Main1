@@ -39,33 +39,29 @@ import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
 /**
- * Customer Home favorite salons.
- *
- * Code Cleanup pass: migrated off its previous local `fakeFavoriteSalons`
- * list onto the REAL favorite state -
+ * Customer Home "Followed Salons" — UX Refactor Phase 1 rename of what
+ * was "FavoriteSalons," per the confirmed decision to reuse the existing
+ * Favorite system under Follow terminology rather than build a second,
+ * separate concept. Same underlying state as
+ * [ai.rojan.designlab.screens.salon.SalonDetailsScreen]'s Follow toggle
+ * and [ai.rojan.designlab.screens.profile.FavoritesScreen] —
  * [CustomerEcosystemViewModel.state]'s
  * [ai.rojan.designlab.domain.customer.CustomerEcosystemState.favoriteSalonIds]
- * cross-referenced with [CatalogEngine.allSalons] - the same real
- * favorite state [ai.rojan.designlab.screens.profile.FavoritesScreen]
- * already reads and mutates. This reconciles what used to be two
- * entirely separate "favorites" concepts (this section's own static
- * fake list vs. Journey 2's real toggleable state) into one.
+ * cross-referenced with [CatalogEngine.allSalons].
  *
- * Home Screen Production Pass, Task 9: the favorite-heart badge now
- * renders through [RojanIconContainer] at [RojanIconSize.Small] (14dp)
- * instead of a raw `Icon` + bespoke 16dp — every other icon on this
- * screen already goes through the shared primitive.
+ * UX Refactor Phase 1: [onSalonClick] now wires this section's cards to
+ * real navigation (Salon Profile) — previously `clickable {}` (dead).
  */
 @Composable
-fun FavoriteSalons(ecosystemViewModel: CustomerEcosystemViewModel) {
+fun FollowedSalons(ecosystemViewModel: CustomerEcosystemViewModel, onSalonClick: (String) -> Unit = {}) {
     val catalogEngine = remember { CatalogEngine() }
     val favoriteIds = ecosystemViewModel.state.favoriteSalonIds
-    val favoriteSalons = catalogEngine.allSalons().filter { it.id in favoriteIds }
+    val followedSalons = catalogEngine.allSalons().filter { it.id in favoriteIds }
 
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
     ) {
-        items(favoriteSalons) { salon ->
+        items(followedSalons) { salon ->
             Box(
                 modifier = Modifier
                     .size(width = RojanDimens.CardWidthStandard, height = RojanDimens.CardHeightStandard)
@@ -74,7 +70,7 @@ fun FavoriteSalons(ecosystemViewModel: CustomerEcosystemViewModel) {
                 GlassSurface(
                     modifier = Modifier
                         .fillMaxSize()
-                        .clickable { },
+                        .clickable { onSalonClick(salon.id) },
                     shape = RojanShapes.Small,
                 ) {
                     Column(
@@ -111,7 +107,7 @@ fun FavoriteSalons(ecosystemViewModel: CustomerEcosystemViewModel) {
 
                             RojanIconContainer(
                                 imageVector = Icons.Filled.Favorite,
-                                contentDescription = "علاقه‌مندی",
+                                contentDescription = "دنبال‌شده",
                                 tint = RojanVividMagenta,
                                 size = RojanIconSize.Small,
                                 modifier = Modifier

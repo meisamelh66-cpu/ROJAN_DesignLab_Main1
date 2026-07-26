@@ -76,15 +76,6 @@ fun WelcomeRoute(
                     roleType.toDomainRole()
                 )
             },
-
-
-            onGetStartedClick = {
-
-                navController.navigate(
-                    RojanDestinations.BOOKING_LANDING
-                )
-
-            }
         )
 
 

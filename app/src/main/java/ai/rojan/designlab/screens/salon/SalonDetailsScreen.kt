@@ -19,6 +19,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
@@ -34,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.domain.catalog.CatalogEngine
+import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
 import ai.rojan.designlab.ui.background.PremiumBackground
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.components.glass.GlassSurface
@@ -47,6 +50,7 @@ import ai.rojan.designlab.ui.theme.RojanTextOnGlass
 import ai.rojan.designlab.ui.theme.RojanTextPrimary
 import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
+import ai.rojan.designlab.ui.theme.RojanVividMagenta
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
@@ -71,10 +75,18 @@ import ai.rojan.designlab.ui.components.icon.RojanIconSize
  * via normal navigation, but defensive nonetheless), shows a simple
  * "not found" state rather than crashing — no dead-end, per this
  * phase's "no empty pages" rule applied defensively.
+ *
+ * UX Refactor Phase 1: "Follow (optional)" on this screen reuses the
+ * existing Favorite system ([CustomerEcosystemViewModel.toggleFavoriteSalon]
+ * / [ai.rojan.designlab.domain.customer.CustomerEcosystemState.favoriteSalonIds])
+ * rather than a new, separate concept — a confirmed scope decision, not
+ * an oversight. Works pre-login: [ecosystemViewModel] is created
+ * unconditionally at nav-graph scope, before any OTP authentication.
  */
 @Composable
 fun SalonDetailsScreen(
     salonId: String,
+    ecosystemViewModel: CustomerEcosystemViewModel,
     onBackClick: () -> Unit,
     onSpecialistClick: (String) -> Unit,
     onServiceClick: (String) -> Unit,
@@ -83,6 +95,7 @@ fun SalonDetailsScreen(
 ) {
     val catalogEngine = remember { CatalogEngine() }
     val salon = catalogEngine.findSalonById(salonId)
+    val isFollowed = ecosystemViewModel.state.favoriteSalonIds.contains(salonId)
 
     PremiumBackground {
         if (salon == null) {
@@ -131,9 +144,23 @@ fun SalonDetailsScreen(
             }
 
             item {
-                Column {
-                    Text(salon.name, style = RojanTypography.HeroTitle, color = RojanTextOnGlass)
-                    Text(salon.tagline, style = RojanTypography.Body, color = RojanTextOnDarkSurface)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(salon.name, style = RojanTypography.HeroTitle, color = RojanTextOnGlass)
+                        Text(salon.tagline, style = RojanTypography.Body, color = RojanTextOnDarkSurface)
+                    }
+                    Icon(
+                        imageVector = if (isFollowed) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = if (isFollowed) "لغو دنبال کردن این سالن" else "دنبال کردن این سالن",
+                        tint = RojanVividMagenta,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clickable { ecosystemViewModel.toggleFavoriteSalon(salonId) },
+                    )
                 }
             }
 

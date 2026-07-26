@@ -33,13 +33,16 @@ import ai.rojan.designlab.ui.theme.RojanDimens
  * Booking Experience Refactor, spec section 2 — Home Screen: "Remove
  * service categories from the Home screen... Service categories do NOT
  * belong on the Home page." [ServiceCategories] removed from this
- * composition (categories now only appear after Book Appointment, per
- * spec section 7 — that's [ai.rojan.designlab.screens.booking.ServiceCategoriesScreen]).
- * [HeroBookingCard]'s CTA now starts the Auth flow (spec section 3).
+ * composition. (UX Refactor Phase 1: the category-first pre-booking
+ * screen this note originally pointed to has since been deleted
+ * entirely — both target flows pick the salon before narrowing
+ * services, not the other way around.)
+ * [HeroBookingCard]'s CTA now starts salon browsing (UX Refactor Phase 1
+ * repointed it from the Auth flow — see [onBookAppointmentClick]).
  *
  * Code Cleanup pass: [ecosystemViewModel] now threaded through to the 3
  * sections that need real customer state
- * ([UpcomingBookings]/[RecentVisits]/[FavoriteSalons]) — a freshly-
+ * ([UpcomingBookings]/[RecentVisits]/[FollowedSalons]) — a freshly-
  * constructed instance scoped to this screen's own backstack entry, not
  * the same instance `PROFILE_GRAPH` uses (they're separate top-level
  * routes, not nested) — same real data source class and real demo data
@@ -53,6 +56,15 @@ import ai.rojan.designlab.ui.theme.RojanDimens
  * section 2, not merely "still empty") — the rest of this note applied
  * to a since-resolved rendering bug and no longer describes the current
  * state; kept only as history in version control, not restated here.
+ *
+ * UX Refactor Phase 1: [onSearchClick] and [onSalonClick] wire up the
+ * previously-dead [AISearchBar] and the "Followed Salons" / "Previous
+ * Salons" / "ROJAN AI Recommended Salons" sections the target Customer
+ * Home spec calls for — [FollowedSalons] (renamed from FavoriteSalons),
+ * [RecentVisits] (relabeled "Previous Salons"), and [RecommendedSalons]
+ * (renamed from RecommendedServices, now recommending salons instead of
+ * services). Sections not named in that spec (Hero/Featured/Top
+ * Specialists/Promotions) are left as-is — out of this phase's scope.
  */
 @Composable
 fun CustomerHomeScreen(
@@ -61,6 +73,8 @@ fun CustomerHomeScreen(
     onBookAppointmentClick: () -> Unit = {},
     onBookingsClick: () -> Unit = {},
     onFavoritesClick: () -> Unit = {},
+    onSearchClick: () -> Unit = {},
+    onSalonClick: (String) -> Unit = {},
 ) {
     PremiumBackground(
         modifier = Modifier.fillMaxSize(),
@@ -73,16 +87,16 @@ fun CustomerHomeScreen(
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {
             item { HomeHeader() }
-            item { AISearchBar() }
+            item { AISearchBar(onClick = onSearchClick) }
             item { HeroBookingCard(onClick = onBookAppointmentClick) }
             item { FeaturedSalons() }
             item { TopSpecialists() }
             item { PromotionsSection() }
             item { NearbySalons() }
-            item { RecommendedServices() }
+            item { RecommendedSalons(onSalonClick = onSalonClick) }
             item { UpcomingBookings(ecosystemViewModel) }
-            item { RecentVisits(ecosystemViewModel) }
-            item { FavoriteSalons(ecosystemViewModel) }
+            item { RecentVisits(ecosystemViewModel, onSalonClick = onSalonClick) }
+            item { FollowedSalons(ecosystemViewModel, onSalonClick = onSalonClick) }
             item {
                 CustomerBottomBar(
                     onTabSelected = { tab ->

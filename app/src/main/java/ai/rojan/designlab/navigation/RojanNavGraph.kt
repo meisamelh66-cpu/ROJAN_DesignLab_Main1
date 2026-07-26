@@ -3,6 +3,7 @@ package ai.rojan.designlab.navigation
 import ai.rojan.designlab.R
 import ai.rojan.designlab.ui.background.PremiumBackground
 import ai.rojan.designlab.components.PremiumLoadingBar
+import ai.rojan.designlab.di.RoleModule
 import ai.rojan.designlab.domain.booking.BookingIntent
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.navigation.RojanDestinations.routeForBookingStep
@@ -14,16 +15,14 @@ import ai.rojan.designlab.presentation.roleselection.RoleSelectionViewModel
 import ai.rojan.designlab.presentation.roleselection.RoleSelectionViewModelFactory
 import ai.rojan.designlab.presentation.auth.AuthViewModel
 import ai.rojan.designlab.presentation.auth.AuthViewModelFactory
+import ai.rojan.designlab.domain.identity.SessionState
 import ai.rojan.designlab.domain.model.Role
 import ai.rojan.designlab.presentation.session.SessionRestoreState
 import ai.rojan.designlab.presentation.session.SessionViewModel
 import ai.rojan.designlab.presentation.session.SessionViewModelFactory
 import ai.rojan.designlab.screens.auth.AuthScreen
 import ai.rojan.designlab.screens.auth.FirstTimeNameScreen
-import ai.rojan.designlab.screens.booking.BookingLandingScreen
 import ai.rojan.designlab.screens.booking.SalonListScreen
-import ai.rojan.designlab.screens.booking.ServiceCategoriesScreen
-import ai.rojan.designlab.screens.booking.ServiceSelectionScreen
 import ai.rojan.designlab.screens.booking.SpecialistSelectionScreen
 import ai.rojan.designlab.screens.bookingflow.BookingConfirmationScreen
 import ai.rojan.designlab.screens.bookingflow.BookingDateScreen
@@ -67,6 +66,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,6 +86,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+
+import kotlinx.coroutines.launch
 
 
 private val motionEnter =
@@ -125,6 +127,19 @@ private fun bookingViewModelFor(
         factory = BookingViewModelFactory(),
     )
 }
+
+/**
+ * UX Refactor Phase 1: tells [RojanDestinations.AUTH]/[RojanDestinations.FIRST_TIME_NAME]
+ * whether they were reached as the new mid-booking-flow "log in only when
+ * booking" gate (from [RojanDestinations.BOOKING_TIME]) versus the older
+ * pre-booking entry point (from [RojanDestinations.CUSTOMER_HOME]'s hero
+ * card). [RojanDestinations.BOOKING_FLOW_GRAPH]'s own back-stack entry is
+ * only present once that nested graph has actually been entered, and
+ * navigating from BOOKING_TIME to AUTH doesn't pop it — so its presence
+ * is a reliable, already-existing signal, not new state to track.
+ */
+private fun NavController.hasBookingFlowInProgress(): Boolean =
+    runCatching { getBackStackEntry(RojanDestinations.BOOKING_FLOW_GRAPH) }.isSuccess
 
 // Customer Journey Audit (Booking Success P0): CustomerEcosystemViewModel
 // used to be obtained per-nested-graph (a separate instance for
@@ -209,6 +224,18 @@ fun RojanNavGraph() {
         factory = CustomerEcosystemViewModelFactory()
     )
 
+    // UX Refactor Phase 1: bridges the new phone/OTP login (in-memory only,
+    // resets on process death) into the OLD, DataStore-persisted Role
+    // system, so a customer who has completed OTP login before still lands
+    // on CUSTOMER_HOME (not MEMBER_SALONS_LIST) on their next cold start —
+    // see this phase's plan doc for why this bridge is necessary. Fired
+    // directly, not through RoleSelectionViewModel, so it never touches
+    // that ViewModel's one-shot navigationEvents channel (WelcomeRoute's
+    // own LaunchedEffect owns that channel; sharing it here could deliver
+    // a stale buffered event next time WELCOME is visited).
+    val coroutineScope = rememberCoroutineScope()
+    val saveSelectedRoleUseCase = remember { RoleModule.saveSelectedRoleUseCase(appContext) }
+
 
     val restoreState by sessionViewModel.restoreState
         .collectAsStateWithLifecycle()
@@ -244,9 +271,34 @@ fun RojanNavGraph() {
 
             NavHost(
                 navController = navController,
+                // UX Refactor Phase 1: a customer with no persisted role
+                // yet starts on the unauthenticated Member Salons List
+                // (new-customer flow), not the role-selection Welcome
+                // screen — see this phase's plan doc.
                 startDestination = state.role?.let { RojanDestinations.routeForRole(it) }
-                    ?: RojanDestinations.WELCOME
+                    ?: RojanDestinations.MEMBER_SALONS_LIST
             ) {
+
+
+
+                composable(
+                    route = RojanDestinations.MEMBER_SALONS_LIST,
+                    enterTransition = { motionEnter },
+                    exitTransition = { motionExit },
+                ) {
+                    SalonListScreen(
+                        selectedServiceIds = emptyList(),
+                        showBackButton = false,
+                        onBackClick = {},
+                        onSalonSelected = { salonId ->
+                            navController.navigate(RojanDestinations.salonDetails(salonId))
+                        },
+                        // Secondary entry point for Manager/Specialist roles —
+                        // WELCOME is no longer the default landing screen.
+                        onBusinessLoginClick = { navController.navigate(RojanDestinations.WELCOME) },
+                    )
+                }
+
 
 
 
@@ -281,13 +333,40 @@ fun RojanNavGraph() {
                     route = RojanDestinations.AUTH,
                     enterTransition = { motionEnter },
                     exitTransition = { motionExit },
-                ) {
+                ) { backStackEntry ->
+                    // UX Refactor Phase 1: must be read here, at composition
+                    // time (bookingViewModelFor is @Composable) — not inside
+                    // the click callbacks below, which run outside composition.
+                    val bookingFlowInProgress = navController.hasBookingFlowInProgress()
+                    val inProgressBookingViewModel = if (bookingFlowInProgress) {
+                        bookingViewModelFor(navController, backStackEntry)
+                    } else {
+                        null
+                    }
                     AuthScreen(
                         authViewModel = authViewModel,
                         onBackClick = { navController.popBackStack() },
                         onExistingUserAuthenticated = {
-                            navController.navigate(RojanDestinations.SERVICE_CATEGORIES) {
-                                popUpTo(RojanDestinations.AUTH) { inclusive = true }
+                            // Bridges OTP login (in-memory) into the persisted
+                            // Role system so this customer's next cold start
+                            // lands on CUSTOMER_HOME, not MEMBER_SALONS_LIST.
+                            coroutineScope.launch { saveSelectedRoleUseCase(Role.CUSTOMER) }
+                            // "Login/OTP only when booking" — AUTH is now only
+                            // ever reached mid-flow from BOOKING_TIME, so this
+                            // resumes exactly where the booking flow left off.
+                            // The MEMBER_SALONS_LIST fallback is defensive only
+                            // (no current call site reaches AUTH any other way,
+                            // now that the category-first pre-booking entry is
+                            // removed) — kept so this never dead-ends if that
+                            // ever changes.
+                            if (inProgressBookingViewModel != null) {
+                                navController.navigate(routeForBookingStep(inProgressBookingViewModel.nextStep())) {
+                                    popUpTo(RojanDestinations.AUTH) { inclusive = true }
+                                }
+                            } else {
+                                navController.navigate(RojanDestinations.MEMBER_SALONS_LIST) {
+                                    popUpTo(RojanDestinations.AUTH) { inclusive = true }
+                                }
                             }
                         },
                         onFirstTimeUser = {
@@ -300,42 +379,29 @@ fun RojanNavGraph() {
                     route = RojanDestinations.FIRST_TIME_NAME,
                     enterTransition = { motionEnter },
                     exitTransition = { motionExit },
-                ) {
+                ) { backStackEntry ->
+                    val bookingFlowInProgress = navController.hasBookingFlowInProgress()
+                    val inProgressBookingViewModel = if (bookingFlowInProgress) {
+                        bookingViewModelFor(navController, backStackEntry)
+                    } else {
+                        null
+                    }
                     FirstTimeNameScreen(
                         authViewModel = authViewModel,
                         onNameSubmitted = {
-                            navController.navigate(RojanDestinations.SERVICE_CATEGORIES) {
-                                popUpTo(RojanDestinations.AUTH) { inclusive = true }
+                            // Same Role bridge as onExistingUserAuthenticated
+                            // above — a first-time user is a customer too.
+                            coroutineScope.launch { saveSelectedRoleUseCase(Role.CUSTOMER) }
+                            // Same mid-flow-vs-defensive-fallback branch as AUTH above.
+                            if (inProgressBookingViewModel != null) {
+                                navController.navigate(routeForBookingStep(inProgressBookingViewModel.nextStep())) {
+                                    popUpTo(RojanDestinations.AUTH) { inclusive = true }
+                                }
+                            } else {
+                                navController.navigate(RojanDestinations.MEMBER_SALONS_LIST) {
+                                    popUpTo(RojanDestinations.AUTH) { inclusive = true }
+                                }
                             }
-                        },
-                    )
-                }
-
-                composable(
-                    route = RojanDestinations.SERVICE_CATEGORIES,
-                    enterTransition = { motionEnter },
-                    exitTransition = { motionExit },
-                ) {
-                    ServiceCategoriesScreen(
-                        onBackClick = { navController.popBackStack() },
-                        onCategorySelected = { categoryLabel ->
-                            navController.navigate(RojanDestinations.serviceSelection(categoryLabel))
-                        },
-                    )
-                }
-
-                composable(
-                    route = RojanDestinations.SERVICE_SELECTION,
-                    arguments = listOf(navArgument("categoryLabel") { type = NavType.StringType }),
-                    enterTransition = { motionEnter },
-                    exitTransition = { motionExit },
-                ) { backStackEntry ->
-                    val categoryLabel = backStackEntry.arguments?.getString("categoryLabel") ?: ""
-                    ServiceSelectionScreen(
-                        categoryLabel = categoryLabel,
-                        onBackClick = { navController.popBackStack() },
-                        onContinueBooking = { selectedServiceIds ->
-                            navController.navigate(RojanDestinations.salonList(selectedServiceIds))
                         },
                     )
                 }
@@ -355,35 +421,6 @@ fun RojanNavGraph() {
                             navController.navigate(RojanDestinations.salonDetails(salonId))
                         },
                     )
-                }
-
-                composable(
-                    route = RojanDestinations.BOOKING_LANDING,
-                    enterTransition = {
-                        motionEnter
-                    },
-                    exitTransition = {
-                        motionExit
-                    }
-                ) {
-
-                    BookingLandingScreen(
-                        onSearchClick = { navController.navigate(RojanDestinations.BOOKING_FLOW_GRAPH) },
-                        onSalonClick = { salonId ->
-                            navController.navigate(RojanDestinations.salonDetails(salonId))
-                        },
-                        onSpecialistClick = { specialistId ->
-                            navController.navigate(RojanDestinations.specialistProfile(specialistId))
-                        },
-                        onHomeClick = {
-                            navController.navigate(RojanDestinations.CUSTOMER_HOME) {
-                                popUpTo(RojanDestinations.CUSTOMER_HOME) { inclusive = false }
-                            }
-                        },
-                        onBookingsClick = { navController.navigate(RojanDestinations.APPOINTMENTS) },
-                        onProfileClick = { navController.navigate(RojanDestinations.PROFILE) },
-                    )
-
                 }
 
 
@@ -430,6 +467,7 @@ fun RojanNavGraph() {
                             ?.split(",")?.filter { it.isNotBlank() }
                         SalonDetailsScreen(
                             salonId = salonId,
+                            ecosystemViewModel = customerEcosystemViewModel,
                             selectedServiceIds = selectedServiceIds,
                             onBackClick = { navController.popBackStack() },
                             onSpecialistClick = { specialistId ->
@@ -572,9 +610,23 @@ fun RojanNavGraph() {
                             onBackClick = { navController.popBackStack() },
                             onTimeSelected = { time ->
                                 bookingViewModel.onTimeSelected(time)
-                                navController.navigate(
-                                    routeForBookingStep(bookingViewModel.nextStep())
-                                )
+                                // UX Refactor Phase 1: "Login/OTP only when
+                                // booking" — an already-authenticated (this
+                                // session) customer proceeds straight to
+                                // Confirmation; everyone else is routed
+                                // through AUTH first. AUTH's own success
+                                // handler resumes at routeForBookingStep(
+                                // bookingViewModel.nextStep()) — the same
+                                // call used here — so both paths converge
+                                // on the same destination with this exact
+                                // BookingViewModel instance's state intact.
+                                if (authViewModel.sessionState.value is SessionState.LoggedIn) {
+                                    navController.navigate(
+                                        routeForBookingStep(bookingViewModel.nextStep())
+                                    )
+                                } else {
+                                    navController.navigate(RojanDestinations.AUTH)
+                                }
                             },
                         )
                     }
@@ -617,6 +669,7 @@ fun RojanNavGraph() {
                                         dateLabel = dateLabel,
                                         time = time,
                                         price = service.discountPrice ?: service.price,
+                                        salonId = confirmedState.salonId,
                                     )
                                 }
                                 navController.navigate(RojanDestinations.BOOKING_SUCCESS)
@@ -637,8 +690,17 @@ fun RojanNavGraph() {
                                 // Pops the whole booking sub-graph at once - this is what
                                 // clears BookingViewModel's state (see its own doc comment),
                                 // not a manual reset call.
-                                navController.navigate(RojanDestinations.BOOKING_LANDING) {
-                                    popUpTo(RojanDestinations.BOOKING_LANDING) { inclusive = false }
+                                //
+                                // UX Refactor Phase 1: always CUSTOMER_HOME now,
+                                // not conditional on how this user started out —
+                                // Booking Confirmation is only reachable once
+                                // authenticated (the Login/OTP gate on
+                                // BOOKING_TIME), so by the time anyone reaches
+                                // Success they're already a customer, whether
+                                // they just completed their first login or were
+                                // a returning registered customer all along.
+                                navController.navigate(RojanDestinations.CUSTOMER_HOME) {
+                                    popUpTo(RojanDestinations.CUSTOMER_HOME) { inclusive = false }
                                 }
                             },
                         )
@@ -661,9 +723,19 @@ fun RojanNavGraph() {
                     CustomerHomeScreen(
                         ecosystemViewModel = customerEcosystemViewModel,
                         onProfileClick = { navController.navigate(RojanDestinations.PROFILE) },
-                        onBookAppointmentClick = { navController.navigate(RojanDestinations.AUTH) },
+                        // UX Refactor Phase 1: was AUTH directly — the
+                        // category-first flow that used to follow login no
+                        // longer exists, and "login only when booking" means
+                        // this CTA should start with salon browsing, not a
+                        // phone number prompt. Repointed to the same browse
+                        // list a brand-new customer starts on.
+                        onBookAppointmentClick = { navController.navigate(RojanDestinations.MEMBER_SALONS_LIST) },
                         onBookingsClick = { navController.navigate(RojanDestinations.APPOINTMENTS) },
                         onFavoritesClick = { navController.navigate(RojanDestinations.FAVORITES) },
+                        onSearchClick = { navController.navigate(RojanDestinations.SEARCH) },
+                        onSalonClick = { salonId ->
+                            navController.navigate(RojanDestinations.salonDetails(salonId))
+                        },
                     )
 
                 }

@@ -302,6 +302,7 @@ class CustomerEcosystemEngine(
         dateLabel: String,
         time: String,
         price: Int,
+        salonId: String? = null,
     ): List<EcosystemEvent> {
         val appointment = DemoAppointment(
             id = "appt_${state.appointments.size}_${serviceId.hashCode()}",
@@ -315,6 +316,7 @@ class CustomerEcosystemEngine(
             relatedServiceId = serviceId,
             specialistId = specialistId,
             dateKey = dateKey,
+            salonId = salonId,
         )
         return listOf(EcosystemEvent.AppointmentBooked(appointment))
     }

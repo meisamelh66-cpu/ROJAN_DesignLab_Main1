@@ -12,14 +12,22 @@ import androidx.compose.ui.unit.dp
 import ai.rojan.designlab.domain.model.RoleType
 import ai.rojan.designlab.components.brand.RojanLogo
 import ai.rojan.designlab.components.brand.VersionFooter
-import ai.rojan.designlab.components.hero.HeroBookingCard
 import ai.rojan.designlab.components.roles.RoleRow
 import ai.rojan.designlab.ui.background.PremiumBackground
 
+/**
+ * UX Refactor Phase 1: this screen is now a secondary entry point
+ * (Manager/Specialist "business login," reached from Member Salons
+ * List) rather than the app's default landing screen — a customer with
+ * no persisted role now starts on Member Salons List instead. The
+ * "Get Started" booking hero that used to live here was removed since
+ * it led into the now-deleted category-first booking flow, and doesn't
+ * fit a role-selection screen whose remaining audience is business
+ * roles, not customers starting a booking.
+ */
 @Composable
 fun WelcomeScreen(
     onRoleSelected: (RoleType) -> Unit,
-    onGetStartedClick: () -> Unit
 ) {
 
     PremiumBackground {
@@ -39,12 +47,6 @@ fun WelcomeScreen(
 
 
             RojanLogo()
-
-
-
-            HeroBookingCard(
-                onClick = onGetStartedClick
-            )
 
 
 

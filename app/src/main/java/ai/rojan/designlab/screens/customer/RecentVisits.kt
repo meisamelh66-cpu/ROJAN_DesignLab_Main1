@@ -34,7 +34,8 @@ import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
 /**
- * Customer Home recent visits.
+ * Customer Home "Previous Salons" — UX Refactor Phase 1 relabeling of
+ * what was internally still "recent visits."
  *
  * Code Cleanup pass: migrated off its previous local `fakeRecentVisits`
  * list onto [CustomerEcosystemViewModel.state]'s real
@@ -44,9 +45,13 @@ import ai.rojan.designlab.ui.components.icon.RojanIconSize
  * "زمان نسبی" (relative time) now comes from real
  * [ai.rojan.designlab.data.demo.DemoAppointment.daysAgo] instead of a
  * separate hand-written string per fake entry.
+ *
+ * UX Refactor Phase 1: [onSalonClick] navigates to that appointment's
+ * salon via [ai.rojan.designlab.data.demo.DemoAppointment.salonId] — a
+ * no-op for the rare pre-existing appointment predating that field.
  */
 @Composable
-fun RecentVisits(ecosystemViewModel: CustomerEcosystemViewModel) {
+fun RecentVisits(ecosystemViewModel: CustomerEcosystemViewModel, onSalonClick: (String) -> Unit = {}) {
     val pastVisits = ecosystemViewModel.state.pastAppointments
 
     LazyRow(
@@ -61,7 +66,7 @@ fun RecentVisits(ecosystemViewModel: CustomerEcosystemViewModel) {
                 GlassSurface(
                     modifier = Modifier
                         .fillMaxSize()
-                        .clickable { },
+                        .clickable { visit.salonId?.let(onSalonClick) },
                     shape = RojanShapes.Small,
                 ) {
                     Column(

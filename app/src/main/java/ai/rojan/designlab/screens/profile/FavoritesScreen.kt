@@ -69,13 +69,13 @@ fun FavoritesScreen(
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {
             item { GlassBackButton(onClick = onBackClick) }
-            item { Text("علاقه‌مندی‌ها", style = RojanTypography.HeroTitle, color = RojanTextOnGlass) }
+            item { Text("سالن‌های دنبال‌شده", style = RojanTypography.HeroTitle, color = RojanTextOnGlass) }
 
             if (favoriteSalons.isEmpty()) {
                 item {
                     RojanEmptyState(
-                        title = "علاقه‌مندی‌ای ندارید",
-                        description = "سالن‌های مورد علاقه خود را اینجا ذخیره کنید",
+                        title = "هنوز سالنی را دنبال نکرده‌اید",
+                        description = "سالن‌هایی که دنبال می‌کنید اینجا نمایش داده می‌شوند",
                         icon = Icons.Filled.FavoriteBorder,
                     )
                 }
@@ -131,7 +131,7 @@ private fun FavoriteSalonCard(
 
             Icon(
                 imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                contentDescription = "حذف از علاقه‌مندی‌ها",
+                contentDescription = "لغو دنبال کردن این سالن",
                 tint = RojanVividMagenta,
                 modifier = Modifier.clickable(onClick = onToggleFavorite),
             )
