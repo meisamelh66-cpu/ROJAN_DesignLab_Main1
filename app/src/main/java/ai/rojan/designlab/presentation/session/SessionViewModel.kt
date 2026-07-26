@@ -1,6 +1,7 @@
 package ai.rojan.designlab.presentation.session
 
 import ai.rojan.designlab.domain.model.Role
+import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.usecase.ObserveSelectedRoleUseCase
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,15 +11,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
-/** Whether the persisted role has finished loading from storage yet. */
+/** Whether the persisted role/identity has finished loading from storage yet. */
 sealed interface SessionRestoreState {
     /** Still reading from DataStore — the very first frame(s) after launch only. */
     data object Loading : SessionRestoreState
 
-    /** Finished reading; [role] is `null` for a first-time user, non-null for a returning one. */
-    data class Restored(val role: Role?) : SessionRestoreState
+    /**
+     * Finished reading. [role] is `null` for a first-time user, non-null
+     * for a returning one (unchanged from before UX Refactor Phase 2).
+     * [personId] (added in Phase 2) is non-null when a previously
+     * phone/OTP-verified customer's identity was persisted — see
+     * [ai.rojan.designlab.presentation.auth.AuthViewModel.restoreSession].
+     */
+    data class Restored(val role: Role?, val personId: String?) : SessionRestoreState
 }
 
 /**
@@ -35,15 +43,22 @@ sealed interface SessionRestoreState {
  * independent layer of protection on top of that repository-level fix:
  * a hard timeout. If no value has arrived within
  * [SESSION_RESTORE_TIMEOUT_MS], restoration fails safe to
- * `Restored(role = null)` — the same state a genuine first-time user
- * produces — so [ai.rojan.designlab.navigation.RojanNavGraph] proceeds to
- * Welcome instead of freezing. This is deliberately independent of the
- * repository-level fix: either one alone would have prevented the
- * originally-diagnosed freeze, and keeping both means a *different*,
- * not-yet-seen failure mode still can't reproduce it.
+ * `Restored(role = null, personId = null)` — the same state a genuine
+ * first-time user produces — so [ai.rojan.designlab.navigation.RojanNavGraph]
+ * proceeds to Member Salons List instead of freezing. This is
+ * deliberately independent of the repository-level fix: either one alone
+ * would have prevented the originally-diagnosed freeze, and keeping both
+ * means a *different*, not-yet-seen failure mode still can't reproduce it.
+ *
+ * UX Refactor Phase 2: also restores the persisted logged-in customer
+ * identity (via [authSessionRepository]) under this exact same
+ * Loading/timeout-guard shape, rather than a second, separate restore
+ * mechanism — this pattern is already proven necessary on real devices,
+ * so the new identity restore gets the same protection, not a weaker one.
  */
 class SessionViewModel(
     observeSelectedRole: ObserveSelectedRoleUseCase,
+    authSessionRepository: AuthSessionRepository,
 ) : ViewModel() {
 
     private val _restoreState =
@@ -54,32 +69,42 @@ class SessionViewModel(
     init {
         viewModelScope.launch {
 
-            // Timeout guard: if the first role value hasn't arrived by
-            // the deadline, fail safe to "no role" rather than staying on
-            // Loading forever. compareAndSet only applies this fallback
-            // if restoreState is still genuinely Loading — if the real
-            // value already arrived first, this is a harmless no-op.
+            // Timeout guard: if the first combined value hasn't arrived by
+            // the deadline, fail safe to "no role, no identity" rather than
+            // staying on Loading forever. compareAndSet only applies this
+            // fallback if restoreState is still genuinely Loading — if the
+            // real value already arrived first, this is a harmless no-op.
             val timeoutGuard = launch {
                 delay(SESSION_RESTORE_TIMEOUT_MS)
                 _restoreState.compareAndSet(
                     SessionRestoreState.Loading,
-                    SessionRestoreState.Restored(role = null)
+                    SessionRestoreState.Restored(role = null, personId = null)
                 )
             }
 
-            observeSelectedRole()
-                .catch { throwable ->
-                    // Defense in depth: RoleRepositoryImpl already recovers
-                    // from read failures on its own, but if some future
-                    // change to that layer regresses this, session
-                    // restoration still must not die here either.
-                    // CancellationException is never swallowed.
-                    if (throwable is CancellationException) throw throwable
-                    emit(null)
-                }
-                .collect { role ->
+            combine(
+                observeSelectedRole()
+                    .catch { throwable ->
+                        // Defense in depth: RoleRepositoryImpl already recovers
+                        // from read failures on its own, but if some future
+                        // change to that layer regresses this, session
+                        // restoration still must not die here either.
+                        // CancellationException is never swallowed.
+                        if (throwable is CancellationException) throw throwable
+                        emit(null)
+                    },
+                authSessionRepository.observePersonId()
+                    .catch { throwable ->
+                        // Same defense-in-depth reasoning as the role flow
+                        // above — AuthSessionRepositoryImpl already recovers
+                        // internally, this is a second, independent layer.
+                        if (throwable is CancellationException) throw throwable
+                        emit(null)
+                    },
+            ) { role, personId -> role to personId }
+                .collect { (role, personId) ->
                     timeoutGuard.cancel()
-                    _restoreState.value = SessionRestoreState.Restored(role)
+                    _restoreState.value = SessionRestoreState.Restored(role, personId)
                 }
         }
     }

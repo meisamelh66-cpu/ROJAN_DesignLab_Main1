@@ -2,6 +2,9 @@ package ai.rojan.designlab.presentation.auth
 
 import ai.rojan.designlab.data.identity.DemoIdentityProvider
 import ai.rojan.designlab.data.identity.DemoSessionProvider
+import ai.rojan.designlab.data.local.authSessionDataStore
+import ai.rojan.designlab.data.repository.AuthSessionRepositoryImpl
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 
@@ -17,13 +20,20 @@ import androidx.lifecycle.ViewModelProvider
  * `SessionViewModel`). Swapping to a real backend later means replacing
  * only this factory's two `Demo*` constructions — [AuthViewModel], every
  * screen, and every other ViewModel stay exactly as they are.
+ *
+ * UX Refactor Phase 2: [appContext] added to also construct
+ * [AuthSessionRepositoryImpl], the persistence layer that lets
+ * [AuthViewModel] survive a cold start.
  */
-class AuthViewModelFactory : ViewModelProvider.Factory {
+class AuthViewModelFactory(
+    private val appContext: Context,
+) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         val identityProvider = DemoIdentityProvider()
         val sessionProvider = DemoSessionProvider(identityProvider)
-        return AuthViewModel(sessionProvider, identityProvider) as T
+        val authSessionRepository = AuthSessionRepositoryImpl(appContext.applicationContext.authSessionDataStore)
+        return AuthViewModel(sessionProvider, identityProvider, authSessionRepository) as T
     }
 }

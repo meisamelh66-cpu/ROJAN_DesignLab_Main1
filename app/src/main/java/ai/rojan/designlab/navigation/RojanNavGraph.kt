@@ -3,7 +3,6 @@ package ai.rojan.designlab.navigation
 import ai.rojan.designlab.R
 import ai.rojan.designlab.ui.background.PremiumBackground
 import ai.rojan.designlab.components.PremiumLoadingBar
-import ai.rojan.designlab.di.RoleModule
 import ai.rojan.designlab.domain.booking.BookingIntent
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.navigation.RojanDestinations.routeForBookingStep
@@ -66,7 +65,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,8 +84,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-
-import kotlinx.coroutines.launch
 
 
 private val motionEnter =
@@ -155,46 +151,37 @@ private fun NavController.hasBookingFlowInProgress(): Boolean =
 
 /**
  * Production Readiness Audit (V1.0 Module 6): real navigation guard for
- * Customer-only screens (Appointments, Reschedule, Waiting List).
+ * Customer-only screens (Appointments, Waitlist, Reschedule, Favorites,
+ * Appointment Details).
  *
- * Deliberately checks [SessionViewModel]'s [ai.rojan.designlab.domain.model.Role]
- * (the OLD role-selection system that actually governs this app's
- * top-level navigation today - `state.role?.let { routeForRole(it) }`
- * as the graph's `startDestination`) rather than the NEW Identity
- * Foundation's `PersonRole` system. This is a deliberate choice, not an
- * oversight: the two role systems are currently parallel and
- * unreconciled (a real, disclosed architectural gap) - a customer who
- * reaches these screens via the OLD role-selection flow (the app's
- * primary, most common path today) has never authenticated through the
- * NEW phone/OTP system at all, so guarding against `PersonRole` here
- * would incorrectly block the majority of legitimate customers, a real
- * regression, not a fix. Guarding against the OLD `Role` (which
- * genuinely does gate SALON_MANAGER/STYLIST away from
- * CUSTOMER_HOME already) is the correct, safe check for what this audit
- * actually asked to prevent: "unauthorized roles cannot access Customer
- * appointment screens."
+ * UX Refactor Phase 2: now checks real authenticated identity
+ * ([AuthViewModel.sessionState] is [SessionState.LoggedIn]) instead of
+ * the OLD, coarse `Role` flag this guard used through Phase 1 — see this
+ * phase's plan doc for why that was a deliberate, disclosed interim
+ * choice rather than the correct long-term check. Reading via
+ * [collectAsStateWithLifecycle] (reactive) rather than a one-off `.value`
+ * snapshot, for consistency with every other session-state read in this
+ * file.
  *
- * [SessionRestoreState.Loading] allows content through rather than
- * blocking - the first frame(s) after launch, not a real denial case;
- * blocking here would flash a false access-denied state on every cold
- * start.
+ * No `Loading` branch is needed here (unlike the old `Role`-based
+ * version): this guard is only ever composed for a screen inside
+ * `NavHost`, which itself only exists once [SessionRestoreState] has
+ * already resolved to `Restored` — by which point `authViewModel` has
+ * already been synchronously hydrated (see the `LaunchedEffect(state)`
+ * in [RojanNavGraph] that calls [AuthViewModel.restoreSession]), well
+ * before a user could navigate to a guarded route.
  */
 @Composable
 private fun CustomerAccessGuard(
-    sessionViewModel: SessionViewModel,
+    authViewModel: AuthViewModel,
     onAccessDenied: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val restoreState by sessionViewModel.restoreState.collectAsStateWithLifecycle()
-    when (val state = restoreState) {
-        is SessionRestoreState.Loading -> content()
-        is SessionRestoreState.Restored -> {
-            if (state.role == null || state.role == Role.CUSTOMER) {
-                content()
-            } else {
-                LaunchedEffect(Unit) { onAccessDenied() }
-            }
-        }
+    val sessionState by authViewModel.sessionState.collectAsStateWithLifecycle()
+    if (sessionState is SessionState.LoggedIn) {
+        content()
+    } else {
+        LaunchedEffect(Unit) { onAccessDenied() }
     }
 }
 
@@ -217,24 +204,12 @@ fun RojanNavGraph() {
     )
 
     val authViewModel: AuthViewModel = viewModel(
-        factory = AuthViewModelFactory()
+        factory = AuthViewModelFactory(appContext)
     )
 
     val customerEcosystemViewModel: CustomerEcosystemViewModel = viewModel(
         factory = CustomerEcosystemViewModelFactory()
     )
-
-    // UX Refactor Phase 1: bridges the new phone/OTP login (in-memory only,
-    // resets on process death) into the OLD, DataStore-persisted Role
-    // system, so a customer who has completed OTP login before still lands
-    // on CUSTOMER_HOME (not MEMBER_SALONS_LIST) on their next cold start —
-    // see this phase's plan doc for why this bridge is necessary. Fired
-    // directly, not through RoleSelectionViewModel, so it never touches
-    // that ViewModel's one-shot navigationEvents channel (WelcomeRoute's
-    // own LaunchedEffect owns that channel; sharing it here could deliver
-    // a stale buffered event next time WELCOME is visited).
-    val coroutineScope = rememberCoroutineScope()
-    val saveSelectedRoleUseCase = remember { RoleModule.saveSelectedRoleUseCase(appContext) }
 
 
     val restoreState by sessionViewModel.restoreState
@@ -268,15 +243,37 @@ fun RojanNavGraph() {
 
         is SessionRestoreState.Restored -> {
 
+            // UX Refactor Phase 2: hydrates authViewModel's in-memory
+            // session from the persisted personId (if any) before any
+            // screen below can read it — synchronous, no suspend point,
+            // so this completes before a user could navigate anywhere.
+            // Replaces Phase 1's one-way bridge (which wrote Role.CUSTOMER
+            // on OTP success so cold starts could fake a "logged in"
+            // signal); this restores the real identity instead.
+            LaunchedEffect(state) {
+                state.personId?.let { authViewModel.restoreSession(it) }
+            }
 
             NavHost(
                 navController = navController,
-                // UX Refactor Phase 1: a customer with no persisted role
-                // yet starts on the unauthenticated Member Salons List
-                // (new-customer flow), not the role-selection Welcome
-                // screen — see this phase's plan doc.
-                startDestination = state.role?.let { RojanDestinations.routeForRole(it) }
-                    ?: RojanDestinations.MEMBER_SALONS_LIST
+                // UX Refactor Phase 2: staff routing (Role.SALON_MANAGER/
+                // STYLIST) is untouched from Phase 1. Customer routing no
+                // longer reads Role.CUSTOMER at all — it reads the real
+                // restored identity (state.personId) instead. A legacy
+                // Role.CUSTOMER value from before this phase shipped (with
+                // no personId yet persisted) falls through to
+                // MEMBER_SALONS_LIST like any first-time session — the
+                // disclosed, accepted one-time re-login cost for anyone
+                // who logged in under Phase 1 before this change.
+                startDestination = when (state.role) {
+                    Role.SALON_MANAGER -> RojanDestinations.MANAGER_DASHBOARD
+                    Role.STYLIST -> RojanDestinations.STYLIST_DASHBOARD
+                    else -> if (state.personId != null) {
+                        RojanDestinations.CUSTOMER_HOME
+                    } else {
+                        RojanDestinations.MEMBER_SALONS_LIST
+                    }
+                }
             ) {
 
 
@@ -347,10 +344,9 @@ fun RojanNavGraph() {
                         authViewModel = authViewModel,
                         onBackClick = { navController.popBackStack() },
                         onExistingUserAuthenticated = {
-                            // Bridges OTP login (in-memory) into the persisted
-                            // Role system so this customer's next cold start
-                            // lands on CUSTOMER_HOME, not MEMBER_SALONS_LIST.
-                            coroutineScope.launch { saveSelectedRoleUseCase(Role.CUSTOMER) }
+                            // UX Refactor Phase 2: personId persistence now
+                            // happens inside AuthViewModel.submitOtp itself —
+                            // no bridge call needed here any more.
                             // "Login/OTP only when booking" — AUTH is now only
                             // ever reached mid-flow from BOOKING_TIME, so this
                             // resumes exactly where the booking flow left off.
@@ -389,9 +385,9 @@ fun RojanNavGraph() {
                     FirstTimeNameScreen(
                         authViewModel = authViewModel,
                         onNameSubmitted = {
-                            // Same Role bridge as onExistingUserAuthenticated
-                            // above — a first-time user is a customer too.
-                            coroutineScope.launch { saveSelectedRoleUseCase(Role.CUSTOMER) }
+                            // UX Refactor Phase 2: personId persistence now
+                            // happens inside AuthViewModel.submitFirstName
+                            // itself — no bridge call needed here any more.
                             // Same mid-flow-vs-defensive-fallback branch as AUTH above.
                             if (inProgressBookingViewModel != null) {
                                 navController.navigate(routeForBookingStep(inProgressBookingViewModel.nextStep())) {
@@ -777,7 +773,7 @@ fun RojanNavGraph() {
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
                         CustomerAccessGuard(
-                            sessionViewModel = sessionViewModel,
+                            authViewModel = authViewModel,
                             onAccessDenied = { navController.popBackStack() },
                         ) {
                             val ecosystemViewModel = customerEcosystemViewModel
@@ -801,7 +797,7 @@ fun RojanNavGraph() {
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
                         CustomerAccessGuard(
-                            sessionViewModel = sessionViewModel,
+                            authViewModel = authViewModel,
                             onAccessDenied = { navController.popBackStack() },
                         ) {
                             val ecosystemViewModel = customerEcosystemViewModel
@@ -819,7 +815,7 @@ fun RojanNavGraph() {
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
                         CustomerAccessGuard(
-                            sessionViewModel = sessionViewModel,
+                            authViewModel = authViewModel,
                             onAccessDenied = { navController.popBackStack() },
                         ) {
                             val ecosystemViewModel = customerEcosystemViewModel
@@ -842,21 +838,26 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModel
-                        val appointmentId = backStackEntry.arguments?.getString("appointmentId") ?: ""
-                        AppointmentDetailsScreen(
-                            appointmentId = appointmentId,
-                            ecosystemViewModel = ecosystemViewModel,
-                            onBackClick = { navController.popBackStack() },
-                            onRebookClick = { serviceId ->
-                                // Cross-graph navigation into BOOKING_FLOW_GRAPH's
-                                // ServiceDetails - navigating directly to the
-                                // destination route enters that graph correctly on
-                                // its own (same lesson learned/fixed once already
-                                // in Journey 1's own navigation wiring).
-                                navController.navigate(RojanDestinations.serviceDetails(serviceId))
-                            },
-                        )
+                        CustomerAccessGuard(
+                            authViewModel = authViewModel,
+                            onAccessDenied = { navController.popBackStack() },
+                        ) {
+                            val ecosystemViewModel = customerEcosystemViewModel
+                            val appointmentId = backStackEntry.arguments?.getString("appointmentId") ?: ""
+                            AppointmentDetailsScreen(
+                                appointmentId = appointmentId,
+                                ecosystemViewModel = ecosystemViewModel,
+                                onBackClick = { navController.popBackStack() },
+                                onRebookClick = { serviceId ->
+                                    // Cross-graph navigation into BOOKING_FLOW_GRAPH's
+                                    // ServiceDetails - navigating directly to the
+                                    // destination route enters that graph correctly on
+                                    // its own (same lesson learned/fixed once already
+                                    // in Journey 1's own navigation wiring).
+                                    navController.navigate(RojanDestinations.serviceDetails(serviceId))
+                                },
+                            )
+                        }
                     }
 
 
@@ -867,12 +868,17 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModel
-                        FavoritesScreen(
-                            ecosystemViewModel = ecosystemViewModel,
-                            onBackClick = { navController.popBackStack() },
-                            onSalonClick = { salonId -> navController.navigate(RojanDestinations.salonDetails(salonId)) },
-                        )
+                        CustomerAccessGuard(
+                            authViewModel = authViewModel,
+                            onAccessDenied = { navController.popBackStack() },
+                        ) {
+                            val ecosystemViewModel = customerEcosystemViewModel
+                            FavoritesScreen(
+                                ecosystemViewModel = ecosystemViewModel,
+                                onBackClick = { navController.popBackStack() },
+                                onSalonClick = { salonId -> navController.navigate(RojanDestinations.salonDetails(salonId)) },
+                            )
+                        }
                     }
 
 

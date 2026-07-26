@@ -11,6 +11,14 @@ import androidx.compose.ui.unit.dp
 import ai.rojan.designlab.domain.model.RoleType
 
 
+/**
+ * UX Refactor Phase 2: the Customer card is removed — Welcome is now a
+ * business-only ("business login") entry point per Phase 1, and a
+ * customer no longer has any reason to tap a role card at all now that
+ * real authenticated identity (not a card tap) decides Customer routing.
+ * See [ai.rojan.designlab.navigation.RojanNavGraph]'s `startDestination`
+ * for the current customer-routing logic.
+ */
 @Composable
 fun RoleRow(
     modifier: Modifier = Modifier,
@@ -26,24 +34,6 @@ fun RoleRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp) // Global Design System Refinement (Phase 1): 12dp -> 16dp, "increase breathing room"
 
     ) {
-
-
-        RoleCard3D(
-
-            title = "مشتری",
-
-            subtitle = "رزرو نوبت و استفاده از خدمات زیبایی",
-
-            modifier = Modifier.weight(1f),
-
-            onClick = {
-                onRoleSelected(
-                    RoleType.CUSTOMER
-                )
-            }
-
-        )
-
 
 
         RoleCard3D(

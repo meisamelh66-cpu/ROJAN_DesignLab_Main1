@@ -2,9 +2,9 @@ package ai.rojan.designlab.data.identity
 
 import ai.rojan.designlab.domain.identity.IdentityIdFormat
 import ai.rojan.designlab.domain.identity.IdentityProvider
+import ai.rojan.designlab.domain.identity.MutableSessionProvider
 import ai.rojan.designlab.domain.identity.OtpVerificationResult
 import ai.rojan.designlab.domain.identity.PersonIdentity
-import ai.rojan.designlab.domain.identity.SessionProvider
 import ai.rojan.designlab.domain.identity.SessionState
 
 /**
@@ -30,14 +30,20 @@ import ai.rojan.designlab.domain.identity.SessionState
  * booking journey isn't about switching between salons-as-tenant, so
  * this is a deliberate, disclosed simplification, not an oversight.
  *
- * A future `BackendSessionProvider` implements the same [SessionProvider]
+ * A future `BackendSessionProvider` implements the same [ai.rojan.designlab.domain.identity.SessionProvider]
  * interface with a real OTP service and real backend-issued sessions —
  * nothing above this class (UI, ViewModels, Navigation, Booking Journey)
  * needs to change when that swap happens.
+ *
+ * UX Refactor Phase 2: implements [MutableSessionProvider] (previously
+ * unimplemented anywhere) so a cold-start restore can set [state]
+ * directly to [SessionState.LoggedIn] for a previously-verified phone
+ * number, without re-running the OTP flow — see
+ * [ai.rojan.designlab.presentation.auth.AuthViewModel.restoreSession].
  */
 class DemoSessionProvider(
     private val identityProvider: IdentityProvider,
-) : SessionProvider {
+) : MutableSessionProvider {
 
     private var state: SessionState = SessionState.LoggedOut
 
@@ -82,6 +88,17 @@ class DemoSessionProvider(
     }
 
     override fun logout() {
+        state = SessionState.LoggedOut
+    }
+
+    // salonId/organizationId are accepted for interface-shape compatibility
+    // but intentionally unused here, same as currentSalonId()/currentOrganizationId()
+    // above — this class's fixed reference values don't vary by session.
+    override fun setSession(personId: String, salonId: String?, organizationId: String?) {
+        state = SessionState.LoggedIn(personId)
+    }
+
+    override fun clearSession() {
         state = SessionState.LoggedOut
     }
 
