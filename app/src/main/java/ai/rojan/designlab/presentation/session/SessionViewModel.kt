@@ -1,5 +1,8 @@
 package ai.rojan.designlab.presentation.session
 
+import ai.rojan.designlab.domain.identity.IdentityProvider
+import ai.rojan.designlab.domain.identity.PersonRole
+import ai.rojan.designlab.domain.identity.rolesForPersonAcrossAllSalons
 import ai.rojan.designlab.domain.model.Role
 import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.usecase.ObserveSelectedRoleUseCase
@@ -25,8 +28,14 @@ sealed interface SessionRestoreState {
      * [personId] (added in Phase 2) is non-null when a previously
      * phone/OTP-verified customer's identity was persisted — see
      * [ai.rojan.designlab.presentation.auth.AuthViewModel.restoreSession].
+     * [personRoles] (added in Phase 3) is [personId]'s real staff/customer
+     * roles, resolved at restore time — [ai.rojan.designlab.navigation.RojanNavGraph]'s
+     * `startDestination` needs this synchronously, before `AuthViewModel`
+     * itself gets a chance to hydrate (its restore effect runs after
+     * `NavHost` first composes, too late for `startDestination` — see this
+     * phase's plan doc for why the lookup has to happen here instead).
      */
-    data class Restored(val role: Role?, val personId: String?) : SessionRestoreState
+    data class Restored(val role: Role?, val personId: String?, val personRoles: Set<PersonRole>) : SessionRestoreState
 }
 
 /**
@@ -55,10 +64,22 @@ sealed interface SessionRestoreState {
  * Loading/timeout-guard shape, rather than a second, separate restore
  * mechanism — this pattern is already proven necessary on real devices,
  * so the new identity restore gets the same protection, not a weaker one.
+ *
+ * UX Refactor Phase 3: [identityProvider] resolves [personId]'s roles at
+ * the same restore point, so a returning staff member's cold start can
+ * route straight to their dashboard too. A second, independently-
+ * constructed [IdentityProvider] instance from [AuthViewModel]'s is
+ * deliberately fine here rather than a shared singleton: the 7 demo seed
+ * accounts' role assignments are hardcoded in the class initializer and
+ * identical across any instance, and a same-run first-time signup (the
+ * one case a second instance genuinely couldn't see) is correctly denied
+ * business access regardless, since [ai.rojan.designlab.data.identity.DemoIdentityProvider.registerPerson]
+ * only ever grants [PersonRole.CUSTOMER].
  */
 class SessionViewModel(
     observeSelectedRole: ObserveSelectedRoleUseCase,
     authSessionRepository: AuthSessionRepository,
+    private val identityProvider: IdentityProvider,
 ) : ViewModel() {
 
     private val _restoreState =
@@ -78,7 +99,7 @@ class SessionViewModel(
                 delay(SESSION_RESTORE_TIMEOUT_MS)
                 _restoreState.compareAndSet(
                     SessionRestoreState.Loading,
-                    SessionRestoreState.Restored(role = null, personId = null)
+                    SessionRestoreState.Restored(role = null, personId = null, personRoles = emptySet())
                 )
             }
 
@@ -104,7 +125,10 @@ class SessionViewModel(
             ) { role, personId -> role to personId }
                 .collect { (role, personId) ->
                     timeoutGuard.cancel()
-                    _restoreState.value = SessionRestoreState.Restored(role, personId)
+                    val personRoles = personId
+                        ?.let { identityProvider.rolesForPersonAcrossAllSalons(it) }
+                        ?: emptySet()
+                    _restoreState.value = SessionRestoreState.Restored(role, personId, personRoles)
                 }
         }
     }

@@ -29,7 +29,7 @@ import ai.rojan.designlab.domain.identity.SalonIdentity
  * mutable (was an immutable `listOf`) — first-time signup via
  * [registerPerson] genuinely grows this list at runtime, in-memory,
  * for the current app run only. Seed person #6 (رها احمدی,
- * 0912-000-0006) is the deliberate "existing returning customer" case
+ * 09120000006) is the deliberate "existing returning customer" case
  * for testing the mock login flow's other branch — any *other* phone
  * number will correctly be treated as first-time.
  */
@@ -45,14 +45,20 @@ class DemoIdentityProvider : IdentityProvider {
         SalonIdentity(IdentityIdFormat.salonId(2), "استودیو luxe", organization.id),
     )
 
+    // UX Refactor Phase 3: these must be plain digits, matching what
+    // AuthViewModel.isValidPhoneNumber's regex (^09\d{9}$) actually
+    // accepts — the previous dashed format ("0912-000-0001") could never
+    // equal any regex-valid typed input, so personByPhone() could never
+    // match a seeded account through the real UI. No seeded phone number
+    // was reachable at all until this fix.
     private val persons = mutableListOf(
-        PersonIdentity(IdentityIdFormat.personId(1), "رضا کریمی", "0912-000-0001"),
-        PersonIdentity(IdentityIdFormat.personId(2), "مریم صادقی", "0912-000-0002"),
-        PersonIdentity(IdentityIdFormat.personId(3), "سارا نجفی", "0912-000-0003"),
-        PersonIdentity(IdentityIdFormat.personId(4), "علی محمدی", "0912-000-0004"),
-        PersonIdentity(IdentityIdFormat.personId(5), "سارا احمدی", "0912-000-0005"),
-        PersonIdentity(IdentityIdFormat.personId(6), "رها احمدی", "0912-000-0006"),
-        PersonIdentity(IdentityIdFormat.personId(7), "نگین رضایی", "0912-000-0007"),
+        PersonIdentity(IdentityIdFormat.personId(1), "رضا کریمی", "09120000001"),
+        PersonIdentity(IdentityIdFormat.personId(2), "مریم صادقی", "09120000002"),
+        PersonIdentity(IdentityIdFormat.personId(3), "سارا نجفی", "09120000003"),
+        PersonIdentity(IdentityIdFormat.personId(4), "علی محمدی", "09120000004"),
+        PersonIdentity(IdentityIdFormat.personId(5), "سارا احمدی", "09120000005"),
+        PersonIdentity(IdentityIdFormat.personId(6), "رها احمدی", "09120000006"),
+        PersonIdentity(IdentityIdFormat.personId(7), "نگین رضایی", "09120000007"),
     )
 
     private var nextPersonSequence = 8

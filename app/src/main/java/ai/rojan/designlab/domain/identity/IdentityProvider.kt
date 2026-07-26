@@ -34,3 +34,19 @@ interface IdentityProvider {
 
     fun rolesFor(personId: String, salonId: String): Set<PersonRole>
 }
+
+/**
+ * UX Refactor Phase 3: every [PersonRole] [personId] holds across every
+ * salon, not just one. [rolesFor] is scoped per-salon by design (a person
+ * may hold different roles at different salons — see [PersonRoleAssignment]) —
+ * but deciding whether someone has *any* staff access at all (for the
+ * business-login flow, and for [ai.rojan.designlab.presentation.session.SessionViewModel]'s
+ * cold-start restore) needs the union across every salon they're
+ * assigned to, since [ai.rojan.designlab.domain.identity.SessionProvider.currentSalonId]
+ * is a fixed reference value that doesn't reflect which salon a given
+ * person actually belongs to.
+ */
+fun IdentityProvider.rolesForPersonAcrossAllSalons(personId: String): Set<PersonRole> =
+    allSalons()
+        .flatMap { salon -> rolesFor(personId, salon.id) }
+        .toSet()

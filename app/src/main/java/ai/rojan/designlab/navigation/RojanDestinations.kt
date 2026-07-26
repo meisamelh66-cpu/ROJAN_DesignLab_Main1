@@ -1,5 +1,6 @@
 package ai.rojan.designlab.navigation
 
+import ai.rojan.designlab.domain.identity.PersonRole
 import ai.rojan.designlab.domain.model.Role
 
 /** Centralized navigation route constants — avoids magic route strings scattered across composables. */
@@ -91,5 +92,33 @@ object RojanDestinations {
         Role.CUSTOMER -> CUSTOMER_HOME
         Role.SALON_MANAGER -> MANAGER_DASHBOARD
         Role.STYLIST -> STYLIST_DASHBOARD
+    }
+
+    // UX Refactor Phase 3: real, per-salon PersonRole assignments (not a
+    // card tap) now decide staff access. Back-office roles all land on
+    // the one existing Manager dashboard placeholder — this phase doesn't
+    // build differentiated dashboards per role, only real access to the
+    // existing ones.
+    val MANAGER_ROLES = setOf(
+        PersonRole.OWNER,
+        PersonRole.GENERAL_MANAGER,
+        PersonRole.RECEPTION,
+        PersonRole.FINANCE,
+        PersonRole.HR,
+    )
+    val STYLIST_ROLES = setOf(PersonRole.SPECIALIST)
+
+    /**
+     * Resolves the staff dashboard route for a set of real [PersonRole]s,
+     * or `null` if none of them grant staff access at all (e.g. a
+     * customer-only account, or nobody logged in). Back-office roles take
+     * priority if someone somehow holds both a [MANAGER_ROLES] and a
+     * [STYLIST_ROLES] role at once — an arbitrary but documented choice;
+     * no seeded demo account exercises this today.
+     */
+    fun routeForPersonRoles(roles: Set<PersonRole>): String? = when {
+        roles.any { it in MANAGER_ROLES } -> MANAGER_DASHBOARD
+        roles.any { it in STYLIST_ROLES } -> STYLIST_DASHBOARD
+        else -> null
     }
 }

@@ -6,6 +6,7 @@ import ai.rojan.designlab.domain.identity.OtpVerificationResult
 import ai.rojan.designlab.domain.identity.PersonRole
 import ai.rojan.designlab.domain.identity.SessionProvider
 import ai.rojan.designlab.domain.identity.SessionState
+import ai.rojan.designlab.domain.identity.rolesForPersonAcrossAllSalons
 import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -69,6 +70,46 @@ class AuthViewModel(
                     personId,
                     salonId
                 )
+    }
+
+
+    /**
+     * UX Refactor Phase 3: every [PersonRole] the current logged-in person
+     * holds, across **every** salon — not just [SessionProvider.currentSalonId]'s
+     * fixed reference salon. [DemoSessionProvider] hardcodes that value to
+     * salon 1 regardless of who's logged in, which would incorrectly show
+     * zero roles for a real seeded person (e.g. نگین رضایی) whose only
+     * assignment is at a different salon. Empty set if no one is logged in.
+     */
+    fun currentPersonRoles(): Set<PersonRole> {
+
+        val personId =
+            sessionProvider.currentPersonId()
+                ?: return emptySet()
+
+        return identityProvider.rolesForPersonAcrossAllSalons(personId)
+    }
+
+
+    /**
+     * UX Refactor Phase 3: logs out and clears the persisted session — same
+     * effect as [logout] — while also surfacing [message] via [errorMessage],
+     * for a login attempt that succeeded at the identity layer but must
+     * still be rejected one level up (e.g. a real phone number with no
+     * staff role, reached through the business-login entry point).
+     */
+    fun denyAccessAndLogout(message: String) {
+
+        sessionProvider.logout()
+
+        viewModelScope.launch {
+            authSessionRepository.clearPersonId()
+        }
+
+        _errorMessage.value = message
+
+        _sessionState.value =
+            sessionProvider.currentSession()
     }
 
 

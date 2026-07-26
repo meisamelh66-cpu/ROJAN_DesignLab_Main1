@@ -50,18 +50,13 @@ fun WelcomeRoute(
     val uiState by roleSelectionViewModel.uiState.collectAsStateWithLifecycle()
 
 
-    LaunchedEffect(Unit) {
-        roleSelectionViewModel.navigationEvents.collect { role ->
-            navController.navigate(
-                RojanDestinations.routeForRole(role)
-            ) {
-                popUpTo(RojanDestinations.WELCOME) {
-                    inclusive = true
-                }
-                launchSingleTop = true
-            }
-        }
-    }
+    // UX Refactor Phase 3: tapping a role card no longer persists a Role
+    // and jumps straight to a dashboard with zero identity check — it
+    // starts real phone/OTP login instead (RojanNavGraph's AUTH/
+    // FIRST_TIME_NAME success handlers resolve the actual dashboard from
+    // real PersonRole assignments). roleSelectionViewModel/RoleType are
+    // no longer used to drive navigation here; which card was tapped is
+    // now purely cosmetic pre-login framing.
 
 
     Box(
@@ -71,10 +66,8 @@ fun WelcomeRoute(
 
         WelcomeScreen(
 
-            onRoleSelected = { roleType ->
-                roleSelectionViewModel.selectRole(
-                    roleType.toDomainRole()
-                )
+            onRoleSelected = {
+                navController.navigate(RojanDestinations.AUTH)
             },
         )
 

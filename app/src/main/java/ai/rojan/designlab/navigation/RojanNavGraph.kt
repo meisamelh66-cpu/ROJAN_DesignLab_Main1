@@ -14,6 +14,7 @@ import ai.rojan.designlab.presentation.roleselection.RoleSelectionViewModel
 import ai.rojan.designlab.presentation.roleselection.RoleSelectionViewModelFactory
 import ai.rojan.designlab.presentation.auth.AuthViewModel
 import ai.rojan.designlab.presentation.auth.AuthViewModelFactory
+import ai.rojan.designlab.domain.identity.PersonRole
 import ai.rojan.designlab.domain.identity.SessionState
 import ai.rojan.designlab.domain.model.Role
 import ai.rojan.designlab.presentation.session.SessionRestoreState
@@ -137,6 +138,18 @@ private fun bookingViewModelFor(
 private fun NavController.hasBookingFlowInProgress(): Boolean =
     runCatching { getBackStackEntry(RojanDestinations.BOOKING_FLOW_GRAPH) }.isSuccess
 
+/**
+ * UX Refactor Phase 3: the same back-stack-presence signal as
+ * [hasBookingFlowInProgress], for the business-login entry point instead.
+ * Deliberately checks for [RojanDestinations.WELCOME]'s presence anywhere
+ * in the back stack, not just [NavController.previousBackStackEntry] —
+ * [RojanDestinations.FIRST_TIME_NAME]'s immediate previous entry is
+ * always [RojanDestinations.AUTH] regardless of which flow led there, so
+ * an immediate-parent check would silently misdetect that screen.
+ */
+private fun NavController.hasBusinessLoginInProgress(): Boolean =
+    runCatching { getBackStackEntry(RojanDestinations.WELCOME) }.isSuccess
+
 // Customer Journey Audit (Booking Success P0): CustomerEcosystemViewModel
 // used to be obtained per-nested-graph (a separate instance for
 // CUSTOMER_HOME, PROFILE_GRAPH, and BookingTimeScreen each) - meaning a
@@ -179,6 +192,31 @@ private fun CustomerAccessGuard(
 ) {
     val sessionState by authViewModel.sessionState.collectAsStateWithLifecycle()
     if (sessionState is SessionState.LoggedIn) {
+        content()
+    } else {
+        LaunchedEffect(Unit) { onAccessDenied() }
+    }
+}
+
+/**
+ * UX Refactor Phase 3: defense-in-depth guard for the staff dashboards —
+ * mirrors [CustomerAccessGuard]'s exact shape. [MANAGER_DASHBOARD]/
+ * [STYLIST_DASHBOARD] are now a real access boundary (real [PersonRole]
+ * assignments, not a tap-a-card destination), so they get the same kind
+ * of guard the customer-only screens already have, not just correct
+ * routing from the business-login flow.
+ */
+@Composable
+private fun StaffAccessGuard(
+    authViewModel: AuthViewModel,
+    allowedRoles: Set<PersonRole>,
+    onAccessDenied: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val sessionState by authViewModel.sessionState.collectAsStateWithLifecycle()
+    val hasAccess = sessionState is SessionState.LoggedIn &&
+        authViewModel.currentPersonRoles().any { it in allowedRoles }
+    if (hasAccess) {
         content()
     } else {
         LaunchedEffect(Unit) { onAccessDenied() }
@@ -256,24 +294,23 @@ fun RojanNavGraph() {
 
             NavHost(
                 navController = navController,
-                // UX Refactor Phase 2: staff routing (Role.SALON_MANAGER/
-                // STYLIST) is untouched from Phase 1. Customer routing no
-                // longer reads Role.CUSTOMER at all — it reads the real
-                // restored identity (state.personId) instead. A legacy
-                // Role.CUSTOMER value from before this phase shipped (with
-                // no personId yet persisted) falls through to
-                // MEMBER_SALONS_LIST like any first-time session — the
-                // disclosed, accepted one-time re-login cost for anyone
-                // who logged in under Phase 1 before this change.
-                startDestination = when (state.role) {
-                    Role.SALON_MANAGER -> RojanDestinations.MANAGER_DASHBOARD
-                    Role.STYLIST -> RojanDestinations.STYLIST_DASHBOARD
-                    else -> if (state.personId != null) {
+                // UX Refactor Phase 3: staff routing is now identity-based
+                // too — the old Role.SALON_MANAGER/STYLIST checks are
+                // dropped entirely (nothing writes those values any more
+                // once WelcomeRoute's card tap goes through real login
+                // instead). state.role itself is now unread here; the old
+                // Role/DataStore system is left in place but fully dead,
+                // per this phase's confirmed scope. A legacy Role.CUSTOMER
+                // value from before Phase 2 shipped (with no personId yet
+                // persisted) falls through to MEMBER_SALONS_LIST like any
+                // first-time session — the disclosed, accepted one-time
+                // re-login cost already noted in Phase 2.
+                startDestination = RojanDestinations.routeForPersonRoles(state.personRoles)
+                    ?: if (state.personId != null) {
                         RojanDestinations.CUSTOMER_HOME
                     } else {
                         RojanDestinations.MEMBER_SALONS_LIST
                     }
-                }
             ) {
 
 
@@ -347,21 +384,39 @@ fun RojanNavGraph() {
                             // UX Refactor Phase 2: personId persistence now
                             // happens inside AuthViewModel.submitOtp itself —
                             // no bridge call needed here any more.
-                            // "Login/OTP only when booking" — AUTH is now only
-                            // ever reached mid-flow from BOOKING_TIME, so this
-                            // resumes exactly where the booking flow left off.
-                            // The MEMBER_SALONS_LIST fallback is defensive only
-                            // (no current call site reaches AUTH any other way,
-                            // now that the category-first pre-booking entry is
-                            // removed) — kept so this never dead-ends if that
-                            // ever changes.
-                            if (inProgressBookingViewModel != null) {
-                                navController.navigate(routeForBookingStep(inProgressBookingViewModel.nextStep())) {
-                                    popUpTo(RojanDestinations.AUTH) { inclusive = true }
+                            // "Login/OTP only when booking" — resumes exactly
+                            // where the booking flow left off.
+                            //
+                            // UX Refactor Phase 3: business-login branch —
+                            // real PersonRole (not which card was tapped)
+                            // decides Manager vs Specialist vs denial. Denial
+                            // stays on this same screen: denyAccessAndLogout
+                            // reverts sessionState to LoggedOut, which
+                            // AuthScreen already reflects by re-enabling the
+                            // phone field and showing the error message — no
+                            // navigation needed for that case.
+                            when {
+                                inProgressBookingViewModel != null -> {
+                                    navController.navigate(routeForBookingStep(inProgressBookingViewModel.nextStep())) {
+                                        popUpTo(RojanDestinations.AUTH) { inclusive = true }
+                                    }
                                 }
-                            } else {
-                                navController.navigate(RojanDestinations.MEMBER_SALONS_LIST) {
-                                    popUpTo(RojanDestinations.AUTH) { inclusive = true }
+                                navController.hasBusinessLoginInProgress() -> {
+                                    val staffRoute = RojanDestinations.routeForPersonRoles(authViewModel.currentPersonRoles())
+                                    if (staffRoute != null) {
+                                        navController.navigate(staffRoute) {
+                                            popUpTo(RojanDestinations.WELCOME) { inclusive = true }
+                                        }
+                                    } else {
+                                        authViewModel.denyAccessAndLogout("این شماره دسترسی کسب‌وکار ندارد")
+                                    }
+                                }
+                                else -> {
+                                    // Defensive only — no current call site
+                                    // reaches AUTH any other way.
+                                    navController.navigate(RojanDestinations.MEMBER_SALONS_LIST) {
+                                        popUpTo(RojanDestinations.AUTH) { inclusive = true }
+                                    }
                                 }
                             }
                         },
@@ -388,14 +443,36 @@ fun RojanNavGraph() {
                             // UX Refactor Phase 2: personId persistence now
                             // happens inside AuthViewModel.submitFirstName
                             // itself — no bridge call needed here any more.
-                            // Same mid-flow-vs-defensive-fallback branch as AUTH above.
-                            if (inProgressBookingViewModel != null) {
-                                navController.navigate(routeForBookingStep(inProgressBookingViewModel.nextStep())) {
-                                    popUpTo(RojanDestinations.AUTH) { inclusive = true }
+                            // Same three-way branch as AUTH above. Unlike
+                            // AuthScreen, this screen has no phone field to
+                            // fall back to on denial — a first-time signup
+                            // through the business-login entry point is
+                            // always denied (registerPerson only ever grants
+                            // PersonRole.CUSTOMER), so send the user back to
+                            // AUTH to see the denial on the phone-entry screen.
+                            when {
+                                inProgressBookingViewModel != null -> {
+                                    navController.navigate(routeForBookingStep(inProgressBookingViewModel.nextStep())) {
+                                        popUpTo(RojanDestinations.AUTH) { inclusive = true }
+                                    }
                                 }
-                            } else {
-                                navController.navigate(RojanDestinations.MEMBER_SALONS_LIST) {
-                                    popUpTo(RojanDestinations.AUTH) { inclusive = true }
+                                navController.hasBusinessLoginInProgress() -> {
+                                    val staffRoute = RojanDestinations.routeForPersonRoles(authViewModel.currentPersonRoles())
+                                    if (staffRoute != null) {
+                                        navController.navigate(staffRoute) {
+                                            popUpTo(RojanDestinations.WELCOME) { inclusive = true }
+                                        }
+                                    } else {
+                                        authViewModel.denyAccessAndLogout("این شماره دسترسی کسب‌وکار ندارد")
+                                        navController.navigate(RojanDestinations.AUTH) {
+                                            popUpTo(RojanDestinations.AUTH) { inclusive = true }
+                                        }
+                                    }
+                                }
+                                else -> {
+                                    navController.navigate(RojanDestinations.MEMBER_SALONS_LIST) {
+                                        popUpTo(RojanDestinations.AUTH) { inclusive = true }
+                                    }
                                 }
                             }
                         },
@@ -981,9 +1058,15 @@ fun RojanNavGraph() {
                     }
                 ) {
 
-                    ManagerDashboardScreen(
-                        onBackClick = { navController.navigate(RojanDestinations.WELCOME) }
-                    )
+                    StaffAccessGuard(
+                        authViewModel = authViewModel,
+                        allowedRoles = RojanDestinations.MANAGER_ROLES,
+                        onAccessDenied = { navController.popBackStack() },
+                    ) {
+                        ManagerDashboardScreen(
+                            onBackClick = { navController.navigate(RojanDestinations.WELCOME) }
+                        )
+                    }
 
                 }
 
@@ -1001,9 +1084,15 @@ fun RojanNavGraph() {
                     }
                 ) {
 
-                    StylistDashboardScreen(
-                        onBackClick = { navController.navigate(RojanDestinations.WELCOME) }
-                    )
+                    StaffAccessGuard(
+                        authViewModel = authViewModel,
+                        allowedRoles = RojanDestinations.STYLIST_ROLES,
+                        onAccessDenied = { navController.popBackStack() },
+                    ) {
+                        StylistDashboardScreen(
+                            onBackClick = { navController.navigate(RojanDestinations.WELCOME) }
+                        )
+                    }
 
                 }
 
