@@ -42,6 +42,7 @@ import ai.rojan.designlab.components.PremiumLoadingBar
 
 import ai.rojan.designlab.ui.theme.RojanAquaMint
 import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanPearlPink
 import ai.rojan.designlab.ui.theme.RojanSoftLavender
 import ai.rojan.designlab.ui.theme.RojanTextPrimary
@@ -199,7 +200,7 @@ private fun SplashScreenContent(
 
 
             Spacer(
-                modifier = Modifier.height(16.dp)
+                modifier = Modifier.height(RojanDimens.SpaceMD)
             )
 
 
@@ -214,12 +215,12 @@ private fun SplashScreenContent(
 
 
             Spacer(
-                modifier = Modifier.height(10.dp)
+                modifier = Modifier.height(RojanDimens.SpaceSM)
             )
 
 
             SplashText(
-                text = "Intelligent Beauty Ecosystem",
+                text = "اکوسیستم هوشمند زیبایی",
                 delayMillis = 450,
                 fontSize = 14.sp,
                 weight = FontWeight.Normal,
@@ -306,7 +307,7 @@ private fun SplashLogo(
 
 
     Image(
-        painter = painterResource(id = R.drawable.splash_logo),
+        painter = painterResource(id = R.mipmap.ic_launcher_foreground),
         contentDescription = "ROJAN AI",
         contentScale = ContentScale.Fit,
 
