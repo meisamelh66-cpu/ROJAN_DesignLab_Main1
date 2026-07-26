@@ -8,8 +8,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 
 /**
- * Landing destination for [ai.rojan.designlab.domain.model.Role.STYLIST],
- * reached via the Welcome screen's "متخصص زیبایی" (Beauty Specialist) role card.
+ * Landing destination for staff holding [ai.rojan.designlab.domain.identity.PersonRole.SPECIALIST] —
+ * reached via the Welcome screen's "متخصص" card, which starts real
+ * phone/OTP login; the actual role is resolved afterward from real
+ * identity, not the card tap itself. See
+ * [ai.rojan.designlab.navigation.RojanDestinations.STYLIST_ROLES].
  */
 @Composable
 fun StylistDashboardScreen(

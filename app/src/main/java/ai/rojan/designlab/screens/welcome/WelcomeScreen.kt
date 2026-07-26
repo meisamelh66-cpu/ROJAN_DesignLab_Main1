@@ -9,7 +9,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-import ai.rojan.designlab.domain.model.RoleType
 import ai.rojan.designlab.components.brand.RojanLogo
 import ai.rojan.designlab.components.brand.VersionFooter
 import ai.rojan.designlab.components.roles.RoleRow
@@ -24,10 +23,15 @@ import ai.rojan.designlab.ui.background.PremiumBackground
  * it led into the now-deleted category-first booking flow, and doesn't
  * fit a role-selection screen whose remaining audience is business
  * roles, not customers starting a booking.
+ *
+ * UX Refactor Phase 4: [onRoleSelected] no longer takes a role type —
+ * both cards launch the same real phone/OTP login (see [RoleRow]'s doc
+ * comment); which one was tapped stopped carrying any real meaning back
+ * in Phase 3.
  */
 @Composable
 fun WelcomeScreen(
-    onRoleSelected: (RoleType) -> Unit,
+    onRoleSelected: () -> Unit,
 ) {
 
     PremiumBackground {

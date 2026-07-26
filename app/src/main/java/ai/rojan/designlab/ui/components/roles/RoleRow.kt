@@ -8,9 +8,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-import ai.rojan.designlab.domain.model.RoleType
-
-
 /**
  * UX Refactor Phase 2: the Customer card is removed — Welcome is now a
  * business-only ("business login") entry point per Phase 1, and a
@@ -18,11 +15,18 @@ import ai.rojan.designlab.domain.model.RoleType
  * real authenticated identity (not a card tap) decides Customer routing.
  * See [ai.rojan.designlab.navigation.RojanNavGraph]'s `startDestination`
  * for the current customer-routing logic.
+ *
+ * UX Refactor Phase 3: tapping either remaining card starts real
+ * phone/OTP login instead of persisting a role — the actual dashboard
+ * (Manager vs Specialist vs denied) is decided afterward from real
+ * PersonRole assignments, not by which card was tapped. UX Refactor
+ * Phase 4: [onRoleSelected] reflects that directly — it no longer takes
+ * a role type at all, since one was never meaningfully used past Phase 3.
  */
 @Composable
 fun RoleRow(
     modifier: Modifier = Modifier,
-    onRoleSelected: (RoleType) -> Unit
+    onRoleSelected: () -> Unit
 ) {
 
     Row(
@@ -44,11 +48,7 @@ fun RoleRow(
 
             modifier = Modifier.weight(1f),
 
-            onClick = {
-                onRoleSelected(
-                    RoleType.SALON_MANAGER
-                )
-            }
+            onClick = onRoleSelected
 
         )
 
@@ -62,11 +62,7 @@ fun RoleRow(
 
             modifier = Modifier.weight(1f),
 
-            onClick = {
-                onRoleSelected(
-                    RoleType.BEAUTY_SPECIALIST
-                )
-            }
+            onClick = onRoleSelected
 
         )
 

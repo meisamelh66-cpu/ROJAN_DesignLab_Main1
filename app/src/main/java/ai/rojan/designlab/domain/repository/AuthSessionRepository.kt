@@ -9,10 +9,7 @@ import kotlinx.coroutines.flow.Flow
  * Abstracts the storage mechanism (Preferences DataStore, in the current
  * implementation) away from the presentation layer, per Clean
  * Architecture — nothing above this interface should know or care that
- * DataStore specifically is involved. Mirrors [RoleRepository]'s shape
- * for the same reason that repository exists, but is deliberately a
- * separate interface/store — see [ai.rojan.designlab.data.local.authSessionDataStore]'s
- * doc comment for why the two aren't merged.
+ * DataStore specifically is involved.
  */
 interface AuthSessionRepository {
 

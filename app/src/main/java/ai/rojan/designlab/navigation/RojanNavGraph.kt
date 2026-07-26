@@ -10,13 +10,10 @@ import ai.rojan.designlab.presentation.booking.BookingViewModel
 import ai.rojan.designlab.presentation.booking.BookingViewModelFactory
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModelFactory
-import ai.rojan.designlab.presentation.roleselection.RoleSelectionViewModel
-import ai.rojan.designlab.presentation.roleselection.RoleSelectionViewModelFactory
 import ai.rojan.designlab.presentation.auth.AuthViewModel
 import ai.rojan.designlab.presentation.auth.AuthViewModelFactory
 import ai.rojan.designlab.domain.identity.PersonRole
 import ai.rojan.designlab.domain.identity.SessionState
-import ai.rojan.designlab.domain.model.Role
 import ai.rojan.designlab.presentation.session.SessionRestoreState
 import ai.rojan.designlab.presentation.session.SessionViewModel
 import ai.rojan.designlab.presentation.session.SessionViewModelFactory
@@ -294,17 +291,12 @@ fun RojanNavGraph() {
 
             NavHost(
                 navController = navController,
-                // UX Refactor Phase 3: staff routing is now identity-based
-                // too — the old Role.SALON_MANAGER/STYLIST checks are
-                // dropped entirely (nothing writes those values any more
-                // once WelcomeRoute's card tap goes through real login
-                // instead). state.role itself is now unread here; the old
-                // Role/DataStore system is left in place but fully dead,
-                // per this phase's confirmed scope. A legacy Role.CUSTOMER
-                // value from before Phase 2 shipped (with no personId yet
-                // persisted) falls through to MEMBER_SALONS_LIST like any
-                // first-time session — the disclosed, accepted one-time
-                // re-login cost already noted in Phase 2.
+                // Staff routing (like customer routing) is identity-based —
+                // resolved entirely from state.personRoles, looked up by
+                // SessionViewModel at restore time. The older, DataStore-
+                // persisted Role enum this used to read (UX Refactor Phase
+                // 1/2) was retired in Phase 4 once nothing wrote or read it
+                // any more.
                 startDestination = RojanDestinations.routeForPersonRoles(state.personRoles)
                     ?: if (state.personId != null) {
                         RojanDestinations.CUSTOMER_HOME
@@ -346,15 +338,7 @@ fun RojanNavGraph() {
                     }
                 ) {
 
-
-                    val roleSelectionViewModel: RoleSelectionViewModel =
-                        viewModel(
-                            factory = RoleSelectionViewModelFactory(appContext)
-                        )
-
-
                     WelcomeRoute(
-                        roleSelectionViewModel = roleSelectionViewModel,
                         navController = navController
                     )
 

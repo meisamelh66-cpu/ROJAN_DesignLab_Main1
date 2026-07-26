@@ -14,11 +14,10 @@ import kotlinx.coroutines.flow.map
 /**
  * [AuthSessionRepository] backed by Preferences DataStore.
  *
- * Mirrors [RoleRepositoryImpl]'s read-failure hardening exactly: any
- * non-cancellation read failure recovers to "no one logged in" rather
- * than propagating and permanently stalling a collector (the same class
+ * Any non-cancellation read failure recovers to "no one logged in" rather
+ * than propagating and permanently stalling a collector — the same class
  * of physical-device failure [ai.rojan.designlab.presentation.session.SessionViewModel]'s
- * doc comment describes for the Role store).
+ * doc comment describes guarding against.
  */
 class AuthSessionRepositoryImpl(
     private val dataStore: DataStore<Preferences>,

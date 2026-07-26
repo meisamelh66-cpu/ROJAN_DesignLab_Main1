@@ -9,8 +9,11 @@ import androidx.compose.ui.tooling.preview.Preview
 
 
 /**
- * Landing destination for [ai.rojan.designlab.domain.model.Role.SALON_MANAGER],
- * reached via the Welcome screen's "مدیر سالن" role card.
+ * Landing destination for staff holding a back-office [ai.rojan.designlab.domain.identity.PersonRole]
+ * (OWNER/GENERAL_MANAGER/RECEPTION/FINANCE/HR) — reached via the Welcome
+ * screen's "مدیر سالن" card, which starts real phone/OTP login; the
+ * actual role is resolved afterward from real identity, not the card tap
+ * itself. See [ai.rojan.designlab.navigation.RojanDestinations.MANAGER_ROLES].
  */
 @Composable
 fun ManagerDashboardScreen(

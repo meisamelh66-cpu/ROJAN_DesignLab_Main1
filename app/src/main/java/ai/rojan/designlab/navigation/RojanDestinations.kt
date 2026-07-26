@@ -1,7 +1,6 @@
 package ai.rojan.designlab.navigation
 
 import ai.rojan.designlab.domain.identity.PersonRole
-import ai.rojan.designlab.domain.model.Role
 
 /** Centralized navigation route constants — avoids magic route strings scattered across composables. */
 object RojanDestinations {
@@ -85,13 +84,6 @@ object RojanDestinations {
         ai.rojan.designlab.domain.booking.BookingStep.TIME -> BOOKING_TIME
         ai.rojan.designlab.domain.booking.BookingStep.CONFIRMATION -> BOOKING_CONFIRMATION
         ai.rojan.designlab.domain.booking.BookingStep.SUCCESS -> BOOKING_SUCCESS
-    }
-
-    /** Resolves the dashboard/home route a given [Role] should land on. */
-    fun routeForRole(role: Role): String = when (role) {
-        Role.CUSTOMER -> CUSTOMER_HOME
-        Role.SALON_MANAGER -> MANAGER_DASHBOARD
-        Role.STYLIST -> STYLIST_DASHBOARD
     }
 
     // UX Refactor Phase 3: real, per-salon PersonRole assignments (not a
