@@ -1,4 +1,4 @@
-package ai.rojan.designlab.screens.bookingflow
+﻿package ai.rojan.designlab.screens.bookingflow
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -12,14 +12,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
@@ -45,7 +45,7 @@ import ai.rojan.designlab.ui.components.icon.RojanIconSize
 fun BookingSuccessScreen(
     onDoneClick: () -> Unit,
 ) {
-    PremiumBackground {
+    WarmBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()

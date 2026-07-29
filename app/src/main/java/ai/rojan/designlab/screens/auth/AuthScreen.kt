@@ -1,4 +1,4 @@
-package ai.rojan.designlab.screens.auth
+﻿package ai.rojan.designlab.screens.auth
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
+import ai.rojan.designlab.ui.text.withDirectionFor
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,7 +27,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 import ai.rojan.designlab.domain.identity.SessionState
 import ai.rojan.designlab.presentation.auth.AuthViewModel
-import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
@@ -70,7 +72,7 @@ fun AuthScreen(
         }
     }
 
-    PremiumBackground {
+    WarmBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -106,6 +108,7 @@ fun AuthScreen(
                         enabled = sessionState is SessionState.LoggedOut,
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
+                        textStyle = LocalTextStyle.current.withDirectionFor(phoneNumber),
                     )
 
                     AnimatedVisibility(visible = sessionState is SessionState.AwaitingOtp) {
@@ -118,6 +121,7 @@ fun AuthScreen(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
+                                textStyle = LocalTextStyle.current.withDirectionFor(otpCode),
                             )
 
                             TextButton(onClick = { authViewModel.editPhoneNumber(); otpCode = "" }) {

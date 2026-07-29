@@ -1,4 +1,4 @@
-package ai.rojan.designlab.screens.profile
+﻿package ai.rojan.designlab.screens.profile
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,14 +12,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
 import ai.rojan.designlab.data.demo.DemoWalletTransaction
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.theme.RojanAIGlow
@@ -47,7 +47,7 @@ fun WalletScreen(
 ) {
     val state = ecosystemViewModel.state
 
-    PremiumBackground {
+    WarmBackground {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()

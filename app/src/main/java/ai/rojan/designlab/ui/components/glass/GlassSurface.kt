@@ -81,15 +81,25 @@ import ai.rojan.designlab.ui.theme.RojanShadows
  * which existed as a token but was never actually wired into any real
  * `.shadow()` call until now) replaces Compose's default sharper
  * system shadow, for "very soft shadow... premium floating effect."
+ *
+ * Depth Pass V2 (Global Glass System Upgrade): fill/border/highlight
+ * alpha raised again per "cards look transparent and flat... stronger
+ * separation from background... subtle edge highlights... soft inner
+ * reflection." glassAlpha/glassSecondaryAlpha 0.40f/0.14f to 0.46f/0.18f,
+ * borderAlpha/borderSecondaryAlpha 0.18f/0.08f to 0.24f/0.12f, and the
+ * highlight radial's own two stops 0.26f/0.08f to 0.32f/0.12f. Same
+ * proportional-bump pattern as every prior pass in this file's history;
+ * every existing caller inherits this automatically, no new parameters,
+ * no duplicate glass system.
  */
 @Composable
 fun GlassSurface(
     modifier: Modifier = Modifier,
     shape: Shape,
-    glassAlpha: Float = 0.40f,
-    glassSecondaryAlpha: Float = 0.14f,
-    borderAlpha: Float = 0.18f,
-    borderSecondaryAlpha: Float = 0.08f,
+    glassAlpha: Float = 0.46f,
+    glassSecondaryAlpha: Float = 0.18f,
+    borderAlpha: Float = 0.24f,
+    borderSecondaryAlpha: Float = 0.12f,
     elevation: Dp = RojanShadows.FloatingElevation,
     showHighlight: Boolean = true,
     content: @Composable () -> Unit
@@ -140,8 +150,8 @@ fun GlassSurface(
                     .background(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.26f),
-                                Color.White.copy(alpha = 0.08f),
+                                Color.White.copy(alpha = 0.32f),
+                                Color.White.copy(alpha = 0.12f),
                                 Color.Transparent
                             ),
                             center = Offset.Zero,

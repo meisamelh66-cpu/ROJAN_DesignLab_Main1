@@ -2,6 +2,7 @@ package ai.rojan.designlab.presentation.customer
 
 import ai.rojan.designlab.data.demo.DemoCoupon
 import ai.rojan.designlab.data.demo.DemoUserReview
+import ai.rojan.designlab.domain.booking.PaymentMethod
 import ai.rojan.designlab.domain.customer.CustomerEcosystemEngine
 import ai.rojan.designlab.domain.customer.CustomerEcosystemState
 import ai.rojan.designlab.domain.customer.EcosystemEvent
@@ -143,8 +144,9 @@ class CustomerEcosystemViewModel(
         time: String,
         price: Int,
         salonId: String? = null,
+        paymentMethod: PaymentMethod? = null,
     ) {
-        dispatch(engine.bookAppointment(state, salonName, serviceName, specialistName, serviceId, specialistId, dateKey, dateLabel, time, price, salonId))
+        dispatch(engine.bookAppointment(state, salonName, serviceName, specialistName, serviceId, specialistId, dateKey, dateLabel, time, price, salonId, paymentMethod))
     }
 
     fun clearLastEvents() {

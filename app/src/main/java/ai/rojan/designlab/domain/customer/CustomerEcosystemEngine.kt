@@ -6,6 +6,7 @@ import ai.rojan.designlab.data.demo.DemoBeautyTimelineEntry
 import ai.rojan.designlab.data.demo.DemoCoupon
 import ai.rojan.designlab.data.demo.DemoUserReview
 import ai.rojan.designlab.domain.booking.BookingEngine
+import ai.rojan.designlab.domain.booking.PaymentMethod
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.domain.customer.rules.CashbackRuleProvider
 import ai.rojan.designlab.domain.customer.rules.CouponEligibilityEngine
@@ -303,6 +304,7 @@ class CustomerEcosystemEngine(
         time: String,
         price: Int,
         salonId: String? = null,
+        paymentMethod: PaymentMethod? = null,
     ): List<EcosystemEvent> {
         val appointment = DemoAppointment(
             id = "appt_${state.appointments.size}_${serviceId.hashCode()}",
@@ -317,6 +319,7 @@ class CustomerEcosystemEngine(
             specialistId = specialistId,
             dateKey = dateKey,
             salonId = salonId,
+            paymentMethod = paymentMethod,
         )
         return listOf(EcosystemEvent.AppointmentBooked(appointment))
     }

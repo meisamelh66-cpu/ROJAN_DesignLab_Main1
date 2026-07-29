@@ -1,4 +1,4 @@
-package ai.rojan.designlab.screens.profile
+﻿package ai.rojan.designlab.screens.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,7 +18,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -28,8 +28,9 @@ import androidx.compose.ui.unit.dp
 import ai.rojan.designlab.data.demo.DemoSalon
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.state.RojanEmptyState
 import ai.rojan.designlab.ui.theme.RojanDimens
@@ -61,7 +62,7 @@ fun FavoritesScreen(
     val favoriteIds = ecosystemViewModel.state.favoriteSalonIds
     val favoriteSalons = catalogEngine.allSalons().filter { it.id in favoriteIds }
 
-    PremiumBackground {
+    WarmBackground {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -118,7 +119,15 @@ private fun FavoriteSalonCard(
                     .background(salon.colorSeed.copy(alpha = 0.5f), RojanShapes.Small),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Storefront, contentDescription = null, tint = RojanTextPrimary)
+                if (salon.assetRes != null) {
+                    RojanSampleImage(
+                        resId = salon.assetRes,
+                        contentDescription = salon.name,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Icon(Icons.Filled.Storefront, contentDescription = null, tint = RojanTextPrimary)
+                }
             }
 
             Column(modifier = Modifier.weight(1f).padding(horizontal = RojanDimens.SpaceSM)) {

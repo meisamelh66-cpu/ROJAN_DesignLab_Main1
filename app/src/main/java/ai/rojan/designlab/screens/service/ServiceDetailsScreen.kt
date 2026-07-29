@@ -1,4 +1,4 @@
-package ai.rojan.designlab.screens.service
+﻿package ai.rojan.designlab.screens.service
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -19,7 +19,7 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -28,7 +28,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.domain.catalog.CatalogEngine
-import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
@@ -51,12 +51,12 @@ fun ServiceDetailsScreen(
     val catalogEngine = remember { CatalogEngine() }
     val service = catalogEngine.findServiceById(serviceId)
 
-    PremiumBackground {
+    WarmBackground {
         if (service == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("خدمت یافت نشد", color = RojanTextOnGlass, style = RojanTypography.Body)
             }
-            return@PremiumBackground
+            return@WarmBackground
         }
 
         Column(modifier = Modifier.fillMaxSize()) {

@@ -5,11 +5,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 
 import ai.rojan.designlab.components.hero.HeroBookingCard
+import ai.rojan.designlab.presentation.auth.AuthViewModel
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.theme.RojanDimens
 
 /**
@@ -20,10 +25,15 @@ import ai.rojan.designlab.ui.theme.RojanDimens
  * `Text("HomeHeader")`, `Text("AISearchBar")`, etc. — literal strings
  * naming each section instead of actually calling the section
  * composables. That's corrected below: every section is now a real call
- * to its corresponding composable, in the approved layout hierarchy
- * (Header → AI Search → Hero Booking → Categories → Featured Content →
- * AI Recommendations → Bottom Navigation), wrapped in [PremiumBackground]
- * so the screen background system is actually applied (it wasn't before).
+ * to its corresponding composable, wrapped in [WarmBackground] so the
+ * screen background system is actually applied (it wasn't before).
+ *
+ * Home Premium Polish Phase: section order now matches the approved
+ * reference's explicit sequence — Header → Search → Services/Salons tabs
+ * → Popular Services → Top Specialists → Promotion Banner → Featured
+ * Salons — with the remaining sections the reference doesn't call out
+ * (Hero Booking, Nearby/Recommended/Upcoming/Recent/Followed Salons)
+ * kept afterward in their prior relative order; no section was removed.
  *
  * [LazyColumn] replaces the previous fixed [Column] — with 13 stacked
  * sections, a non-scrolling Column would overflow the screen the moment
@@ -65,33 +75,66 @@ import ai.rojan.designlab.ui.theme.RojanDimens
  * (renamed from RecommendedServices, now recommending salons instead of
  * services). Sections not named in that spec (Hero/Featured/Top
  * Specialists/Promotions) are left as-is — out of this phase's scope.
+ *
+ * Luxury Visual Refinement Phase: outer padding and inter-section spacing
+ * both raised (SpaceMD -> SpaceLG) for more breathing room between
+ * sections — a boutique app shouldn't feel edge-to-edge dense.
+ *
+ * UX Correction (Explore Repositioning): this screen's own content is
+ * unchanged — same 13 sections, same order, same components — but it no
+ * longer renders at the [ai.rojan.designlab.navigation.RojanDestinations.CUSTOMER_HOME]
+ * route. [ai.rojan.designlab.screens.customer.CustomerDashboardScreen] is
+ * the new first-impression screen after auth; this one now renders at
+ * [ai.rojan.designlab.navigation.RojanDestinations.EXPLORE] as the
+ * marketplace/discovery destination reached from there. [onHomeClick]
+ * is new (bottom bar's HOME tab was a no-op "already on Home" — no longer
+ * true now that this isn't Home) — everything else about this screen is
+ * untouched.
  */
 @Composable
 fun CustomerHomeScreen(
     ecosystemViewModel: CustomerEcosystemViewModel,
+    authViewModel: AuthViewModel,
     onProfileClick: () -> Unit = {},
     onBookAppointmentClick: () -> Unit = {},
     onBookingsClick: () -> Unit = {},
     onFavoritesClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onSalonClick: (String) -> Unit = {},
+    onHomeClick: () -> Unit = {},
+    // Routing-identity fix: this same screen renders in two different
+    // contexts — as the new/unauthenticated user's actual Landing screen
+    // (reached directly from Splash, no prior back-stack entry) and as the
+    // destination of the Dashboard's "جستجو" (Search) tab. A single
+    // hardcoded activeTab couldn't be correct for both; the caller now
+    // decides which tab reads as active based on how this screen was
+    // reached, not this composable itself.
+    bottomBarActiveTab: CustomerHomeTab = CustomerHomeTab.SEARCH,
 ) {
-    PremiumBackground(
+    var searchMode by remember { mutableStateOf(SearchMode.SERVICES) }
+
+    WarmBackground(
         modifier = Modifier.fillMaxSize(),
-        softenForContent = true,
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(RojanDimens.SpaceMD),
-            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
+                .padding(RojanDimens.SpaceLG),
+            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceLG),
         ) {
-            item { HomeHeader() }
+            item { HomeHeader(displayName = authViewModel.currentDisplayName) }
             item { AISearchBar(onClick = onSearchClick) }
-            item { HeroBookingCard(onClick = onBookAppointmentClick) }
-            item { FeaturedSalons() }
+            item {
+                SearchModeTabs(
+                    selected = searchMode,
+                    onSelectedChange = { searchMode = it },
+                )
+            }
+            item { PopularServices() }
             item { TopSpecialists() }
             item { PromotionsSection() }
+            item { FeaturedSalons() }
+            item { HeroBookingCard(onClick = onBookAppointmentClick) }
             item { NearbySalons() }
             item { RecommendedSalons(onSalonClick = onSalonClick) }
             item { UpcomingBookings(ecosystemViewModel) }
@@ -99,9 +142,11 @@ fun CustomerHomeScreen(
             item { FollowedSalons(ecosystemViewModel, onSalonClick = onSalonClick) }
             item {
                 CustomerBottomBar(
+                    activeTab = bottomBarActiveTab,
                     onTabSelected = { tab ->
                         when (tab) {
-                            CustomerHomeTab.HOME -> Unit
+                            CustomerHomeTab.HOME -> onHomeClick()
+                            CustomerHomeTab.SEARCH -> onSearchClick()
                             CustomerHomeTab.BOOKINGS -> onBookingsClick()
                             CustomerHomeTab.FAVORITES -> onFavoritesClick()
                             CustomerHomeTab.PROFILE -> onProfileClick()

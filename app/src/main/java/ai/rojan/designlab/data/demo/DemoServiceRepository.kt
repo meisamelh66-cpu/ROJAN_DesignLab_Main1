@@ -23,7 +23,7 @@ object DemoServiceRepository {
             categoryLabel = "مو",
             additionalSalonIds = listOf("salon_02", "salon_03"),
             colorSeed = RojanSoftLavender,
-            assetRes = SampleImageProvider.forService("service_01"),
+            assetRes = SampleImageProvider.forService("service_01", categoryLabel = "مو"),
         ),
         DemoService(
             id = "service_02",
@@ -39,7 +39,7 @@ object DemoServiceRepository {
             categoryLabel = "پوست",
             additionalSalonIds = listOf("salon_01"),
             colorSeed = RojanAquaMint,
-            assetRes = SampleImageProvider.forService("service_02"),
+            assetRes = SampleImageProvider.forService("service_02", categoryLabel = "پوست"),
         ),
         DemoService(
             id = "service_03",
@@ -55,7 +55,7 @@ object DemoServiceRepository {
             categoryLabel = "آرایش",
             additionalSalonIds = listOf("salon_04"),
             colorSeed = RojanBlushPink,
-            assetRes = SampleImageProvider.forService("service_03"),
+            assetRes = SampleImageProvider.forService("service_03", categoryLabel = "آرایش"),
         ),
         DemoService(
             id = "service_04",
@@ -71,7 +71,7 @@ object DemoServiceRepository {
             categoryLabel = "ناخن",
             additionalSalonIds = listOf("salon_01", "salon_02"),
             colorSeed = RojanPearlPink,
-            assetRes = SampleImageProvider.forService("service_04"),
+            assetRes = SampleImageProvider.forService("service_04", categoryLabel = "ناخن"),
         ),
         DemoService(
             id = "service_05",
@@ -87,7 +87,7 @@ object DemoServiceRepository {
             categoryLabel = "اپیلاسیون",
             additionalSalonIds = listOf("salon_03"),
             colorSeed = RojanAquaMint,
-            assetRes = SampleImageProvider.forService("service_05"),
+            assetRes = SampleImageProvider.forService("service_05", categoryLabel = "اپیلاسیون"),
         ),
         DemoService(
             id = "service_06",
@@ -103,7 +103,7 @@ object DemoServiceRepository {
             categoryLabel = "ماساژ",
             additionalSalonIds = listOf("salon_02"),
             colorSeed = RojanSoftLavender,
-            assetRes = SampleImageProvider.forService("service_06"),
+            assetRes = SampleImageProvider.forService("service_06", categoryLabel = "ماساژ"),
         ),
         DemoService(
             id = "service_07",
@@ -118,7 +118,7 @@ object DemoServiceRepository {
             salonId = "salon_02",
             categoryLabel = "ابرو",
             colorSeed = RojanBlushPink,
-            assetRes = SampleImageProvider.forService("service_07"),
+            assetRes = SampleImageProvider.forService("service_07", categoryLabel = "ابرو"),
         ),
         DemoService(
             id = "service_08",
@@ -134,7 +134,7 @@ object DemoServiceRepository {
             categoryLabel = "لیزر",
             additionalSalonIds = listOf("salon_01"),
             colorSeed = RojanPearlPink,
-            assetRes = SampleImageProvider.forService("service_08"),
+            assetRes = SampleImageProvider.forService("service_08", categoryLabel = "لیزر"),
         ),
     )
 

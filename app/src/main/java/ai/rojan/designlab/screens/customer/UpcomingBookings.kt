@@ -6,16 +6,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,14 +52,22 @@ fun UpcomingBookings(ecosystemViewModel: CustomerEcosystemViewModel) {
         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
     ) {
         items(upcoming) { booking ->
+            // Font-scale fix: was a hard `.size(width, height)` — at larger
+            // system font sizes the Column's 4 stacked lines needed more
+            // vertical room than the fixed height allowed, clipping the
+            // date/time row. `heightIn(min = ...)` on GlassSurface keeps the
+            // exact same height whenever content fits (the default-scale
+            // case, unchanged from before) and only grows under
+            // accessibility font scaling.
             Box(
                 modifier = Modifier
-                    .size(width = 190.dp, height = 150.dp)
+                    .width(190.dp)
                     .background(RojanVividPurple.copy(alpha = 0.18f), RojanShapes.Small)
             ) {
                 GlassSurface(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .heightIn(min = 150.dp)
                         .clickable { },
                     shape = RojanShapes.Small,
                 ) {

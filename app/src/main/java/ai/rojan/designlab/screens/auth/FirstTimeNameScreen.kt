@@ -1,4 +1,4 @@
-package ai.rojan.designlab.screens.auth
+﻿package ai.rojan.designlab.screens.auth
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
+import ai.rojan.designlab.ui.text.withDirectionFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -19,8 +21,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 import ai.rojan.designlab.domain.identity.SessionState
 import ai.rojan.designlab.presentation.auth.AuthViewModel
-import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
+import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanTextOnGlass
 import ai.rojan.designlab.ui.theme.RojanTypography
@@ -31,10 +34,20 @@ import ai.rojan.designlab.ui.theme.RojanTypography
  * birthday. No gender. No profile form." This screen has exactly one
  * input field and one button — nothing else is added, per that
  * constraint.
+ *
+ * Customer Journey Audit Phase A (P0-3) fix: [onBackClick] added. Without
+ * it, a user who reached this screen and then used the system Back
+ * gesture would land on [AuthScreen] while [ai.rojan.designlab.domain.identity.SessionState]
+ * was still [SessionState.AwaitingFirstName] — a state that screen's
+ * fields don't handle (phone field disabled, OTP field hidden), leaving
+ * a dead, input-less screen. Calling [AuthViewModel.editPhoneNumber]
+ * before popping back resets the session to [SessionState.LoggedOut]
+ * first, so Back always lands on a live, usable phone-entry screen.
  */
 @Composable
 fun FirstTimeNameScreen(
     authViewModel: AuthViewModel,
+    onBackClick: () -> Unit,
     onNameSubmitted: () -> Unit,
 ) {
     val sessionState by authViewModel.sessionState.collectAsStateWithLifecycle()
@@ -45,13 +58,18 @@ fun FirstTimeNameScreen(
         if (sessionState is SessionState.LoggedIn) onNameSubmitted()
     }
 
-    PremiumBackground {
+    WarmBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(RojanDimens.SpaceMD),
         ) {
-            Spacer(modifier = Modifier.height(RojanDimens.SpaceXL))
+            GlassBackButton(onClick = {
+                authViewModel.editPhoneNumber()
+                onBackClick()
+            })
+
+            Spacer(modifier = Modifier.height(RojanDimens.SpaceLG))
 
             Text("سلام 🌸", style = RojanTypography.HeroTitle, color = RojanTextOnGlass)
             Spacer(modifier = Modifier.height(RojanDimens.SpaceXS))
@@ -67,6 +85,7 @@ fun FirstTimeNameScreen(
                 label = { Text("نام") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                textStyle = LocalTextStyle.current.withDirectionFor(firstName),
                 isError = errorMessage != null,
                 supportingText = errorMessage?.let { { Text(it) } },
             )

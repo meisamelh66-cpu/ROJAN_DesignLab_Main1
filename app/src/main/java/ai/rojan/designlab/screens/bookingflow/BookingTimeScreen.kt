@@ -1,4 +1,4 @@
-package ai.rojan.designlab.screens.bookingflow
+﻿package ai.rojan.designlab.screens.bookingflow
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,7 +25,7 @@ import ai.rojan.designlab.domain.booking.BookingEngine
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.presentation.booking.BookingViewModel
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
@@ -73,7 +73,7 @@ fun BookingTimeScreen(
     val slots = bookingEngine.timeSlotsFor(dateKey, durationMinutes, specialistId)
     val availableSlots = slots.filter { it.available }
 
-    PremiumBackground {
+    WarmBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()

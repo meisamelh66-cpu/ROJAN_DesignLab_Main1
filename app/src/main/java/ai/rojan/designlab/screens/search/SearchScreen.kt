@@ -1,4 +1,4 @@
-package ai.rojan.designlab.screens.search
+﻿package ai.rojan.designlab.screens.search
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,14 +15,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
+import ai.rojan.designlab.ui.text.withDirectionFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,8 +36,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.SolidColor
 
 import ai.rojan.designlab.domain.catalog.CatalogEngine
-import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.state.RojanEmptyState
 import ai.rojan.designlab.ui.theme.RojanAIGlow
@@ -68,7 +70,7 @@ fun SearchScreen(
 
     val results = remember(query) { catalogEngine.searchSalons(query) }
 
-    PremiumBackground {
+    WarmBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -107,7 +109,7 @@ fun SearchScreen(
                         value = query,
                         onValueChange = { query = it },
                         modifier = Modifier.fillMaxWidth(),
-                        textStyle = RojanTypography.Body.copy(color = RojanTextOnGlass),
+                        textStyle = RojanTypography.Body.copy(color = RojanTextOnGlass).withDirectionFor(query),
                         cursorBrush = SolidColor(RojanAIGlow),
                         decorationBox = { inner ->
                             if (query.isEmpty()) {
@@ -160,11 +162,19 @@ fun SearchScreen(
                                     .background(salon.colorSeed.copy(alpha = 0.5f), RojanShapes.Small),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Storefront,
-                                    contentDescription = null,
-                                    tint = RojanTextPrimary,
-                                )
+                                if (salon.assetRes != null) {
+                                    RojanSampleImage(
+                                        resId = salon.assetRes,
+                                        contentDescription = salon.name,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Filled.Storefront,
+                                        contentDescription = null,
+                                        tint = RojanTextPrimary,
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.size(RojanDimens.SpaceSM))
@@ -203,8 +213,17 @@ fun SearchScreen(
                                 }
                             }
 
+                            // RTL/LTR Foundation Readiness: this app is RTL-first with
+                            // a fixed reading direction (never flips LocalLayoutDirection
+                            // — see ai.rojan.designlab.ui.text.Text's own doc comment),
+                            // so a "this row leads forward" chevron always reads left,
+                            // not conditionally — same reasoning already documented at
+                            // ai.rojan.designlab.screens.bookingflow.BookingConfirmationScreen's
+                            // identical chevron. Icons.Filled.ArrowForward (pointing
+                            // right) was backwards against that convention; corrected
+                            // to match.
                             Icon(
-                                imageVector = Icons.Filled.ArrowForward,
+                                imageVector = Icons.Filled.KeyboardArrowLeft,
                                 contentDescription = null,
                                 tint = RojanTextSecondary,
                             )

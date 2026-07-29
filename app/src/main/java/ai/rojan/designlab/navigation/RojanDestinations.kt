@@ -11,7 +11,15 @@ object RojanDestinations {
     // flow. WELCOME still exists but is now a secondary entry point
     // (Manager/Specialist "business login" only), not the default landing.
     const val MEMBER_SALONS_LIST = "member_salons_list"
+    // UX Correction (Explore Repositioning): CUSTOMER_HOME now renders
+    // CustomerDashboardScreen (personalized greeting, hero CTA, upcoming
+    // appointments, AI recommendations, suggested specialists) — the new
+    // first-impression screen after auth. The former CUSTOMER_HOME content
+    // (search + full marketplace discovery: services/specialists/salons)
+    // is unchanged but moved to EXPLORE, reached from the Dashboard rather
+    // than being the first thing a customer sees.
     const val CUSTOMER_HOME = "customer_home"
+    const val EXPLORE = "explore"
     const val MANAGER_DASHBOARD = "manager_dashboard"
     const val STYLIST_DASHBOARD = "stylist_dashboard"
 
@@ -69,16 +77,25 @@ object RojanDestinations {
      * Maps a pure business [ai.rojan.designlab.domain.booking.BookingStep]
      * to an actual route — Navigation's job, per the "BookingContext must
      * not know Navigation" architecture decision. [ai.rojan.designlab.domain.booking.BookingStep.SALON]/
-     * `SPECIALIST`/`SERVICE` don't have a dedicated *generic* "pick one"
-     * screen in the current implementation (those are reached by tapping
-     * a specific real entity's card, not a step in a fixed sequence) —
-     * mapped to [SEARCH] as the reasonable fallback entry point, not
-     * because it's semantically exact.
+     * `SERVICE` don't have a dedicated *generic* "pick one" screen in the
+     * current implementation (those are reached by tapping a specific
+     * real entity's card, not a step in a fixed sequence) — mapped to
+     * [SEARCH] as the reasonable fallback entry point, not because it's
+     * semantically exact.
+     *
+     * Customer Journey Audit Phase A (P0-1) fix: [ai.rojan.designlab.domain.booking.BookingStep.SPECIALIST]
+     * now routes to the real [SPECIALIST_SELECTION] screen (it used to
+     * fall back to [SEARCH] like SALON/SERVICE above, silently skipping
+     * specialist choice for every customer) — needs [salonId] to build
+     * that parametrized route. Falls back to [SEARCH] only if [salonId]
+     * is somehow unset, which shouldn't happen by the time this step is
+     * reached (defensive, not the expected path).
      */
-    fun routeForBookingStep(step: ai.rojan.designlab.domain.booking.BookingStep): String = when (step) {
+    fun routeForBookingStep(step: ai.rojan.designlab.domain.booking.BookingStep, salonId: String?): String = when (step) {
+        ai.rojan.designlab.domain.booking.BookingStep.SPECIALIST ->
+            salonId?.let { specialistSelection(it) } ?: SEARCH
         ai.rojan.designlab.domain.booking.BookingStep.SEARCH,
         ai.rojan.designlab.domain.booking.BookingStep.SALON,
-        ai.rojan.designlab.domain.booking.BookingStep.SPECIALIST,
         ai.rojan.designlab.domain.booking.BookingStep.SERVICE -> SEARCH
         ai.rojan.designlab.domain.booking.BookingStep.DATE -> BOOKING_DATE
         ai.rojan.designlab.domain.booking.BookingStep.TIME -> BOOKING_TIME

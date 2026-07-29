@@ -1,4 +1,4 @@
-package ai.rojan.designlab.screens.specialist
+﻿package ai.rojan.designlab.screens.specialist
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,7 +20,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -28,9 +28,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.domain.catalog.CatalogEngine
-import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.ui.components.image.SpecialistAvatar
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
+import ai.rojan.designlab.ui.components.rtl.RtlInfoRow
+import ai.rojan.designlab.ui.components.rtl.RtlListRow
+import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanRatingGold
@@ -51,12 +55,12 @@ fun SpecialistProfileScreen(
     val catalogEngine = remember { CatalogEngine() }
     val specialist = catalogEngine.findSpecialistById(specialistId)
 
-    PremiumBackground {
+    WarmBackground {
         if (specialist == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("متخصص یافت نشد", color = RojanTextOnGlass, style = RojanTypography.Body)
             }
-            return@PremiumBackground
+            return@WarmBackground
         }
 
         val services = catalogEngine.servicesForSalon(specialist.salonId)
@@ -78,7 +82,12 @@ fun SpecialistProfileScreen(
                             .background(specialist.colorSeed.copy(alpha = 0.5f), CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Filled.Person, null, tint = RojanTextOnGlass, modifier = Modifier.size(48.dp))
+                        SpecialistAvatar(
+                            assetRes = specialist.assetRes,
+                            contentDescription = specialist.name,
+                            fallbackIconSize = 48.dp,
+                            modifier = Modifier.fillMaxSize(),
+                        )
                     }
                     Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
                     Text(specialist.name, style = RojanTypography.HeroTitle, color = RojanTextOnGlass)
@@ -108,25 +117,25 @@ fun SpecialistProfileScreen(
                 }
             }
 
-            item { Text("مهارت‌ها", style = RojanTypography.Body, color = RojanTextOnGlass) }
+            item { RtlSectionHeader("مهارت‌ها", horizontalPadding = 0.dp) }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
                     specialist.skills.forEach { skill ->
                         GlassSurface(shape = RojanShapes.Small) {
-                            Row(
+                            RtlInfoRow(
+                                icon = Icons.Filled.CheckCircle,
+                                text = skill,
+                                iconTint = RojanAIGlow,
+                                iconSize = RojanDimens.IconSizeSmall,
                                 modifier = Modifier.padding(horizontal = RojanDimens.SpaceSM, vertical = RojanDimens.SpaceXS),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(Icons.Filled.CheckCircle, null, tint = RojanAIGlow, modifier = Modifier.size(RojanDimens.IconSizeSmall))
-                                Text(" $skill", style = RojanTypography.Caption, color = RojanTextPrimary)
-                            }
+                            )
                         }
                     }
                 }
             }
 
             if (services.isNotEmpty()) {
-                item { Text("خدمات قابل رزرو", style = RojanTypography.Body, color = RojanTextOnGlass) }
+                item { RtlSectionHeader("خدمات قابل رزرو", horizontalPadding = 0.dp) }
                 items(services) { service ->
                     GlassSurface(
                         modifier = Modifier
@@ -134,31 +143,29 @@ fun SpecialistProfileScreen(
                             .clickable { onServiceClick(service.id) },
                         shape = RojanShapes.Small,
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(RojanDimens.SpaceMD),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(service.name, style = RojanTypography.Body, color = RojanTextPrimary)
-                            Text("${service.durationMinutes} دقیقه", style = RojanTypography.Caption, color = RojanTextSecondary)
-                        }
+                        RtlListRow(
+                            title = service.name,
+                            value = "${service.durationMinutes} دقیقه",
+                            valueStyle = RojanTypography.Caption,
+                            valueColor = RojanTextSecondary,
+                            modifier = Modifier.padding(RojanDimens.SpaceMD),
+                        )
                     }
                 }
             }
 
-            item { Text("نظرات", style = RojanTypography.Body, color = RojanTextOnGlass) }
+            item { RtlSectionHeader("نظرات", horizontalPadding = 0.dp) }
             items(reviews) { review ->
                 GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
                     Column(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
-                        Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                            Text(review.authorName, style = RojanTypography.Caption, color = RojanTextPrimary)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                        RtlListRow(
+                            title = review.authorName,
+                            titleStyle = RojanTypography.Caption,
+                            trailing = {
                                 Icon(Icons.Filled.Star, null, tint = RojanRatingGold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
                                 Text(" ${review.rating}", style = RojanTypography.Caption, color = RojanTextSecondary)
-                            }
-                        }
+                            },
+                        )
                         Text(review.comment, style = RojanTypography.Caption, color = RojanTextSecondary)
                     }
                 }

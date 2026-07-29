@@ -17,6 +17,7 @@ sealed interface BookingEvent {
     data class TimeSelected(val time: String) : BookingEvent
     data class PromotionApplied(val promotionId: String) : BookingEvent
     data class CouponApplied(val couponId: String) : BookingEvent
+    data class PaymentMethodSelected(val method: PaymentMethod) : BookingEvent
 
     /**
      * Unconditional by the time it reaches the Reducer — [BookingEngine.decideIntent]

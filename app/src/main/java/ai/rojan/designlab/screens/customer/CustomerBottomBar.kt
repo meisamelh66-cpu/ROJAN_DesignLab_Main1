@@ -1,7 +1,5 @@
 package ai.rojan.designlab.screens.customer
 
-import androidx.annotation.DrawableRes
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -10,23 +8,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.Search
+import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
 
-import ai.rojan.designlab.R
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
@@ -38,28 +32,20 @@ import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /** Fake, local-only tab identifiers — no navigation graph change, purely this bar's own active-state tracking. */
-enum class CustomerHomeTab { HOME, BOOKINGS, FAVORITES, PROFILE }
+enum class CustomerHomeTab { HOME, SEARCH, BOOKINGS, FAVORITES, PROFILE }
 
-/**
- * @param assetRes Asset Readiness: target is one of
- * [ai.rojan.designlab.ui.assets.RojanAssetNames]'s `NAV_*` constants.
- * `null` today — falls back to [icon]. Active/inactive tinting is
- * preserved for the real asset too via [ColorFilter.tint], so a single
- * neutral-colored icon file works for both states without needing
- * separate active/inactive asset variants.
- */
 private data class TabItem(
     val tab: CustomerHomeTab,
     val icon: ImageVector,
     val label: String,
-    @DrawableRes val assetRes: Int? = null,
 )
 
 private val tabs = listOf(
-    TabItem(CustomerHomeTab.HOME, Icons.Filled.Home, "خانه", R.drawable.ic_nav_home),
-    TabItem(CustomerHomeTab.BOOKINGS, Icons.Filled.CalendarMonth, "نوبت‌ها", R.drawable.ic_nav_booking),
-    TabItem(CustomerHomeTab.FAVORITES, Icons.Filled.Favorite, "علاقه‌مندی‌ها", R.drawable.ic_nav_favorite),
-    TabItem(CustomerHomeTab.PROFILE, Icons.Filled.Person, "پروفایل", R.drawable.ic_nav_profile),
+    TabItem(CustomerHomeTab.HOME, Icons.Filled.Home, "خانه"),
+    TabItem(CustomerHomeTab.SEARCH, Icons.Filled.Search, "جستجو"),
+    TabItem(CustomerHomeTab.BOOKINGS, Icons.Filled.CalendarMonth, "نوبت‌ها"),
+    TabItem(CustomerHomeTab.FAVORITES, Icons.Filled.Favorite, "علاقه‌مندی‌ها"),
+    TabItem(CustomerHomeTab.PROFILE, Icons.Filled.Person, "پروفایل"),
 )
 
 /**
@@ -107,21 +93,12 @@ fun CustomerBottomBar(
                     ),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    if (item.assetRes != null) {
-                        Image(
-                            painter = painterResource(id = item.assetRes),
-                            contentDescription = item.label,
-                            colorFilter = ColorFilter.tint(tint),
-                            modifier = Modifier.size(22.dp),
-                        )
-                    } else {
-                        RojanIconContainer(
-                            imageVector = item.icon,
-                            contentDescription = item.label,
-                            tint = tint,
-                            size = RojanIconSize.Medium,
-                        )
-                    }
+                    RojanIconContainer(
+                        imageVector = item.icon,
+                        contentDescription = item.label,
+                        tint = tint,
+                        size = RojanIconSize.Medium,
+                    )
                     Text(
                         text = item.label,
                         style = RojanTypography.Caption.rojanPressedShadow(interactionSource),

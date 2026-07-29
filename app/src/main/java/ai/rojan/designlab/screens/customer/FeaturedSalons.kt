@@ -1,23 +1,18 @@
 package ai.rojan.designlab.screens.customer
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Storefront
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -26,7 +21,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.domain.catalog.CatalogEngine
-import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.ui.components.cards.RojanHomeCard
+import ai.rojan.designlab.ui.components.cards.RojanRatingRow
 import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
@@ -69,97 +65,69 @@ fun FeaturedSalons() {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
     ) {
-        items(catalogEngine.allSalons()) { salon ->
-            Box(
-                modifier = Modifier
-                    .size(width = RojanDimens.CardWidthStandard, height = RojanDimens.CardHeightStandard)
-                    // Visual Refinement: tint reduced 0.30f -> 0.25f (~17%). No
-                    // literal "dark overlay on the salon photo" exists in this
-                    // component (the Image draws opaque, fully covering this
-                    // background) - this is the closest real, honest mapping of
-                    // "reduce overlay / clearer image" to something that
-                    // actually affects this card's appearance.
-                    .background(salon.colorSeed.copy(alpha = 0.25f), RojanShapes.Small)
+        itemsIndexed(catalogEngine.allSalons()) { index, salon ->
+            RojanHomeCard(
+                accentColor = salon.colorSeed,
+                // Visual Refinement: tint reduced 0.30f -> 0.25f (~17%). No
+                // literal "dark overlay on the salon photo" exists in this
+                // component (the Image draws opaque, fully covering this
+                // background) - this is the closest real, honest mapping of
+                // "reduce overlay / clearer image" to something that
+                // actually affects this card's appearance.
+                accentAlpha = 0.25f,
+                onClick = { },
+                index = index,
             ) {
-                GlassSurface(
+                Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .clickable { },
-                    shape = RojanShapes.Small,
+                        .fillMaxWidth()
+                        .height(90.dp)
+                        .background(salon.colorSeed.copy(alpha = 0.5f), RojanShapes.Small),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(RojanDimens.SpaceSM),
-                        verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(90.dp)
-                                .background(salon.colorSeed.copy(alpha = 0.5f), RojanShapes.Small),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (salon.assetRes != null) {
-                                RojanSampleImage(
-                                    resId = salon.assetRes,
-                                    contentDescription = salon.name,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                            } else {
-                                RojanIconContainer(
-    imageVector = Icons.Filled.Storefront,
-    contentDescription = null,
-    tint = RojanTextPrimary,
-    size = RojanIconSize.Large,
-)
-                            }
-                        }
-
-                        Text(
-                            text = salon.name,
-                            style = RojanTypography.Caption,
-                            color = RojanTextPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                    if (salon.assetRes != null) {
+                        RojanSampleImage(
+                            resId = salon.assetRes,
+                            contentDescription = salon.name,
+                            modifier = Modifier.fillMaxSize(),
                         )
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
-                        ) {
-                            RojanIconContainer(
-    imageVector = Icons.Filled.Star,
-    contentDescription = "امتیاز",
-    tint = RojanTextSecondary,
-    size = RojanIconSize.Small,
-)
-                            Text(
-                                text = salon.rating,
-                                style = RojanTypography.Caption,
-                                color = RojanTextSecondary,
-                            )
-                        }
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
-                        ) {
-                            RojanIconContainer(
-    imageVector = Icons.Filled.LocationOn,
-    contentDescription = null,
-    tint = RojanTextSecondary,
-    size = RojanIconSize.Small,
-)
-                            Text(
-                                text = salon.tagline,
-                                style = RojanTypography.Caption,
-                                color = RojanTextSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
+                    } else {
+                        RojanIconContainer(
+                            imageVector = Icons.Filled.Storefront,
+                            contentDescription = null,
+                            tint = RojanTextPrimary,
+                            size = RojanIconSize.Large,
+                        )
                     }
+                }
+
+                Text(
+                    text = salon.name,
+                    style = RojanTypography.Caption,
+                    color = RojanTextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+
+                RojanRatingRow(rating = salon.rating)
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
+                ) {
+                    RojanIconContainer(
+                        imageVector = Icons.Filled.LocationOn,
+                        contentDescription = null,
+                        tint = RojanTextSecondary,
+                        size = RojanIconSize.Small,
+                    )
+                    Text(
+                        text = salon.tagline,
+                        style = RojanTypography.Caption,
+                        color = RojanTextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }

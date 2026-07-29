@@ -1,4 +1,4 @@
-package ai.rojan.designlab.screens.profile
+﻿package ai.rojan.designlab.screens.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,7 +28,7 @@ import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -37,9 +37,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.domain.customer.insights.ProfileInsightsEngine
+import ai.rojan.designlab.presentation.auth.AuthViewModel
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.ui.components.rtl.RtlListRow
+import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
@@ -64,10 +67,17 @@ private data class ProfileMenuItem(
  * via [ProfileInsightsEngine] — real derivations and (where genuinely a
  * judgment call) real rule-provider-backed calculations, not hardcoded
  * display strings.
+ *
+ * Customer Journey Audit Phase A (P0-4) fix: the displayed name now
+ * comes from [AuthViewModel.currentDisplayName] — a real lookup of the
+ * actually signed-in person that already existed but was never called
+ * from any screen — instead of a hardcoded literal shown to every user
+ * regardless of who was really logged in.
  */
 @Composable
 fun ProfileScreen(
     ecosystemViewModel: CustomerEcosystemViewModel,
+    authViewModel: AuthViewModel,
     onBackClick: () -> Unit,
     onAppointmentsClick: () -> Unit,
     onFavoritesClick: () -> Unit,
@@ -93,7 +103,7 @@ fun ProfileScreen(
         ProfileMenuItem(Icons.Filled.History, "تاریخچه زیبایی", "خدمات دریافت‌شده در طول زمان", onBeautyTimelineClick),
     )
 
-    PremiumBackground {
+    WarmBackground {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -124,7 +134,7 @@ fun ProfileScreen(
                         Icon(Icons.Filled.Person, contentDescription = null, tint = RojanTextOnGlass, modifier = Modifier.size(44.dp))
                     }
                     Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
-                    Text("رها احمدی", style = RojanTypography.HeroTitle, color = RojanTextOnGlass)
+                    Text(authViewModel.currentDisplayName ?: "کاربر", style = RojanTypography.HeroTitle, color = RojanTextOnGlass)
                     Text("عضو ${tier.currentTierName}", style = RojanTypography.Body, color = RojanTextOnDarkSurface)
                 }
             }
@@ -204,18 +214,17 @@ fun ProfileScreen(
             }
 
             if (insights.recentActivity.isNotEmpty()) {
-                item { Text("فعالیت‌های اخیر", style = RojanTypography.Body, color = RojanTextOnGlass) }
+                item { RtlSectionHeader("فعالیت‌های اخیر", horizontalPadding = 0.dp) }
                 items(insights.recentActivity) { activity ->
                     GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(RojanDimens.SpaceMD),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(activity.label, style = RojanTypography.Caption, color = RojanTextPrimary)
-                            Text(activity.dateLabel, style = RojanTypography.Caption, color = RojanTextSecondary)
-                        }
+                        RtlListRow(
+                            title = activity.label,
+                            titleStyle = RojanTypography.Caption,
+                            value = activity.dateLabel,
+                            valueStyle = RojanTypography.Caption,
+                            valueColor = RojanTextSecondary,
+                            modifier = Modifier.padding(RojanDimens.SpaceMD),
+                        )
                     }
                 }
             }
@@ -227,19 +236,13 @@ fun ProfileScreen(
                         .clickable(onClick = menuItem.onClick),
                     shape = RojanShapes.Small,
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(RojanDimens.SpaceMD),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(menuItem.icon, contentDescription = null, tint = RojanAIGlow)
-                        Spacer(modifier = Modifier.width(RojanDimens.SpaceSM))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(menuItem.title, style = RojanTypography.Body, color = RojanTextPrimary)
-                            Text(menuItem.subtitle, style = RojanTypography.Caption, color = RojanTextSecondary)
-                        }
-                    }
+                    RtlListRow(
+                        title = menuItem.title,
+                        subtitle = menuItem.subtitle,
+                        icon = menuItem.icon,
+                        iconTint = RojanAIGlow,
+                        modifier = Modifier.padding(RojanDimens.SpaceMD),
+                    )
                 }
             }
         }
@@ -248,8 +251,12 @@ fun ProfileScreen(
 
 @Composable
 private fun InsightRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = RojanTypography.Caption, color = RojanTextSecondary)
-        Text(value, style = RojanTypography.Caption, color = RojanTextPrimary)
-    }
+    RtlListRow(
+        title = label,
+        titleStyle = RojanTypography.Caption,
+        titleColor = RojanTextSecondary,
+        value = value,
+        valueStyle = RojanTypography.Caption,
+        valueColor = RojanTextPrimary,
+    )
 }

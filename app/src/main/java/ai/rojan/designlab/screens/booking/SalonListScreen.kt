@@ -1,4 +1,4 @@
-package ai.rojan.designlab.screens.booking
+﻿package ai.rojan.designlab.screens.booking
 
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -20,8 +20,10 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
+import ai.rojan.designlab.ui.text.withDirectionFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,7 +35,7 @@ import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.data.demo.DemoSalon
 import ai.rojan.designlab.domain.catalog.CatalogEngine
-import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.components.interaction.rojanPressedShadow
@@ -95,7 +97,7 @@ fun SalonListScreen(
         }
     }
 
-    PremiumBackground {
+    WarmBackground {
         Column(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD)) {
             if (showBackButton || onBusinessLoginClick != null) {
                 Row(
@@ -137,6 +139,7 @@ fun SalonListScreen(
                 placeholder = { Text("جستجوی سالن...") },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = RojanTextSecondary) },
                 singleLine = true,
+                textStyle = LocalTextStyle.current.withDirectionFor(searchQuery),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = RojanDimens.SpaceMD),

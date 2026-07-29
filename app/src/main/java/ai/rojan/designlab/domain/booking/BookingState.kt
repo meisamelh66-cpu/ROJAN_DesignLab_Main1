@@ -22,4 +22,6 @@ data class BookingState(
     val selectedTime: String? = null,
     val promotionId: String? = null,
     val couponId: String? = null,
+    /** Customer Journey Audit Phase A (P0-2): defaults to [PaymentMethod.WALLET], matching the confirmation screen's previous local-state default. */
+    val paymentMethod: PaymentMethod = PaymentMethod.WALLET,
 )

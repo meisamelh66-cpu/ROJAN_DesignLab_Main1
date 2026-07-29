@@ -17,7 +17,22 @@
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.ROJAN_DesignLab"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="portrait">
+            <!--
+                Final Premium Polish, Phase 3 finding: no screen in this app
+                has a landscape-adapted layout (every screen is built as a
+                vertical Column/LazyColumn), and nothing previously locked
+                orientation. Rotating the device produced a genuinely broken
+                render (overlapping text, large dead space) on the very
+                first pilot screen tested — confirmed via real device
+                testing, not theoretical. Locking portrait is the correct
+                fix for an app with zero landscape-ready screens, not a
+                workaround: it removes a state the UI was never designed to
+                render, rather than papering over a real layout bug in that
+                state.
+            -->
+
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

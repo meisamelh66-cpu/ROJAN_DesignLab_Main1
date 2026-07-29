@@ -1,4 +1,4 @@
-package ai.rojan.designlab.screens.profile
+﻿package ai.rojan.designlab.screens.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -17,7 +17,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
+import ai.rojan.designlab.ui.text.withDirectionFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,7 +33,7 @@ import ai.rojan.designlab.data.demo.AppointmentStatus
 import ai.rojan.designlab.data.demo.DemoUserReview
 import ai.rojan.designlab.domain.customer.ReviewLifecycleStatus
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
@@ -66,12 +67,12 @@ fun AppointmentDetailsScreen(
     val appointment = ecosystemViewModel.state.appointments.find { it.id == appointmentId }
     val pendingReview = ecosystemViewModel.state.pendingReviewFor(appointmentId)
 
-    PremiumBackground {
+    WarmBackground {
         if (appointment == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("نوبت یافت نشد", color = RojanTextOnGlass, style = RojanTypography.Body)
             }
-            return@PremiumBackground
+            return@WarmBackground
         }
 
         LazyColumn(
@@ -180,7 +181,7 @@ private fun ReviewSection(
                             .fillMaxWidth()
                             .background(RojanSoftLavender.copy(alpha = 0.3f), RojanShapes.Small)
                             .padding(RojanDimens.SpaceSM),
-                        textStyle = RojanTypography.Body.copy(color = RojanTextPrimary),
+                        textStyle = RojanTypography.Body.copy(color = RojanTextPrimary).withDirectionFor(text),
                         cursorBrush = SolidColor(RojanAIGlow),
                     )
                     Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))

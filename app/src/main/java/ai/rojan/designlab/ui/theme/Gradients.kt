@@ -1,6 +1,7 @@
 package ai.rojan.designlab.ui.theme
 
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 
 /**
  * Theme & Typography Architecture Normalization: this object previously
@@ -28,5 +29,17 @@ object RojanGradients {
     /** Premium button fill — brand purple → magenta, built from the approved tokens directly. */
     val PremiumButton = Brush.linearGradient(
         colors = listOf(RojanVividPurple, RojanVividMagenta)
+    )
+
+    /**
+     * Final Premium Polish, Phase 1: bottom-of-photo scrim for hero/gallery
+     * images — text legibility over a photo without a flat color card
+     * underneath it. Same alpha (0.22f) [ai.rojan.designlab.screens.salon.SalonDetailsScreen]'s
+     * `SalonHeroSection` already built inline for its own bottom gradient —
+     * consolidated here as the one shared value rather than left as a
+     * private literal only that one screen could reuse.
+     */
+    val ImageScrim = Brush.verticalGradient(
+        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.22f))
     )
 }

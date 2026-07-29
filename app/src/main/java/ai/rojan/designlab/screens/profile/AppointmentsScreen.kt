@@ -1,8 +1,9 @@
-package ai.rojan.designlab.screens.profile
+﻿package ai.rojan.designlab.screens.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,11 +11,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -23,14 +29,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.data.demo.AppointmentStatus
 import ai.rojan.designlab.data.demo.DemoAppointment
+import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.domain.customer.EcosystemEvent
 import ai.rojan.designlab.domain.reminder.ReminderTime
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.state.RojanEmptyState
 import ai.rojan.designlab.ui.theme.RojanAIGlow
@@ -67,7 +76,7 @@ fun AppointmentsScreen(
     val upcoming = state.upcomingAppointments
     val past = state.pastAppointments
 
-    PremiumBackground {
+    WarmBackground {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -175,6 +184,9 @@ private fun AppointmentCard(
     onReschedule: (() -> Unit)? = null,
     ecosystemViewModel: CustomerEcosystemViewModel? = null,
 ) {
+    val catalogEngine = remember { CatalogEngine() }
+    val salon = appointment.salonId?.let { catalogEngine.findSalonById(it) }
+
     GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
@@ -187,6 +199,28 @@ private fun AppointmentCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            (salon?.colorSeed ?: RojanTextSecondary).copy(alpha = 0.5f),
+                            RojanShapes.Small,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (salon?.assetRes != null) {
+                        RojanSampleImage(
+                            resId = salon.assetRes,
+                            contentDescription = salon.name,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        Icon(Icons.Filled.Storefront, contentDescription = null, tint = RojanTextPrimary)
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(RojanDimens.SpaceSM))
+
                 Column(modifier = Modifier.weight(1f)) {
                     Text(appointment.salonName, style = RojanTypography.Body, color = RojanTextPrimary)
                     Text(

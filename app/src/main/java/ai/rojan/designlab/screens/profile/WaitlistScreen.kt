@@ -1,4 +1,4 @@
-package ai.rojan.designlab.screens.profile
+﻿package ai.rojan.designlab.screens.profile
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,14 +9,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
 import ai.rojan.designlab.data.demo.DemoWaitlistEntry
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.theme.RojanDimens
@@ -43,7 +43,7 @@ fun WaitlistScreen(
 ) {
     val entries = ecosystemViewModel.state.activeWaitlistEntries.sortedBy { it.requestedAtSequence }
 
-    PremiumBackground {
+    WarmBackground {
         Column(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD)) {
             GlassBackButton(onClick = onBackClick)
 

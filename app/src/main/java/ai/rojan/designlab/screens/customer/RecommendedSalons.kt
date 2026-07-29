@@ -1,22 +1,18 @@
 package ai.rojan.designlab.screens.customer
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Storefront
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -26,11 +22,10 @@ import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.data.demo.DemoSalon
 import ai.rojan.designlab.domain.catalog.CatalogEngine
-import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.ui.components.cards.RojanHomeCard
 import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTextPrimary
 import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
@@ -72,90 +67,77 @@ fun RecommendedSalons(onSalonClick: (String) -> Unit = {}) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
     ) {
-        items(catalogEngine.allSalons()) { salon ->
-            Box(
-                modifier = Modifier
-                    .size(width = RojanDimens.CardWidthStandard, height = RojanDimens.CardHeightStandard)
-                    .background(RojanAIGlow.copy(alpha = 0.12f), RojanShapes.Small)
+        itemsIndexed(catalogEngine.allSalons()) { index, salon ->
+            RojanHomeCard(
+                accentColor = RojanAIGlow,
+                accentAlpha = 0.12f,
+                onClick = { onSalonClick(salon.id) },
+                index = index,
             ) {
-                GlassSurface(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable { onSalonClick(salon.id) },
-                    shape = RojanShapes.Small,
+                // The one AI-identity element on this card — small, quiet, single icon + label.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(RojanDimens.SpaceSM),
-                        verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
-                    ) {
-                        // The one AI-identity element on this card — small, quiet, single icon + label.
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
-                        ) {
-                            RojanIconContainer(
-    imageVector = Icons.Filled.AutoAwesome,
-    contentDescription = null,
-    tint = RojanAIGlow,
-    size = RojanIconSize.Small,
-)
-                            Text(
-                                text = "پیشنهاد AI برای شما",
-                                style = RojanTypography.Caption,
-                                color = RojanAIGlow,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
+                    RojanIconContainer(
+                        imageVector = Icons.Filled.AutoAwesome,
+                        contentDescription = null,
+                        tint = RojanAIGlow,
+                        size = RojanIconSize.Small,
+                    )
+                    Text(
+                        text = "پیشنهاد AI برای شما",
+                        style = RojanTypography.Caption,
+                        color = RojanAIGlow,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
 
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(RojanAIGlow.copy(alpha = 0.12f), CircleShape),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (salon.assetRes != null) {
-                                RojanSampleImage(
-                                    resId = salon.assetRes,
-                                    contentDescription = salon.name,
-                                    shape = CircleShape,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                            } else {
-                                RojanIconContainer(
-    imageVector = Icons.Filled.Storefront,
-    contentDescription = null,
-    tint = RojanTextPrimary,
-    size = RojanIconSize.Medium,
-)
-                            }
-                        }
-
-                        Text(
-                            text = salon.name,
-                            style = RojanTypography.Caption,
-                            color = RojanTextPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(RojanAIGlow.copy(alpha = 0.12f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (salon.assetRes != null) {
+                        RojanSampleImage(
+                            resId = salon.assetRes,
+                            contentDescription = salon.name,
+                            shape = CircleShape,
+                            modifier = Modifier.fillMaxSize(),
                         )
-
-                        Text(
-                            text = aiReasonFor(salon),
-                            style = RojanTypography.Caption,
-                            color = RojanTextSecondary,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-
-                        Text(
-                            text = confidenceFor(salon),
-                            style = RojanTypography.Caption,
-                            color = RojanTextSecondary,
+                    } else {
+                        RojanIconContainer(
+                            imageVector = Icons.Filled.Storefront,
+                            contentDescription = null,
+                            tint = RojanTextPrimary,
+                            size = RojanIconSize.Medium,
                         )
                     }
                 }
+
+                Text(
+                    text = salon.name,
+                    style = RojanTypography.Caption,
+                    color = RojanTextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+
+                Text(
+                    text = aiReasonFor(salon),
+                    style = RojanTypography.Caption,
+                    color = RojanTextSecondary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+
+                Text(
+                    text = confidenceFor(salon),
+                    style = RojanTypography.Caption,
+                    color = RojanTextSecondary,
+                )
             }
         }
     }

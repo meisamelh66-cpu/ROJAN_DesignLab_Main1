@@ -1,26 +1,37 @@
 package ai.rojan.designlab.screens.customer
 
-import androidx.compose.foundation.LocalIndication
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.unit.dp
 
+import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.interaction.rojanPressedShadow
-import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
+import ai.rojan.designlab.ui.theme.RojanHintText
+import ai.rojan.designlab.ui.theme.RojanRose
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
@@ -36,10 +47,12 @@ import ai.rojan.designlab.ui.components.icon.RojanIconSize
  * token ([RojanTextSecondary]), not an on-dark token, since the local
  * surface under it is glass, regardless of the canvas around it.
  *
- * AI identity comes from a single [RojanAIGlow]-tinted sparkle icon, not
- * from any glow/background effect on the bar itself — kept deliberately
- * subtle so this doesn't visually compete with the Hero Booking Area
- * immediately below it, per the Design Board's explicit rule.
+ * Smart Search area, Phase 2: the trailing icon is now a filter glyph
+ * (not the previous AI sparkle) — search on one side, filter on the
+ * opposite side, per this phase's explicit "Search Bar" spec. Kept
+ * deliberately subtle (same [RojanTextSecondary] tint as the search icon)
+ * so this doesn't visually compete with the Hero Booking Area immediately
+ * below it, per the Design Board's original rule.
  *
  * [RojanShapes.Small] (a tighter radius than the Hero Card's
  * [RojanShapes.GlassCard]) is used here intentionally — a search bar
@@ -53,29 +66,59 @@ import ai.rojan.designlab.ui.components.icon.RojanIconSize
  * uses 8dp. Both icons are now [RojanIconSize.Medium] (20dp, matching
  * the search icon's pre-existing size) instead of the sparkle's previous
  * bespoke 18dp, so the two icons read as the same visual weight.
+ *
+ * Home Premium Polish Phase: border softened via [GlassSurface]'s own
+ * exposed `borderAlpha`/`borderSecondaryAlpha` params (0.18f/0.08f ->
+ * 0.10f/0.04f) rather than a new border mechanism, and the placeholder
+ * now uses [RojanHintText] — an existing token whose own doc comment
+ * already names "search bar placeholder" as its intended use but which
+ * no call site had actually wired in until now — instead of the more
+ * general [RojanTextSecondary].
+ *
+ * 3D Glassmorphism Depth Pass: a blurred [RojanRose] wash now sits behind
+ * the bar (background ambient glow, matching this section's established
+ * rose accent — see [SearchModeTabs]'s selected pill), and the tap target
+ * switched from a plain `Modifier.clickable` to [rojanPressable] (scale
+ * down + smooth return on touch), sharing the same [interactionSource]
+ * [rojanPressedShadow] already reads so the two stay in sync.
  */
 @Composable
 fun AISearchBar(
     onClick: () -> Unit = {},
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    GlassSurface(
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(
-                interactionSource = interactionSource,
-                indication = LocalIndication.current,
-                onClick = onClick,
-            ),
-        shape = RojanShapes.Small,
+            .rojanEnterAnimation(visible = visible, delayMillis = 60),
     ) {
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
-            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
-            verticalAlignment = Alignment.CenterVertically,
+                .height(RojanDimens.MinTouchTarget)
+                .blur(16.dp)
+                .background(RojanRose.copy(alpha = 0.16f), RojanShapes.Small),
+        )
+
+        GlassSurface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .rojanPressable(onClick = onClick, interactionSource = interactionSource),
+            shape = RojanShapes.Small,
+            borderAlpha = 0.10f,
+            borderSecondaryAlpha = 0.04f,
         ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = RojanDimens.MinTouchTarget)
+                    .padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
+                horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
             RojanIconContainer(
     imageVector = Icons.Filled.Search,
     contentDescription = null,
@@ -86,16 +129,17 @@ fun AISearchBar(
             Text(
                 text = "جستجوی سالن، خدمات یا متخصص...",
                 style = RojanTypography.Body.rojanPressedShadow(interactionSource),
-                color = RojanTextSecondary,
+                color = RojanHintText,
                 modifier = Modifier.weight(1f),
             )
 
             RojanIconContainer(
-    imageVector = Icons.Filled.AutoAwesome,
-    contentDescription = "دستیار هوشمند",
-    tint = RojanAIGlow,
+    imageVector = Icons.Filled.FilterList,
+    contentDescription = "فیلتر",
+    tint = RojanTextSecondary,
     size = RojanIconSize.Medium,
 )
+            }
         }
     }
 }

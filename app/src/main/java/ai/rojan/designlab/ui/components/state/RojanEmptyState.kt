@@ -23,7 +23,7 @@ import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTextPrimary
 import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
 
 /**
  * ROJAN AI shared empty-state primitive — State Experience Audit's
@@ -64,6 +64,35 @@ fun RojanEmptyState(
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
+    RojanStateCard(
+        title = title,
+        modifier = modifier,
+        description = description,
+        icon = icon,
+        iconTint = RojanTextSecondary,
+        actionLabel = actionLabel,
+        onAction = onAction,
+    )
+}
+
+/**
+ * Shared layout behind both [RojanEmptyState] and
+ * [ai.rojan.designlab.ui.components.state.RojanErrorState] — same card
+ * shape/spacing/typography either way, differing only in which icon and
+ * icon tint each passes in. Extracted (Final Premium Polish, Phase 1)
+ * specifically so adding the error variant didn't mean copy-pasting this
+ * whole layout a second time.
+ */
+@Composable
+internal fun RojanStateCard(
+    title: String,
+    modifier: Modifier = Modifier,
+    description: String? = null,
+    icon: ImageVector = Icons.Filled.Inbox,
+    iconTint: androidx.compose.ui.graphics.Color = RojanTextSecondary,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
     GlassSurface(
         modifier = modifier.fillMaxWidth(),
         shape = RojanShapes.Small,
@@ -78,7 +107,7 @@ fun RojanEmptyState(
                 imageVector = icon,
                 contentDescription = null,
                 size = RojanIconSize.XLarge,
-                tint = RojanTextSecondary,
+                tint = iconTint,
             )
 
             Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))

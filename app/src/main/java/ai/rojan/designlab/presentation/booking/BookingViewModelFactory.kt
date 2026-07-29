@@ -1,13 +1,33 @@
 package ai.rojan.designlab.presentation.booking
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 
-/** Manual factory for [BookingViewModel], mirroring the existing pattern used by every other ViewModel in this app. No dependencies needed — this class only holds in-memory state, nothing to inject. */
-class BookingViewModelFactory : ViewModelProvider.Factory {
-
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return BookingViewModel() as T
+/**
+ * Factory for [BookingViewModel] — built with the current, non-deprecated
+ * `viewModelFactory { initializer { ... } }` + [createSavedStateHandle]
+ * APIs (via `CreationExtras`), replacing the previous
+ * `AbstractSavedStateViewModelFactory(owner, defaultArgs)` legacy
+ * constructor.
+ *
+ * **Booking Flow Repair (P0):** that legacy constructor was the
+ * confirmed root cause of Booking Confirmation receiving empty
+ * `BookingState` after a real process death — it does not reliably hook
+ * into Navigation-Compose's actual state-restoration path for a nested
+ * graph's `NavBackStackEntry`, so the `SavedStateHandle` it produced
+ * came back empty even though `persistState()` had genuinely written
+ * every field before the process died. `createSavedStateHandle()`,
+ * sourced from the `CreationExtras` supplied at the call site (see
+ * `bookingViewModelFor` in `RojanNavGraph.kt`), is the API Navigation
+ * itself is built to restore correctly.
+ *
+ * No `owner` parameter any more — scoping to the booking flow's nested
+ * graph `NavBackStackEntry` now happens entirely via the `extras` passed
+ * at the call site, not via this factory's constructor.
+ */
+val BookingViewModelFactory = viewModelFactory {
+    initializer {
+        BookingViewModel(savedStateHandle = createSavedStateHandle())
     }
 }

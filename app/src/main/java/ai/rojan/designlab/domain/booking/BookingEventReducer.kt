@@ -19,6 +19,7 @@ class BookingEventReducer {
         is BookingEvent.TimeSelected -> state.copy(selectedTime = event.time)
         is BookingEvent.PromotionApplied -> state.copy(promotionId = event.promotionId)
         is BookingEvent.CouponApplied -> state.copy(couponId = event.couponId)
+        is BookingEvent.PaymentMethodSelected -> state.copy(paymentMethod = event.method)
         is BookingEvent.IntentDetected -> state.copy(intent = event.intent)
     }
 

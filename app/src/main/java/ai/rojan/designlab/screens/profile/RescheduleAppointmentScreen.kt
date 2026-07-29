@@ -1,4 +1,4 @@
-package ai.rojan.designlab.screens.profile
+﻿package ai.rojan.designlab.screens.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Text
+import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -26,7 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import ai.rojan.designlab.domain.booking.BookingEngine
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
@@ -66,7 +66,7 @@ fun RescheduleAppointmentScreen(
     }
 
     if (appointment == null) {
-        PremiumBackground {
+        WarmBackground {
             Column(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD)) {
                 GlassBackButton(onClick = onBackClick)
                 Text("نوبت یافت نشد", color = RojanTextOnGlass, style = RojanTypography.Body)
@@ -93,7 +93,7 @@ fun RescheduleAppointmentScreen(
         }
     }
 
-    PremiumBackground {
+    WarmBackground {
         Column(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD)) {
             GlassBackButton(onClick = onBackClick)
 
