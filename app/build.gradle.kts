@@ -22,6 +22,26 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Manager App split (see CLAUDE.md "App ID Separation" audit): two
+    // installable apps from one codebase, no code duplicated/moved.
+    // `customer` has zero overrides — it inherits defaultConfig exactly
+    // as-is, so the existing Customer app's applicationId/manifest/
+    // branding are byte-for-byte unchanged. `manager` gets its own
+    // applicationId + a flavor-only source set (src/manager/...) adding
+    // ManagerActivity + a manifest + an app_name override; it reuses the
+    // same src/main Manager package (screens/navigation/components) and
+    // the existing rojan_manager_logo asset — nothing duplicated.
+    flavorDimensions += "target"
+    productFlavors {
+        create("customer") {
+            dimension = "target"
+        }
+        create("manager") {
+            dimension = "target"
+            applicationId = "ai.rojan.designlab.manager"
+        }
+    }
+
     buildTypes {
         release {
             optimization {

@@ -149,6 +149,68 @@ same primitives at their current values — e.g. the sibling `calendar/`,
 approval. Changing the values themselves, or introducing a parallel
 visual system, does.
 
+## ROJAN MANAGER FOUNDATION v1.0 FROZEN
+
+Approved baseline — everything below is frozen. Do not change any of it
+without explicit approval first. After this point: **only add new
+Manager features, or fix confirmed bugs** — no architecture changes, no
+applicationId changes, no Customer App edits, no Manager Dashboard
+redesign.
+
+**App architecture (frozen):**
+- Two product flavors on the single `:app` module (`app/build.gradle.kts`,
+  `flavorDimensions("target")`): `customer` and `manager`. No separate
+  Gradle module, no shared library extraction — this was the audited,
+  chosen approach (see "App ID Separation" history) specifically because
+  it requires zero Customer file changes.
+- `customer` flavor: zero overrides, inherits `defaultConfig` exactly —
+  `applicationId = "ai.rojan.designlab"`, unchanged.
+- `manager` flavor: `applicationId = "ai.rojan.designlab.manager"`,
+  own manifest (`src/manager/AndroidManifest.xml`), own entry point
+  (`src/manager/java/.../ManagerActivity.kt`), own launcher icon
+  (existing `rojan_manager_logo` asset), own `app_name` string override.
+- Both flavors compile the identical `src/main` Manager package
+  (`manager/screens`, `manager/navigation`, `manager/components`) —
+  nothing duplicated between them.
+- Result: Customer and Manager install and launch independently on the
+  same device, as two separate apps with two separate launcher icons.
+
+**Customer App (frozen, do not touch):**
+- `applicationId`: `ai.rojan.designlab` — never changes.
+- No Customer screen, route, component, asset, or branding file gets
+  edited for any Manager-related work, ever.
+
+**Manager App entry (frozen):**
+- Launcher → `ManagerActivity` → `managerNavGraph`, starting at
+  `ManagerDestinations.SPLASH` → auto-advances to `DASHBOARD`.
+- Splash and header both use the existing `rojan_manager_logo` drawable
+  directly — no regenerated/alternate icon asset.
+
+**Manager design system (frozen — see the "Design Baseline v1.0
+(Frozen — Manager Dashboard)" section above for the full spec):**
+Warm White background (`WarmBackground`/`ManagerScaffold`), Premium
+Glassmorphism (`GlassSurface` + `ManagerGlass` opacity constants), Teal
++ Gold identity (`ManagerAccent`), the established typography hierarchy
+(`RtlSectionHeader` + `RojanTypography.Display` for KPI numbers, etc.),
+the existing RTL foundation, and the `RojanDimens` spacing rhythm.
+
+**Completed modules (frozen scope, extend additively only):**
+- Manager Dashboard v1.0 (Header, Salon Identity, KPI cards, Quick
+  Actions, AI Insight, Calendar Preview)
+- Manager Calendar MVP (Daily/Weekly views, appointment list, status
+  indicators, specialist filter foundation, appointment detail entry
+  point)
+- Dashboard → Calendar navigation (`onViewCalendarClick` through
+  `managerNavGraph`)
+- Manager Logo integration (Header, Splash, Profile)
+
+**After this freeze:** new Manager screens (`customers/`, `services/`,
+`staff/`, `settings/` — still foundation-only folders) and bug fixes
+are in scope. Changing the architecture, either applicationId, any
+Customer file, or the Manager Dashboard's frozen visual baseline is
+not — that requires explicit approval, same as every other frozen
+section in this file.
+
 ## Environment notes
 
 - Android SDK: `C:\Users\Rojan\AppData\Local\Android\Sdk`

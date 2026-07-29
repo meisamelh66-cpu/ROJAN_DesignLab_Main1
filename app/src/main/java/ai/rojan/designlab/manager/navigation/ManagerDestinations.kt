@@ -7,6 +7,7 @@ package ai.rojan.designlab.manager.navigation
  * graph yet, only foundation for it.
  */
 object ManagerDestinations {
+    const val SPLASH = "manager_splash"
     const val DASHBOARD = "manager_dashboard_root"
     const val CALENDAR = "manager_calendar"
     const val CUSTOMERS = "manager_customers"
