@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.Icon
@@ -20,15 +20,13 @@ import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.data.demo.DemoBeautyTimelineEntry
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.WarmBackground
-import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
+import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
-import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
@@ -45,7 +43,7 @@ fun BeautyTimelineScreen(
     ecosystemViewModel: CustomerEcosystemViewModel,
     onBackClick: () -> Unit,
 ) {
-    WarmBackground {
+    HomeBackgroundTheme {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -53,29 +51,34 @@ fun BeautyTimelineScreen(
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {
             item { GlassBackButton(onClick = onBackClick) }
-            item { Text("تاریخچه زیبایی", style = RojanTypography.HeroTitle, color = RojanTextOnGlass) }
+            item { Text("تاریخچه زیبایی", style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary) }
 
-            items(ecosystemViewModel.state.beautyTimelineEntries) { entry ->
-                TimelineCard(entry)
+            itemsIndexed(ecosystemViewModel.state.beautyTimelineEntries) { index, entry ->
+                TimelineCard(entry, animationDelayMillis = index * 60)
             }
         }
     }
 }
 
 @Composable
-private fun TimelineCard(entry: DemoBeautyTimelineEntry) {
-    GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
+private fun TimelineCard(entry: DemoBeautyTimelineEntry, animationDelayMillis: Int = 0) {
+    HomeGlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .rojanEnterAnimation(delayMillis = animationDelayMillis),
+        shape = RojanShapes.Small,
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(RojanDimens.SpaceMD),
             verticalAlignment = Alignment.Top,
         ) {
-            Icon(Icons.Filled.History, contentDescription = null, tint = RojanAIGlow, modifier = Modifier.size(RojanDimens.IconSizeMedium))
+            Icon(Icons.Filled.History, contentDescription = null, tint = HomeColors.Glow, modifier = Modifier.size(RojanDimens.IconSizeMedium))
             Column(modifier = Modifier.padding(start = RojanDimens.SpaceSM)) {
-                Text(entry.serviceName, style = RojanTypography.Body, color = RojanTextPrimary)
-                Text("${entry.salonName} • ${entry.dateLabel}", style = RojanTypography.Caption, color = RojanTextSecondary)
-                Text(entry.note, style = RojanTypography.Caption, color = RojanTextSecondary)
+                Text(entry.serviceName, style = RojanTypography.Body, color = HomeColors.TextPrimary)
+                Text("${entry.salonName} • ${entry.dateLabel}", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
+                Text(entry.note, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
             }
         }
     }

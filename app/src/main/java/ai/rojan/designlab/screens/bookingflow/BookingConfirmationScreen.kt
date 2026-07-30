@@ -38,22 +38,19 @@ import androidx.compose.ui.unit.dp
 import ai.rojan.designlab.domain.booking.PaymentMethod
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.presentation.booking.BookingViewModel
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.animation.rojanEnterAnimation
-import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.components.feedback.RojanSuccessCheckmark
-import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.rtl.RtlListRow
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
-import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
@@ -103,7 +100,7 @@ fun BookingConfirmationScreen(
     var summaryVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { summaryVisible = true }
 
-    WarmBackground {
+    HomeBackgroundTheme {
         Column(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
@@ -129,11 +126,11 @@ fun BookingConfirmationScreen(
 
                 Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))
 
-                RtlSectionHeader("تایید رزرو", style = RojanTypography.HeroTitle, horizontalPadding = 0.dp)
+                RtlSectionHeader("تایید رزرو", style = RojanTypography.HeroTitle, horizontalPadding = 0.dp, color = HomeColors.TextPrimary)
 
                 Spacer(modifier = Modifier.height(RojanDimens.SpaceLG))
 
-                GlassSurface(
+                HomeGlassSurface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .rojanEnterAnimation(visible = summaryVisible),
@@ -163,10 +160,10 @@ fun BookingConfirmationScreen(
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                     } else {
-                                        Icon(Icons.Filled.Storefront, contentDescription = null, tint = RojanTextPrimary)
+                                        Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary)
                                     }
                                 }
-                                Text(salon.name, style = RojanTypography.Body, color = RojanTextPrimary)
+                                Text(salon.name, style = RojanTypography.Body, color = HomeColors.TextPrimary)
                             }
                         }
                         SummaryRow("سالن", salon?.name ?: "—", onClick = onEditSalon)
@@ -186,7 +183,7 @@ fun BookingConfirmationScreen(
 
                 Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))
 
-                RtlSectionHeader("روش پرداخت", horizontalPadding = 0.dp)
+                RtlSectionHeader("روش پرداخت", horizontalPadding = 0.dp, color = HomeColors.TextPrimary)
 
                 Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
 
@@ -220,7 +217,7 @@ private val PaymentMethod.label: String
 
 @Composable
 private fun PaymentMethodRow(method: PaymentMethod, isSelected: Boolean, onSelect: () -> Unit) {
-    GlassSurface(
+    HomeGlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             // Phase 3 internal audit (Accessibility): the row's real
@@ -238,6 +235,7 @@ private fun PaymentMethodRow(method: PaymentMethod, isSelected: Boolean, onSelec
     ) {
         RtlListRow(
             title = method.label,
+            titleColor = HomeColors.TextPrimary,
             modifier = Modifier.padding(RojanDimens.SpaceMD),
             // Final Premium Polish, Phase 2: the selected state plays
             // RojanSuccessCheckmark's animated beat (Phase 1) instead of a
@@ -258,7 +256,7 @@ private fun PaymentMethodRow(method: PaymentMethod, isSelected: Boolean, onSelec
                     Icon(
                         imageVector = Icons.Filled.RadioButtonUnchecked,
                         contentDescription = null,
-                        tint = RojanTextSecondary,
+                        tint = HomeColors.TextSecondary,
                         modifier = Modifier.alpha(if (isSelected) 0f else 1f),
                     )
                     RojanSuccessCheckmark(visible = isSelected, size = 24.dp)
@@ -279,9 +277,9 @@ private fun SummaryRow(label: String, value: String, highlight: Boolean = false,
     // direction fix.
     RtlListRow(
         title = label,
-        titleColor = RojanTextSecondary,
+        titleColor = HomeColors.TextSecondary,
         value = value,
-        valueColor = if (highlight) RojanAIGlow else RojanTextPrimary,
+        valueColor = if (highlight) HomeColors.Glow else HomeColors.TextPrimary,
         // Not shown on the price row (highlight=true, and it isn't
         // independently editable — it's derived from the service above it).
         trailingIcon = if (!highlight) Icons.Filled.KeyboardArrowLeft else null,

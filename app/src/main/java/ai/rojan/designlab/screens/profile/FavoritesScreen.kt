@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -28,19 +28,17 @@ import androidx.compose.ui.unit.dp
 import ai.rojan.designlab.data.demo.DemoSalon
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.WarmBackground
-import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
+import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.image.RojanSampleImage
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.state.RojanEmptyState
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanRatingGold
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
-import ai.rojan.designlab.ui.theme.RojanVividMagenta
 
 /**
  * Journey 2, Screen 3: Favorites — real shared mutable state (item 6 of
@@ -62,7 +60,7 @@ fun FavoritesScreen(
     val favoriteIds = ecosystemViewModel.state.favoriteSalonIds
     val favoriteSalons = catalogEngine.allSalons().filter { it.id in favoriteIds }
 
-    WarmBackground {
+    HomeBackgroundTheme {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -70,7 +68,7 @@ fun FavoritesScreen(
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {
             item { GlassBackButton(onClick = onBackClick) }
-            item { Text("سالن‌های دنبال‌شده", style = RojanTypography.HeroTitle, color = RojanTextOnGlass) }
+            item { Text("سالن‌های دنبال‌شده", style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary) }
 
             if (favoriteSalons.isEmpty()) {
                 item {
@@ -81,12 +79,13 @@ fun FavoritesScreen(
                     )
                 }
             } else {
-                items(favoriteSalons) { salon ->
+                itemsIndexed(favoriteSalons) { index, salon ->
                     FavoriteSalonCard(
                         salon = salon,
                         isFavorite = true,
                         onClick = { onSalonClick(salon.id) },
                         onToggleFavorite = { ecosystemViewModel.toggleFavoriteSalon(salon.id) },
+                        animationDelayMillis = index * 60,
                     )
                 }
             }
@@ -100,11 +99,13 @@ private fun FavoriteSalonCard(
     isFavorite: Boolean,
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit,
+    animationDelayMillis: Int = 0,
 ) {
-    GlassSurface(
+    HomeGlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .rojanEnterAnimation(delayMillis = animationDelayMillis)
+            .rojanPressable(onClick = onClick),
         shape = RojanShapes.Small,
     ) {
         Row(
@@ -126,22 +127,22 @@ private fun FavoriteSalonCard(
                         modifier = Modifier.fillMaxSize(),
                     )
                 } else {
-                    Icon(Icons.Filled.Storefront, contentDescription = null, tint = RojanTextPrimary)
+                    Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary)
                 }
             }
 
             Column(modifier = Modifier.weight(1f).padding(horizontal = RojanDimens.SpaceSM)) {
-                Text(salon.name, style = RojanTypography.Body, color = RojanTextPrimary)
+                Text(salon.name, style = RojanTypography.Body, color = HomeColors.TextPrimary)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Star, contentDescription = null, tint = RojanRatingGold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
-                    Text(" ${salon.rating}", style = RojanTypography.Caption, color = RojanTextSecondary)
+                    Icon(Icons.Filled.Star, contentDescription = null, tint = HomeColors.Gold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
+                    Text(" ${salon.rating}", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                 }
             }
 
             Icon(
                 imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                 contentDescription = "لغو دنبال کردن این سالن",
-                tint = RojanVividMagenta,
+                tint = HomeColors.Magenta,
                 modifier = Modifier.clickable(onClick = onToggleFavorite),
             )
         }

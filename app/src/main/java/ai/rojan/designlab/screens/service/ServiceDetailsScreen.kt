@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.CheckCircle
@@ -28,16 +29,16 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.domain.catalog.CatalogEngine
-import ai.rojan.designlab.ui.background.WarmBackground
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
+import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
-import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
-import ai.rojan.designlab.ui.theme.RojanAIGlow
+import ai.rojan.designlab.ui.components.state.RojanErrorState
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 
@@ -51,12 +52,12 @@ fun ServiceDetailsScreen(
     val catalogEngine = remember { CatalogEngine() }
     val service = catalogEngine.findServiceById(serviceId)
 
-    WarmBackground {
+    HomeBackgroundTheme {
         if (service == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("خدمت یافت نشد", color = RojanTextOnGlass, style = RojanTypography.Body)
+            Box(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD), contentAlignment = Alignment.Center) {
+                RojanErrorState(title = "خدمت یافت نشد")
             }
-            return@WarmBackground
+            return@HomeBackgroundTheme
         }
 
         Column(modifier = Modifier.fillMaxSize()) {
@@ -79,7 +80,7 @@ fun ServiceDetailsScreen(
                         RojanIconContainer(
     imageVector = Icons.Filled.ContentCut,
     contentDescription = null,
-    tint = RojanTextOnGlass,
+    tint = HomeColors.TextPrimary,
     sizeOverride = 48.dp,
 )
                     }
@@ -87,10 +88,10 @@ fun ServiceDetailsScreen(
 
                 item {
                     Column {
-                        Text(service.name, style = RojanTypography.HeroTitle, color = RojanTextOnGlass)
+                        Text(service.name, style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary)
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.AccessTime, null, tint = RojanTextSecondary, modifier = Modifier.size(16.dp))
-                            Text(" ${service.durationMinutes} دقیقه", style = RojanTypography.Caption, color = RojanTextSecondary)
+                            Icon(Icons.Filled.AccessTime, null, tint = HomeColors.TextSecondary, modifier = Modifier.size(RojanDimens.IconSizeSmall))
+                            Text(" ${service.durationMinutes} دقیقه", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                         }
                     }
                 }
@@ -101,55 +102,58 @@ fun ServiceDetailsScreen(
                             Text(
                                 text = "${service.price} تومان",
                                 style = RojanTypography.Caption,
-                                color = RojanTextSecondary,
+                                color = HomeColors.TextSecondary,
                                 textDecoration = TextDecoration.LineThrough,
                             )
                             Spacer(modifier = Modifier.width(RojanDimens.SpaceSM))
                             Text(
                                 text = "${service.discountPrice} تومان",
                                 style = RojanTypography.HeroTitle,
-                                color = RojanAIGlow,
+                                color = HomeColors.Glow,
                             )
                         } else {
                             Text(
                                 text = "${service.price} تومان",
                                 style = RojanTypography.HeroTitle,
-                                color = RojanAIGlow,
+                                color = HomeColors.Glow,
                             )
                         }
                     }
                 }
 
                 item {
-                    GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
+                    HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
                         Text(
                             text = service.description,
                             style = RojanTypography.Body,
-                            color = RojanTextPrimary,
+                            color = HomeColors.TextPrimary,
                             modifier = Modifier.padding(RojanDimens.SpaceMD),
                         )
                     }
                 }
 
-                item { Text("مزایا", style = RojanTypography.Body, color = RojanTextOnGlass) }
-                items(service.benefits) { benefit ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.CheckCircle, null, tint = RojanAIGlow, modifier = Modifier.size(16.dp))
-                        Text(" $benefit", style = RojanTypography.Caption, color = RojanTextPrimary)
+                item { Text("مزایا", style = RojanTypography.Body, color = HomeColors.TextPrimary) }
+                itemsIndexed(service.benefits) { index, benefit ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.rojanEnterAnimation(delayMillis = index * 60),
+                    ) {
+                        Icon(Icons.Filled.CheckCircle, null, tint = HomeColors.Glow, modifier = Modifier.size(RojanDimens.IconSizeSmall))
+                        Text(" $benefit", style = RojanTypography.Caption, color = HomeColors.TextPrimary)
                     }
                 }
 
                 item {
                     Column {
-                        Text("آماده‌سازی قبل از مراجعه", style = RojanTypography.Body, color = RojanTextOnGlass)
-                        Text(service.preparation, style = RojanTypography.Caption, color = RojanTextSecondary)
+                        Text("آماده‌سازی قبل از مراجعه", style = RojanTypography.Body, color = HomeColors.TextPrimary)
+                        Text(service.preparation, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                     }
                 }
 
                 item {
                     Column {
-                        Text("مراقبت پس از خدمت", style = RojanTypography.Body, color = RojanTextOnGlass)
-                        Text(service.aftercare, style = RojanTypography.Caption, color = RojanTextSecondary)
+                        Text("مراقبت پس از خدمت", style = RojanTypography.Body, color = HomeColors.TextPrimary)
+                        Text(service.aftercare, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                     }
                 }
             }

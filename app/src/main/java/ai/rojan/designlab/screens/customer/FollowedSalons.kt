@@ -22,15 +22,13 @@ import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.components.cards.RojanHomeCard
-import ai.rojan.designlab.ui.components.cards.RojanRatingRow
+import ai.rojan.designlab.screens.customer.hometheme.HomeCard
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeRatingRow
 import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
-import ai.rojan.designlab.ui.theme.RojanVividMagenta
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
@@ -58,7 +56,7 @@ fun FollowedSalons(ecosystemViewModel: CustomerEcosystemViewModel, onSalonClick:
         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
     ) {
         itemsIndexed(followedSalons) { index, salon ->
-            RojanHomeCard(
+            HomeCard(
                 accentColor = salon.colorSeed,
                 onClick = { onSalonClick(salon.id) },
                 index = index,
@@ -83,7 +81,7 @@ fun FollowedSalons(ecosystemViewModel: CustomerEcosystemViewModel, onSalonClick:
                             RojanIconContainer(
                                 imageVector = Icons.Filled.Storefront,
                                 contentDescription = null,
-                                tint = RojanTextPrimary,
+                                tint = HomeColors.TextPrimary,
                                 size = RojanIconSize.Large,
                             )
                         }
@@ -92,7 +90,7 @@ fun FollowedSalons(ecosystemViewModel: CustomerEcosystemViewModel, onSalonClick:
                     RojanIconContainer(
                         imageVector = Icons.Filled.Favorite,
                         contentDescription = "دنبال‌شده",
-                        tint = RojanVividMagenta,
+                        tint = HomeColors.Magenta,
                         size = RojanIconSize.Small,
                         modifier = Modifier
                             .align(Alignment.TopEnd)
@@ -103,17 +101,17 @@ fun FollowedSalons(ecosystemViewModel: CustomerEcosystemViewModel, onSalonClick:
                 Text(
                     text = salon.name,
                     style = RojanTypography.Caption,
-                    color = RojanTextPrimary,
+                    color = HomeColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
 
-                RojanRatingRow(rating = salon.rating)
+                HomeRatingRow(rating = salon.rating)
 
                 Text(
                     text = salon.tagline,
                     style = RojanTypography.Caption,
-                    color = RojanTextSecondary,
+                    color = HomeColors.TextSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

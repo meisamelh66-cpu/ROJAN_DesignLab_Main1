@@ -19,12 +19,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-import ai.rojan.designlab.ui.background.WarmBackground
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
-import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanTextOnDarkSurface
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
@@ -45,7 +43,7 @@ import ai.rojan.designlab.ui.components.icon.RojanIconSize
 fun BookingSuccessScreen(
     onDoneClick: () -> Unit,
 ) {
-    WarmBackground {
+    HomeBackgroundTheme {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -56,13 +54,13 @@ fun BookingSuccessScreen(
             Box(
                 modifier = Modifier
                     .size(96.dp)
-                    .background(RojanAIGlow.copy(alpha = 0.2f), CircleShape),
+                    .background(HomeColors.Glow.copy(alpha = 0.2f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 RojanIconContainer(
     imageVector = Icons.Filled.CheckCircle,
     contentDescription = null,
-    tint = RojanAIGlow,
+    tint = HomeColors.Glow,
     size = RojanIconSize.XLarge,
 )
             }
@@ -72,7 +70,7 @@ fun BookingSuccessScreen(
             Text(
                 text = "رزرو شما با موفقیت ثبت شد",
                 style = RojanTypography.HeroTitle,
-                color = RojanTextOnGlass,
+                color = HomeColors.TextPrimary,
                 textAlign = TextAlign.Center,
             )
 
@@ -81,7 +79,7 @@ fun BookingSuccessScreen(
             Text(
                 text = "پیامک تایید به شماره شما ارسال خواهد شد",
                 style = RojanTypography.Body,
-                color = RojanTextOnDarkSurface,
+                color = HomeColors.TextSecondary,
                 textAlign = TextAlign.Center,
             )
 

@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.AlertDialog
@@ -37,20 +37,18 @@ import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.domain.customer.EcosystemEvent
 import ai.rojan.designlab.domain.reminder.ReminderTime
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.WarmBackground
-import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
+import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.image.RojanSampleImage
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.state.RojanEmptyState
-import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanErrorText
-import ai.rojan.designlab.ui.theme.RojanRatingGold
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanStatusOnline
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
@@ -76,7 +74,7 @@ fun AppointmentsScreen(
     val upcoming = state.upcomingAppointments
     val past = state.pastAppointments
 
-    WarmBackground {
+    HomeBackgroundTheme {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -84,14 +82,14 @@ fun AppointmentsScreen(
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {
             item { GlassBackButton(onClick = onBackClick) }
-            item { Text("نوبت‌های من", style = RojanTypography.HeroTitle, color = RojanTextOnGlass) }
+            item { Text("نوبت‌های من", style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary) }
 
             if (state.activeWaitlistEntries.isNotEmpty()) {
                 item {
                     Text(
                         text = "لیست انتظار من (${state.activeWaitlistEntries.size})",
                         style = RojanTypography.Body,
-                        color = RojanAIGlow,
+                        color = HomeColors.Glow,
                         modifier = Modifier.clickable(onClick = onWaitlistClick),
                     )
                 }
@@ -111,8 +109,8 @@ fun AppointmentsScreen(
             }
 
             if (upcoming.isNotEmpty()) {
-                item { Text("پیش‌رو", style = RojanTypography.Body, color = RojanTextOnGlass) }
-                items(upcoming) { appt ->
+                item { Text("پیش‌رو", style = RojanTypography.Body, color = HomeColors.TextPrimary) }
+                itemsIndexed(upcoming) { index, appt ->
                     AppointmentCard(
                         appointment = appt,
                         onClick = { onAppointmentClick(appt.id) },
@@ -120,14 +118,20 @@ fun AppointmentsScreen(
                         onCancel = { ecosystemViewModel.cancelAppointment(appt.id) },
                         onReschedule = { onRescheduleClick(appt.id) },
                         ecosystemViewModel = ecosystemViewModel,
+                        animationDelayMillis = index * 60,
                     )
                 }
             }
 
             if (past.isNotEmpty()) {
-                item { Text("گذشته", style = RojanTypography.Body, color = RojanTextOnGlass) }
-                items(past) { appt ->
-                    AppointmentCard(appointment = appt, onClick = { onAppointmentClick(appt.id) }, onCompleteDemo = null)
+                item { Text("گذشته", style = RojanTypography.Body, color = HomeColors.TextPrimary) }
+                itemsIndexed(past) { index, appt ->
+                    AppointmentCard(
+                        appointment = appt,
+                        onClick = { onAppointmentClick(appt.id) },
+                        onCompleteDemo = null,
+                        animationDelayMillis = index * 60,
+                    )
                 }
             }
         }
@@ -136,14 +140,14 @@ fun AppointmentsScreen(
 
 @Composable
 private fun EventCascadeSummary(events: List<EcosystemEvent>) {
-    GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
+    HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
         Column(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
-            Text("این اتفاق افتاد:", style = RojanTypography.Body, color = RojanTextPrimary)
+            Text("این اتفاق افتاد:", style = RojanTypography.Body, color = HomeColors.TextPrimary)
             events.forEach { event ->
                 Text(
                     text = "• ${describeEvent(event)}",
                     style = RojanTypography.Caption,
-                    color = RojanTextSecondary,
+                    color = HomeColors.TextSecondary,
                 )
             }
         }
@@ -183,14 +187,16 @@ private fun AppointmentCard(
     onCancel: (() -> Unit)? = null,
     onReschedule: (() -> Unit)? = null,
     ecosystemViewModel: CustomerEcosystemViewModel? = null,
+    animationDelayMillis: Int = 0,
 ) {
     val catalogEngine = remember { CatalogEngine() }
     val salon = appointment.salonId?.let { catalogEngine.findSalonById(it) }
 
-    GlassSurface(
+    HomeGlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .rojanEnterAnimation(delayMillis = animationDelayMillis)
+            .rojanPressable(onClick = onClick),
         shape = RojanShapes.Small,
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD)) {
@@ -203,7 +209,7 @@ private fun AppointmentCard(
                     modifier = Modifier
                         .size(48.dp)
                         .background(
-                            (salon?.colorSeed ?: RojanTextSecondary).copy(alpha = 0.5f),
+                            (salon?.colorSeed ?: HomeColors.TextSecondary).copy(alpha = 0.5f),
                             RojanShapes.Small,
                         ),
                     contentAlignment = Alignment.Center,
@@ -215,23 +221,23 @@ private fun AppointmentCard(
                             modifier = Modifier.fillMaxSize(),
                         )
                     } else {
-                        Icon(Icons.Filled.Storefront, contentDescription = null, tint = RojanTextPrimary)
+                        Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary)
                     }
                 }
 
                 Spacer(modifier = Modifier.width(RojanDimens.SpaceSM))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(appointment.salonName, style = RojanTypography.Body, color = RojanTextPrimary)
+                    Text(appointment.salonName, style = RojanTypography.Body, color = HomeColors.TextPrimary)
                     Text(
                         "${appointment.serviceName} • ${appointment.specialistName}",
                         style = RojanTypography.Caption,
-                        color = RojanTextSecondary,
+                        color = HomeColors.TextSecondary,
                     )
-                    Text(appointment.dateLabel, style = RojanTypography.Caption, color = RojanTextSecondary)
+                    Text(appointment.dateLabel, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("${appointment.price} تومان", style = RojanTypography.Caption, color = RojanAIGlow)
+                    Text("${appointment.price} تومان", style = RojanTypography.Caption, color = HomeColors.Glow)
                     Text(
                         text = when (appointment.status) {
                             AppointmentStatus.UPCOMING -> "تایید شده"
@@ -239,7 +245,7 @@ private fun AppointmentCard(
                             AppointmentStatus.CANCELLED -> "لغو شده"
                         },
                         style = RojanTypography.Caption,
-                        color = if (appointment.status == AppointmentStatus.CANCELLED) RojanTextSecondary else RojanRatingGold,
+                        color = if (appointment.status == AppointmentStatus.CANCELLED) HomeColors.TextSecondary else HomeColors.Gold,
                     )
                 }
             }
@@ -261,7 +267,7 @@ private fun AppointmentCard(
                         Text(
                             text = "تغییر زمان",
                             style = RojanTypography.Caption,
-                            color = RojanAIGlow,
+                            color = HomeColors.Glow,
                             modifier = Modifier.clickable(onClick = onReschedule),
                         )
                     }
@@ -309,7 +315,7 @@ private fun AppointmentCard(
                     Text(
                         text = "یادآوری نوبت",
                         style = RojanTypography.Caption,
-                        color = RojanTextSecondary,
+                        color = HomeColors.TextSecondary,
                     )
                     Switch(
                         checked = isEnabled,

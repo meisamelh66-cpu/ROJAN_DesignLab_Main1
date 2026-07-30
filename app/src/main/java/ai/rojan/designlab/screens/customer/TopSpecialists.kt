@@ -25,18 +25,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.domain.catalog.CatalogEngine
-import ai.rojan.designlab.ui.components.cards.RojanHomeCard
+import ai.rojan.designlab.screens.customer.hometheme.HomeCard
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.ui.components.effects.RojanAmbientGlow
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.components.image.SpecialistAvatar
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanRatingGold
 import ai.rojan.designlab.ui.theme.RojanShadows
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
-import ai.rojan.designlab.ui.theme.RojanWarmWhite
 
 /**
  * Customer Home top specialists — Design Board v1.0, Secondary Features
@@ -80,16 +77,16 @@ import ai.rojan.designlab.ui.theme.RojanWarmWhite
  * a real chip rather than a flat tinted rectangle.
  */
 @Composable
-fun TopSpecialists() {
+fun TopSpecialists(onSpecialistClick: (String) -> Unit = {}) {
     val catalogEngine = remember { CatalogEngine() }
 
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
     ) {
         itemsIndexed(catalogEngine.allSpecialists()) { index, specialist ->
-            RojanHomeCard(
+            HomeCard(
                 accentColor = specialist.colorSeed,
-                onClick = { },
+                onClick = { onSpecialistClick(specialist.id) },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 index = index,
                 height = 218.dp,
@@ -126,13 +123,13 @@ fun TopSpecialists() {
                             .align(Alignment.BottomEnd)
                             .size(24.dp)
                             .shadow(elevation = RojanShadows.SoftElevation / 3, shape = CircleShape)
-                            .background(RojanWarmWhite, CircleShape),
+                            .background(HomeColors.DeepPurple, CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
                         RojanIconContainer(
                             imageVector = Icons.Filled.Star,
                             contentDescription = "متخصص برتر",
-                            tint = RojanRatingGold,
+                            tint = HomeColors.Gold,
                             size = RojanIconSize.Small,
                         )
                     }
@@ -141,7 +138,7 @@ fun TopSpecialists() {
                 Text(
                     text = specialist.name,
                     style = RojanTypography.Caption.copy(fontWeight = FontWeight.Bold),
-                    color = RojanTextPrimary,
+                    color = HomeColors.TextPrimary,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -150,7 +147,7 @@ fun TopSpecialists() {
                 Text(
                     text = specialist.title,
                     style = RojanTypography.Caption,
-                    color = RojanTextSecondary,
+                    color = HomeColors.TextSecondary,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -161,11 +158,11 @@ fun TopSpecialists() {
                         .shadow(
                             elevation = RojanShadows.SoftElevation / 2,
                             shape = CircleShape,
-                            ambientColor = RojanRatingGold.copy(alpha = 0.3f),
-                            spotColor = RojanRatingGold.copy(alpha = 0.3f),
+                            ambientColor = HomeColors.Gold.copy(alpha = 0.3f),
+                            spotColor = HomeColors.Gold.copy(alpha = 0.3f),
                         )
-                        .background(RojanRatingGold.copy(alpha = 0.18f), CircleShape)
-                        .border(width = 0.6.dp, color = RojanRatingGold.copy(alpha = 0.4f), shape = CircleShape)
+                        .background(HomeColors.Gold.copy(alpha = 0.18f), CircleShape)
+                        .border(width = 0.6.dp, color = HomeColors.Gold.copy(alpha = 0.4f), shape = CircleShape)
                         .padding(horizontal = RojanDimens.SpaceSM, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
@@ -173,13 +170,13 @@ fun TopSpecialists() {
                     RojanIconContainer(
                         imageVector = Icons.Filled.Star,
                         contentDescription = null,
-                        tint = RojanRatingGold,
+                        tint = HomeColors.Gold,
                         size = RojanIconSize.Small,
                     )
                     Text(
                         text = specialist.rating,
                         style = RojanTypography.Caption,
-                        color = RojanTextPrimary,
+                        color = HomeColors.TextPrimary,
                     )
                 }
             }

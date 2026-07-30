@@ -22,12 +22,10 @@ import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.data.demo.DemoSalon
 import ai.rojan.designlab.domain.catalog.CatalogEngine
-import ai.rojan.designlab.ui.components.cards.RojanHomeCard
+import ai.rojan.designlab.screens.customer.hometheme.HomeCard
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.ui.components.image.RojanSampleImage
-import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
@@ -68,8 +66,8 @@ fun RecommendedSalons(onSalonClick: (String) -> Unit = {}) {
         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
     ) {
         itemsIndexed(catalogEngine.allSalons()) { index, salon ->
-            RojanHomeCard(
-                accentColor = RojanAIGlow,
+            HomeCard(
+                accentColor = HomeColors.Glow,
                 accentAlpha = 0.12f,
                 onClick = { onSalonClick(salon.id) },
                 index = index,
@@ -82,13 +80,13 @@ fun RecommendedSalons(onSalonClick: (String) -> Unit = {}) {
                     RojanIconContainer(
                         imageVector = Icons.Filled.AutoAwesome,
                         contentDescription = null,
-                        tint = RojanAIGlow,
+                        tint = HomeColors.Glow,
                         size = RojanIconSize.Small,
                     )
                     Text(
                         text = "پیشنهاد AI برای شما",
                         style = RojanTypography.Caption,
-                        color = RojanAIGlow,
+                        color = HomeColors.Glow,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -97,7 +95,7 @@ fun RecommendedSalons(onSalonClick: (String) -> Unit = {}) {
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .background(RojanAIGlow.copy(alpha = 0.12f), CircleShape),
+                        .background(HomeColors.Glow.copy(alpha = 0.12f), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (salon.assetRes != null) {
@@ -111,7 +109,7 @@ fun RecommendedSalons(onSalonClick: (String) -> Unit = {}) {
                         RojanIconContainer(
                             imageVector = Icons.Filled.Storefront,
                             contentDescription = null,
-                            tint = RojanTextPrimary,
+                            tint = HomeColors.TextPrimary,
                             size = RojanIconSize.Medium,
                         )
                     }
@@ -120,7 +118,7 @@ fun RecommendedSalons(onSalonClick: (String) -> Unit = {}) {
                 Text(
                     text = salon.name,
                     style = RojanTypography.Caption,
-                    color = RojanTextPrimary,
+                    color = HomeColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -128,7 +126,7 @@ fun RecommendedSalons(onSalonClick: (String) -> Unit = {}) {
                 Text(
                     text = aiReasonFor(salon),
                     style = RojanTypography.Caption,
-                    color = RojanTextSecondary,
+                    color = HomeColors.TextSecondary,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -136,7 +134,7 @@ fun RecommendedSalons(onSalonClick: (String) -> Unit = {}) {
                 Text(
                     text = confidenceFor(salon),
                     style = RojanTypography.Caption,
-                    color = RojanTextSecondary,
+                    color = HomeColors.TextSecondary,
                 )
             }
         }

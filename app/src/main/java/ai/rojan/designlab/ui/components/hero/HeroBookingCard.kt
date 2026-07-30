@@ -32,19 +32,15 @@ import androidx.compose.ui.unit.dp
 import ai.rojan.designlab.ui.text.Text
 
 import ai.rojan.designlab.R
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.effects.RojanAmbientGlow
-import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.components.image.RojanSampleImage
-import ai.rojan.designlab.ui.theme.RojanAIGlow
-import ai.rojan.designlab.ui.theme.RojanBlushPink
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShadows
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanSoftLavender
-import ai.rojan.designlab.ui.theme.RojanTextOnDarkSurface
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 
@@ -156,8 +152,8 @@ fun HeroBookingCard(
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            RojanBlushPink.copy(alpha = 0.5f),
-                            RojanSoftLavender.copy(alpha = 0.5f),
+                            HomeColors.Glow.copy(alpha = 0.5f),
+                            HomeColors.Magenta.copy(alpha = 0.4f),
                         ),
                     ),
                     shape = RojanShapes.GlassCard,
@@ -171,8 +167,8 @@ fun HeroBookingCard(
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            RojanBlushPink.copy(alpha = 0.35f),
-                            RojanSoftLavender.copy(alpha = 0.35f),
+                            HomeColors.Glow.copy(alpha = 0.30f),
+                            HomeColors.Primary.copy(alpha = 0.30f),
                         ),
                     ),
                     shape = RojanShapes.GlassCard,
@@ -180,7 +176,7 @@ fun HeroBookingCard(
         )
 
         // Layer 3: glass surface + floating content
-        GlassSurface(
+        HomeGlassSurface(
             modifier = Modifier.fillMaxSize(),
             shape = RojanShapes.GlassCard,
             elevation = RojanShadows.PremiumElevation
@@ -214,7 +210,7 @@ fun HeroBookingCard(
                                     blurRadius = 10f,
                                 ),
                             ),
-                            color = RojanTextOnGlass,
+                            color = HomeColors.TextPrimary,
                             textAlign = TextAlign.Start
                         )
 
@@ -225,7 +221,7 @@ fun HeroBookingCard(
                         Text(
                             text = "بهترین متخصصان زیبایی در کنار شما\nنوبت خود را سریع و آسان رزرو کنید",
                             style = RojanTypography.Body,
-                            color = RojanTextOnDarkSurface,
+                            color = HomeColors.TextSecondary,
                             textAlign = TextAlign.Start
                         )
                     }
@@ -242,8 +238,8 @@ fun HeroBookingCard(
                     Box(contentAlignment = Alignment.Center) {
                         RojanAmbientGlow(
                             modifier = Modifier.size(150.dp),
-                            color = RojanAIGlow,
-                            alpha = 0.28f,
+                            color = HomeColors.Glow,
+                            alpha = 0.35f,
                         )
                         RojanSampleImage(
                             resId = R.drawable.salon_demo_1,
@@ -267,8 +263,8 @@ fun HeroBookingCard(
                 Box(contentAlignment = Alignment.Center) {
                     RojanAmbientGlow(
                         modifier = Modifier.size(width = 280.dp, height = 96.dp),
-                        color = RojanAIGlow,
-                        alpha = 0.22f,
+                        color = HomeColors.Glow,
+                        alpha = 0.28f,
                     )
                     PremiumButton(
                         text = "دریافت نوبت",

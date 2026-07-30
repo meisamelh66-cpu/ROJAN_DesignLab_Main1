@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -28,21 +29,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.domain.catalog.CatalogEngine
-import ai.rojan.designlab.ui.background.WarmBackground
-import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
+import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.image.SpecialistAvatar
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.rtl.RtlInfoRow
 import ai.rojan.designlab.ui.components.rtl.RtlListRow
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
-import ai.rojan.designlab.ui.theme.RojanAIGlow
+import ai.rojan.designlab.ui.components.state.RojanErrorState
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanRatingGold
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextOnDarkSurface
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /** Journey 1, Screen 3: Specialist Profile. */
@@ -55,12 +54,12 @@ fun SpecialistProfileScreen(
     val catalogEngine = remember { CatalogEngine() }
     val specialist = catalogEngine.findSpecialistById(specialistId)
 
-    WarmBackground {
+    HomeBackgroundTheme {
         if (specialist == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("متخصص یافت نشد", color = RojanTextOnGlass, style = RojanTypography.Body)
+            Box(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD), contentAlignment = Alignment.Center) {
+                RojanErrorState(title = "متخصص یافت نشد")
             }
-            return@WarmBackground
+            return@HomeBackgroundTheme
         }
 
         val services = catalogEngine.servicesForSalon(specialist.salonId)
@@ -90,8 +89,8 @@ fun SpecialistProfileScreen(
                         )
                     }
                     Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
-                    Text(specialist.name, style = RojanTypography.HeroTitle, color = RojanTextOnGlass)
-                    Text(specialist.title, style = RojanTypography.Body, color = RojanTextOnDarkSurface)
+                    Text(specialist.name, style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary)
+                    Text(specialist.title, style = RojanTypography.Body, color = HomeColors.TextSecondary)
                 }
             }
 
@@ -107,26 +106,27 @@ fun SpecialistProfileScreen(
             }
 
             item {
-                GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
+                HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
                     Text(
                         text = specialist.bio,
                         style = RojanTypography.Body,
-                        color = RojanTextPrimary,
+                        color = HomeColors.TextPrimary,
                         modifier = Modifier.padding(RojanDimens.SpaceMD),
                     )
                 }
             }
 
-            item { RtlSectionHeader("مهارت‌ها", horizontalPadding = 0.dp) }
+            item { RtlSectionHeader("مهارت‌ها", horizontalPadding = 0.dp, color = HomeColors.TextPrimary) }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
                     specialist.skills.forEach { skill ->
-                        GlassSurface(shape = RojanShapes.Small) {
+                        HomeGlassSurface(shape = RojanShapes.Small) {
                             RtlInfoRow(
                                 icon = Icons.Filled.CheckCircle,
                                 text = skill,
-                                iconTint = RojanAIGlow,
+                                iconTint = HomeColors.Glow,
                                 iconSize = RojanDimens.IconSizeSmall,
+                                textColor = HomeColors.TextPrimary,
                                 modifier = Modifier.padding(horizontal = RojanDimens.SpaceSM, vertical = RojanDimens.SpaceXS),
                             )
                         }
@@ -135,38 +135,46 @@ fun SpecialistProfileScreen(
             }
 
             if (services.isNotEmpty()) {
-                item { RtlSectionHeader("خدمات قابل رزرو", horizontalPadding = 0.dp) }
-                items(services) { service ->
-                    GlassSurface(
+                item { RtlSectionHeader("خدمات قابل رزرو", horizontalPadding = 0.dp, color = HomeColors.TextPrimary) }
+                itemsIndexed(services) { index, service ->
+                    HomeGlassSurface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onServiceClick(service.id) },
+                            .rojanEnterAnimation(delayMillis = index * 60)
+                            .rojanPressable(onClick = { onServiceClick(service.id) }),
                         shape = RojanShapes.Small,
                     ) {
                         RtlListRow(
                             title = service.name,
+                            titleColor = HomeColors.TextPrimary,
                             value = "${service.durationMinutes} دقیقه",
                             valueStyle = RojanTypography.Caption,
-                            valueColor = RojanTextSecondary,
+                            valueColor = HomeColors.TextSecondary,
                             modifier = Modifier.padding(RojanDimens.SpaceMD),
                         )
                     }
                 }
             }
 
-            item { RtlSectionHeader("نظرات", horizontalPadding = 0.dp) }
-            items(reviews) { review ->
-                GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
+            item { RtlSectionHeader("نظرات", horizontalPadding = 0.dp, color = HomeColors.TextPrimary) }
+            itemsIndexed(reviews) { index, review ->
+                HomeGlassSurface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .rojanEnterAnimation(delayMillis = index * 60),
+                    shape = RojanShapes.Small,
+                ) {
                     Column(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
                         RtlListRow(
                             title = review.authorName,
                             titleStyle = RojanTypography.Caption,
+                            titleColor = HomeColors.TextPrimary,
                             trailing = {
-                                Icon(Icons.Filled.Star, null, tint = RojanRatingGold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
-                                Text(" ${review.rating}", style = RojanTypography.Caption, color = RojanTextSecondary)
+                                Icon(Icons.Filled.Star, null, tint = HomeColors.Gold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
+                                Text(" ${review.rating}", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                             },
                         )
-                        Text(review.comment, style = RojanTypography.Caption, color = RojanTextSecondary)
+                        Text(review.comment, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                     }
                 }
             }
@@ -177,7 +185,7 @@ fun SpecialistProfileScreen(
 @Composable
 private fun StatChip(value: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, style = RojanTypography.HeroTitle, color = RojanAIGlow)
-        Text(label, style = RojanTypography.Caption, color = RojanTextOnDarkSurface)
+        Text(value, style = RojanTypography.HeroTitle, color = HomeColors.Glow)
+        Text(label, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
     }
 }

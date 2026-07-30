@@ -9,17 +9,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 
 
 /**
@@ -94,40 +86,30 @@ fun rememberScaleAnimation(
 }
 
 /**
- * Fade + slight-upward-motion entrance for one piece of content — the
- * shared primitive behind "smooth card appearance" / staggered list
- * entrances across the app. [delayMillis] staggers multiple items (e.g.
- * an index * 60ms stagger across a `LazyRow` of cards) so they settle in
- * one after another instead of all popping in at once; 0 (the default)
- * plays immediately. Purely visual — never gates real content loading,
- * so it's safe to apply to already-loaded data without changing when
- * that data becomes interactive.
+ * Content-entrance hook — was a fade + slight-upward-motion animation
+ * (delay via [delayMillis], then an alpha/translationY ramp), staggered
+ * per list item (e.g. `index * 60ms` across a `LazyRow`/`LazyColumn`).
+ *
+ * Scroll-recycle bug fix (Icon/Card Delayed-Appearance Investigation):
+ * every real call site of this modifier lives *inside* a lazy list item.
+ * Compose's `LazyColumn`/`LazyRow` disposes an item's composition once it
+ * scrolls far enough outside the retained window, and recomposes it from
+ * scratch when scrolled back into view — which restarted this modifier's
+ * `remember`-backed `started` flag at its initial value and replayed the
+ * full delay+fade sequence on every such recycle. That read as icons/cards
+ * "popping in late" on ordinary up/down scrolling, not just on a screen's
+ * true first appearance, which is never correct — a scrolled-into-view
+ * item was already part of the loaded screen, not new content arriving.
+ *
+ * Fixed by removing the delay/fade mechanism entirely: content is now
+ * always fully visible (same end state — alpha 1, zero translation —
+ * that the animation always settled on), so there is no longer a replay
+ * to trigger regardless of how lazy-list recycling behaves. [visible]/
+ * [delayMillis] stay as no-op parameters so no call site (~20 across the
+ * app) needs to change.
  */
 @Composable
 fun Modifier.rojanEnterAnimation(
     visible: Boolean = true,
     delayMillis: Int = 0,
-): Modifier {
-    var started by remember { mutableStateOf(delayMillis <= 0) }
-
-    LaunchedEffect(visible) {
-        if (visible && delayMillis > 0) {
-            delay(delayMillis.toLong())
-            started = true
-        } else if (visible) {
-            started = true
-        }
-    }
-
-    val progress by animateFloatAsState(
-        targetValue = if (visible && started) 1f else 0f,
-        animationSpec = RojanAnimations.ContentEnterSpec,
-        label = "rojan_content_enter",
-    )
-
-    return this
-        .alpha(progress)
-        .graphicsLayer {
-            translationY = (1f - progress) * RojanAnimations.ContentEnterTravel.toPx()
-        }
-}
+): Modifier = this

@@ -33,17 +33,13 @@ import ai.rojan.designlab.data.demo.AppointmentStatus
 import ai.rojan.designlab.data.demo.DemoUserReview
 import ai.rojan.designlab.domain.customer.ReviewLifecycleStatus
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.WarmBackground
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
-import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
-import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanSoftLavender
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
@@ -67,12 +63,12 @@ fun AppointmentDetailsScreen(
     val appointment = ecosystemViewModel.state.appointments.find { it.id == appointmentId }
     val pendingReview = ecosystemViewModel.state.pendingReviewFor(appointmentId)
 
-    WarmBackground {
+    HomeBackgroundTheme {
         if (appointment == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("نوبت یافت نشد", color = RojanTextOnGlass, style = RojanTypography.Body)
+                Text("نوبت یافت نشد", color = HomeColors.TextPrimary, style = RojanTypography.Body)
             }
-            return@WarmBackground
+            return@HomeBackgroundTheme
         }
 
         LazyColumn(
@@ -82,29 +78,29 @@ fun AppointmentDetailsScreen(
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {
             item { GlassBackButton(onClick = onBackClick) }
-            item { Text("جزئیات نوبت", style = RojanTypography.HeroTitle, color = RojanTextOnGlass) }
+            item { Text("جزئیات نوبت", style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary) }
 
             item {
-                GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
+                HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
                     Column(modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD)) {
-                        Text(appointment.salonName, style = RojanTypography.Body, color = RojanTextPrimary)
+                        Text(appointment.salonName, style = RojanTypography.Body, color = HomeColors.TextPrimary)
                         Text(
                             "${appointment.serviceName} • ${appointment.specialistName}",
                             style = RojanTypography.Caption,
-                            color = RojanTextSecondary,
+                            color = HomeColors.TextSecondary,
                         )
-                        Text(appointment.dateLabel, style = RojanTypography.Caption, color = RojanTextSecondary)
+                        Text(appointment.dateLabel, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                     }
                 }
             }
 
             item {
                 // Receipt / Invoice — real in-app detail view (see disclosed scope decision above)
-                GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
+                HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
                     Column(modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.Receipt, contentDescription = null, tint = RojanAIGlow)
-                            Text(" رسید و فاکتور", style = RojanTypography.Body, color = RojanTextPrimary)
+                            Icon(Icons.Filled.Receipt, contentDescription = null, tint = HomeColors.Glow)
+                            Text(" رسید و فاکتور", style = RojanTypography.Body, color = HomeColors.TextPrimary)
                         }
                         Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
                         InvoiceRow("خدمت", appointment.serviceName)
@@ -117,7 +113,7 @@ fun AppointmentDetailsScreen(
 
             item {
                 // Photos — placeholder tiles, no new assets, same tinted-square language used everywhere else
-                Text("تصاویر", style = RojanTypography.Body, color = RojanTextOnGlass)
+                Text("تصاویر", style = RojanTypography.Body, color = HomeColors.TextPrimary)
             }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
@@ -125,10 +121,10 @@ fun AppointmentDetailsScreen(
                         Box(
                             modifier = Modifier
                                 .size(72.dp)
-                                .background(RojanSoftLavender.copy(alpha = 0.4f), RojanShapes.Small),
+                                .background(HomeColors.Lavender.copy(alpha = 0.4f), RojanShapes.Small),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(Icons.Filled.CameraAlt, contentDescription = null, tint = RojanTextSecondary)
+                            Icon(Icons.Filled.CameraAlt, contentDescription = null, tint = HomeColors.TextSecondary)
                         }
                     }
                 }
@@ -153,8 +149,8 @@ fun AppointmentDetailsScreen(
 @Composable
 private fun InvoiceRow(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = RojanTypography.Caption, color = RojanTextSecondary)
-        Text(value, style = RojanTypography.Caption, color = RojanTextPrimary)
+        Text(label, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
+        Text(value, style = RojanTypography.Caption, color = HomeColors.TextPrimary)
     }
 }
 
@@ -170,19 +166,19 @@ private fun ReviewSection(
             val salonName = ecosystemViewModel.state.appointments
                 .find { it.id == appointmentId }?.salonName ?: ""
 
-            GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
+            HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
                 Column(modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD)) {
-                    Text("نظر خود را ثبت کنید", style = RojanTypography.Body, color = RojanTextPrimary)
+                    Text("نظر خود را ثبت کنید", style = RojanTypography.Body, color = HomeColors.TextPrimary)
                     Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
                     BasicTextField(
                         value = text,
                         onValueChange = { text = it },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(RojanSoftLavender.copy(alpha = 0.3f), RojanShapes.Small)
+                            .background(HomeColors.Lavender.copy(alpha = 0.3f), RojanShapes.Small)
                             .padding(RojanDimens.SpaceSM),
-                        textStyle = RojanTypography.Body.copy(color = RojanTextPrimary).withDirectionFor(text),
-                        cursorBrush = SolidColor(RojanAIGlow),
+                        textStyle = RojanTypography.Body.copy(color = HomeColors.TextPrimary).withDirectionFor(text),
+                        cursorBrush = SolidColor(HomeColors.Glow),
                     )
                     Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
                     PremiumButton(
@@ -212,21 +208,21 @@ private fun ReviewSection(
             }
         }
         ReviewLifecycleStatus.SUBMITTED -> {
-            GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
+            HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
                 Text(
                     "نظر شما ثبت شد و در انتظار انتشار است",
                     style = RojanTypography.Body,
-                    color = RojanTextPrimary,
+                    color = HomeColors.TextPrimary,
                     modifier = Modifier.padding(RojanDimens.SpaceMD),
                 )
             }
         }
         ReviewLifecycleStatus.PUBLISHED -> {
-            GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
+            HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
                 Text(
                     "نظر شما منتشر شد",
                     style = RojanTypography.Body,
-                    color = RojanTextPrimary,
+                    color = HomeColors.TextPrimary,
                     modifier = Modifier.padding(RojanDimens.SpaceMD),
                 )
             }

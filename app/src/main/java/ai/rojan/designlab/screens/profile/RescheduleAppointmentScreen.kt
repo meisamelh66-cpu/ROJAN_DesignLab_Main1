@@ -26,15 +26,13 @@ import androidx.compose.ui.text.style.TextAlign
 import ai.rojan.designlab.domain.booking.BookingEngine
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.WarmBackground
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
-import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
-import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
@@ -66,10 +64,10 @@ fun RescheduleAppointmentScreen(
     }
 
     if (appointment == null) {
-        WarmBackground {
+        HomeBackgroundTheme {
             Column(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD)) {
                 GlassBackButton(onClick = onBackClick)
-                Text("نوبت یافت نشد", color = RojanTextOnGlass, style = RojanTypography.Body)
+                Text("نوبت یافت نشد", color = HomeColors.TextPrimary, style = RojanTypography.Body)
             }
         }
         return
@@ -93,32 +91,32 @@ fun RescheduleAppointmentScreen(
         }
     }
 
-    WarmBackground {
+    HomeBackgroundTheme {
         Column(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD)) {
             GlassBackButton(onClick = onBackClick)
 
             Text(
                 text = "تغییر زمان نوبت",
                 style = RojanTypography.HeroTitle,
-                color = RojanTextOnGlass,
+                color = HomeColors.TextPrimary,
                 modifier = Modifier.padding(vertical = RojanDimens.SpaceMD),
             )
 
             Text(
                 text = "${appointment.salonName} • ${appointment.serviceName}",
                 style = RojanTypography.Body,
-                color = RojanTextOnGlass,
+                color = HomeColors.TextPrimary,
             )
 
             Spacer(modifier = Modifier.height(RojanDimens.SpaceLG))
 
-            Text("انتخاب تاریخ", style = RojanTypography.Body, color = RojanTextOnGlass)
+            Text("انتخاب تاریخ", style = RojanTypography.Body, color = HomeColors.TextPrimary)
             Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
 
             LazyRow(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
                 items(dates) { (key, label) ->
                     val isSelected = key == selectedDateKey
-                    GlassSurface(
+                    HomeGlassSurface(
                         modifier = Modifier
                             .clickable {
                                 selectedDateKey = key
@@ -129,7 +127,7 @@ fun RescheduleAppointmentScreen(
                         Text(
                             text = label,
                             style = RojanTypography.Caption,
-                            color = if (isSelected) RojanAIGlow else RojanTextPrimary,
+                            color = if (isSelected) HomeColors.Glow else HomeColors.TextPrimary,
                             modifier = Modifier.padding(RojanDimens.SpaceSM),
                         )
                     }
@@ -138,7 +136,7 @@ fun RescheduleAppointmentScreen(
 
             Spacer(modifier = Modifier.height(RojanDimens.SpaceLG))
 
-            Text("انتخاب ساعت", style = RojanTypography.Body, color = RojanTextOnGlass)
+            Text("انتخاب ساعت", style = RojanTypography.Body, color = HomeColors.TextPrimary)
             Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
 
             val slots = selectedDateKey?.let { key ->
@@ -151,7 +149,7 @@ fun RescheduleAppointmentScreen(
             ) {
                 items(slots) { slot ->
                     val isSelected = slot.time == selectedTime
-                    GlassSurface(
+                    HomeGlassSurface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { selectedTime = slot.time },
@@ -160,7 +158,7 @@ fun RescheduleAppointmentScreen(
                         Text(
                             text = slot.time,
                             style = RojanTypography.Body,
-                            color = if (isSelected) RojanAIGlow else RojanTextPrimary,
+                            color = if (isSelected) HomeColors.Glow else HomeColors.TextPrimary,
                             textAlign = TextAlign.Center,
                             modifier = Modifier
                                 .fillMaxWidth()

@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -16,16 +16,14 @@ import androidx.compose.ui.Modifier
 
 import ai.rojan.designlab.data.demo.DemoWaitlistEntry
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.WarmBackground
-import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
+import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanErrorText
-import ai.rojan.designlab.ui.theme.RojanLuxurySecondaryBody
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
@@ -43,14 +41,14 @@ fun WaitlistScreen(
 ) {
     val entries = ecosystemViewModel.state.activeWaitlistEntries.sortedBy { it.requestedAtSequence }
 
-    WarmBackground {
+    HomeBackgroundTheme {
         Column(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD)) {
             GlassBackButton(onClick = onBackClick)
 
             Text(
                 text = "لیست انتظار من",
                 style = RojanTypography.HeroTitle,
-                color = RojanTextOnGlass,
+                color = HomeColors.TextPrimary,
                 modifier = Modifier.padding(vertical = RojanDimens.SpaceMD),
             )
 
@@ -58,17 +56,18 @@ fun WaitlistScreen(
                 Text(
                     text = "شما در حال حاضر در هیچ لیست انتظاری نیستید",
                     style = RojanTypography.Body,
-                    color = RojanLuxurySecondaryBody,
+                    color = HomeColors.TextSecondary,
                 )
             }
 
             LazyColumn(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
-                items(entries) { entry ->
+                itemsIndexed(entries) { index, entry ->
                     val position = entries.indexOf(entry) + 1
                     WaitlistEntryCard(
                         entry = entry,
                         position = position,
                         onLeave = { ecosystemViewModel.leaveWaitlist(entry.id) },
+                        animationDelayMillis = index * 60,
                     )
                 }
             }
@@ -81,8 +80,14 @@ private fun WaitlistEntryCard(
     entry: DemoWaitlistEntry,
     position: Int,
     onLeave: () -> Unit,
+    animationDelayMillis: Int = 0,
 ) {
-    GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
+    HomeGlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .rojanEnterAnimation(delayMillis = animationDelayMillis),
+        shape = RojanShapes.Small,
+    ) {
         Column(modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -90,17 +95,17 @@ private fun WaitlistEntryCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column {
-                    Text(entry.salonName, style = RojanTypography.Body, color = RojanTextPrimary)
+                    Text(entry.salonName, style = RojanTypography.Body, color = HomeColors.TextPrimary)
                     Text(
                         "${entry.serviceName} • ${entry.dateLabel}",
                         style = RojanTypography.Caption,
-                        color = RojanTextSecondary,
+                        color = HomeColors.TextSecondary,
                     )
                 }
                 Text(
                     text = "جایگاه $position",
                     style = RojanTypography.Caption,
-                    color = RojanTextSecondary,
+                    color = HomeColors.TextSecondary,
                 )
             }
 

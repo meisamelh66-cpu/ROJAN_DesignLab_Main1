@@ -1,13 +1,9 @@
 package ai.rojan.designlab.manager.components
 
-import ai.rojan.designlab.ui.components.glass.GlassSurface
-import ai.rojan.designlab.ui.components.icon.RojanIconContainer
-import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanGlassText
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +45,10 @@ private val sampleQuickActions = listOf(
  * Manager App workspace — quick-actions row. Each chip is inert for now
  * (single [onActionClick] callback, no-op by default) since this pass
  * builds UI only, not routing.
+ *
+ * ROJAN AI Manager Visual Theme Implementation: re-themed for the dark
+ * luxury background ([ManagerGlassSurface]/[ManagerIconContainer]) —
+ * content/layout/navigation unchanged.
  */
 @Composable
 fun QuickActionsSection(
@@ -59,7 +59,7 @@ fun QuickActionsSection(
         RtlSectionHeader(
             text = "دسترسی سریع",
             style = RojanTypography.SectionTitle,
-            color = RojanGlassText,
+            color = ManagerColors.TextPrimary,
             horizontalPadding = 0.dp,
         )
 
@@ -76,16 +76,12 @@ fun QuickActionsSection(
 
 @Composable
 private fun QuickActionChip(action: QuickAction, onClick: () -> Unit) {
-    GlassSurface(
+    ManagerGlassSurface(
         modifier = Modifier
             .width(84.dp)
             .heightIn(min = 88.dp)
             .rojanPressable(onClick = onClick),
         shape = RojanShapes.Small,
-        glassAlpha = ManagerGlass.Alpha,
-        glassSecondaryAlpha = ManagerGlass.SecondaryAlpha,
-        borderAlpha = ManagerGlass.BorderAlpha,
-        borderSecondaryAlpha = ManagerGlass.BorderSecondaryAlpha,
     ) {
         Column(
             modifier = Modifier
@@ -94,16 +90,15 @@ private fun QuickActionChip(action: QuickAction, onClick: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
         ) {
-            RojanIconContainer(
+            ManagerIconContainer(
                 imageVector = action.icon,
                 contentDescription = action.label,
-                size = RojanIconSize.Large,
-                tint = ManagerAccent.Teal,
+                containerSize = 40.dp,
             )
             Text(
                 text = action.label,
                 style = RojanTypography.Caption,
-                color = RojanGlassText,
+                color = ManagerColors.TextPrimary,
                 textAlign = TextAlign.Center,
             )
         }

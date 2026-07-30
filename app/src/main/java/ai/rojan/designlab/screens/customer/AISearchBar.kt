@@ -25,15 +25,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.unit.dp
 
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.animation.rojanEnterAnimation
-import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.interaction.rojanPressedShadow
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanHintText
-import ai.rojan.designlab.ui.theme.RojanRose
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
@@ -100,16 +98,14 @@ fun AISearchBar(
                 .fillMaxWidth()
                 .height(RojanDimens.MinTouchTarget)
                 .blur(16.dp)
-                .background(RojanRose.copy(alpha = 0.16f), RojanShapes.Small),
+                .background(HomeColors.Glow.copy(alpha = 0.20f), RojanShapes.Small),
         )
 
-        GlassSurface(
+        HomeGlassSurface(
             modifier = Modifier
                 .fillMaxWidth()
                 .rojanPressable(onClick = onClick, interactionSource = interactionSource),
             shape = RojanShapes.Small,
-            borderAlpha = 0.10f,
-            borderSecondaryAlpha = 0.04f,
         ) {
             Row(
                 modifier = Modifier
@@ -122,21 +118,21 @@ fun AISearchBar(
             RojanIconContainer(
     imageVector = Icons.Filled.Search,
     contentDescription = null,
-    tint = RojanTextSecondary,
+    tint = HomeColors.TextSecondary,
     size = RojanIconSize.Medium,
 )
 
             Text(
                 text = "جستجوی سالن، خدمات یا متخصص...",
                 style = RojanTypography.Body.rojanPressedShadow(interactionSource),
-                color = RojanHintText,
+                color = HomeColors.TextMuted,
                 modifier = Modifier.weight(1f),
             )
 
             RojanIconContainer(
     imageVector = Icons.Filled.FilterList,
     contentDescription = "فیلتر",
-    tint = RojanTextSecondary,
+    tint = HomeColors.TextSecondary,
     size = RojanIconSize.Medium,
 )
             }

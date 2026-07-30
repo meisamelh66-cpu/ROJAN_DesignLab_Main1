@@ -21,13 +21,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.domain.catalog.CatalogEngine
-import ai.rojan.designlab.ui.components.cards.RojanHomeCard
-import ai.rojan.designlab.ui.components.cards.RojanRatingRow
+import ai.rojan.designlab.screens.customer.hometheme.HomeCard
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeRatingRow
 import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
@@ -62,7 +61,7 @@ fun NearbySalons(onSalonClick: ((String) -> Unit)? = null) {
         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
     ) {
         itemsIndexed(catalogEngine.allSalons()) { index, salon ->
-            RojanHomeCard(
+            HomeCard(
                 accentColor = salon.colorSeed,
                 onClick = { onSalonClick?.invoke(salon.id) },
                 index = index,
@@ -84,7 +83,7 @@ fun NearbySalons(onSalonClick: ((String) -> Unit)? = null) {
                         RojanIconContainer(
                             imageVector = Icons.Filled.Storefront,
                             contentDescription = null,
-                            tint = RojanTextPrimary,
+                            tint = HomeColors.TextPrimary,
                             size = RojanIconSize.Large,
                         )
                     }
@@ -93,7 +92,7 @@ fun NearbySalons(onSalonClick: ((String) -> Unit)? = null) {
                 Text(
                     text = salon.name,
                     style = RojanTypography.Caption,
-                    color = RojanTextPrimary,
+                    color = HomeColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -105,17 +104,17 @@ fun NearbySalons(onSalonClick: ((String) -> Unit)? = null) {
                     RojanIconContainer(
                         imageVector = Icons.Filled.LocationOn,
                         contentDescription = "فاصله",
-                        tint = RojanTextSecondary,
+                        tint = HomeColors.TextSecondary,
                         size = RojanIconSize.Small,
                     )
                     Text(
                         text = "${salon.distanceKm} کیلومتر",
                         style = RojanTypography.Caption,
-                        color = RojanTextSecondary,
+                        color = HomeColors.TextSecondary,
                     )
                 }
 
-                RojanRatingRow(rating = salon.rating)
+                HomeRatingRow(rating = salon.rating)
             }
         }
     }

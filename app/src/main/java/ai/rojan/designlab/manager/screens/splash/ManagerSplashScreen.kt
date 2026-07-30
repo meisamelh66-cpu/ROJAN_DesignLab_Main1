@@ -1,11 +1,10 @@
 package ai.rojan.designlab.manager.screens.splash
 
 import ai.rojan.designlab.R
-import ai.rojan.designlab.ui.background.WarmBackground
+import ai.rojan.designlab.manager.components.ManagerBackgroundTheme
+import ai.rojan.designlab.manager.components.ManagerColors
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanGlassText
-import ai.rojan.designlab.ui.theme.RojanTextOnDarkSurface
 import ai.rojan.designlab.ui.theme.RojanTheme
 import ai.rojan.designlab.ui.theme.RojanTypography
 import androidx.compose.foundation.Image
@@ -26,14 +25,11 @@ import kotlinx.coroutines.delay
 /**
  * Manager App workspace — splash entry point. Carries the official
  * Manager logo asset (`R.drawable.rojan_manager_logo` — pre-existing,
- * not recreated/redesigned here), on the same warm-white canvas as the
- * frozen Manager Dashboard baseline.
+ * not recreated/redesigned here).
  *
- * Manager App split: [onSplashFinished] auto-advances after
- * [minDisplayMillis] — same timer pattern as Customer's
- * [ai.rojan.designlab.screens.splash.SplashScreen] (`delay` +
- * callback), not a new mechanism. `{}` no-op default keeps this usable
- * standalone/in `@Preview` exactly as before.
+ * ROJAN AI Manager Visual Theme Implementation: re-themed onto
+ * [ManagerBackgroundTheme] (dark luxury glass) instead of the shared
+ * `WarmBackground` — content/timer behavior unchanged.
  */
 @Composable
 fun ManagerSplashScreen(
@@ -46,7 +42,7 @@ fun ManagerSplashScreen(
         onSplashFinished()
     }
 
-    WarmBackground(modifier = modifier.fillMaxSize()) {
+    ManagerBackgroundTheme(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -62,13 +58,13 @@ fun ManagerSplashScreen(
             Text(
                 text = "پنل مدیریت رویان",
                 style = RojanTypography.ScreenTitle,
-                color = RojanGlassText,
+                color = ManagerColors.TextPrimary,
                 modifier = Modifier.padding(top = RojanDimens.SpaceLG),
             )
             Text(
                 text = "اکوسیستم هوشمند زیبایی",
                 style = RojanTypography.Caption,
-                color = RojanTextOnDarkSurface,
+                color = ManagerColors.TextSecondary,
                 modifier = Modifier.padding(top = RojanDimens.SpaceXS),
             )
         }

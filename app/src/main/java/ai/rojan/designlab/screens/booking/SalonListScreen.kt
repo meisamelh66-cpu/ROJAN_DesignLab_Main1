@@ -1,8 +1,6 @@
 ﻿package ai.rojan.designlab.screens.booking
 
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,7 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
@@ -21,7 +19,6 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.OutlinedTextField
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.text.withDirectionFor
 import androidx.compose.runtime.Composable
@@ -35,19 +32,18 @@ import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.data.demo.DemoSalon
 import ai.rojan.designlab.domain.catalog.CatalogEngine
-import ai.rojan.designlab.ui.background.WarmBackground
-import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
+import ai.rojan.designlab.screens.customer.hometheme.HomeTextField
+import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.image.RojanSampleImage
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.interaction.rojanPressedShadow
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
-import ai.rojan.designlab.ui.theme.RojanAIGlow
+import ai.rojan.designlab.ui.components.state.RojanEmptyState
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanRatingGold
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanLuxurySecondaryBody
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
@@ -97,7 +93,7 @@ fun SalonListScreen(
         }
     }
 
-    WarmBackground {
+    HomeBackgroundTheme {
         Column(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD)) {
             if (showBackButton || onBusinessLoginClick != null) {
                 Row(
@@ -111,14 +107,14 @@ fun SalonListScreen(
                         Box {}
                     }
                     if (onBusinessLoginClick != null) {
-                        GlassSurface(
-                            modifier = Modifier.clickable(onClick = onBusinessLoginClick),
+                        HomeGlassSurface(
+                            modifier = Modifier.rojanPressable(onClick = onBusinessLoginClick),
                             shape = RojanShapes.Small,
                         ) {
                             Text(
                                 text = "ورود کسب‌وکار",
                                 style = RojanTypography.Caption,
-                                color = RojanTextSecondary,
+                                color = HomeColors.TextSecondary,
                                 modifier = Modifier.padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
                             )
                         }
@@ -129,15 +125,15 @@ fun SalonListScreen(
             Text(
                 text = "انتخاب سالن",
                 style = RojanTypography.HeroTitle,
-                color = RojanTextOnGlass,
+                color = HomeColors.TextPrimary,
                 modifier = Modifier.padding(vertical = RojanDimens.SpaceMD),
             )
 
-            OutlinedTextField(
+            HomeTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 placeholder = { Text("جستجوی سالن...") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = RojanTextSecondary) },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = HomeColors.TextSecondary) },
                 singleLine = true,
                 textStyle = LocalTextStyle.current.withDirectionFor(searchQuery),
                 modifier = Modifier
@@ -162,16 +158,19 @@ fun SalonListScreen(
             }
 
             if (sortedSalons.isEmpty()) {
-                Text(
-                    text = "سالنی با تمام خدمات انتخابی یافت نشد",
-                    style = RojanTypography.Body,
-                    color = RojanLuxurySecondaryBody,
+                RojanEmptyState(
+                    title = "سالنی با تمام خدمات انتخابی یافت نشد",
+                    icon = Icons.Filled.Storefront,
                 )
             }
 
             LazyColumn(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD)) {
-                items(sortedSalons) { salon ->
-                    MinimalSalonCard(salon = salon, onClick = { onSalonSelected(salon.id) })
+                itemsIndexed(sortedSalons) { index, salon ->
+                    MinimalSalonCard(
+                        salon = salon,
+                        onClick = { onSalonSelected(salon.id) },
+                        animationDelayMillis = index * 60,
+                    )
                 }
             }
         }
@@ -185,31 +184,28 @@ private fun parseDistanceKm(distanceKm: String): Double =
 
 @Composable
 private fun SalonFilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    GlassSurface(
-        modifier = Modifier.clickable(onClick = onClick),
+    HomeGlassSurface(
+        modifier = Modifier.rojanPressable(onClick = onClick),
         shape = RojanShapes.Small,
         glassAlpha = if (selected) 0.55f else 0.40f,
     ) {
         Text(
             text = label,
             style = RojanTypography.Caption,
-            color = if (selected) RojanAIGlow else RojanTextSecondary,
+            color = if (selected) HomeColors.Glow else HomeColors.TextSecondary,
             modifier = Modifier.padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
         )
     }
 }
 
 @Composable
-private fun MinimalSalonCard(salon: DemoSalon, onClick: () -> Unit) {
+private fun MinimalSalonCard(salon: DemoSalon, onClick: () -> Unit, animationDelayMillis: Int = 0) {
     val interactionSource = remember { MutableInteractionSource() }
-    GlassSurface(
+    HomeGlassSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(
-                interactionSource = interactionSource,
-                indication = LocalIndication.current,
-                onClick = onClick,
-            ),
+            .rojanEnterAnimation(delayMillis = animationDelayMillis)
+            .rojanPressable(onClick = onClick, interactionSource = interactionSource),
         shape = RojanShapes.Small,
     ) {
         Row(
@@ -232,7 +228,7 @@ private fun MinimalSalonCard(salon: DemoSalon, onClick: () -> Unit) {
                         modifier = Modifier.fillMaxSize(),
                     )
                 } else {
-                    Icon(Icons.Filled.Storefront, contentDescription = null, tint = RojanTextPrimary)
+                    Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary)
                 }
             }
 
@@ -240,17 +236,17 @@ private fun MinimalSalonCard(salon: DemoSalon, onClick: () -> Unit) {
                 Text(
                     salon.name,
                     style = RojanTypography.Body.rojanPressedShadow(interactionSource),
-                    color = RojanTextPrimary,
+                    color = HomeColors.TextPrimary,
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS)) {
-                    Icon(Icons.Filled.Star, contentDescription = "امتیاز", tint = RojanRatingGold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
-                    Text(salon.rating, style = RojanTypography.Caption, color = RojanTextSecondary)
+                    Icon(Icons.Filled.Star, contentDescription = "امتیاز", tint = HomeColors.Gold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
+                    Text(salon.rating, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS)) {
-                    Icon(Icons.Filled.LocationOn, contentDescription = null, tint = RojanTextSecondary, modifier = Modifier.size(RojanDimens.IconSizeSmall))
-                    Text("${salon.distanceKm} km", style = RojanTypography.Caption, color = RojanTextSecondary)
+                    Icon(Icons.Filled.LocationOn, contentDescription = null, tint = HomeColors.TextSecondary, modifier = Modifier.size(RojanDimens.IconSizeSmall))
+                    Text("${salon.distanceKm} km", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                 }
             }
         }

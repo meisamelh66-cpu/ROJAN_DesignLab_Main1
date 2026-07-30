@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import ai.rojan.designlab.components.hero.HeroBookingCard
 import ai.rojan.designlab.presentation.auth.AuthViewModel
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.WarmBackground
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.ui.theme.RojanDimens
 
 /**
@@ -102,6 +102,8 @@ fun CustomerHomeScreen(
     onSearchClick: () -> Unit = {},
     onSalonClick: (String) -> Unit = {},
     onHomeClick: () -> Unit = {},
+    onViewAllServicesClick: () -> Unit = {},
+    onSpecialistClick: (String) -> Unit = {},
     // Routing-identity fix: this same screen renders in two different
     // contexts — as the new/unauthenticated user's actual Landing screen
     // (reached directly from Splash, no prior back-stack entry) and as the
@@ -113,7 +115,7 @@ fun CustomerHomeScreen(
 ) {
     var searchMode by remember { mutableStateOf(SearchMode.SERVICES) }
 
-    WarmBackground(
+    HomeBackgroundTheme(
         modifier = Modifier.fillMaxSize(),
     ) {
         LazyColumn(
@@ -122,7 +124,12 @@ fun CustomerHomeScreen(
                 .padding(RojanDimens.SpaceLG),
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceLG),
         ) {
-            item { HomeHeader(displayName = authViewModel.currentDisplayName) }
+            item {
+                HomeHeader(
+                    displayName = authViewModel.currentDisplayName,
+                    onProfileClick = onProfileClick,
+                )
+            }
             item { AISearchBar(onClick = onSearchClick) }
             item {
                 SearchModeTabs(
@@ -130,8 +137,8 @@ fun CustomerHomeScreen(
                     onSelectedChange = { searchMode = it },
                 )
             }
-            item { PopularServices() }
-            item { TopSpecialists() }
+            item { PopularServices(onViewAllClick = onViewAllServicesClick) }
+            item { TopSpecialists(onSpecialistClick = onSpecialistClick) }
             item { PromotionsSection() }
             item { FeaturedSalons() }
             item { HeroBookingCard(onClick = onBookAppointmentClick) }

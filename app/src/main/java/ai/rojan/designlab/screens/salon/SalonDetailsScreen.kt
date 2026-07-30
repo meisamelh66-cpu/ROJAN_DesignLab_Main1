@@ -48,26 +48,20 @@ import androidx.compose.ui.unit.sp
 import ai.rojan.designlab.data.demo.DemoSalon
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.animation.RojanAnimations
 import ai.rojan.designlab.ui.animation.rojanEnterAnimation
-import ai.rojan.designlab.ui.background.WarmBackground
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.components.effects.RojanAmbientGlow
-import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.state.RojanErrorState
-import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanGradients
-import ai.rojan.designlab.ui.theme.RojanRatingGold
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
-import ai.rojan.designlab.ui.theme.RojanVividMagenta
-import ai.rojan.designlab.ui.theme.RojanWarmWhite
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.components.image.RojanSampleImage
@@ -140,7 +134,7 @@ fun SalonDetailsScreen(
     val salon = catalogEngine.findSalonById(salonId)
     val isFollowed = ecosystemViewModel.state.favoriteSalonIds.contains(salonId)
 
-    WarmBackground {
+    HomeBackgroundTheme {
         if (salon == null) {
             // Final Premium Polish, Phase 2: was a bare centered Text with no
             // icon/card/retry affordance — the exact gap RojanErrorState
@@ -157,7 +151,7 @@ fun SalonDetailsScreen(
                     onAction = onBackClick,
                 )
             }
-            return@WarmBackground
+            return@HomeBackgroundTheme
         }
 
         val specialists = catalogEngine.specialistsForSalon(salonId)
@@ -219,7 +213,7 @@ fun SalonDetailsScreen(
                             if (isFollowed) {
                                 RojanAmbientGlow(
                                     modifier = Modifier.size(44.dp),
-                                    color = RojanVividMagenta,
+                                    color = HomeColors.Magenta,
                                     alpha = 0.30f,
                                     blurRadius = 10.dp,
                                 )
@@ -241,7 +235,7 @@ fun SalonDetailsScreen(
                                 Icon(
                                     imageVector = if (isFollowed) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                                     contentDescription = if (isFollowed) "لغو دنبال کردن این سالن" else "دنبال کردن این سالن",
-                                    tint = RojanVividMagenta,
+                                    tint = HomeColors.Magenta,
                                     modifier = Modifier.size(28.dp),
                                 )
                             }
@@ -253,13 +247,13 @@ fun SalonDetailsScreen(
                             Text(
                                 salon.name,
                                 style = RojanTypography.HeroTitle.copy(fontSize = 28.sp, lineHeight = 34.sp),
-                                color = RojanTextOnGlass,
+                                color = HomeColors.TextPrimary,
                                 modifier = Modifier.fillMaxWidth(),
                             )
                             Text(
                                 salon.tagline,
                                 style = RojanTypography.Body,
-                                color = RojanTextSecondary,
+                                color = HomeColors.TextSecondary,
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
@@ -273,7 +267,7 @@ fun SalonDetailsScreen(
                 // frost on this specific info card — an explicit local
                 // choice via GlassSurface's own optional parameters, not
                 // a change to the shared component or any other call site.
-                GlassSurface(
+                HomeGlassSurface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = RojanDimens.SpaceMD),
@@ -292,15 +286,15 @@ fun SalonDetailsScreen(
                         // content, not a left-hugging block.
                         horizontalAlignment = Alignment.End,
                     ) {
-                        RtlInfoRow(Icons.Filled.Star, "${salon.rating} (${salon.reviewCount} نظر)", emphasize = true)
-                        RtlInfoRow(Icons.Filled.LocationOn, salon.address)
-                        RtlInfoRow(Icons.Filled.AccessTime, salon.workingHours)
-                        RtlInfoRow(Icons.Filled.Phone, salon.phone)
+                        RtlInfoRow(Icons.Filled.Star, "${salon.rating} (${salon.reviewCount} نظر)", emphasize = true, iconTint = HomeColors.Gold, textColor = HomeColors.TextPrimary)
+                        RtlInfoRow(Icons.Filled.LocationOn, salon.address, iconTint = HomeColors.TextSecondary, textColor = HomeColors.TextSecondary)
+                        RtlInfoRow(Icons.Filled.AccessTime, salon.workingHours, iconTint = HomeColors.TextSecondary, textColor = HomeColors.TextSecondary)
+                        RtlInfoRow(Icons.Filled.Phone, salon.phone, iconTint = HomeColors.TextSecondary, textColor = HomeColors.TextSecondary)
                     }
                 }
             }
 
-            item { RtlSectionHeader("گالری تصاویر") }
+            item { RtlSectionHeader("گالری تصاویر", color = HomeColors.TextPrimary) }
             item {
                 // UI Polish Pass: this app has exactly one real photo per
                 // demo salon (no per-salon photo sets), so a 3-thumbnail
@@ -330,7 +324,7 @@ fun SalonDetailsScreen(
                 }
             }
 
-            item { RtlSectionHeader("امکانات") }
+            item { RtlSectionHeader("امکانات", color = HomeColors.TextPrimary) }
             item {
                 // Layout Polish fix: a plain (non-wrapping) Row let long
                 // facility lists overflow past the screen edge, squeezing
@@ -344,11 +338,11 @@ fun SalonDetailsScreen(
                     verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
                 ) {
                     salon.facilities.forEach { facility ->
-                        GlassSurface(shape = RojanShapes.Small) {
+                        HomeGlassSurface(shape = RojanShapes.Small) {
                             Text(
                                 text = facility,
                                 style = RojanTypography.Caption,
-                                color = RojanTextPrimary,
+                                color = HomeColors.TextPrimary,
                                 maxLines = 1,
                                 modifier = Modifier.padding(horizontal = RojanDimens.SpaceSM, vertical = RojanDimens.SpaceXS),
                             )
@@ -358,14 +352,14 @@ fun SalonDetailsScreen(
             }
 
             if (specialists.isNotEmpty()) {
-                item { RtlSectionHeader("متخصصان") }
+                item { RtlSectionHeader("متخصصان", color = HomeColors.TextPrimary) }
                 item {
                     LazyRow(
                         modifier = Modifier.padding(horizontal = RojanDimens.SpaceMD),
                         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
                     ) {
                         itemsIndexed(specialists) { index, specialist ->
-                            GlassSurface(
+                            HomeGlassSurface(
                                 modifier = Modifier
                                     .rojanEnterAnimation(delayMillis = index * 60)
                                     .rojanPressable(onClick = { onSpecialistClick(specialist.id) }),
@@ -393,7 +387,7 @@ fun SalonDetailsScreen(
                                     Text(
                                         specialist.name,
                                         style = RojanTypography.Caption,
-                                        color = RojanTextPrimary,
+                                        color = HomeColors.TextPrimary,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
@@ -405,9 +399,9 @@ fun SalonDetailsScreen(
             }
 
             if (services.isNotEmpty()) {
-                item { RtlSectionHeader("خدمات") }
+                item { RtlSectionHeader("خدمات", color = HomeColors.TextPrimary) }
                 itemsIndexed(services) { index, service ->
-                    GlassSurface(
+                    HomeGlassSurface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = RojanDimens.SpaceMD)
@@ -417,18 +411,20 @@ fun SalonDetailsScreen(
                     ) {
                         RtlListRow(
                             title = service.name,
+                            titleColor = HomeColors.TextPrimary,
                             subtitle = "${service.durationMinutes} دقیقه",
+                            subtitleColor = HomeColors.TextSecondary,
                             value = "${(service.discountPrice ?: service.price)} تومان",
-                            valueColor = RojanAIGlow,
+                            valueColor = HomeColors.Glow,
                             modifier = Modifier.padding(RojanDimens.SpaceMD),
                         )
                     }
                 }
             }
 
-            item { RtlSectionHeader("نظرات") }
+            item { RtlSectionHeader("نظرات", color = HomeColors.TextPrimary) }
             itemsIndexed(reviews) { index, review ->
-                GlassSurface(
+                HomeGlassSurface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = RojanDimens.SpaceMD)
@@ -439,12 +435,13 @@ fun SalonDetailsScreen(
                         RtlListRow(
                             title = review.authorName,
                             titleStyle = RojanTypography.Caption,
+                            titleColor = HomeColors.TextPrimary,
                             trailing = {
-                                Icon(Icons.Filled.Star, null, tint = RojanRatingGold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
-                                Text(" ${review.rating}", style = RojanTypography.Caption, color = RojanTextSecondary)
+                                Icon(Icons.Filled.Star, null, tint = HomeColors.Gold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
+                                Text(" ${review.rating}", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                             },
                         )
-                        Text(review.comment, style = RojanTypography.Caption, color = RojanTextSecondary)
+                        Text(review.comment, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                     }
                 }
             }
@@ -525,7 +522,7 @@ private fun SalonHeroSection(
                 RojanIconContainer(
                     imageVector = Icons.Filled.Storefront,
                     contentDescription = null,
-                    tint = RojanTextOnGlass,
+                    tint = HomeColors.TextPrimary,
                     size = RojanIconSize.XLarge,
                 )
             }
@@ -567,7 +564,7 @@ private fun SalonHeroSection(
                 .align(Alignment.BottomCenter)
                 .offset(y = LOGO_SIZE / 2)
                 .size(LOGO_SIZE)
-                .background(RojanWarmWhite, CircleShape)
+                .background(HomeColors.DeepPurple, CircleShape)
                 .padding(4.dp)
                 .background(salon.colorSeed.copy(alpha = 0.6f), CircleShape),
             contentAlignment = Alignment.Center,
@@ -580,7 +577,7 @@ private fun SalonHeroSection(
                     shape = CircleShape,
                 )
             } else {
-                Icon(Icons.Filled.Storefront, contentDescription = null, tint = RojanTextOnGlass)
+                Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary)
             }
         }
     }

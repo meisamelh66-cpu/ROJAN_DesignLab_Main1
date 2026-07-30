@@ -1,7 +1,6 @@
 ﻿package ai.rojan.designlab.screens.booking
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,7 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
@@ -27,16 +26,16 @@ import androidx.compose.ui.unit.dp
 import ai.rojan.designlab.data.demo.DemoSpecialist
 import ai.rojan.designlab.domain.booking.BookingEngine
 import ai.rojan.designlab.domain.catalog.CatalogEngine
-import ai.rojan.designlab.ui.background.WarmBackground
-import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
+import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.image.SpecialistAvatar
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
+import ai.rojan.designlab.ui.components.state.RojanEmptyState
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanRatingGold
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
@@ -88,20 +87,28 @@ fun SpecialistSelectionScreen(
             .map { it.first }
     }
 
-    WarmBackground {
+    HomeBackgroundTheme {
         Column(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD)) {
             GlassBackButton(onClick = onBackClick)
 
             Text(
                 text = "انتخاب متخصص",
                 style = RojanTypography.HeroTitle,
-                color = RojanTextOnGlass,
+                color = HomeColors.TextPrimary,
                 modifier = Modifier.padding(vertical = RojanDimens.SpaceMD),
             )
 
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
-                items(specialists) { specialist ->
-                    SpecialistRow(specialist = specialist, onClick = { onSpecialistSelected(specialist.id) })
+            if (specialists.isEmpty()) {
+                RojanEmptyState(title = "متخصصی برای این سالن یافت نشد")
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
+                    itemsIndexed(specialists) { index, specialist ->
+                        SpecialistRow(
+                            specialist = specialist,
+                            onClick = { onSpecialistSelected(specialist.id) },
+                            animationDelayMillis = index * 60,
+                        )
+                    }
                 }
             }
         }
@@ -109,9 +116,12 @@ fun SpecialistSelectionScreen(
 }
 
 @Composable
-private fun SpecialistRow(specialist: DemoSpecialist, onClick: () -> Unit) {
-    GlassSurface(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+private fun SpecialistRow(specialist: DemoSpecialist, onClick: () -> Unit, animationDelayMillis: Int = 0) {
+    HomeGlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .rojanEnterAnimation(delayMillis = animationDelayMillis)
+            .rojanPressable(onClick = onClick),
         shape = RojanShapes.Small,
     ) {
         Row(
@@ -130,11 +140,11 @@ private fun SpecialistRow(specialist: DemoSpecialist, onClick: () -> Unit) {
                 )
             }
             Column {
-                Text(specialist.name, style = RojanTypography.Body, color = RojanTextPrimary)
-                Text(specialist.title, style = RojanTypography.Caption, color = RojanTextSecondary)
+                Text(specialist.name, style = RojanTypography.Body, color = HomeColors.TextPrimary)
+                Text(specialist.title, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS)) {
-                    Icon(Icons.Filled.Star, contentDescription = "امتیاز", tint = RojanRatingGold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
-                    Text(specialist.rating, style = RojanTypography.Caption, color = RojanTextSecondary)
+                    Icon(Icons.Filled.Star, contentDescription = "امتیاز", tint = HomeColors.Gold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
+                    Text(specialist.rating, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                 }
             }
         }

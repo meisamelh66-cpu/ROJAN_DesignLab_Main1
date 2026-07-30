@@ -36,10 +36,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.domain.catalog.CatalogEngine
-import ai.rojan.designlab.ui.components.cards.RojanHomeCard
+import ai.rojan.designlab.screens.customer.hometheme.HomeCard
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
-import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanCategoryHairEnd
 import ai.rojan.designlab.ui.theme.RojanCategoryHairStart
 import ai.rojan.designlab.ui.theme.RojanCategoryMakeupEnd
@@ -51,8 +51,6 @@ import ai.rojan.designlab.ui.theme.RojanCategorySkinStart
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShadows
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
@@ -125,12 +123,12 @@ fun PopularServices(
             Text(
                 text = "خدمات محبوب",
                 style = RojanTypography.CardTitle,
-                color = RojanTextPrimary,
+                color = HomeColors.TextPrimary,
             )
             Text(
                 text = "مشاهده همه",
                 style = RojanTypography.Caption,
-                color = RojanAIGlow,
+                color = HomeColors.Glow,
                 modifier = Modifier.clickable(onClick = onViewAllClick),
             )
         }
@@ -139,7 +137,7 @@ fun PopularServices(
             horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {
             itemsIndexed(catalogEngine.allServices()) { index, service ->
-                RojanHomeCard(
+                HomeCard(
                     accentColor = service.colorSeed,
                     onClick = { },
                     index = index,
@@ -194,7 +192,7 @@ fun PopularServices(
                             RojanIconContainer(
                                 imageVector = categoryIcon(service.categoryLabel),
                                 contentDescription = service.name,
-                                tint = RojanTextPrimary,
+                                tint = HomeColors.TextPrimary,
                                 size = RojanIconSize.XLarge,
                             )
                         }
@@ -203,7 +201,7 @@ fun PopularServices(
                     Text(
                         text = service.name,
                         style = RojanTypography.Body.copy(fontWeight = FontWeight.Bold),
-                        color = RojanTextPrimary,
+                        color = HomeColors.TextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -211,7 +209,7 @@ fun PopularServices(
                     Text(
                         text = service.categoryLabel,
                         style = RojanTypography.Caption,
-                        color = RojanTextSecondary,
+                        color = HomeColors.TextSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )

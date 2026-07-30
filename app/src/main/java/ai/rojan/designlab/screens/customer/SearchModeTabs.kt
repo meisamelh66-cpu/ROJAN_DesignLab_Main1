@@ -21,12 +21,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 
-import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanRose
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /** Fake, local-only search-mode identifiers — Phase 2 scope is the toggle control itself, not real search/filtering. */
@@ -59,11 +57,9 @@ fun SearchModeTabs(
     selected: SearchMode,
     onSelectedChange: (SearchMode) -> Unit,
 ) {
-    GlassSurface(
+    HomeGlassSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RojanShapes.PremiumButton,
-        borderAlpha = 0.10f,
-        borderSecondaryAlpha = 0.04f,
     ) {
         Row(
             modifier = Modifier
@@ -103,12 +99,12 @@ private fun SearchModeTab(
         easing = FastOutSlowInEasing,
     )
     val containerColor by animateColorAsState(
-        targetValue = if (isSelected) RojanRose.copy(alpha = 0.45f) else RojanRose.copy(alpha = 0f),
+        targetValue = if (isSelected) HomeColors.Glow.copy(alpha = 0.45f) else HomeColors.Glow.copy(alpha = 0f),
         animationSpec = colorAnimationSpec,
         label = "search_mode_tab_container",
     )
     val contentColor by animateColorAsState(
-        targetValue = if (isSelected) RojanTextPrimary else RojanTextSecondary,
+        targetValue = if (isSelected) HomeColors.TextPrimary else HomeColors.TextSecondary,
         animationSpec = colorAnimationSpec,
         label = "search_mode_tab_content",
     )

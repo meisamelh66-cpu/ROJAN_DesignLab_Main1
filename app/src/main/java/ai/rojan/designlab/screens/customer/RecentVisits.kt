@@ -13,13 +13,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.components.cards.RojanHomeCard
+import ai.rojan.designlab.screens.customer.hometheme.HomeCard
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanSoftLavender
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
-import ai.rojan.designlab.ui.theme.RojanVividPurple
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
@@ -48,8 +45,8 @@ fun RecentVisits(ecosystemViewModel: CustomerEcosystemViewModel, onSalonClick: (
         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
     ) {
         itemsIndexed(pastVisits) { index, visit ->
-            RojanHomeCard(
-                accentColor = RojanSoftLavender,
+            HomeCard(
+                accentColor = HomeColors.Lavender,
                 accentAlpha = 0.25f,
                 onClick = { visit.salonId?.let(onSalonClick) },
                 width = 170.dp,
@@ -59,7 +56,7 @@ fun RecentVisits(ecosystemViewModel: CustomerEcosystemViewModel, onSalonClick: (
                 Text(
                     text = visit.salonName,
                     style = RojanTypography.Caption,
-                    color = RojanTextPrimary,
+                    color = HomeColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -67,7 +64,7 @@ fun RecentVisits(ecosystemViewModel: CustomerEcosystemViewModel, onSalonClick: (
                 Text(
                     text = "${visit.serviceName} · ${visit.specialistName}",
                     style = RojanTypography.Caption,
-                    color = RojanTextSecondary,
+                    color = HomeColors.TextSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -82,7 +79,7 @@ fun RecentVisits(ecosystemViewModel: CustomerEcosystemViewModel, onSalonClick: (
                         }
                     } ?: "",
                     style = RojanTypography.Caption,
-                    color = RojanTextSecondary,
+                    color = HomeColors.TextSecondary,
                 )
 
                 Row(
@@ -92,13 +89,13 @@ fun RecentVisits(ecosystemViewModel: CustomerEcosystemViewModel, onSalonClick: (
                     RojanIconContainer(
                         imageVector = Icons.Filled.CalendarMonth,
                         contentDescription = null,
-                        tint = RojanVividPurple,
+                        tint = HomeColors.Primary,
                         size = RojanIconSize.Small,
                     )
                     Text(
                         text = "رزرو مجدد",
                         style = RojanTypography.Caption,
-                        color = RojanVividPurple,
+                        color = HomeColors.Primary,
                     )
                 }
             }

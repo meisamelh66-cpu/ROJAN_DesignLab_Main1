@@ -1,7 +1,6 @@
 ﻿package ai.rojan.designlab.screens.search
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.LocationOn
@@ -36,18 +35,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.SolidColor
 
 import ai.rojan.designlab.domain.catalog.CatalogEngine
-import ai.rojan.designlab.ui.background.WarmBackground
-import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
+import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.image.RojanSampleImage
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.state.RojanEmptyState
-import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextOnDarkSurface
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
@@ -70,7 +67,7 @@ fun SearchScreen(
 
     val results = remember(query) { catalogEngine.searchSalons(query) }
 
-    WarmBackground {
+    HomeBackgroundTheme {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -82,13 +79,13 @@ fun SearchScreen(
                 Text(
                     text = "جستجو",
                     style = RojanTypography.HeroTitle,
-                    color = RojanTextOnGlass,
+                    color = HomeColors.TextPrimary,
                 )
             }
 
             Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))
 
-            GlassSurface(
+            HomeGlassSurface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RojanShapes.Small,
             ) {
@@ -101,7 +98,7 @@ fun SearchScreen(
                     Icon(
                         imageVector = Icons.Filled.Search,
                         contentDescription = null,
-                        tint = RojanAIGlow,
+                        tint = HomeColors.Glow,
                     )
                     Spacer(modifier = Modifier.size(RojanDimens.SpaceSM))
 
@@ -109,14 +106,14 @@ fun SearchScreen(
                         value = query,
                         onValueChange = { query = it },
                         modifier = Modifier.fillMaxWidth(),
-                        textStyle = RojanTypography.Body.copy(color = RojanTextOnGlass).withDirectionFor(query),
-                        cursorBrush = SolidColor(RojanAIGlow),
+                        textStyle = RojanTypography.Body.copy(color = HomeColors.TextPrimary).withDirectionFor(query),
+                        cursorBrush = SolidColor(HomeColors.Glow),
                         decorationBox = { inner ->
                             if (query.isEmpty()) {
                                 Text(
                                     text = "نام سالن یا خدمت را جستجو کنید...",
                                     style = RojanTypography.Body,
-                                    color = RojanTextOnDarkSurface,
+                                    color = HomeColors.TextMuted,
                                 )
                             }
                             inner()
@@ -130,7 +127,7 @@ fun SearchScreen(
             Text(
                 text = "نتایج (${results.size})",
                 style = RojanTypography.Body,
-                color = RojanTextOnDarkSurface,
+                color = HomeColors.TextSecondary,
             )
 
             Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
@@ -143,11 +140,12 @@ fun SearchScreen(
                 )
             } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
-                items(results) { salon ->
-                    GlassSurface(
+                itemsIndexed(results) { index, salon ->
+                    HomeGlassSurface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onSalonClick(salon.id) },
+                            .rojanEnterAnimation(delayMillis = index * 60)
+                            .rojanPressable(onClick = { onSalonClick(salon.id) }),
                         shape = RojanShapes.Small,
                     ) {
                         Row(
@@ -172,7 +170,7 @@ fun SearchScreen(
                                     Icon(
                                         imageVector = Icons.Filled.Storefront,
                                         contentDescription = null,
-                                        tint = RojanTextPrimary,
+                                        tint = HomeColors.TextPrimary,
                                     )
                                 }
                             }
@@ -183,7 +181,7 @@ fun SearchScreen(
                                 Text(
                                     text = salon.name,
                                     style = RojanTypography.Body,
-                                    color = RojanTextPrimary,
+                                    color = HomeColors.TextPrimary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -191,24 +189,24 @@ fun SearchScreen(
                                     RojanIconContainer(
     imageVector = Icons.Filled.Star,
     contentDescription = null,
-    tint = RojanTextSecondary,
+    tint = HomeColors.TextSecondary,
     size = RojanIconSize.Small,
 )
                                     Text(
                                         text = " ${salon.rating}  •  ",
                                         style = RojanTypography.Caption,
-                                        color = RojanTextSecondary,
+                                        color = HomeColors.TextSecondary,
                                     )
                                     RojanIconContainer(
     imageVector = Icons.Filled.LocationOn,
     contentDescription = null,
-    tint = RojanTextSecondary,
+    tint = HomeColors.TextSecondary,
     size = RojanIconSize.Small,
 )
                                     Text(
                                         text = " ${salon.distanceKm} کیلومتر",
                                         style = RojanTypography.Caption,
-                                        color = RojanTextSecondary,
+                                        color = HomeColors.TextSecondary,
                                     )
                                 }
                             }
@@ -225,7 +223,7 @@ fun SearchScreen(
                             Icon(
                                 imageVector = Icons.Filled.KeyboardArrowLeft,
                                 contentDescription = null,
-                                tint = RojanTextSecondary,
+                                tint = HomeColors.TextSecondary,
                             )
                         }
                     }

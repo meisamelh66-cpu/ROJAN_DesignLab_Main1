@@ -40,13 +40,9 @@ import ai.rojan.designlab.R
 import ai.rojan.designlab.components.FrostedGlassOrb
 import ai.rojan.designlab.components.PremiumLoadingBar
 
-import ai.rojan.designlab.ui.theme.RojanAquaMint
-import ai.rojan.designlab.ui.background.PremiumBackground
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanPearlPink
-import ai.rojan.designlab.ui.theme.RojanSoftLavender
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTheme
 
 import kotlinx.coroutines.delay
@@ -92,7 +88,7 @@ fun SplashScreen(
     }
 
 
-    PremiumBackground {
+    HomeBackgroundTheme {
         SplashScreenContent(
             modifier = Modifier.alpha(alpha.value)
         )
@@ -125,7 +121,7 @@ private fun SplashScreenContent(
                     ),
 
             size = 64.dp,
-            tint = RojanSoftLavender,
+            tint = HomeColors.Lavender,
             alpha = 0.4f
         )
 
@@ -156,7 +152,7 @@ private fun SplashScreenContent(
                     ),
 
             size = 80.dp,
-            tint = RojanAquaMint,
+            tint = HomeColors.Glow,
             alpha = 0.35f
         )
 
@@ -172,7 +168,7 @@ private fun SplashScreenContent(
                     ),
 
             size = 48.dp,
-            tint = RojanPearlPink,
+            tint = HomeColors.Rose,
             alpha = 0.4f
         )
 
@@ -209,7 +205,7 @@ private fun SplashScreenContent(
                 delayMillis = 200,
                 fontSize = 32.sp,
                 weight = FontWeight.SemiBold,
-                color = RojanTextPrimary,
+                color = HomeColors.TextPrimary,
                 spacing = 2.sp
             )
 
@@ -224,7 +220,7 @@ private fun SplashScreenContent(
                 delayMillis = 450,
                 fontSize = 14.sp,
                 weight = FontWeight.Normal,
-                color = RojanTextSecondary,
+                color = HomeColors.TextSecondary,
                 spacing = 0.5.sp
             )
 

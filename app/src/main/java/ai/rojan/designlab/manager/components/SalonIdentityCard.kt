@@ -1,16 +1,9 @@
 package ai.rojan.designlab.manager.components
 
-import ai.rojan.designlab.ui.components.effects.RojanAmbientGlow
-import ai.rojan.designlab.ui.components.glass.GlassSurface
-import ai.rojan.designlab.ui.components.icon.RojanIconContainer
-import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanGlassText
-import ai.rojan.designlab.ui.theme.RojanShadows
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanStatusOnline
-import ai.rojan.designlab.ui.theme.RojanTextOnDarkSurface
 import ai.rojan.designlab.ui.theme.RojanTypography
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -30,9 +23,12 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Manager App workspace — salon identity summary. Static placeholder
- * content (salon name/status), rendered entirely from shared primitives
- * ([GlassSurface], [RojanAmbientGlow], [RojanTypography]/tokens) — no
- * backend, no Customer-facing component reused.
+ * content (salon name/status), rendered from the frozen-then-updated
+ * Manager theme ([ManagerGlassSurface], [ManagerIconContainer],
+ * [ManagerColors]) — no backend, no Customer-facing component reused.
+ *
+ * ROJAN AI Manager Visual Theme Implementation: re-themed for the dark
+ * luxury background — content/layout unchanged.
  */
 @Composable
 fun SalonIdentityCard(
@@ -41,14 +37,9 @@ fun SalonIdentityCard(
     salonCategory: String = "آرایش و زیبایی بانوان",
     isActive: Boolean = true,
 ) {
-    GlassSurface(
+    ManagerGlassSurface(
         modifier = modifier.fillMaxWidth(),
         shape = RojanShapes.GlassCard,
-        elevation = RojanShadows.FloatingElevation,
-        glassAlpha = ManagerGlass.Alpha,
-        glassSecondaryAlpha = ManagerGlass.SecondaryAlpha,
-        borderAlpha = ManagerGlass.BorderAlpha,
-        borderSecondaryAlpha = ManagerGlass.BorderSecondaryAlpha,
     ) {
         Row(
             modifier = Modifier
@@ -57,37 +48,22 @@ fun SalonIdentityCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                RojanAmbientGlow(
-                    modifier = Modifier.size(72.dp),
-                    color = ManagerAccent.Teal,
-                    alpha = 0.15f,
-                )
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(ManagerAccent.Teal.copy(alpha = 0.18f), CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    RojanIconContainer(
-                        imageVector = Icons.Filled.Storefront,
-                        contentDescription = salonName,
-                        size = RojanIconSize.Large,
-                        tint = RojanGlassText,
-                    )
-                }
-            }
+            ManagerIconContainer(
+                imageVector = Icons.Filled.Storefront,
+                contentDescription = salonName,
+                containerSize = 64.dp,
+            )
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = salonName,
                     style = RojanTypography.CardTitle,
-                    color = RojanGlassText,
+                    color = ManagerColors.TextPrimary,
                 )
                 Text(
                     text = salonCategory,
                     style = RojanTypography.Caption,
-                    color = RojanTextOnDarkSurface,
+                    color = ManagerColors.TextSecondary,
                     modifier = Modifier.padding(top = RojanDimens.SpaceXS),
                 )
 
@@ -100,14 +76,14 @@ fun SalonIdentityCard(
                         modifier = Modifier
                             .size(8.dp)
                             .background(
-                                if (isActive) RojanStatusOnline else RojanTextOnDarkSurface,
+                                if (isActive) RojanStatusOnline else ManagerColors.TextSecondary,
                                 CircleShape,
                             ),
                     )
                     Text(
                         text = if (isActive) "فعال" else "غیرفعال",
                         style = RojanTypography.Caption,
-                        color = if (isActive) RojanStatusOnline else RojanTextOnDarkSurface,
+                        color = if (isActive) RojanStatusOnline else ManagerColors.TextSecondary,
                     )
                 }
             }

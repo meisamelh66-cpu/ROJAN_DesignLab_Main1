@@ -3,6 +3,8 @@ package ai.rojan.designlab.manager
 import ai.rojan.designlab.manager.navigation.ManagerDestinations
 import ai.rojan.designlab.manager.navigation.managerNavGraph
 import ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen
+import ai.rojan.designlab.manager.screens.customers.ManagerCustomerProfileScreen
+import ai.rojan.designlab.manager.screens.customers.ManagerCustomersListScreen
 import ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen
 import ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen
 import ai.rojan.designlab.manager.screens.splash.ManagerSplashScreen
@@ -12,10 +14,12 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
 import androidx.navigation.NavHostController
@@ -149,6 +153,61 @@ class ManagerDashboardScreenshotTest {
 
         assertEquals(ManagerDestinations.CALENDAR, navController.currentDestination?.route)
         saveBitmap("manager_nav_after_calendar_click.png")
+    }
+
+    @Test
+    fun captureManagerCustomersList() {
+        composeTestRule.setContent {
+            RojanTheme {
+                ManagerCustomersListScreen()
+            }
+        }
+        composeTestRule.waitForIdle()
+        saveBitmap("manager_customers_list.png")
+
+        composeTestRule.onNode(hasSetTextAction()).performTextInput("سارا")
+        composeTestRule.waitForIdle()
+        saveBitmap("manager_customers_list_filtered.png")
+    }
+
+    @Test
+    fun captureManagerCustomerProfile() {
+        composeTestRule.setContent {
+            RojanTheme {
+                ManagerCustomerProfileScreen(customerId = "c5")
+            }
+        }
+        composeTestRule.waitForIdle()
+        saveBitmap("manager_customer_profile.png")
+    }
+
+    /**
+     * The actual thing this pass needs verified: tapping a customer
+     * card in the real [managerNavGraph] lands on
+     * [ManagerDestinations.CUSTOMER_PROFILE] with the right customer id
+     * baked into the route — same "exercise the real NavController on
+     * device" approach as [captureManagerCalendarEntryNavigation].
+     */
+    @Test
+    fun captureManagerCustomersEntryNavigation() {
+        lateinit var navController: NavHostController
+        composeTestRule.setContent {
+            navController = rememberNavController()
+            RojanTheme {
+                NavHost(navController = navController, startDestination = ManagerDestinations.CUSTOMERS) {
+                    managerNavGraph(navController)
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+        saveBitmap("manager_customers_nav_list.png")
+
+        composeTestRule.onNodeWithText("سارا محمدی").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(ManagerDestinations.CUSTOMER_PROFILE, navController.currentDestination?.route)
+        assertEquals("c1", navController.currentBackStackEntry?.arguments?.getString("customerId"))
+        saveBitmap("manager_customers_nav_profile.png")
     }
 
     private fun captureTopAndScrolled(suffix: String) {

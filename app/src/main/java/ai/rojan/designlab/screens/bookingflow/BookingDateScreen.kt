@@ -1,7 +1,5 @@
 ﻿package ai.rojan.designlab.screens.bookingflow
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,7 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.Icon
@@ -26,14 +24,14 @@ import androidx.compose.ui.Modifier
 import ai.rojan.designlab.domain.booking.BookingEngine
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.presentation.booking.BookingViewModel
-import ai.rojan.designlab.ui.background.WarmBackground
-import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
+import ai.rojan.designlab.ui.animation.rojanEnterAnimation
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
-import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
@@ -82,7 +80,7 @@ fun BookingDateScreen(
         }
     }
 
-    WarmBackground {
+    HomeBackgroundTheme {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -92,16 +90,17 @@ fun BookingDateScreen(
 
             Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))
 
-            Text("انتخاب تاریخ", style = RojanTypography.HeroTitle, color = RojanTextOnGlass)
+            Text("انتخاب تاریخ", style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary)
 
             Spacer(modifier = Modifier.height(RojanDimens.SpaceLG))
 
             LazyColumn(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
-                items(dates) { (key, label) ->
-                    GlassSurface(
+                itemsIndexed(dates) { index, (key, label) ->
+                    HomeGlassSurface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onDateSelected(key) },
+                            .rojanEnterAnimation(delayMillis = index * 60)
+                            .rojanPressable(onClick = { onDateSelected(key) }),
                         shape = RojanShapes.Small,
                     ) {
                         Row(
@@ -110,9 +109,9 @@ fun BookingDateScreen(
                                 .padding(RojanDimens.SpaceMD),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = RojanAIGlow)
+                            Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = HomeColors.Glow)
                             Spacer(modifier = Modifier.width(RojanDimens.SpaceSM))
-                            Text(label, style = RojanTypography.Body, color = RojanTextPrimary)
+                            Text(label, style = RojanTypography.Body, color = HomeColors.TextPrimary)
                         }
                     }
                 }

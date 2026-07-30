@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.OutlinedTextField
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.text.withDirectionFor
 import androidx.compose.runtime.Composable
@@ -21,11 +20,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 import ai.rojan.designlab.domain.identity.SessionState
 import ai.rojan.designlab.presentation.auth.AuthViewModel
-import ai.rojan.designlab.ui.background.WarmBackground
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeTextField
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
+import ai.rojan.designlab.ui.theme.RojanErrorText
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
@@ -58,7 +59,7 @@ fun FirstTimeNameScreen(
         if (sessionState is SessionState.LoggedIn) onNameSubmitted()
     }
 
-    WarmBackground {
+    HomeBackgroundTheme {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -71,24 +72,31 @@ fun FirstTimeNameScreen(
 
             Spacer(modifier = Modifier.height(RojanDimens.SpaceLG))
 
-            Text("سلام 🌸", style = RojanTypography.HeroTitle, color = RojanTextOnGlass)
+            Text("سلام 🌸", style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary)
             Spacer(modifier = Modifier.height(RojanDimens.SpaceXS))
-            Text("من روژان هستم.", style = RojanTypography.Body, color = RojanTextOnGlass)
+            Text("من روژان هستم.", style = RojanTypography.Body, color = HomeColors.TextPrimary)
             Spacer(modifier = Modifier.height(RojanDimens.SpaceXS))
-            Text("شما رو با چه اسمی صدا کنم؟", style = RojanTypography.Body, color = RojanTextOnGlass)
+            Text("شما رو با چه اسمی صدا کنم؟", style = RojanTypography.Body, color = HomeColors.TextPrimary)
 
             Spacer(modifier = Modifier.height(RojanDimens.SpaceLG))
 
-            OutlinedTextField(
+            HomeTextField(
                 value = firstName,
                 onValueChange = { firstName = it },
                 label = { Text("نام") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 textStyle = LocalTextStyle.current.withDirectionFor(firstName),
-                isError = errorMessage != null,
-                supportingText = errorMessage?.let { { Text(it) } },
             )
+
+            if (errorMessage != null) {
+                Spacer(modifier = Modifier.height(RojanDimens.SpaceXS))
+                Text(
+                    text = errorMessage.orEmpty(),
+                    style = RojanTypography.Caption,
+                    color = RojanErrorText,
+                )
+            }
 
             Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))
 

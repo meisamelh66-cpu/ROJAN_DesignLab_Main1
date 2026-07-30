@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import ai.rojan.designlab.components.hero.HeroBookingCard
 import ai.rojan.designlab.presentation.auth.AuthViewModel
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.WarmBackground
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.ui.theme.RojanDimens
 
 /**
@@ -47,7 +47,7 @@ fun CustomerDashboardScreen(
     onExploreClick: () -> Unit = {},
     onSalonClick: (String) -> Unit = {},
 ) {
-    WarmBackground(
+    HomeBackgroundTheme(
         modifier = Modifier.fillMaxSize(),
     ) {
         LazyColumn(

@@ -1,11 +1,10 @@
 package ai.rojan.designlab.manager.screens.profile
 
 import ai.rojan.designlab.R
+import ai.rojan.designlab.manager.components.ManagerColors
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanGlassText
-import ai.rojan.designlab.ui.theme.RojanTextOnDarkSurface
 import ai.rojan.designlab.ui.theme.RojanTheme
 import ai.rojan.designlab.ui.theme.RojanTypography
 import androidx.compose.foundation.Image
@@ -51,13 +50,13 @@ fun ManagerProfileScreen(
             Text(
                 text = managerName,
                 style = RojanTypography.ScreenTitle,
-                color = RojanGlassText,
+                color = ManagerColors.TextPrimary,
                 modifier = Modifier.padding(top = RojanDimens.SpaceMD),
             )
             Text(
                 text = salonName,
                 style = RojanTypography.Body,
-                color = RojanTextOnDarkSurface,
+                color = ManagerColors.TextSecondary,
                 modifier = Modifier.padding(top = RojanDimens.SpaceXS),
             )
         }

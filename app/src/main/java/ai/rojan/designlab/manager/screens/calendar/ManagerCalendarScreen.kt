@@ -1,9 +1,10 @@
 package ai.rojan.designlab.manager.screens.calendar
 
-import ai.rojan.designlab.manager.components.ManagerAccent
-import ai.rojan.designlab.manager.components.ManagerGlass
+import ai.rojan.designlab.manager.components.ManagerColors
+import ai.rojan.designlab.manager.components.ManagerGlassSurface
+import ai.rojan.designlab.manager.components.ManagerGlassTheme
+import ai.rojan.designlab.manager.components.ManagerIconContainer
 import ai.rojan.designlab.manager.components.ManagerScaffold
-import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
@@ -11,9 +12,7 @@ import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanErrorText
-import ai.rojan.designlab.ui.theme.RojanGlassText
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextOnDarkSurface
 import ai.rojan.designlab.ui.theme.RojanTheme
 import ai.rojan.designlab.ui.theme.RojanTypography
 import androidx.compose.foundation.background
@@ -52,10 +51,10 @@ import androidx.compose.ui.unit.dp
 
 private enum class ManagerCalendarViewMode { DAILY, WEEKLY }
 
-/** Status indicator — Teal/Gold extend naturally into "confirmed/pending"; [RojanErrorText] (existing token) covers "cancelled." */
+/** Status indicator — Turquoise/Gold extend naturally into "confirmed/pending"; [RojanErrorText] (existing token) covers "cancelled." */
 private enum class AppointmentStatus(val label: String, val color: Color) {
-    CONFIRMED("تایید شده", ManagerAccent.Teal),
-    PENDING("در انتظار", ManagerAccent.Gold),
+    CONFIRMED("تایید شده", ManagerColors.Turquoise),
+    PENDING("در انتظار", ManagerColors.Gold),
     CANCELLED("لغو شده", RojanErrorText),
 }
 
@@ -117,15 +116,11 @@ private val sampleAppointmentsByDay: Map<Int, List<CalendarAppointment>> = mapOf
 /**
  * Manager App workspace — Calendar MVP. Additive-only: does not modify
  * [ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen]
- * or any of its components — built entirely from the same frozen
- * primitives ([ManagerScaffold]/`WarmBackground`, [GlassSurface] +
- * [ManagerGlass], [ManagerAccent] Teal+Gold, [RtlSectionHeader]).
+ * or any of its components.
  *
- * Static sample data only ("No backend" — same convention as the rest
- * of the Manager module). [onAppointmentClick] is the "appointment
- * detail entry point": inert (`{}` default) since no destination screen
- * or navigation wiring exists yet, matching this module's established
- * "no navigation changes" pattern.
+ * ROJAN AI Manager Visual Theme Implementation: re-themed for the dark
+ * luxury background ([ManagerScaffold]/[ManagerGlassSurface]/
+ * [ManagerIconContainer]) — content/data/navigation unchanged.
  *
  * Specialist filter is a real, working local filter over the static
  * sample data (not just inert UI) — "foundation" for a future real
@@ -150,7 +145,7 @@ fun ManagerCalendarScreen(
                 RtlSectionHeader(
                     text = "تقویم",
                     style = RojanTypography.ScreenTitle,
-                    color = RojanGlassText,
+                    color = ManagerColors.TextPrimary,
                     horizontalPadding = 0.dp,
                 )
             }
@@ -243,13 +238,11 @@ private fun ToggleChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    GlassSurface(
+    ManagerGlassSurface(
         modifier = modifier.rojanPressable(onClick = onClick),
         shape = RojanShapes.Small,
-        glassAlpha = if (selected) ManagerGlass.Alpha else ManagerGlass.SecondaryAlpha,
-        glassSecondaryAlpha = ManagerGlass.SecondaryAlpha,
-        borderAlpha = ManagerGlass.BorderAlpha,
-        borderSecondaryAlpha = ManagerGlass.BorderSecondaryAlpha,
+        fillAlpha = if (selected) ManagerGlassTheme.FillAlpha else ManagerGlassTheme.FillAlpha * 0.5f,
+        borderAlpha = if (selected) ManagerGlassTheme.BorderAlpha else ManagerGlassTheme.BorderAlpha * 0.4f,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
@@ -260,12 +253,12 @@ private fun ToggleChip(
                 imageVector = icon,
                 contentDescription = label,
                 size = RojanIconSize.Small,
-                tint = if (selected) ManagerAccent.Teal else RojanTextOnDarkSurface,
+                tint = if (selected) ManagerColors.Turquoise else ManagerColors.TextSecondary,
             )
             Text(
                 text = label,
                 style = RojanTypography.Body,
-                color = if (selected) RojanGlassText else RojanTextOnDarkSurface,
+                color = if (selected) ManagerColors.TextPrimary else ManagerColors.TextSecondary,
                 modifier = Modifier.padding(start = RojanDimens.SpaceXS),
             )
         }
@@ -297,13 +290,11 @@ private fun SpecialistFilterRow(
 
 @Composable
 private fun SpecialistChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    GlassSurface(
+    ManagerGlassSurface(
         modifier = Modifier.rojanPressable(onClick = onClick),
         shape = RojanShapes.Small,
-        glassAlpha = if (selected) ManagerGlass.Alpha else ManagerGlass.SecondaryAlpha,
-        glassSecondaryAlpha = ManagerGlass.SecondaryAlpha,
-        borderAlpha = ManagerGlass.BorderAlpha,
-        borderSecondaryAlpha = ManagerGlass.BorderSecondaryAlpha,
+        fillAlpha = if (selected) ManagerGlassTheme.FillAlpha else ManagerGlassTheme.FillAlpha * 0.5f,
+        borderAlpha = if (selected) ManagerGlassTheme.BorderAlpha else ManagerGlassTheme.BorderAlpha * 0.4f,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
@@ -315,13 +306,13 @@ private fun SpecialistChip(label: String, selected: Boolean, onClick: () -> Unit
                     imageVector = Icons.Filled.Person,
                     contentDescription = null,
                     size = RojanIconSize.Small,
-                    tint = ManagerAccent.Gold,
+                    tint = ManagerColors.Gold,
                 )
             }
             Text(
                 text = label,
                 style = RojanTypography.Caption,
-                color = if (selected) RojanGlassText else RojanTextOnDarkSurface,
+                color = if (selected) ManagerColors.TextPrimary else ManagerColors.TextSecondary,
             )
         }
     }
@@ -333,15 +324,13 @@ private fun DaySelectorRow(selectedDayIndex: Int, onDaySelected: (Int) -> Unit) 
         items(sampleWeekDays.indices.toList()) { index ->
             val day = sampleWeekDays[index]
             val selected = index == selectedDayIndex
-            GlassSurface(
+            ManagerGlassSurface(
                 modifier = Modifier
                     .size(width = 64.dp, height = 72.dp)
                     .rojanPressable(onClick = { onDaySelected(index) }),
                 shape = RojanShapes.Small,
-                glassAlpha = if (selected) ManagerGlass.Alpha else ManagerGlass.SecondaryAlpha,
-                glassSecondaryAlpha = ManagerGlass.SecondaryAlpha,
-                borderAlpha = ManagerGlass.BorderAlpha,
-                borderSecondaryAlpha = ManagerGlass.BorderSecondaryAlpha,
+                fillAlpha = if (selected) ManagerGlassTheme.FillAlpha else ManagerGlassTheme.FillAlpha * 0.5f,
+                borderAlpha = if (selected) ManagerGlassTheme.BorderAlpha else ManagerGlassTheme.BorderAlpha * 0.4f,
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceXS),
@@ -351,13 +340,13 @@ private fun DaySelectorRow(selectedDayIndex: Int, onDaySelected: (Int) -> Unit) 
                     Text(
                         text = day.label,
                         style = RojanTypography.Caption,
-                        color = if (selected) RojanGlassText else RojanTextOnDarkSurface,
+                        color = if (selected) ManagerColors.TextPrimary else ManagerColors.TextSecondary,
                         textAlign = TextAlign.Center,
                     )
                     Text(
                         text = day.dayNumber,
                         style = RojanTypography.CardTitle,
-                        color = if (selected) ManagerAccent.Teal else RojanGlassText,
+                        color = if (selected) ManagerColors.Turquoise else ManagerColors.TextPrimary,
                         modifier = Modifier.padding(top = RojanDimens.SpaceXS),
                     )
                 }
@@ -368,15 +357,11 @@ private fun DaySelectorRow(selectedDayIndex: Int, onDaySelected: (Int) -> Unit) 
 
 @Composable
 private fun AppointmentRow(appointment: CalendarAppointment, onClick: () -> Unit) {
-    GlassSurface(
+    ManagerGlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .rojanPressable(onClick = onClick),
         shape = RojanShapes.Small,
-        glassAlpha = ManagerGlass.Alpha,
-        glassSecondaryAlpha = ManagerGlass.SecondaryAlpha,
-        borderAlpha = ManagerGlass.BorderAlpha,
-        borderSecondaryAlpha = ManagerGlass.BorderSecondaryAlpha,
     ) {
         Row(
             modifier = Modifier
@@ -385,31 +370,23 @@ private fun AppointmentRow(appointment: CalendarAppointment, onClick: () -> Unit
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(ManagerAccent.Teal.copy(alpha = 0.16f), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                RojanIconContainer(
-                    imageVector = Icons.Filled.AccessTime,
-                    contentDescription = null,
-                    size = RojanIconSize.Small,
-                    tint = ManagerAccent.Teal,
-                )
-            }
+            ManagerIconContainer(
+                imageVector = Icons.Filled.AccessTime,
+                contentDescription = null,
+                containerSize = 36.dp,
+            )
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = appointment.clientName, style = RojanTypography.Body, color = RojanGlassText)
+                Text(text = appointment.clientName, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
                 Text(
                     text = "${appointment.service} · ${appointment.specialist}",
                     style = RojanTypography.Caption,
-                    color = RojanTextOnDarkSurface,
+                    color = ManagerColors.TextSecondary,
                 )
             }
 
             Column(horizontalAlignment = Alignment.End) {
-                Text(text = appointment.time, style = RojanTypography.Caption, color = RojanTextOnDarkSurface)
+                Text(text = appointment.time, style = RojanTypography.Caption, color = ManagerColors.TextSecondary)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
@@ -433,18 +410,14 @@ private fun AppointmentRow(appointment: CalendarAppointment, onClick: () -> Unit
 
 @Composable
 private fun EmptyDayNotice() {
-    GlassSurface(
+    ManagerGlassSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RojanShapes.Small,
-        glassAlpha = ManagerGlass.Alpha,
-        glassSecondaryAlpha = ManagerGlass.SecondaryAlpha,
-        borderAlpha = ManagerGlass.BorderAlpha,
-        borderSecondaryAlpha = ManagerGlass.BorderSecondaryAlpha,
     ) {
         Text(
             text = "نوبتی برای این روز ثبت نشده است.",
             style = RojanTypography.Body,
-            color = RojanTextOnDarkSurface,
+            color = ManagerColors.TextSecondary,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(RojanDimens.SpaceLG),
@@ -464,22 +437,18 @@ private fun WeeklyOverview(
             val dayAppointments = (sampleAppointmentsByDay[index] ?: emptyList())
                 .filter { selectedSpecialist == null || it.specialist == selectedSpecialist }
 
-            GlassSurface(
+            ManagerGlassSurface(
                 modifier = Modifier
                     .width(120.dp)
                     .height(220.dp)
                     .rojanPressable(onClick = { onDayClick(index) }),
                 shape = RojanShapes.Small,
-                glassAlpha = ManagerGlass.Alpha,
-                glassSecondaryAlpha = ManagerGlass.SecondaryAlpha,
-                borderAlpha = ManagerGlass.BorderAlpha,
-                borderSecondaryAlpha = ManagerGlass.BorderSecondaryAlpha,
             ) {
                 Column(modifier = Modifier.padding(RojanDimens.SpaceSM)) {
                     Text(
                         text = "${day.label} ${day.dayNumber}",
                         style = RojanTypography.Caption,
-                        color = RojanGlassText,
+                        color = ManagerColors.TextPrimary,
                     )
                     Column(
                         modifier = Modifier.padding(top = RojanDimens.SpaceXS),
@@ -489,7 +458,7 @@ private fun WeeklyOverview(
                             Text(
                                 text = "خالی",
                                 style = RojanTypography.Caption,
-                                color = RojanTextOnDarkSurface,
+                                color = ManagerColors.TextSecondary,
                             )
                         } else {
                             dayAppointments.take(4).forEach { appointment ->
@@ -505,7 +474,7 @@ private fun WeeklyOverview(
                                     Text(
                                         text = appointment.time,
                                         style = RojanTypography.Caption,
-                                        color = RojanTextOnDarkSurface,
+                                        color = ManagerColors.TextSecondary,
                                     )
                                 }
                             }
@@ -513,7 +482,7 @@ private fun WeeklyOverview(
                                 Text(
                                     text = "+${dayAppointments.size - 4} مورد دیگر",
                                     style = RojanTypography.Caption,
-                                    color = ManagerAccent.Teal,
+                                    color = ManagerColors.Turquoise,
                                 )
                             }
                         }

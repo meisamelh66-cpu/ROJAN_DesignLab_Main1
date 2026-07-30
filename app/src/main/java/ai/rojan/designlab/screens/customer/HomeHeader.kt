@@ -25,18 +25,16 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.effects.RojanAmbientGlow
-import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
-import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShadows
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextOnDarkSurface
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
@@ -104,10 +102,10 @@ fun HomeHeader(
             modifier = Modifier
                 .matchParentSize()
                 .blur(22.dp)
-                .background(RojanAIGlow.copy(alpha = 0.12f), RojanShapes.GlassCard),
+                .background(HomeColors.Glow.copy(alpha = 0.18f), RojanShapes.GlassCard),
         )
 
-        GlassSurface(
+        HomeGlassSurface(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
@@ -123,7 +121,7 @@ fun HomeHeader(
             RojanIconContainer(
                 imageVector = Icons.Filled.Notifications,
                 contentDescription = "اعلان‌ها",
-                tint = RojanTextOnDarkSurface,
+                tint = HomeColors.TextPrimary,
                 size = RojanIconSize.Medium,
                 showGlassBackground = true,
                 modifier = Modifier
@@ -134,7 +132,7 @@ fun HomeHeader(
             val firstName = displayName?.trim()?.substringBefore(" ")?.takeIf { it.isNotBlank() } ?: "کاربر"
             Text(
                 text = "سلام $firstName جان",
-                color = RojanTextOnGlass,
+                color = HomeColors.TextPrimary,
                 style = RojanTypography.CardTitle.copy(letterSpacing = 0.3.sp),
                 modifier = Modifier.align(Alignment.Center),
             )
@@ -149,13 +147,13 @@ fun HomeHeader(
                 Box(contentAlignment = Alignment.Center) {
                     RojanAmbientGlow(
                         modifier = Modifier.size(56.dp),
-                        color = RojanAIGlow,
-                        alpha = 0.30f,
+                        color = HomeColors.Glow,
+                        alpha = 0.35f,
                     )
                     RojanIconContainer(
                         imageVector = Icons.Filled.Person,
                         contentDescription = "پروفایل",
-                        tint = RojanTextOnDarkSurface,
+                        tint = HomeColors.TextPrimary,
                         size = RojanIconSize.Medium,
                         showGlassBackground = true,
                     )
@@ -163,7 +161,7 @@ fun HomeHeader(
                 RojanIconContainer(
                     imageVector = Icons.Filled.KeyboardArrowDown,
                     contentDescription = null,
-                    tint = RojanTextOnDarkSurface,
+                    tint = HomeColors.TextPrimary,
                     size = RojanIconSize.Small,
                 )
             }

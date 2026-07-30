@@ -25,15 +25,13 @@ import ai.rojan.designlab.domain.booking.BookingEngine
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.presentation.booking.BookingViewModel
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.WarmBackground
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
-import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
@@ -73,7 +71,7 @@ fun BookingTimeScreen(
     val slots = bookingEngine.timeSlotsFor(dateKey, durationMinutes, specialistId)
     val availableSlots = slots.filter { it.available }
 
-    WarmBackground {
+    HomeBackgroundTheme {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -83,7 +81,7 @@ fun BookingTimeScreen(
 
             Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))
 
-            Text("انتخاب ساعت", style = RojanTypography.HeroTitle, color = RojanTextOnGlass)
+            Text("انتخاب ساعت", style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary)
 
             Spacer(modifier = Modifier.height(RojanDimens.SpaceLG))
 
@@ -105,7 +103,7 @@ fun BookingTimeScreen(
                     // display unavailable times." Filtered out entirely here,
                     // not just shown-disabled as before this fix.
                     items(availableSlots) { slot ->
-                        GlassSurface(
+                        HomeGlassSurface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onTimeSelected(slot.time) },
@@ -114,7 +112,7 @@ fun BookingTimeScreen(
                             Text(
                                 text = slot.time,
                                 style = RojanTypography.Body,
-                                color = RojanTextPrimary,
+                                color = HomeColors.TextPrimary,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -142,13 +140,13 @@ private fun WaitlistJoinPrompt(
         Text(
             text = "برای این تاریخ زمانی موجود نیست",
             style = RojanTypography.Body,
-            color = RojanTextOnGlass,
+            color = HomeColors.TextPrimary,
         )
         Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
         Text(
             text = "می‌توانید به لیست انتظار بپیوندید تا در صورت آزاد شدن زمانی، نوبت شما خودکار رزرو شود.",
             style = RojanTypography.Caption,
-            color = RojanTextSecondary,
+            color = HomeColors.TextSecondary,
         )
         Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))
 
@@ -156,7 +154,7 @@ private fun WaitlistJoinPrompt(
             Text(
                 text = "✓ به لیست انتظار پیوستید",
                 style = RojanTypography.Body,
-                color = RojanTextOnGlass,
+                color = HomeColors.TextPrimary,
             )
         } else {
             PremiumButton(

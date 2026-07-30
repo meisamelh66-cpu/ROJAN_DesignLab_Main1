@@ -1,7 +1,6 @@
 ﻿package ai.rojan.designlab.screens.profile
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,9 +14,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Favorite
@@ -39,17 +38,16 @@ import androidx.compose.ui.unit.dp
 import ai.rojan.designlab.domain.customer.insights.ProfileInsightsEngine
 import ai.rojan.designlab.presentation.auth.AuthViewModel
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.WarmBackground
-import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
+import ai.rojan.designlab.ui.animation.rojanEnterAnimation
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
+import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.rtl.RtlListRow
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
-import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextOnDarkSurface
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 private data class ProfileMenuItem(
@@ -103,7 +101,7 @@ fun ProfileScreen(
         ProfileMenuItem(Icons.Filled.History, "تاریخچه زیبایی", "خدمات دریافت‌شده در طول زمان", onBeautyTimelineClick),
     )
 
-    WarmBackground {
+    HomeBackgroundTheme {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -111,16 +109,7 @@ fun ProfileScreen(
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {
             item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clickable(onClick = onBackClick),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "بازگشت", tint = RojanTextOnGlass)
-                    }
-                }
+                GlassBackButton(onClick = onBackClick)
             }
 
             item {
@@ -128,44 +117,44 @@ fun ProfileScreen(
                     Box(
                         modifier = Modifier
                             .size(88.dp)
-                            .background(RojanAIGlow.copy(alpha = 0.25f), CircleShape),
+                            .background(HomeColors.Glow.copy(alpha = 0.25f), CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Filled.Person, contentDescription = null, tint = RojanTextOnGlass, modifier = Modifier.size(44.dp))
+                        Icon(Icons.Filled.Person, contentDescription = null, tint = HomeColors.TextPrimary, modifier = Modifier.size(44.dp))
                     }
                     Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
-                    Text(authViewModel.currentDisplayName ?: "کاربر", style = RojanTypography.HeroTitle, color = RojanTextOnGlass)
-                    Text("عضو ${tier.currentTierName}", style = RojanTypography.Body, color = RojanTextOnDarkSurface)
+                    Text(authViewModel.currentDisplayName ?: "کاربر", style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary)
+                    Text("عضو ${tier.currentTierName}", style = RojanTypography.Body, color = HomeColors.TextSecondary)
                 }
             }
 
             item {
-                GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
+                HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(RojanDimens.SpaceMD)
-                            .clickable(onClick = onWalletClick),
+                            .rojanPressable(onClick = onWalletClick)
+                            .padding(RojanDimens.SpaceMD),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("${state.walletBalance}", style = RojanTypography.Body, color = RojanAIGlow)
-                            Text("موجودی کیف پول", style = RojanTypography.Caption, color = RojanTextSecondary)
+                            Text("${state.walletBalance}", style = RojanTypography.Body, color = HomeColors.Glow)
+                            Text("موجودی کیف پول", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("${state.loyaltyPoints}", style = RojanTypography.Body, color = RojanAIGlow)
-                            Text("امتیاز وفاداری", style = RojanTypography.Caption, color = RojanTextSecondary)
+                            Text("${state.loyaltyPoints}", style = RojanTypography.Body, color = HomeColors.Glow)
+                            Text("امتیاز وفاداری", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(tier.currentTierName, style = RojanTypography.Body, color = RojanAIGlow)
-                            Text("سطح عضویت", style = RojanTypography.Caption, color = RojanTextSecondary)
+                            Text(tier.currentTierName, style = RojanTypography.Body, color = HomeColors.Glow)
+                            Text("سطح عضویت", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                         }
                     }
                 }
             }
 
             item {
-                GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
+                HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -173,16 +162,16 @@ fun ProfileScreen(
                         horizontalArrangement = Arrangement.SpaceEvenly,
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("${insights.beautyScore}", style = RojanTypography.Body, color = RojanAIGlow)
-                            Text("امتیاز زیبایی", style = RojanTypography.Caption, color = RojanTextSecondary)
+                            Text("${insights.beautyScore}", style = RojanTypography.Body, color = HomeColors.Glow)
+                            Text("امتیاز زیبایی", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("${insights.profileCompletionPercent}٪", style = RojanTypography.Body, color = RojanAIGlow)
-                            Text("تکمیل پروفایل", style = RojanTypography.Caption, color = RojanTextSecondary)
+                            Text("${insights.profileCompletionPercent}٪", style = RojanTypography.Body, color = HomeColors.Glow)
+                            Text("تکمیل پروفایل", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(state.customerBirthday, style = RojanTypography.Body, color = RojanAIGlow)
-                            Text("تولد", style = RojanTypography.Caption, color = RojanTextSecondary)
+                            Text(state.customerBirthday, style = RojanTypography.Body, color = HomeColors.Glow)
+                            Text("تولد", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                         }
                     }
                 }
@@ -190,7 +179,7 @@ fun ProfileScreen(
 
             if (insights.upcomingAppointment != null || insights.lastVisit != null || insights.preferredSalonName != null) {
                 item {
-                    GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
+                    HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
                         Column(modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD)) {
                             insights.upcomingAppointment?.let {
                                 InsightRow("نوبت پیش‌رو", "${it.salonName} • ${it.dateLabel}")
@@ -214,33 +203,42 @@ fun ProfileScreen(
             }
 
             if (insights.recentActivity.isNotEmpty()) {
-                item { RtlSectionHeader("فعالیت‌های اخیر", horizontalPadding = 0.dp) }
-                items(insights.recentActivity) { activity ->
-                    GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
+                item { RtlSectionHeader("فعالیت‌های اخیر", horizontalPadding = 0.dp, color = HomeColors.TextPrimary) }
+                itemsIndexed(insights.recentActivity) { index, activity ->
+                    HomeGlassSurface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .rojanEnterAnimation(delayMillis = index * 60),
+                        shape = RojanShapes.Small,
+                    ) {
                         RtlListRow(
                             title = activity.label,
                             titleStyle = RojanTypography.Caption,
+                            titleColor = HomeColors.TextPrimary,
                             value = activity.dateLabel,
                             valueStyle = RojanTypography.Caption,
-                            valueColor = RojanTextSecondary,
+                            valueColor = HomeColors.TextSecondary,
                             modifier = Modifier.padding(RojanDimens.SpaceMD),
                         )
                     }
                 }
             }
 
-            items(menuItems) { menuItem ->
-                GlassSurface(
+            itemsIndexed(menuItems) { index, menuItem ->
+                HomeGlassSurface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(onClick = menuItem.onClick),
+                        .rojanEnterAnimation(delayMillis = index * 60)
+                        .rojanPressable(onClick = menuItem.onClick),
                     shape = RojanShapes.Small,
                 ) {
                     RtlListRow(
                         title = menuItem.title,
+                        titleColor = HomeColors.TextPrimary,
                         subtitle = menuItem.subtitle,
+                        subtitleColor = HomeColors.TextSecondary,
                         icon = menuItem.icon,
-                        iconTint = RojanAIGlow,
+                        iconTint = HomeColors.Glow,
                         modifier = Modifier.padding(RojanDimens.SpaceMD),
                     )
                 }
@@ -254,9 +252,9 @@ private fun InsightRow(label: String, value: String) {
     RtlListRow(
         title = label,
         titleStyle = RojanTypography.Caption,
-        titleColor = RojanTextSecondary,
+        titleColor = HomeColors.TextSecondary,
         value = value,
         valueStyle = RojanTypography.Caption,
-        valueColor = RojanTextPrimary,
+        valueColor = HomeColors.TextPrimary,
     )
 }

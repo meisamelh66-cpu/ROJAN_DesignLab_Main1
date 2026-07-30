@@ -1,7 +1,6 @@
 package ai.rojan.designlab.screens.customer
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,8 +12,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -23,37 +24,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-import ai.rojan.designlab.R
 import ai.rojan.designlab.domain.catalog.CatalogEngine
-import ai.rojan.designlab.ui.components.glass.GlassSurface
-import ai.rojan.designlab.ui.components.image.RojanSampleImage
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
-import ai.rojan.designlab.ui.theme.RojanVividPurple
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
 /**
- * Customer Home promotions — Design Board v1.0, Secondary Features layer,
- * the lowest-priority tier among ServiceCategories/FeaturedSalons/
- * TopSpecialists/Promotions per the Board's explicit ordering.
+ * Customer Home promotions — Home Visual Language Unification.
  *
- * Architecture Cleanup Sprint (Task 3): data now comes from
- * [ai.rojan.designlab.data.demo.DemoPromotionRepository] via
- * [CatalogEngine] — same visual output, restraint (2 cards, no
- * illustration block, optional badge) unchanged.
- *
- * Luxury Visual Refinement Phase: per audit feedback ("avoid text-only
- * cards... add meaningful visual weight"), each card now leads with a
- * real salon photo (`salon_demo_2`/`salon_demo_3`, the same approved
- * photography set already used across Featured/Nearby/Recommended
- * Salons — alternated by index, not new/fake imagery) instead of an
- * icon glyph. Card width grew (200dp -> 220dp) to fit the photo without
- * cramping the text; the rest of the content (title, supporting text,
- * optional badge) is unchanged.
+ * Same horizontal list, same [CatalogEngine.promotions] data, same
+ * position on Home as before. Card anatomy redesigned to match the
+ * reference's "پیشنهادهای ویژه" cards — icon circle + title + discount
+ * line + a "مشاهده" pill CTA — replacing the previous photo-leading
+ * layout, per the approved "image presentation / CTA styling" visual-
+ * anatomy change. No new interaction: the CTA was, and remains, a
+ * decorative affordance (no destination existed before this pass either).
  */
 @Composable
 fun PromotionsSection() {
@@ -63,83 +53,80 @@ fun PromotionsSection() {
         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
     ) {
         itemsIndexed(catalogEngine.promotions()) { index, promotion ->
-            val imageRes = if (index % 2 == 0) R.drawable.salon_demo_2 else R.drawable.salon_demo_3
-            // Font-scale fix: was a hard `.size(width, height)` — at larger
-            // system font sizes the title/supporting-text/badge stack could
-            // need more vertical room than the fixed height allowed.
-            // `heightIn(min = ...)` keeps the exact same height whenever
-            // content fits (unchanged from before at default scale) and
-            // only grows under accessibility font scaling.
             Box(
                 modifier = Modifier
-                    .width(220.dp)
-                    .background(promotion.tint.copy(alpha = 0.25f), RojanShapes.Small)
+                    .width(180.dp)
+                    .background(promotion.tint.copy(alpha = 0.20f), RojanShapes.Small)
             ) {
-                GlassSurface(
+                HomeGlassSurface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 104.dp)
-                        .clickable { },
+                        .heightIn(min = 150.dp),
                     shape = RojanShapes.Small,
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(RojanDimens.SpaceSM),
-                        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
-                        verticalAlignment = Alignment.CenterVertically,
+                            .padding(RojanDimens.SpaceMD),
+                        verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
                     ) {
-                        RojanSampleImage(
-                            resId = imageRes,
-                            contentDescription = null,
-                            shape = RojanShapes.Small,
-                            modifier = Modifier.size(width = 60.dp, height = 84.dp),
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(HomeColors.Glow.copy(alpha = 0.20f), CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            RojanIconContainer(
+                                imageVector = Icons.Filled.AutoAwesome,
+                                contentDescription = null,
+                                tint = HomeColors.Glow,
+                                size = RojanIconSize.Medium,
+                            )
+                        }
+
+                        Text(
+                            text = promotion.title,
+                            style = RojanTypography.Caption,
+                            color = HomeColors.TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
 
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
-                            ) {
-                                RojanIconContainer(
-                                    imageVector = Icons.Filled.AutoAwesome,
-                                    contentDescription = null,
-                                    tint = RojanVividPurple,
-                                    size = RojanIconSize.Small,
-                                )
-                                Text(
-                                    text = promotion.title,
-                                    style = RojanTypography.Caption,
-                                    color = RojanTextPrimary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
+                        Text(
+                            text = promotion.supportingText,
+                            style = RojanTypography.Caption,
+                            color = HomeColors.TextSecondary,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
 
+                        promotion.badge?.let { badgeText ->
                             Text(
-                                text = promotion.supportingText,
+                                text = badgeText,
                                 style = RojanTypography.Caption,
-                                color = RojanTextSecondary,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
+                                color = HomeColors.Gold,
                             )
+                        }
 
-                            promotion.badge?.let { badgeText ->
-                                Box(
-                                    modifier = Modifier
-                                        .background(RojanVividPurple.copy(alpha = 0.15f), RojanShapes.Small)
-                                        .padding(horizontal = RojanDimens.SpaceSM, vertical = RojanDimens.SpaceXS),
-                                ) {
-                                    Text(
-                                        text = badgeText,
-                                        style = RojanTypography.Caption,
-                                        color = RojanVividPurple,
-                                    )
-                                }
-                            }
+                        Row(
+                            modifier = Modifier
+                                .background(HomeColors.Glow.copy(alpha = 0.16f), RojanShapes.Small)
+                                .rojanPressable(onClick = {})
+                                .padding(horizontal = RojanDimens.SpaceSM, vertical = RojanDimens.SpaceXS),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
+                        ) {
+                            RojanIconContainer(
+                                imageVector = Icons.Filled.KeyboardArrowLeft,
+                                contentDescription = null,
+                                tint = HomeColors.Glow,
+                                size = RojanIconSize.Small,
+                            )
+                            Text(
+                                text = "مشاهده",
+                                style = RojanTypography.Caption,
+                                color = HomeColors.Glow,
+                            )
                         }
                     }
                 }

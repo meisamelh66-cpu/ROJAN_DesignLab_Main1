@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
@@ -19,16 +19,14 @@ import androidx.compose.ui.Modifier
 
 import ai.rojan.designlab.data.demo.DemoWalletTransaction
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.ui.background.WarmBackground
-import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
+import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
-import ai.rojan.designlab.ui.theme.RojanAIGlow
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanStatusOnline
-import ai.rojan.designlab.ui.theme.RojanTextOnGlass
-import ai.rojan.designlab.ui.theme.RojanTextPrimary
-import ai.rojan.designlab.ui.theme.RojanTextSecondary
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.theme.RojanVividMagenta
 
@@ -47,7 +45,7 @@ fun WalletScreen(
 ) {
     val state = ecosystemViewModel.state
 
-    WarmBackground {
+    HomeBackgroundTheme {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -55,37 +53,42 @@ fun WalletScreen(
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {
             item { GlassBackButton(onClick = onBackClick) }
-            item { Text("کیف پول", style = RojanTypography.HeroTitle, color = RojanTextOnGlass) }
+            item { Text("کیف پول", style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary) }
 
             item {
-                GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
+                HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(RojanDimens.SpaceLG),
                     ) {
-                        Text("موجودی فعلی", style = RojanTypography.Body, color = RojanTextSecondary)
+                        Text("موجودی فعلی", style = RojanTypography.Body, color = HomeColors.TextSecondary)
                         Text(
                             "${state.walletBalance} تومان",
                             style = RojanTypography.HeroTitle,
-                            color = RojanAIGlow,
+                            color = HomeColors.Glow,
                         )
                     }
                 }
             }
 
-            item { Text("تراکنش‌های اخیر", style = RojanTypography.Body, color = RojanTextOnGlass) }
+            item { Text("تراکنش‌های اخیر", style = RojanTypography.Body, color = HomeColors.TextPrimary) }
 
-            items(state.walletTransactions) { txn ->
-                TransactionRow(txn)
+            itemsIndexed(state.walletTransactions) { index, txn ->
+                TransactionRow(txn, animationDelayMillis = index * 60)
             }
         }
     }
 }
 
 @Composable
-private fun TransactionRow(txn: DemoWalletTransaction) {
-    GlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
+private fun TransactionRow(txn: DemoWalletTransaction, animationDelayMillis: Int = 0) {
+    HomeGlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .rojanEnterAnimation(delayMillis = animationDelayMillis),
+        shape = RojanShapes.Small,
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -100,8 +103,8 @@ private fun TransactionRow(txn: DemoWalletTransaction) {
                     tint = if (txn.isCredit) RojanStatusOnline else RojanVividMagenta,
                 )
                 Column(modifier = Modifier.padding(start = RojanDimens.SpaceSM)) {
-                    Text(txn.title, style = RojanTypography.Body, color = RojanTextPrimary)
-                    Text(txn.dateLabel, style = RojanTypography.Caption, color = RojanTextSecondary)
+                    Text(txn.title, style = RojanTypography.Body, color = HomeColors.TextPrimary)
+                    Text(txn.dateLabel, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                 }
             }
             Text(

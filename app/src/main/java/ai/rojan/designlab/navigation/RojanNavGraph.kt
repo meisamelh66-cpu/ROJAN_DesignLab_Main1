@@ -950,6 +950,10 @@ fun RojanNavGraph() {
                         onSalonClick = { salonId ->
                             navController.navigate(RojanDestinations.salonDetails(salonId))
                         },
+                        onViewAllServicesClick = { navController.navigate(RojanDestinations.MEMBER_SALONS_LIST) },
+                        onSpecialistClick = { specialistId ->
+                            navController.navigate(RojanDestinations.specialistProfile(specialistId))
+                        },
                     )
                 }
 

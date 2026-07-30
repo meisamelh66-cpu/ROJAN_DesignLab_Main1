@@ -102,12 +102,16 @@ fun RtlInfoRow(
     emphasize: Boolean = false,
     iconTint: Color = if (emphasize) RojanRatingGold else RojanTextSecondary,
     iconSize: Dp = 20.dp,
+    // Theme Unification pass: optional override so dark-canvas callers
+    // (Home Visual Language) aren't stuck with the light-surface default
+    // below — null (every existing caller) keeps the exact prior behavior.
+    textColor: Color? = null,
 ) {
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         Text(
             text,
             style = if (emphasize) RojanTypography.Body else RojanTypography.Caption,
-            color = if (emphasize) RojanTextPrimary else RojanTextSecondary,
+            color = textColor ?: if (emphasize) RojanTextPrimary else RojanTextSecondary,
         )
         Spacer(modifier = Modifier.width(RojanDimens.SpaceSM))
         Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(iconSize))
