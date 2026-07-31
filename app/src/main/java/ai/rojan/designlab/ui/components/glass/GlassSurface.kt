@@ -1,167 +1,55 @@
 package ai.rojan.designlab.ui.components.glass
-import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 
-import ai.rojan.designlab.ui.theme.RojanGlassBorder
-import ai.rojan.designlab.ui.theme.RojanGlassWhite
+import ai.rojan.designlab.ui.theme.CustomerPalette
+import ai.rojan.designlab.ui.theme.LocalRojanPalette
 import ai.rojan.designlab.ui.theme.RojanShadows
 
 /**
  * ROJAN Glass System base primitive (Design Token Spec v1.0, Section 6).
+ * History: migrated off raw literals onto tokens, gained shadow/highlight
+ * ownership, went through several fill/border alpha tuning passes, then
+ * the Premium Glass Border Design Update (6-stop metallic sweep via
+ * [premiumMetallicBorder]) — see git history for the full account.
  *
- * Migrated (Component 1 finalization pass) from raw `Color.White` literals
- * to [RojanGlassWhite]/[RojanGlassBorder] — both tokens' base color is
- * already pure white, so `.copy(alpha = ...)` here produces pixel-identical
- * output to before; this is a token-sourcing fix, not a visual change.
- * The two-stop gradient (fill and border each fade between two alpha
- * values) is preserved exactly as it was, since collapsing it to a single
- * flat token value would have changed the actual rendered look.
- *
- * Selective merge addition (see checkpoint-selective-merge-launcher-glass):
- * fill/border opacity are optional parameters rather than fixed literals.
- * Defaults match the exact original hardcoded values, so this alone
- * changed nothing visually for any existing caller.
- *
- * Design System Foundation Refactor addition (this pass): [elevation] and
- * [showHighlight] are new. **Unlike the opacity parameters above, this is
- * not a no-op default** — it's a deliberate visual improvement, disclosed
- * as such rather than framed as risk-free. Audited before this change:
- * 13 of this component's 14 real call sites applied zero shadow at all
- * (only [ai.rojan.designlab.ui.components.hero.HeroBookingCard] added its
- * own external `.shadow()`), which is exactly why most cards read as flat.
- * Moving shadow ownership into this shared primitive, with a sensible
- * default ([RojanShadows.FloatingElevation] — the "standard elevated
- * card" tier already defined in the Shadow System, as opposed to the
- * Hero-only Premium tier), means all 13 previously-shadowless consumers
- * gain consistent depth automatically.
- *
- * [showHighlight] adds a small, low-opacity radial highlight in the
- * upper-left — a conventional "light hitting glass" cue. The highlight's
- * radius is computed from this component's own measured size via
- * [BoxWithConstraints] (35% of the larger dimension) rather than a fixed
- * pixel value — a fixed radius would look proportionally correct on a
- * Hero-sized card and wildly oversized on a small chip, exactly the same
- * mistake already caught and fixed once before in
- * [ai.rojan.designlab.ui.background.PremiumBackground]'s glow layer.
- * Defaults to `true` since at this proportional sizing it stays subtle
- * across every card size actually in use (chips through Hero), but is a
- * real off-switch, not a parameter for its own sake.
- * ROJAN AI Customer UI Final Visual Refinement addition, corrected per
- * explicit follow-up: [glassAlpha] reduced ~10% from its original
- * 0.32f (proportional reduction, not an absolute 8%–12% target) —
- * 0.32 * 0.90 = 0.288, rounded to 0.29. [glassSecondaryAlpha] reduced
- * by the same ~10% from its original 0.10f — 0.10 * 0.90 = 0.09. Both
- * values reduced by the identical percentage, preserving their
- * original ratio to each other exactly. This keeps the luxury frosted-
- * glass character (depth, readability, premium feel) rather than
- * approaching near-transparency, per "the previous adjustment was
- * interpreted incorrectly... do not make glass nearly transparent."
- *
- * Global Design System Refinement (Phase 1): [glassAlpha]/[glassSecondaryAlpha]
- * increased again — "Current cards are too transparent... Increase
- * frost effect, glass tint, background blur. Reduce transparency." —
- * 0.29f -> 0.38f (main) and 0.09f -> 0.12f (secondary), same ratio
- * preserved as every prior pass. [borderAlpha]/[borderSecondaryAlpha]
- * brought down to the explicit "8-12% opacity... very subtle...
- * avoid strong outlines" target (previously 0.65f/0.15f, both
- * genuinely too strong for that description) — 0.10f/0.03f. A soft,
- * explicit shadow color (derived from [RojanShadows.PremiumShadow],
- * which existed as a token but was never actually wired into any real
- * `.shadow()` call until now) replaces Compose's default sharper
- * system shadow, for "very soft shadow... premium floating effect."
- *
- * Depth Pass V2 (Global Glass System Upgrade): fill/border/highlight
- * alpha raised again per "cards look transparent and flat... stronger
- * separation from background... subtle edge highlights... soft inner
- * reflection." glassAlpha/glassSecondaryAlpha 0.40f/0.14f to 0.46f/0.18f,
- * borderAlpha/borderSecondaryAlpha 0.18f/0.08f to 0.24f/0.12f, and the
- * highlight radial's own two stops 0.26f/0.08f to 0.32f/0.12f. Same
- * proportional-bump pattern as every prior pass in this file's history;
- * every existing caller inherits this automatically, no new parameters,
- * no duplicate glass system.
+ * Shared Premium Glass Design System refactor: this is now a thin,
+ * palette-bound wrapper around [PremiumGlassSurface] (the canonical
+ * mechanic, Manager is its reference implementation) rather than its own
+ * implementation — [CustomerPalette] is bound here so this component's
+ * ~4 remaining real call sites (most of Customer migrated onto
+ * [ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface] since
+ * this doc was last accurate) keep working unchanged. Fill alpha moved
+ * from this file's own historical 0.46f/0.18f to the canonical
+ * 0.14f/0.06f as part of that unification — a real, deliberate opacity
+ * change for those call sites, not a no-op default.
  */
 @Composable
 fun GlassSurface(
     modifier: Modifier = Modifier,
     shape: Shape,
-    glassAlpha: Float = 0.46f,
-    glassSecondaryAlpha: Float = 0.18f,
-    borderAlpha: Float = 0.24f,
-    borderSecondaryAlpha: Float = 0.12f,
+    glassAlpha: Float = PremiumGlassTheme.FillAlpha,
+    glassSecondaryAlpha: Float = PremiumGlassTheme.FillSecondaryAlpha,
+    borderAlpha: Float = PremiumGlassTheme.BorderAlpha,
+    borderSecondaryAlpha: Float = PremiumGlassTheme.BorderSecondaryAlpha,
     elevation: Dp = RojanShadows.FloatingElevation,
     showHighlight: Boolean = true,
     content: @Composable () -> Unit
 ) {
-
-    BoxWithConstraints(
-        modifier = modifier
-            .shadow(
-                elevation = elevation,
-                shape = shape,
-                ambientColor = RojanShadows.PremiumShadow.copy(alpha = 0.20f),
-                spotColor = RojanShadows.PremiumShadow.copy(alpha = 0.20f),
-            )
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        RojanGlassWhite.copy(alpha = glassAlpha),
-                        RojanGlassWhite.copy(alpha = glassSecondaryAlpha)
-                    )
-                ),
-                shape = shape
-            )
-            .border(
-                width = 0.38.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = borderAlpha),
-                        Color.White.copy(alpha = borderSecondaryAlpha)
-                    ),
-                    start = Offset.Zero,
-                    end = Offset(600f, 600f)
-                ),
-                shape = shape
-            )
-    ) {
-
-        if (showHighlight) {
-
-            val density = LocalDensity.current
-
-            val highlightRadiusPx = with(density) {
-                (maxWidth.coerceAtLeast(maxHeight) * 0.35f).toPx()
-            }
-
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.32f),
-                                Color.White.copy(alpha = 0.12f),
-                                Color.Transparent
-                            ),
-                            center = Offset.Zero,
-                            radius = highlightRadiusPx.coerceAtLeast(1f)
-                        ),
-                        shape = shape
-                    )
-            )
-        }
-
-        content()
+    CompositionLocalProvider(LocalRojanPalette provides CustomerPalette) {
+        PremiumGlassSurface(
+            modifier = modifier,
+            shape = shape,
+            fillAlpha = glassAlpha,
+            fillSecondaryAlpha = glassSecondaryAlpha,
+            borderAlpha = borderAlpha,
+            borderSecondaryAlpha = borderSecondaryAlpha,
+            elevation = elevation,
+            showHighlight = showHighlight,
+            content = content,
+        )
     }
 }

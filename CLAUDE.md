@@ -68,10 +68,11 @@ following without explicit approval first:
   base, `RojanBackgroundGradient` wash at 0.14f alpha, single quiet
   `RojanAIGlow` radial zone (top-start, 0.05f alpha). Deliberately calm —
   do not add competing color zones.
-- **Glass system** — `GlassSurface.kt` defaults: `glassAlpha` 0.46f /
-  `glassSecondaryAlpha` 0.18f, `borderAlpha` 0.24f /
-  `borderSecondaryAlpha` 0.12f, highlight radial 0.32f/0.12f. Every glass
-  surface goes through this one component — never a bespoke translucent
+- **Glass system** — superseded by the **Shared Premium Glass Design
+  System** (see that section below) as of the cross-app unification.
+  `GlassSurface.kt` is now a thin wrapper around the canonical
+  `PremiumGlassSurface` mechanic, bound to `CustomerPalette`. Every glass
+  surface goes through that one mechanic — never a bespoke translucent
   Box.
 - **Shadow system** — `RojanShadows.kt` three-tier scale (`SoftElevation`
   8.4dp / `FloatingElevation` 18.9dp / `PremiumElevation` 25.2dp), applied
@@ -121,13 +122,14 @@ first:
   Manager-only scaffold (`RojanScaffold` has no background parameter to
   swap) — it stays a thin duplicate of `RojanScaffold`'s layout, not a
   fork with new structure.
-- **Glass style** — Every `GlassSurface` call in `manager/components/`
-  passes the `ManagerGlass` constants (`manager/components/ManagerTheme.kt`):
-  `glassAlpha` 0.72f / `glassSecondaryAlpha` 0.5f, `borderAlpha` 0.35f /
-  `borderSecondaryAlpha` 0.2f — more opaque than the shared `GlassSurface`
-  default (0.46f/0.18f fill, 0.24f/0.12f border), per the "semi-opaque,
-  maximum readability" direction. The shared `GlassSurface.kt` itself
-  stays untouched; Customer screens keep the original defaults.
+- **Glass style** — Manager IS the master reference implementation for
+  the **Shared Premium Glass Design System** (see that section below):
+  `ManagerGlassSurface` in `manager/components/ManagerGlassTheme.kt` now
+  delegates to the canonical `PremiumGlassSurface` (fixed fill 0.14f/
+  0.06f, border 1f/0.9f via the shared metallic border), bound to
+  `ManagerPalette`. Customer's `GlassSurface`/`HomeGlassSurface` render
+  through the identical mechanic, recolored via `CustomerPalette` — no
+  parallel glass system remains.
 - **Teal + Gold identity** — `ManagerAccent` (same file): `Teal` (=
   `RojanCategorySkinIcon`) for booking/customers/quick-actions/calendar;
   `Gold` (= `RojanRatingGold`) for revenue/occupancy/AI Insight. Distinct
@@ -148,6 +150,67 @@ same primitives at their current values — e.g. the sibling `calendar/`,
 `customers/`, `services/`, `staff/`, `settings/` screens) don't need
 approval. Changing the values themselves, or introducing a parallel
 visual system, does.
+
+## Shared Premium Glass Design System (Frozen — All Apps)
+
+Every ROJAN app (Manager, Customer, and future Specialist/Reception/
+Accountant/Inventory apps) renders every UI mechanic — glass, borders,
+shadows, glow, icon rendering, typography, buttons, cards, dialogs,
+sheets, navigation, search, inputs, chips, badges, animation — through
+**one shared engine**. The **only** thing allowed to differ per app is
+the color palette, expressed through `RojanAppPalette`
+(`ui/theme/RojanAppPalette.kt`) — never a forked component or a second
+implementation of the same mechanic. **Manager is the named master
+reference**: when a mechanic needs picking between divergent historical
+implementations, Manager's is canonical. This does not mean apps look
+identical — same premium material language, different brand color
+expression; each app keeps its personality through its palette's
+gradients/accents, not through a different rendering mechanic.
+
+**Palette contract:** `RojanAppPalette` (`fillTint`, `shadowAmbient`,
+`shadowSpot`, `highlightTint`, `textPrimary`/`Secondary`/`Accent`) is
+provided once via `LocalRojanPalette` at each app's root activity
+(`MainActivity` → `CustomerPalette`, `ManagerActivity` →
+`ManagerPalette`). It has no default — an unprovided palette fails loudly
+rather than rendering mystery colors. New apps get a new
+`RojanAppPalette` instance + root provider; zero new component code.
+
+**Phase 1 — done:** glass surface mechanic (fill, shadow stack,
+highlight, layering) unified into
+`ui/components/glass/PremiumGlassSurface.kt` (fixed fill 0.14f/0.06f,
+two-shadow stack at `elevation+16dp`/`elevation`, one highlight radial at
+0.35× max dimension, the existing shared `premiumMetallicBorder` —
+untouched, was already unified before this phase). `GlassSurface`,
+`ManagerGlassSurface`, `HomeGlassSurface` are now thin palette-bound
+wrappers around it; all existing call sites and their
+`fillAlpha`/`borderAlpha` override parameters (used by a handful of
+selected/unselected chip states) still work. The dead, unused
+`screens/customer/theme/` package (a second, superseded "Customer"
+visual identity — colors/glass/background/icon/text-field, zero real
+call sites) was identified for deletion as part of this phase.
+
+**Phases 2-6 — planned, not yet built:**
+- **Phase 2 — Icon rendering.** Give the shared `RojanIconContainer` the
+  glow/gradient-background/gradient-border hooks Manager's
+  `ManagerIconContainer` currently bolts on externally; migrate
+  Customer's plain call sites to opt in.
+- **Phase 3 — Buttons.** One shared `PremiumButton` with a
+  palette-supplied fill (`Gradient` vs `Glass`) so a bold CTA gradient is
+  an available, identical-in-kind affordance in both apps' own colors —
+  not a forked component (`PremiumButton` vs `ManagerPrimaryButton` as
+  they exist today).
+- **Phase 4 — Cards.** One shared card shell (accent-blur layer +
+  `PremiumGlassSurface` + entrance stagger); retrofit Manager's
+  hand-rolled cards onto it; resolve dead `RojanHomeCard` vs. live
+  `HomeCard`.
+- **Phase 5 — Net-new shared components.** Dialog, bottom sheet, chip,
+  badge, search bar, input field, bottom navigation — none has a real
+  cross-app mechanic to reconcile today (most are single-app or
+  duplicated 3-5 ways with no shared base); this is new-component design
+  work once Phases 1-4 establish the patterns to build on.
+- **Phase 6 — Future apps.** When Specialist/Reception/Accountant/
+  Inventory are actually built: new `RojanAppPalette` instance + root
+  provider, zero new glass/border/button/card/icon code.
 
 ## ROJAN MANAGER FOUNDATION v1.0 FROZEN
 

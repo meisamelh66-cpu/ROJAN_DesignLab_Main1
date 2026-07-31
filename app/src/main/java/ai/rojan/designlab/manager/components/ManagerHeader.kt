@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -36,11 +37,18 @@ import androidx.compose.ui.unit.sp
  * of calling that shared, non-parameterized component — `RojanLogo.kt`
  * itself and Customer's use of it are untouched.
  */
+/**
+ * [onNotificationsClick] is currently unused: no notifications screen
+ * exists yet, so the bell renders dimmed/inert rather than being wired
+ * to a placeholder. Kept as a parameter (not removed) so wiring it up
+ * later, once a real destination exists, is a one-line change here.
+ */
 @Composable
 fun ManagerHeader(
     modifier: Modifier = Modifier,
     managerName: String = "مدیر سالن",
     onNotificationsClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -71,7 +79,7 @@ fun ManagerHeader(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column {
+            Column(modifier = Modifier.rojanPressable(onClick = onProfileClick)) {
                 Text(
                     text = "خوش آمدید،",
                     style = RojanTypography.Caption,
@@ -87,7 +95,7 @@ fun ManagerHeader(
             ManagerIconContainer(
                 imageVector = Icons.Filled.Notifications,
                 contentDescription = "اعلان‌ها",
-                modifier = Modifier.rojanPressable(onClick = onNotificationsClick),
+                modifier = Modifier.alpha(0.5f),
                 containerSize = 44.dp,
             )
         }

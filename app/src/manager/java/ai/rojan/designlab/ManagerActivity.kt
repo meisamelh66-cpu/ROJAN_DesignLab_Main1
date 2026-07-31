@@ -2,10 +2,13 @@ package ai.rojan.designlab
 
 import ai.rojan.designlab.manager.navigation.ManagerDestinations
 import ai.rojan.designlab.manager.navigation.managerNavGraph
+import ai.rojan.designlab.ui.theme.LocalRojanPalette
+import ai.rojan.designlab.ui.theme.ManagerPalette
 import ai.rojan.designlab.ui.theme.RojanTheme
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 
@@ -23,13 +26,15 @@ class ManagerActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            RojanTheme {
-                val navController = rememberNavController()
-                NavHost(
-                    navController = navController,
-                    startDestination = ManagerDestinations.SPLASH,
-                ) {
-                    managerNavGraph(navController)
+            CompositionLocalProvider(LocalRojanPalette provides ManagerPalette) {
+                RojanTheme {
+                    val navController = rememberNavController()
+                    NavHost(
+                        navController = navController,
+                        startDestination = ManagerDestinations.SPLASH,
+                    ) {
+                        managerNavGraph(navController)
+                    }
                 }
             }
         }

@@ -10,11 +10,21 @@
         main) — the string VALUE is overridden per-flavor instead, via
         src/manager/res/values/strings.xml, so no manifest attribute
         conflict is needed for the label.
+
+        Icon-clipping fix: android:icon/roundIcon point at
+        @drawable/rojan_manager_logo_launcher — a launcher-only asset
+        (same artwork, same colors, same logo; only the background
+        outside the rounded-square card is made transparent instead of
+        opaque dark glow) — NOT the original rojan_manager_logo.png,
+        which stays byte-for-byte unchanged and is still what
+        ManagerHeader/ManagerSplashScreen/ManagerProfileScreen render
+        in-app. This is a plain (non-adaptive) bitmap reference, same as
+        before — no adaptive-icon XML involved.
     -->
 
     <application
-        android:icon="@drawable/rojan_manager_logo"
-        android:roundIcon="@drawable/rojan_manager_logo"
+        android:icon="@drawable/rojan_manager_logo_launcher"
+        android:roundIcon="@drawable/rojan_manager_logo_launcher"
         tools:replace="android:icon,android:roundIcon">
 
         <!--

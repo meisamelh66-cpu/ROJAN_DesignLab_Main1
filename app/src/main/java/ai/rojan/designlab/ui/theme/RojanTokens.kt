@@ -331,3 +331,25 @@ val RojanLoadingTrack = Color(0x22FFFFFF)
 val RojanLoadingGlowStart = Color(0xFFFFE8C7)
 val RojanLoadingGlowMid = Color(0xFFF6C47C)
 val RojanLoadingGlowEnd = Color(0xFFE9A857)
+
+// =====================================
+// ROJAN AI - PREMIUM GLASS BORDER
+// Shared Rose Gold + Gold metallic border language (Premium Glass Border
+// Design Update), applied consistently across every glass surface in
+// every module via the Shared Premium Glass Design System's
+// PremiumGlassSurface (GlassSurface/HomeGlassSurface/ManagerGlassSurface
+// are thin wrappers around it) — per
+// design/reference/Premium_Glass_Border_Reference.png.
+// Border-only tokens: fill, layout, typography, and shadows are untouched.
+// =====================================
+val RojanPremiumBorderRoseGold = Color(0xFFE0A67A)
+val RojanPremiumBorderGold = Color(0xFFD4AF37)
+
+/** Bright warm-champagne specular stop — simulates polished metal catching light at one point along the edge, not a flat single-tone line. */
+val RojanPremiumBorderHighlight = Color(0xFFFCE7B8)
+
+/** Darkened-gold contrast band — real polished metal reads as metal because it alternates bright and shadowed passages, not one flat mid-tone. */
+val RojanPremiumBorderShadow = Color(0xFF7A4A22)
+
+/** Near-white warm-gold specular — the sharpest glint tone, distinct from [RojanPremiumBorderHighlight]'s broader champagne band; reserved for corner sparkle points and tight reflection lines. */
+val RojanPremiumBorderSpecular = Color(0xFFFFF6E0)

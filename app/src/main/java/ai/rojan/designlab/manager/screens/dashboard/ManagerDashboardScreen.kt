@@ -3,6 +3,7 @@ package ai.rojan.designlab.manager.screens.dashboard
 import ai.rojan.designlab.manager.components.AIInsightCard
 import ai.rojan.designlab.manager.components.CalendarPreviewSection
 import ai.rojan.designlab.manager.components.ManagerHeader
+import ai.rojan.designlab.manager.components.ManagerQuickAction
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.components.QuickActionsSection
 import ai.rojan.designlab.manager.components.SalonIdentityCard
@@ -19,46 +20,56 @@ import androidx.compose.ui.tooling.preview.Preview
 /**
  * Manager App workspace — Dashboard v1.0 UI. Isolated from Customer App
  * v1.0 (frozen): lives entirely under `ai.rojan.designlab.manager`, built
- * only from shared design-system primitives ([ManagerScaffold] wraps
- * the shared `WarmBackground`, the glass system,
- * [ai.rojan.designlab.ui.theme.RojanTypography]/tokens, the same brand
- * mark Customer App uses) — no Customer screen/component/route is read
- * from or modified.
+ * only from shared design-system primitives — no Customer screen/
+ * component/route is read from or modified. Distinct from the
+ * pre-existing, unrelated placeholder at
+ * [ai.rojan.designlab.screens.dashboard.ManagerDashboardScreen] (a
+ * different package, part of Customer's own role-based dashboards).
  *
- * UI only, per this pass's scope: every section below ([ManagerHeader],
- * [SalonIdentityCard], [TodayOverviewSection], [QuickActionsSection],
- * [AIInsightCard], [CalendarPreviewSection]) renders static placeholder
- * content — no backend, no ViewModel, no navigation wiring (this screen
- * is still not called from anywhere; see
- * [ai.rojan.designlab.manager.navigation.ManagerNavGraph]). Distinct
- * from the pre-existing, already-routed placeholder at
- * [ai.rojan.designlab.screens.dashboard.ManagerDashboardScreen].
- *
- * Readability theme update: uses [ManagerScaffold] (warm white
- * background) instead of the shared [ai.rojan.designlab.ui.components.scaffold.RojanScaffold]
- * (dark photo canvas) — layout/content/composition order unchanged.
- *
- * Calendar entry point connected: [onViewCalendarClick] threads through
- * to [CalendarPreviewSection]'s "مشاهده تقویم کامل" CTA — wired in
- * [ai.rojan.designlab.manager.navigation.ManagerNavGraph], not hardcoded
- * here, so this screen stays navigation-agnostic (`{}` no-op default
- * still works standalone/in `@Preview`).
+ * Real entry points wired in [ai.rojan.designlab.manager.navigation.ManagerNavGraph]:
+ * [onViewCalendarClick] (Calendar Preview CTA), [onCreateAppointmentClick]
+ * (Quick Actions' "نوبت جدید", routes into the booking wizard),
+ * [onViewCustomersClick] (Quick Actions' "مشتری جدید", routes to
+ * [ai.rojan.designlab.manager.screens.customers.ManagerCustomersListScreen]
+ * — the only existing customers destination; there is no separate
+ * customer-creation screen), and [onProfileClick] (header greeting,
+ * routes to [ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen]).
+ * All default to no-op so this screen stays navigation-agnostic
+ * standalone/in `@Preview`. The remaining Quick Actions
+ * (خدمات/کارکنان/تنظیمات) have no implemented screen yet, so
+ * [QuickActionsSection] renders them disabled rather than wiring them to
+ * a placeholder. [TodayOverviewSection] and [SalonIdentityCard]/
+ * [AIInsightCard] still render their own data — see those components for
+ * what's real vs. placeholder.
  */
 @Composable
 fun ManagerDashboardScreen(
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
     onViewCalendarClick: () -> Unit = {},
+    onCreateAppointmentClick: () -> Unit = {},
+    onViewCustomersClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
 ) {
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceLG),
         ) {
-            item { ManagerHeader() }
+            item { ManagerHeader(onProfileClick = onProfileClick) }
             item { SalonIdentityCard() }
             item { TodayOverviewSection() }
-            item { QuickActionsSection() }
+            item {
+                QuickActionsSection(
+                    onActionClick = { action ->
+                        when (action) {
+                            ManagerQuickAction.NEW_APPOINTMENT -> onCreateAppointmentClick()
+                            ManagerQuickAction.NEW_CUSTOMER -> onViewCustomersClick()
+                            else -> Unit
+                        }
+                    },
+                )
+            }
             item { AIInsightCard() }
             item { CalendarPreviewSection(onViewCalendarClick = onViewCalendarClick) }
         }

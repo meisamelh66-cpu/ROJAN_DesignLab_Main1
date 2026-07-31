@@ -1,8 +1,8 @@
 package ai.rojan.designlab.screens.customer.theme
 
+import ai.rojan.designlab.ui.components.glass.premiumMetallicBorder
 import ai.rojan.designlab.ui.theme.RojanShadows
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.padding
@@ -44,8 +44,13 @@ object CustomerGlassTheme {
     // rather than a near-transparent hairline.
     const val FillAlpha = 0.82f
     const val FillSecondaryAlpha = 0.42f
-    const val BorderAlpha = 0.95f
-    const val BorderSecondaryAlpha = 0.50f
+
+    // Premium Glass Border Design Update: retuned again per explicit
+    // follow-up ("too weak... barely visible... not neon" — distinct
+    // from oversaturated flatness) — near-opaque 1f/0.9f, paired with
+    // the shared size-aware metallic border (see premiumMetallicBorder).
+    const val BorderAlpha = 1f
+    const val BorderSecondaryAlpha = 0.9f
 }
 
 /**
@@ -149,17 +154,14 @@ fun CustomerGlassSurface(
                     ),
                     shape = shape,
                 )
-                .border(
-                    width = 1.6.dp,
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            CustomerColors.RoseGold.copy(alpha = borderAlpha),
-                            CustomerColors.RoseGold.copy(alpha = borderSecondaryAlpha),
-                        ),
-                        start = Offset.Zero,
-                        end = Offset(600f, 600f),
-                    ),
+                // Premium Glass Border Design Update: shared size-aware
+                // metallic border (was a single-hue Rose Gold ring, then
+                // a fixed-pixel-space gradient that read flat on most
+                // card sizes — see premiumMetallicBorder).
+                .premiumMetallicBorder(
                     shape = shape,
+                    baseAlpha = borderAlpha,
+                    secondaryAlpha = borderSecondaryAlpha,
                 ),
         ) {
             if (showHighlight) {

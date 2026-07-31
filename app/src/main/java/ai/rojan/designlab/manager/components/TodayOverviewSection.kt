@@ -1,5 +1,8 @@
 package ai.rojan.designlab.manager.components
 
+import ai.rojan.designlab.manager.data.ManagerDashboardStats
+import ai.rojan.designlab.manager.data.computeManagerDashboardStats
+import ai.rojan.designlab.manager.data.toPersianDigits
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
@@ -16,12 +19,12 @@ import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
-/** Static placeholder metric — no backend wired yet. */
 private data class OverviewStat(
     val icon: ImageVector,
     val label: String,
@@ -29,24 +32,27 @@ private data class OverviewStat(
     val accent: Color,
 )
 
-/** Turquoise + Gold, alternating — matches the reference's KPI row exactly. */
-private val sampleOverviewStats = listOf(
-    OverviewStat(Icons.Filled.EventAvailable, "نوبت‌های امروز", "۱۲", ManagerColors.Turquoise),
-    OverviewStat(Icons.Filled.AttachMoney, "درآمد امروز", "۴.۲م", ManagerColors.Gold),
-    OverviewStat(Icons.Filled.Groups, "مشتریان جدید", "۳", ManagerColors.Turquoise),
-    OverviewStat(Icons.AutoMirrored.Filled.TrendingUp, "نرخ اشغال", "٪۷۸", ManagerColors.Gold),
+/** Turquoise + Gold, alternating — matches the reference's KPI row exactly; values come from [stats], not sample data. */
+private fun overviewStatsFrom(stats: ManagerDashboardStats): List<OverviewStat> = listOf(
+    OverviewStat(Icons.Filled.EventAvailable, "نوبت‌های امروز", stats.todaysAppointmentCount.toPersianDigits(), ManagerColors.Turquoise),
+    OverviewStat(Icons.Filled.AttachMoney, "درآمد امروز", stats.todaysRevenueLabel, ManagerColors.Gold),
+    OverviewStat(Icons.Filled.Groups, "مشتریان جدید", stats.newCustomerCount.toPersianDigits(), ManagerColors.Turquoise),
+    OverviewStat(Icons.AutoMirrored.Filled.TrendingUp, "نرخ اشغال", "٪${stats.occupancyPercent.toPersianDigits()}", ManagerColors.Gold),
 )
 
 /**
- * Manager App workspace — "today's overview" stat grid. Static sample
- * values only ("No backend" per this pass); built from the Manager dark
- * luxury theme ([ManagerGlassSurface], [ManagerIconContainer]).
+ * Manager App workspace — "today's overview" stat grid. Values come from
+ * [computeManagerDashboardStats] (real computation over
+ * [ai.rojan.designlab.manager.data.ManagerRepositories], previously
+ * built but unused) — no static sample data.
  *
  * ROJAN AI Manager Visual Theme Implementation: re-themed for the dark
- * luxury background — content/layout/data unchanged.
+ * luxury background — content/layout unchanged.
  */
 @Composable
 fun TodayOverviewSection(modifier: Modifier = Modifier) {
+    val overviewStats = remember { overviewStatsFrom(computeManagerDashboardStats()) }
+
     Column(modifier = modifier.fillMaxWidth()) {
         RtlSectionHeader(
             text = "نمای امروز",
@@ -61,7 +67,7 @@ fun TodayOverviewSection(modifier: Modifier = Modifier) {
                 .padding(top = RojanDimens.SpaceMD),
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {
-            sampleOverviewStats.chunked(2).forEach { rowStats ->
+            overviewStats.chunked(2).forEach { rowStats ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),

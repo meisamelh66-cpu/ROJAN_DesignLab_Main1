@@ -27,33 +27,45 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-/** Static placeholder action — no navigation wired yet ("Do not connect routing yet"). */
+/** Stable identifier for each quick action — navigation switches on this, never on [QuickAction.label] (display text, not an identifier). */
+enum class ManagerQuickAction {
+    NEW_APPOINTMENT, NEW_CUSTOMER, SERVICES, STAFF, SETTINGS
+}
+
 private data class QuickAction(
+    val type: ManagerQuickAction,
     val icon: ImageVector,
     val label: String,
 )
 
 private val sampleQuickActions = listOf(
-    QuickAction(Icons.Filled.CalendarMonth, "نوبت جدید"),
-    QuickAction(Icons.Filled.PersonAdd, "مشتری جدید"),
-    QuickAction(Icons.Filled.ContentCut, "خدمات"),
-    QuickAction(Icons.Filled.Groups, "کارکنان"),
-    QuickAction(Icons.Filled.Settings, "تنظیمات"),
+    QuickAction(ManagerQuickAction.NEW_APPOINTMENT, Icons.Filled.CalendarMonth, "نوبت جدید"),
+    QuickAction(ManagerQuickAction.NEW_CUSTOMER, Icons.Filled.PersonAdd, "مشتری جدید"),
+    QuickAction(ManagerQuickAction.SERVICES, Icons.Filled.ContentCut, "خدمات"),
+    QuickAction(ManagerQuickAction.STAFF, Icons.Filled.Groups, "کارکنان"),
+    QuickAction(ManagerQuickAction.SETTINGS, Icons.Filled.Settings, "تنظیمات"),
 )
 
 /**
- * Manager App workspace — quick-actions row. Each chip is inert for now
- * (single [onActionClick] callback, no-op by default) since this pass
- * builds UI only, not routing.
+ * Manager App workspace — quick-actions row. [onActionClick] is keyed by
+ * [ManagerQuickAction] (typed) rather than the chip's display label, so
+ * call sites route on a stable identifier that can't drift if the
+ * Persian label copy ever changes. NEW_APPOINTMENT/NEW_CUSTOMER route to
+ * real screens; SERVICES/STAFF/SETTINGS have no implemented screen
+ * anywhere in the project yet (verified — no screen, nav entry,
+ * repository-backed management UI, domain model for Settings, or any
+ * other consumable implementation exists), so they stay visible and
+ * tappable like every other chip, just with no handler wired for those
+ * three cases at the call site — not disabled, not a placeholder.
  *
  * ROJAN AI Manager Visual Theme Implementation: re-themed for the dark
  * luxury background ([ManagerGlassSurface]/[ManagerIconContainer]) —
- * content/layout/navigation unchanged.
+ * content/layout unchanged.
  */
 @Composable
 fun QuickActionsSection(
     modifier: Modifier = Modifier,
-    onActionClick: (String) -> Unit = {},
+    onActionClick: (ManagerQuickAction) -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         RtlSectionHeader(
@@ -68,7 +80,7 @@ fun QuickActionsSection(
             horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {
             items(sampleQuickActions) { action ->
-                QuickActionChip(action = action, onClick = { onActionClick(action.label) })
+                QuickActionChip(action = action, onClick = { onActionClick(action.type) })
             }
         }
     }
