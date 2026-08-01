@@ -113,7 +113,14 @@ fun PopularServices(
     val catalogEngine = remember { CatalogEngine() }
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+        // Shared Premium Glass Design System spacing rhythm: title-to-content
+        // gap everywhere a section has a visible title, so this reads as
+        // tightly "integrated" the same way Manager Dashboard's sections do
+        // (see TodayOverviewSection/QuickActionsSection/CalendarPreviewSection)
+        // — kept as its own Row rather than RtlSectionHeader since this
+        // section's title needs a trailing "مشاهده همه" action
+        // RtlSectionHeader has no slot for.
+        verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceTitleToContent),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -134,7 +141,7 @@ fun PopularServices(
         }
 
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
+            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceCardToCard),
         ) {
             itemsIndexed(catalogEngine.allServices()) { index, service ->
                 HomeCard(

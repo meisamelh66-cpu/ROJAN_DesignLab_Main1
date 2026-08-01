@@ -13,6 +13,25 @@ object RojanDimens {
     val SpaceXL = 32.dp
     val SpaceXXL = 48.dp
 
+    /**
+     * Shared Premium Glass Design System — dashboard rhythm tokens, one
+     * name per semantic role rather than reusing the generic scale
+     * tokens directly at each call site. Every app (Manager, Customer,
+     * and future Specialist/Reception/etc.) renders its stacked-card
+     * dashboard lists off these three, never a raw dp literal or a bare
+     * [SpaceXS]/[SpaceMD] chosen ad hoc per screen — so the whole rhythm
+     * moves from one place if it's ever retuned again. Values match what
+     * was already verified on-device as the compact/"one connected
+     * dashboard" feel (see CLAUDE.md's "Spacing rhythm" section); this
+     * only names them, it doesn't change them. Scope carve-out (see
+     * CLAUDE.md): applies to stacked-card dashboard-style screens, not
+     * booking-flow steps or single-entity detail screens — those keep
+     * whatever spacing already suits their own different layout shape.
+     */
+    val SpaceTitleToContent = SpaceXS
+    val SpaceCardToCard = SpaceMD
+    val SpaceSectionToSection = SpaceMD
+
 
     // Corner Radius
     val RadiusSM = 12.dp

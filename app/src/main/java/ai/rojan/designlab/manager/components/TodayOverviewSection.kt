@@ -64,13 +64,16 @@ fun TodayOverviewSection(modifier: Modifier = Modifier) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = RojanDimens.SpaceMD),
-            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
+                // Shared Premium Glass Design System spacing rhythm:
+                // title-to-content gap everywhere — the title reads as
+                // integrated into the section, not floating above it.
+                .padding(top = RojanDimens.SpaceTitleToContent),
+            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceCardToCard),
         ) {
             overviewStats.chunked(2).forEach { rowStats ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
+                    horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceCardToCard),
                 ) {
                     rowStats.forEach { stat ->
                         StatCard(stat = stat, modifier = Modifier.weight(1f))

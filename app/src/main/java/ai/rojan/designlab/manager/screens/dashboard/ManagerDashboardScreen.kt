@@ -54,7 +54,10 @@ fun ManagerDashboardScreen(
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceLG),
+            // Shared Premium Glass Design System spacing rhythm: compact
+            // section-to-section gap so stacked cards read as one
+            // dashboard, not isolated islands with large empty gaps.
+            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSectionToSection),
         ) {
             item { ManagerHeader(onProfileClick = onProfileClick) }
             item { SalonIdentityCard() }

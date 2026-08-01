@@ -59,13 +59,20 @@ import ai.rojan.designlab.ui.theme.RojanPremiumBorderSpecular
  */
 fun Modifier.premiumMetallicBorder(
     shape: Shape,
-    strokeWidth: Dp = 2.6.dp,
+    strokeWidth: Dp = PremiumGlassTheme.BorderStrokeWidth,
     baseAlpha: Float = 1f,
     secondaryAlpha: Float = 0.9f,
 ): Modifier = this.drawWithContent {
     drawContent()
 
     val strokePx = strokeWidth.toPx()
+    // Fixed scale anchor for the glow bloom / corner-sparkle sizing below —
+    // deliberately NOT derived from the (now thinner) [strokePx] above, so
+    // thinning the crisp metallic line itself doesn't also shrink the glow/
+    // reflections/corner sparkles. Value is the border's original stroke
+    // width before the "slightly thinner" pass, kept only as a sizing
+    // reference, never drawn directly.
+    val auxPx = 2.6.dp.toPx()
     val outline = shape.createOutline(size, layoutDirection, this)
     val path = Path().apply { addOutline(outline) }
 
@@ -86,7 +93,7 @@ fun Modifier.premiumMetallicBorder(
     // get an oversized halo relative to their own size. Drawn first so
     // the crisp strokes below sit on top of it.
     val glowSpan = minOf(size.width, size.height)
-    val maxGlowWidth = (glowSpan * 0.14f).coerceIn(strokePx * 4f, strokePx * 13f)
+    val maxGlowWidth = (glowSpan * 0.14f).coerceIn(auxPx * 4f, auxPx * 13f)
     val glowSteps = 7
     for (i in glowSteps downTo 1) {
         val t = i / glowSteps.toFloat()
@@ -145,9 +152,9 @@ fun Modifier.premiumMetallicBorder(
     // accents (the same glyph the AI Insight icon uses). A same-tone soft
     // bloom sits behind it so the star doesn't look pasted onto a plain
     // background, then a tiny bright core sells "catching light."
-    val cornerInset = (glowSpan * 0.09f).coerceIn(strokePx * 3f, strokePx * 9f)
+    val cornerInset = (glowSpan * 0.09f).coerceIn(auxPx * 3f, auxPx * 9f)
     val primarySparkleCenter = Offset(cornerInset, cornerInset)
-    val primarySparkleSize = (glowSpan * 0.045f).coerceIn(strokePx * 2.5f, strokePx * 6f)
+    val primarySparkleSize = (glowSpan * 0.045f).coerceIn(auxPx * 2.5f, auxPx * 6f)
     drawPath(
         path = path,
         brush = Brush.radialGradient(

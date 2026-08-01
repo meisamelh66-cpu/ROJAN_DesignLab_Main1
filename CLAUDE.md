@@ -212,6 +212,51 @@ call sites) was identified for deletion as part of this phase.
   Inventory are actually built: new `RojanAppPalette` instance + root
   provider, zero new glass/border/button/card/icon code.
 
+**Spacing rhythm (Frozen — All Apps):** every app uses only the
+`RojanDimens` tokens (`ui/theme/Dimensions.kt`) — `SpaceXS` 4dp, `SpaceSM`
+8dp, `SpaceMD` 16dp, `SpaceLG` 24dp, `SpaceXL` 32dp, `SpaceXXL` 48dp;
+never a raw `.dp` literal for layout spacing. Wherever a screen is a
+stacked-card "dashboard" list (a `LazyColumn` of card-like sections, not
+a booking-flow step or a detail screen), three **named** rhythm tokens
+are canonical — the semantic role, not the raw scale token, is what call
+sites reference, so the whole rhythm moves from one place if it's ever
+retuned again:
+- **`RojanDimens.SpaceSectionToSection`** (= `SpaceMD`, 16dp) — on the
+  screen's own top-level `LazyColumn`'s `verticalArrangement`, between
+  whole sections/cards. Sections should read as one connected dashboard,
+  not isolated islands with large empty gaps between them.
+- **`RojanDimens.SpaceCardToCard`** (= `SpaceMD`, 16dp) — between cards
+  *within* one section (a KPI grid's rows, a horizontal chip/card row's
+  `Arrangement.spacedBy`).
+- **`RojanDimens.SpaceTitleToContent`** (= `SpaceXS`, 4dp) — between a
+  section's title (`RtlSectionHeader`, `ui/components/rtl/RtlLayoutKit.kt`,
+  or an equivalent title `Row`) and the content below it.
+  `RtlSectionHeader` itself applies zero vertical padding by design — the
+  gap is always the caller's own `padding(top = RojanDimens.SpaceTitleToContent)`
+  (or equivalent `Arrangement.spacedBy`), so a title reads as integrated
+  into its section, not floating above it.
+
+Screen-edge margins (a screen's own outer padding) are a separate
+concern from this section/card/title rhythm — not touched by this rule.
+`SectionToSection` and `CardToCard` currently share the same 16dp value,
+but they're named separately because they answer different questions
+(whole-section rhythm vs. within-section card rhythm) and may need to
+diverge later — retuning one must never silently retune the other.
+
+Verified live in `ManagerDashboardScreen.kt` (+
+`TodayOverviewSection.kt`/`QuickActionsSection.kt`/
+`CalendarPreviewSection.kt`) and `CustomerHomeScreen.kt` (+
+`PopularServices.kt`, which keeps its own title `Row` rather than
+`RtlSectionHeader` since it needs a trailing "مشاهده همه" action
+`RtlSectionHeader` has no slot for — its gap value still matches the
+canonical `SpaceTitleToContent`). The other ~13 files using
+`RtlSectionHeader` (booking flows, calendar, customer-list screens) are
+deliberately out of scope — they're booking-flow steps or detail/list
+screens, the exact carve-out this rule already draws, and keep whatever
+spacing already suits their own different layout shape. Migrate one onto
+these tokens only if it's actually restructured into a stacked-card
+dashboard list — not as a drive-by rename.
+
 ## ROJAN MANAGER FOUNDATION v1.0 FROZEN
 
 Approved baseline — everything below is frozen. Do not change any of it

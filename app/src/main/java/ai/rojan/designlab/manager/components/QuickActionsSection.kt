@@ -76,8 +76,10 @@ fun QuickActionsSection(
         )
 
         LazyRow(
-            modifier = Modifier.padding(top = RojanDimens.SpaceMD),
-            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
+            // Shared Premium Glass Design System spacing rhythm:
+            // title-to-content gap everywhere.
+            modifier = Modifier.padding(top = RojanDimens.SpaceTitleToContent),
+            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceCardToCard),
         ) {
             items(sampleQuickActions) { action ->
                 QuickActionChip(action = action, onClick = { onActionClick(action.type) })

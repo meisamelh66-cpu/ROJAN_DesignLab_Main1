@@ -1,6 +1,8 @@
 package ai.rojan.designlab.screens.customer
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,7 +11,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.components.hero.HeroBookingCard
 import ai.rojan.designlab.presentation.auth.AuthViewModel
@@ -115,52 +122,79 @@ fun CustomerHomeScreen(
 ) {
     var searchMode by remember { mutableStateOf(SearchMode.SERVICES) }
 
+    // Fixed bottom bar (overlay behavior): CustomerBottomBar moved out of the
+    // LazyColumn and pinned via Box + Alignment.BottomCenter so it stays put
+    // while content scrolls beneath it, matching modern edge-to-edge nav bar
+    // behavior. Its real measured height (not a guessed constant) becomes
+    // the LazyColumn's bottom contentPadding so the last section still ends
+    // up fully visible above the bar at rest, while scrolling naturally
+    // carries content underneath the bar's (already-translucent) glass
+    // surface on the way there. Horizontal/top screen-edge margins are
+    // unchanged — only the bottom inset moved from the outer Modifier.padding
+    // into contentPadding, which is what makes the overlay possible.
+    val density = LocalDensity.current
+    var bottomBarHeight by remember { mutableStateOf(0.dp) }
+
     HomeBackgroundTheme(
         modifier = Modifier.fillMaxSize(),
     ) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(RojanDimens.SpaceLG),
-            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceLG),
-        ) {
-            item {
-                HomeHeader(
-                    displayName = authViewModel.currentDisplayName,
-                    onProfileClick = onProfileClick,
-                )
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = RojanDimens.SpaceLG),
+                contentPadding = PaddingValues(
+                    top = RojanDimens.SpaceLG,
+                    bottom = RojanDimens.SpaceLG + bottomBarHeight,
+                ),
+                // Shared Premium Glass Design System spacing rhythm: compact
+                // section-to-section gap (matches Manager Dashboard's
+                // LazyColumn) so stacked cards read as one dashboard, not
+                // isolated islands.
+                verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSectionToSection),
+            ) {
+                item {
+                    HomeHeader(
+                        displayName = authViewModel.currentDisplayName,
+                        onProfileClick = onProfileClick,
+                    )
+                }
+                item { AISearchBar(onClick = onSearchClick) }
+                item {
+                    SearchModeTabs(
+                        selected = searchMode,
+                        onSelectedChange = { searchMode = it },
+                    )
+                }
+                item { PopularServices(onViewAllClick = onViewAllServicesClick) }
+                item { TopSpecialists(onSpecialistClick = onSpecialistClick) }
+                item { PromotionsSection() }
+                item { FeaturedSalons() }
+                item { HeroBookingCard(onClick = onBookAppointmentClick) }
+                item { NearbySalons() }
+                item { RecommendedSalons(onSalonClick = onSalonClick) }
+                item { UpcomingBookings(ecosystemViewModel) }
+                item { RecentVisits(ecosystemViewModel, onSalonClick = onSalonClick) }
+                item { FollowedSalons(ecosystemViewModel, onSalonClick = onSalonClick) }
             }
-            item { AISearchBar(onClick = onSearchClick) }
-            item {
-                SearchModeTabs(
-                    selected = searchMode,
-                    onSelectedChange = { searchMode = it },
-                )
-            }
-            item { PopularServices(onViewAllClick = onViewAllServicesClick) }
-            item { TopSpecialists(onSpecialistClick = onSpecialistClick) }
-            item { PromotionsSection() }
-            item { FeaturedSalons() }
-            item { HeroBookingCard(onClick = onBookAppointmentClick) }
-            item { NearbySalons() }
-            item { RecommendedSalons(onSalonClick = onSalonClick) }
-            item { UpcomingBookings(ecosystemViewModel) }
-            item { RecentVisits(ecosystemViewModel, onSalonClick = onSalonClick) }
-            item { FollowedSalons(ecosystemViewModel, onSalonClick = onSalonClick) }
-            item {
-                CustomerBottomBar(
-                    activeTab = bottomBarActiveTab,
-                    onTabSelected = { tab ->
-                        when (tab) {
-                            CustomerHomeTab.HOME -> onHomeClick()
-                            CustomerHomeTab.SEARCH -> onSearchClick()
-                            CustomerHomeTab.BOOKINGS -> onBookingsClick()
-                            CustomerHomeTab.FAVORITES -> onFavoritesClick()
-                            CustomerHomeTab.PROFILE -> onProfileClick()
-                        }
+
+            CustomerBottomBar(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .onSizeChanged { size ->
+                        bottomBarHeight = with(density) { size.height.toDp() }
+                    },
+                activeTab = bottomBarActiveTab,
+                onTabSelected = { tab ->
+                    when (tab) {
+                        CustomerHomeTab.HOME -> onHomeClick()
+                        CustomerHomeTab.SEARCH -> onSearchClick()
+                        CustomerHomeTab.BOOKINGS -> onBookingsClick()
+                        CustomerHomeTab.FAVORITES -> onFavoritesClick()
+                        CustomerHomeTab.PROFILE -> onProfileClick()
                     }
-                )
-            }
+                }
+            )
         }
     }
 }

@@ -46,6 +46,8 @@ object PremiumGlassTheme {
     const val FillSecondaryAlpha = 0.06f
     const val BorderAlpha = 1f
     const val BorderSecondaryAlpha = 0.9f
+    val BorderStrokeWidth = 1.8.dp
+    val GlowSpread = 16.dp
 }
 
 @Composable
@@ -56,6 +58,12 @@ fun PremiumGlassSurface(
     fillSecondaryAlpha: Float = PremiumGlassTheme.FillSecondaryAlpha,
     borderAlpha: Float = PremiumGlassTheme.BorderAlpha,
     borderSecondaryAlpha: Float = PremiumGlassTheme.BorderSecondaryAlpha,
+    borderStrokeWidth: Dp = PremiumGlassTheme.BorderStrokeWidth,
+    // Extra elevation the outer "premium luxury glow" halo shadow adds on
+    // top of [elevation] — split out from a hardcoded 16.dp so one
+    // instance (Bottom Navigation) can tone down its glow/shadow bleed
+    // without affecting every other glass surface's default spread.
+    glowSpread: Dp = PremiumGlassTheme.GlowSpread,
     elevation: Dp = RojanShadows.FloatingElevation,
     showHighlight: Boolean = true,
     content: @Composable () -> Unit,
@@ -68,7 +76,7 @@ fun PremiumGlassSurface(
             // base shadow — the "premium luxury glow" halo, app-agnostic
             // (the metallic border's own identity, not a palette concern).
             .shadow(
-                elevation = elevation + 16.dp,
+                elevation = elevation + glowSpread,
                 shape = shape,
                 ambientColor = RojanPremiumBorderGold.copy(alpha = 0.36f),
                 spotColor = RojanPremiumBorderRoseGold.copy(alpha = 0.30f),
@@ -90,6 +98,7 @@ fun PremiumGlassSurface(
             )
             .premiumMetallicBorder(
                 shape = shape,
+                strokeWidth = borderStrokeWidth,
                 baseAlpha = borderAlpha,
                 secondaryAlpha = borderSecondaryAlpha,
             )

@@ -61,7 +61,9 @@ fun CalendarPreviewSection(
         ManagerGlassSurface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = RojanDimens.SpaceMD),
+                // Shared Premium Glass Design System spacing rhythm:
+                // title-to-content gap everywhere.
+                .padding(top = RojanDimens.SpaceTitleToContent),
             shape = RojanShapes.GlassCard,
         ) {
             Column(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
