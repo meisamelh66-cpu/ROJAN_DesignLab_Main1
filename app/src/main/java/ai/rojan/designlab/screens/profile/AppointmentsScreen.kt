@@ -26,13 +26,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 import ai.rojan.designlab.data.demo.AppointmentStatus
 import ai.rojan.designlab.data.demo.DemoAppointment
+import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.domain.customer.EcosystemEvent
 import ai.rojan.designlab.domain.reminder.ReminderTime
@@ -73,6 +77,13 @@ fun AppointmentsScreen(
     val state = ecosystemViewModel.state
     val upcoming = state.upcomingAppointments
     val past = state.pastAppointments
+
+    // Android <-> Backend Full Integration milestone: cancel is a real
+    // `PATCH /bookings/{id}/cancel` call when this appointment has a real
+    // backend id (DemoAppointment.backendBookingId's doc comment), fired
+    // alongside the existing local cancel, not instead of it.
+    val coroutineScope = rememberCoroutineScope()
+    val bookingRepository = BackendApiContainerHolder.get(LocalContext.current).bookingRepository
 
     HomeBackgroundTheme {
         LazyColumn(
@@ -115,7 +126,12 @@ fun AppointmentsScreen(
                         appointment = appt,
                         onClick = { onAppointmentClick(appt.id) },
                         onCompleteDemo = { ecosystemViewModel.completeAppointment(appt.id) },
-                        onCancel = { ecosystemViewModel.cancelAppointment(appt.id) },
+                        onCancel = {
+                            appt.backendBookingId?.let { backendBookingId ->
+                                coroutineScope.launch { bookingRepository.cancelBooking(backendBookingId) }
+                            }
+                            ecosystemViewModel.cancelAppointment(appt.id)
+                        },
                         onReschedule = { onRescheduleClick(appt.id) },
                         ecosystemViewModel = ecosystemViewModel,
                         animationDelayMillis = index * 60,

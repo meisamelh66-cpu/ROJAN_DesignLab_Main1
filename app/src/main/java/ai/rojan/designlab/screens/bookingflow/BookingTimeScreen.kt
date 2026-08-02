@@ -1,6 +1,5 @@
-﻿package ai.rojan.designlab.screens.bookingflow
+package ai.rojan.designlab.screens.bookingflow
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,40 +18,51 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 
-import ai.rojan.designlab.domain.booking.BookingEngine
+import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.domain.catalog.CatalogEngine
+import ai.rojan.designlab.domain.repository.TimeSlot
+import ai.rojan.designlab.presentation.booking.BookingTimeViewModel
+import ai.rojan.designlab.presentation.booking.BookingTimeViewModelFactory
 import ai.rojan.designlab.presentation.booking.BookingViewModel
+import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
+import ai.rojan.designlab.ui.components.state.RojanErrorState
+import ai.rojan.designlab.ui.components.state.RojanLoadingState
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
 
+/** `TimeSlot.start` is a full local ISO datetime (`"2026-08-10T09:00:00"`) — this app only ever displayed/selected a bare "HH:mm", so the callback and grid keep conveying that, same shape [BookingViewModel.state.selectedTime]/Confirmation/waitlist already expect. */
+private fun TimeSlot.timeLabel(): String = start.substringAfter('T').take(5)
+
 /**
  * Journey 1, Screen 6: Booking — select time.
  *
- * Booking Engine completion: now reads [bookingViewModel]'s state to
- * find the selected service's real duration (falling back to 30 minutes
- * if no service was selected - shouldn't happen via normal navigation)
- * and specialist (falling back to a fixed "no specialist chosen yet"
- * sentinel, still deterministic, for flows that reach this screen
- * without going through the new Specialist Selection step) - both feed
- * real, duration-aware, per-specialist availability instead of a
- * generic per-salon list.
+ * **Android <-> Backend Full Integration milestone:** now backed by
+ * [BookingTimeViewModel] -> the real `available-slots` endpoint for
+ * [bookingViewModel]'s salon/specialist/service and the [dateKey] chosen
+ * on the previous screen (now a real ISO date, see
+ * [ai.rojan.designlab.domain.booking.RollingBookingDates]) — replacing the
+ * demo `BookingEngine.timeSlotsFor` call and its separate duration lookup
+ * (the real endpoint takes `serviceId` directly and computes slot width
+ * itself, so no duration resolution is needed here anymore).
  *
  * Appointment System completion (V1.0 Module 6 - Waiting List):
- * [ecosystemViewModel] is optional (default `null`, so this screen's
- * signature stays backward-compatible for any caller that doesn't need
- * it) — when provided and zero slots are available for the selected
- * date, a real "Join Waiting List" action appears instead of an empty
- * grid, calling through to the same [CustomerEcosystemViewModel.joinWaitlist]
- * every other waitlist entry point uses.
+ * [ecosystemViewModel] is optional (default `null`) — when provided and
+ * zero slots are available for the selected date, a real "Join Waiting
+ * List" action appears instead of an empty grid, calling through to
+ * [CustomerEcosystemViewModel.joinWaitlist]. This branch is untouched by
+ * this milestone — waitlist/appointments are still local
+ * `CustomerEcosystemViewModel` state (Phase 6 territory), including its
+ * salon/service name lookups via [CatalogEngine].
  */
 @Composable
 fun BookingTimeScreen(
@@ -61,15 +71,17 @@ fun BookingTimeScreen(
     onBackClick: () -> Unit,
     onTimeSelected: (String) -> Unit,
     ecosystemViewModel: CustomerEcosystemViewModel? = null,
+    viewModel: BookingTimeViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = BookingTimeViewModelFactory(
+            salonId = bookingViewModel.state.salonId,
+            specialistId = bookingViewModel.state.specialistId,
+            serviceId = bookingViewModel.state.serviceId,
+            date = dateKey,
+            availabilityRepository = BackendApiContainerHolder.get(LocalContext.current).availabilityRepository,
+        ),
+    ),
 ) {
-    val bookingEngine = remember { BookingEngine() }
     val catalogEngine = remember { CatalogEngine() }
-    val durationMinutes = bookingViewModel.state.serviceId
-        ?.let { catalogEngine.findServiceById(it)?.durationMinutes }
-        ?: 30
-    val specialistId = bookingViewModel.state.specialistId ?: "no_specialist_chosen"
-    val slots = bookingEngine.timeSlotsFor(dateKey, durationMinutes, specialistId)
-    val availableSlots = slots.filter { it.available }
 
     HomeBackgroundTheme {
         Column(
@@ -85,39 +97,47 @@ fun BookingTimeScreen(
 
             Spacer(modifier = Modifier.height(RojanDimens.SpaceLG))
 
-            if (availableSlots.isEmpty() && ecosystemViewModel != null) {
-                WaitlistJoinPrompt(
-                    dateKey = dateKey,
-                    specialistId = bookingViewModel.state.specialistId,
-                    bookingViewModel = bookingViewModel,
-                    ecosystemViewModel = ecosystemViewModel,
-                    catalogEngine = catalogEngine,
+            when (val state = viewModel.state) {
+                is UiState.Loading -> RojanLoadingState(message = "در حال بارگذاری زمان‌های خالی...")
+                is UiState.Error -> RojanErrorState(
+                    description = state.message,
+                    actionLabel = "تلاش مجدد",
+                    onAction = { viewModel.retry() },
                 )
-            } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
-                    verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
-                ) {
-                    // Booking Experience Refactor, spec section 12: "Do NOT
-                    // display unavailable times." Filtered out entirely here,
-                    // not just shown-disabled as before this fix.
-                    items(availableSlots) { slot ->
-                        HomeGlassSurface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onTimeSelected(slot.time) },
-                            shape = RojanShapes.Small,
-                        ) {
-                            Text(
-                                text = slot.time,
-                                style = RojanTypography.Body,
-                                color = HomeColors.TextPrimary,
-                                textAlign = TextAlign.Center,
+                is UiState.Empty -> {
+                    if (ecosystemViewModel != null) {
+                        WaitlistJoinPrompt(
+                            dateKey = dateKey,
+                            specialistId = bookingViewModel.state.specialistId,
+                            bookingViewModel = bookingViewModel,
+                            ecosystemViewModel = ecosystemViewModel,
+                            catalogEngine = catalogEngine,
+                        )
+                    }
+                }
+                is UiState.Success -> {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+                        verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+                    ) {
+                        items(state.data) { slot ->
+                            HomeGlassSurface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(RojanDimens.SpaceSM),
-                            )
+                                    .clickable { onTimeSelected(slot.timeLabel()) },
+                                shape = RojanShapes.Small,
+                            ) {
+                                Text(
+                                    text = slot.timeLabel(),
+                                    style = RojanTypography.Body,
+                                    color = HomeColors.TextPrimary,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(RojanDimens.SpaceSM),
+                                )
+                            }
                         }
                     }
                 }
@@ -164,7 +184,7 @@ private fun WaitlistJoinPrompt(
                     val serviceId = bookingViewModel.state.serviceId
                     val salon = salonId?.let { catalogEngine.findSalonById(it) }
                     val service = serviceId?.let { catalogEngine.findServiceById(it) }
-                    val dateLabel = catalogEngine.availableDates().find { it.first == dateKey }?.second ?: dateKey
+                    val dateLabel = catalogEngine.dateLabelFor(dateKey)
                     if (salon != null && service != null) {
                         ecosystemViewModel.joinWaitlist(
                             salonId = salon.id,

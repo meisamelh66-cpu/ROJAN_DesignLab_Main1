@@ -26,7 +26,14 @@ object RojanDestinations {
     // ── Journey 1: Search → Salon → Specialist → Service → Booking ──
     const val BOOKING_FLOW_GRAPH = "booking_flow_graph"
     const val SEARCH = "search"
-    const val SPECIALIST_PROFILE = "specialist_profile/{specialistId}"
+    // Android <-> Backend Full Integration milestone: salonId is optional
+    // because the backend has no "get specialist by id alone" endpoint
+    // (always salon-scoped) — callers that know the salon (Salon Details)
+    // pass it; callers that don't (the Home dashboard's Top Specialists
+    // widget, still demo-content/out of this milestone's scope) omit it,
+    // and SpecialistProfileScreen shows a disclosed "no salon" error
+    // rather than guessing.
+    const val SPECIALIST_PROFILE = "specialist_profile/{specialistId}?salonId={salonId}"
     const val SERVICE_DETAILS = "service_details/{serviceId}"
     const val BOOKING_DATE = "booking_date"
     const val BOOKING_TIME = "booking_time"
@@ -53,7 +60,8 @@ object RojanDestinations {
     fun salonDetails(salonId: String) = "salon_details/$salonId"
     fun salonDetailsWithServices(salonId: String, selectedServiceIds: List<String>) =
         "salon_details/$salonId?selectedServiceIds=${selectedServiceIds.joinToString(",")}"
-    fun specialistProfile(specialistId: String) = "specialist_profile/$specialistId"
+    fun specialistProfile(specialistId: String, salonId: String? = null) =
+        "specialist_profile/$specialistId" + if (salonId != null) "?salonId=$salonId" else ""
     fun serviceDetails(serviceId: String) = "service_details/$serviceId"
 
     // ── Journey 2: Home → Profile → Appointments/Favorites/Wallet/... ──

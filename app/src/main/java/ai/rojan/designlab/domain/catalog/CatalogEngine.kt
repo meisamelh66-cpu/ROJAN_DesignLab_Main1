@@ -83,5 +83,12 @@ class CatalogEngine {
 
     fun availableDates(): List<Pair<String, String>> = DemoTimeSlotRepository.availableDates
 
-    fun dateLabelFor(dateKey: String): String? = DemoTimeSlotRepository.availableDates.find { it.first == dateKey }?.second
+    // Android <-> Backend Full Integration milestone: falls back to the raw
+    // key instead of null when it's not one of the fixed demo keys — real
+    // ISO dates from BookingDateScreen's now-real date selection don't
+    // match this table (still demo/Phase-6-scoped) and previously produced
+    // null, which silently blocked BookingConfirmationScreen's confirm
+    // gate (`dateLabel != null`). This is a minimal regression fix, not a
+    // Phase 6 rewrite of that screen.
+    fun dateLabelFor(dateKey: String): String = DemoTimeSlotRepository.availableDates.find { it.first == dateKey }?.second ?: dateKey
 }

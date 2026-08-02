@@ -33,10 +33,14 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
+import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.domain.booking.PaymentMethod
 import ai.rojan.designlab.domain.catalog.CatalogEngine
+import ai.rojan.designlab.presentation.booking.BookingConfirmationViewModel
+import ai.rojan.designlab.presentation.booking.BookingConfirmationViewModelFactory
 import ai.rojan.designlab.presentation.booking.BookingViewModel
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
@@ -78,12 +82,17 @@ import ai.rojan.designlab.ui.theme.RojanTypography
 fun BookingConfirmationScreen(
     bookingViewModel: BookingViewModel,
     onBackClick: () -> Unit,
-    onConfirmClick: () -> Unit,
+    onConfirmClick: (backendBookingId: String?) -> Unit,
     onEditSalon: () -> Unit = {},
     onEditSpecialist: () -> Unit = {},
     onEditService: () -> Unit = {},
     onEditDate: () -> Unit = {},
     onEditTime: () -> Unit = {},
+    confirmationViewModel: BookingConfirmationViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = BookingConfirmationViewModelFactory(
+            bookingRepository = BackendApiContainerHolder.get(LocalContext.current).bookingRepository,
+        ),
+    ),
 ) {
     val catalogEngine = remember { CatalogEngine() }
     val salon = bookingViewModel.state.salonId?.let { catalogEngine.findSalonById(it) }
@@ -200,8 +209,18 @@ fun BookingConfirmationScreen(
             Box(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
                 PremiumButton(
                     text = "تایید نهایی رزرو",
-                    onClick = onConfirmClick,
-                    enabled = bookingViewModel.isReadyForConfirmation(),
+                    onClick = {
+                        val state = bookingViewModel.state
+                        confirmationViewModel.confirmBooking(
+                            salonId = state.salonId,
+                            serviceId = state.serviceId,
+                            specialistId = state.specialistId,
+                            dateKey = state.selectedDateKey,
+                            time = state.selectedTime,
+                            onResult = { backendBookingId -> onConfirmClick(backendBookingId) },
+                        )
+                    },
+                    enabled = bookingViewModel.isReadyForConfirmation() && !confirmationViewModel.isSubmitting,
                 )
             }
         }

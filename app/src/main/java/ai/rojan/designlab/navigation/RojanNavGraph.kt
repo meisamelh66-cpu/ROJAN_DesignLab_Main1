@@ -594,7 +594,7 @@ fun RojanNavGraph() {
                             selectedServiceIds = selectedServiceIds,
                             onBackClick = { navController.popBackStack() },
                             onSpecialistClick = { specialistId ->
-                                navController.navigate(RojanDestinations.specialistProfile(specialistId))
+                                navController.navigate(RojanDestinations.specialistProfile(specialistId, salonId))
                             },
                             onServiceClick = { serviceId ->
                                 bookingViewModel.onSalonSelected(salonId)
@@ -621,13 +621,8 @@ fun RojanNavGraph() {
                     ) { backStackEntry ->
                         val bookingViewModel = bookingViewModelFor(navController, backStackEntry)
                         val salonId = backStackEntry.arguments?.getString("salonId") ?: ""
-                        val catalogEngineForDuration = CatalogEngine()
-                        val durationMinutes = bookingViewModel.state.serviceId
-                            ?.let { catalogEngineForDuration.findServiceById(it)?.durationMinutes }
-                            ?: 30
                         SpecialistSelectionScreen(
                             salonId = salonId,
-                            durationMinutes = durationMinutes,
                             onBackClick = { navController.popBackStack() },
                             onSpecialistSelected = { specialistId ->
                                 bookingViewModel.onSpecialistSelected(specialistId)
@@ -641,16 +636,19 @@ fun RojanNavGraph() {
 
                     composable(
                         route = RojanDestinations.SPECIALIST_PROFILE,
-                        arguments = listOf(navArgument("specialistId") { type = NavType.StringType }),
+                        arguments = listOf(
+                            navArgument("specialistId") { type = NavType.StringType },
+                            navArgument("salonId") { type = NavType.StringType; nullable = true },
+                        ),
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
                         val bookingViewModel = bookingViewModelFor(navController, backStackEntry)
                         val specialistId = backStackEntry.arguments?.getString("specialistId") ?: ""
-                        val catalogEngineForSpecialist = CatalogEngine()
-                        val salonIdForSpecialist = catalogEngineForSpecialist.findSpecialistById(specialistId)?.salonId
+                        val salonIdForSpecialist = backStackEntry.arguments?.getString("salonId")
                         SpecialistProfileScreen(
                             specialistId = specialistId,
+                            salonId = salonIdForSpecialist,
                             onBackClick = { navController.popBackStack() },
                             onServiceClick = { serviceId ->
                                 // P0 fix: this path (Salon Details → a specific
@@ -684,6 +682,7 @@ fun RojanNavGraph() {
                         val catalogEngineForSpecialistCheck = CatalogEngine()
                         ServiceDetailsScreen(
                             serviceId = serviceId,
+                            salonId = bookingViewModel.state.salonId,
                             onBackClick = { navController.popBackStack() },
                             onBookClick = {
                                 bookingViewModel.onServiceSelected(serviceId)
@@ -742,7 +741,8 @@ fun RojanNavGraph() {
                     ) { backStackEntry ->
                         val bookingViewModel = bookingViewModelFor(navController, backStackEntry)
                         BookingTimeScreen(
-                            dateKey = bookingViewModel.state.selectedDateKey ?: "today",
+                            dateKey = bookingViewModel.state.selectedDateKey
+                                ?: ai.rojan.designlab.domain.booking.RollingBookingDates.next7Days().first().first,
                             bookingViewModel = bookingViewModel,
                             ecosystemViewModel = customerEcosystemViewModel,
                             onBackClick = { navController.popBackStack() },
@@ -808,7 +808,7 @@ fun RojanNavGraph() {
                             },
                             onEditDate = { navController.navigate(RojanDestinations.BOOKING_DATE) },
                             onEditTime = { navController.navigate(RojanDestinations.BOOKING_TIME) },
-                            onConfirmClick = {
+                            onConfirmClick = { backendBookingId ->
                                 // Customer Journey Audit (Booking Success P0): record the
                                 // completed booking as a real appointment before leaving
                                 // this graph - BookingViewModel's state is destroyed once
@@ -816,6 +816,13 @@ fun RojanNavGraph() {
                                 // last point it's readable. Mirrors exactly what this same
                                 // screen already displays (same fallback strings), so the
                                 // recorded appointment matches what the user confirmed.
+                                //
+                                // Android <-> Backend Full Integration milestone:
+                                // [backendBookingId] is the real backend `Booking.id` when
+                                // BookingConfirmationViewModel's real POST /api/v1/bookings
+                                // call succeeded (null otherwise, e.g. the expected 401s
+                                // until native Phone-OTP auth lands) - recorded so a later
+                                // real cancel can find it (see AppointmentsScreen).
                                 val confirmedState = bookingViewModel.state
                                 val catalogEngineForConfirm = CatalogEngine()
                                 val service = confirmedState.serviceId?.let { catalogEngineForConfirm.findServiceById(it) }
@@ -836,6 +843,7 @@ fun RojanNavGraph() {
                                         price = service.discountPrice ?: service.price,
                                         salonId = confirmedState.salonId,
                                         paymentMethod = confirmedState.paymentMethod,
+                                        backendBookingId = backendBookingId,
                                     )
                                 }
                                 navController.navigate(RojanDestinations.BOOKING_SUCCESS)
@@ -1076,6 +1084,12 @@ fun RojanNavGraph() {
                                     // destination route enters that graph correctly on
                                     // its own (same lesson learned/fixed once already
                                     // in Journey 1's own navigation wiring).
+                                    //
+                                    // This path doesn't set BookingViewModel.state.salonId
+                                    // (appointments/rebooking are still local
+                                    // CustomerEcosystemViewModel state, not yet wired to
+                                    // the backend) - ServiceDetailsScreen shows its
+                                    // disclosed "no salon" error rather than guessing.
                                     navController.navigate(RojanDestinations.serviceDetails(serviceId))
                                 },
                             )

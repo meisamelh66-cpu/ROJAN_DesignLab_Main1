@@ -1,4 +1,4 @@
-﻿package ai.rojan.designlab.screens.booking
+package ai.rojan.designlab.screens.booking
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -12,20 +12,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Icon
 import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
-import ai.rojan.designlab.data.demo.DemoSpecialist
-import ai.rojan.designlab.domain.booking.BookingEngine
-import ai.rojan.designlab.domain.catalog.CatalogEngine
+import ai.rojan.designlab.di.BackendApiContainerHolder
+import ai.rojan.designlab.domain.repository.Specialist
+import ai.rojan.designlab.presentation.common.UiState
+import ai.rojan.designlab.presentation.specialist.SpecialistSelectionViewModel
+import ai.rojan.designlab.presentation.specialist.SpecialistSelectionViewModelFactory
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
@@ -34,28 +32,34 @@ import ai.rojan.designlab.ui.components.image.SpecialistAvatar
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.state.RojanEmptyState
+import ai.rojan.designlab.ui.components.state.RojanErrorState
+import ai.rojan.designlab.ui.components.state.RojanLoadingState
+import ai.rojan.designlab.ui.theme.RojanAquaMint
+import ai.rojan.designlab.ui.theme.RojanBlushPink
 import ai.rojan.designlab.ui.theme.RojanDimens
+import ai.rojan.designlab.ui.theme.RojanPearlPink
 import ai.rojan.designlab.ui.theme.RojanShapes
+import ai.rojan.designlab.ui.theme.RojanSoftLavender
 import ai.rojan.designlab.ui.theme.RojanTypography
+
+/** Same deterministic-tint reasoning as [ai.rojan.designlab.screens.salon.SalonDetailsScreen]'s `accentFor`. */
+private val accentPalette = listOf(RojanSoftLavender, RojanAquaMint, RojanBlushPink, RojanPearlPink)
+private fun accentFor(id: String) = accentPalette[Math.floorMod(id.hashCode(), accentPalette.size)]
 
 /**
  * Booking Experience Refactor, spec section 11 — Specialist Selection.
- * "Priority order: 1. Earliest available appointment, 2. Highest
- * rating, 3. Salon priority."
  *
- * Booking Engine completion: criterion 1 is now real, not a disclosed
- * gap. For each specialist, this walks [CatalogEngine.availableDates]
- * in order and finds their first date with any open slot for
- * [durationMinutes] via [BookingEngine.hasAnyAvailability], then that
- * date's actual earliest slot via [BookingEngine.earliestAvailableSlot].
- * Specialists are sorted by (day index, slot start time) ascending —
- * genuinely earliest-available first. Rating (criterion 2) is the
- * tiebreaker when two specialists' earliest slots land on the exact
- * same day+time. "Salon priority" (criterion 3) isn't modeled - this
- * screen is already scoped to one salon (no cross-salon ranking
- * happens here), so it doesn't apply within this screen's boundary.
+ * **Android <-> Backend Full Integration milestone:** now backed by
+ * [SpecialistSelectionViewModel] -> `GET /api/v1/salons/{salonId}/specialists`.
+ * The former "earliest available appointment, then rating" priority order
+ * is gone — see [SpecialistSelectionViewModel]'s doc comment: it needed
+ * per-specialist availability data (this milestone's Phase 5, not this
+ * screen) and a rating field the backend doesn't have. Specialists list in
+ * whatever order the backend returns, a disclosed simplification rather
+ * than a fabricated ordering. [durationMinutes], only ever used to compute
+ * that ordering, is removed along with it.
  *
- * The "skip this page" half of the parent rule is enforced one level
+ * The "skip this page" half of the parent rule is still enforced one level
  * up, in Navigation (this screen is simply never navigated to when
  * [ai.rojan.designlab.screens.salon.SalonDetailsScreen] already found
  * exactly one specialist).
@@ -63,30 +67,15 @@ import ai.rojan.designlab.ui.theme.RojanTypography
 @Composable
 fun SpecialistSelectionScreen(
     salonId: String,
-    durationMinutes: Int,
     onBackClick: () -> Unit,
     onSpecialistSelected: (String) -> Unit,
+    viewModel: SpecialistSelectionViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = SpecialistSelectionViewModelFactory(
+            salonId = salonId,
+            specialistRepository = BackendApiContainerHolder.get(LocalContext.current).specialistRepository,
+        ),
+    ),
 ) {
-    val catalogEngine = remember { CatalogEngine() }
-    val bookingEngine = remember { BookingEngine() }
-    val dates = remember { catalogEngine.availableDates() }
-
-    val specialists = remember(salonId, durationMinutes) {
-        catalogEngine.specialistsForSalon(salonId)
-            .map { specialist ->
-                val earliestDate = dates.firstOrNull { (key, _) ->
-                    bookingEngine.hasAnyAvailability(key, durationMinutes, specialist.id)
-                }
-                val earliestSlotMinutes = earliestDate?.let { (key, _) ->
-                    bookingEngine.earliestAvailableSlot(key, durationMinutes, specialist.id)?.startMinutes
-                }
-                val dayIndex = earliestDate?.let { dates.indexOf(it) } ?: Int.MAX_VALUE
-                Triple(specialist, dayIndex, earliestSlotMinutes ?: Int.MAX_VALUE)
-            }
-            .sortedWith(compareBy({ it.second }, { it.third }, { -it.first.rating.toFloatOrNull().let { r -> r ?: 0f } }))
-            .map { it.first }
-    }
-
     HomeBackgroundTheme {
         Column(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD)) {
             GlassBackButton(onClick = onBackClick)
@@ -98,16 +87,23 @@ fun SpecialistSelectionScreen(
                 modifier = Modifier.padding(vertical = RojanDimens.SpaceMD),
             )
 
-            if (specialists.isEmpty()) {
-                RojanEmptyState(title = "متخصصی برای این سالن یافت نشد")
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
-                    itemsIndexed(specialists) { index, specialist ->
-                        SpecialistRow(
-                            specialist = specialist,
-                            onClick = { onSpecialistSelected(specialist.id) },
-                            animationDelayMillis = index * 60,
-                        )
+            when (val state = viewModel.state) {
+                is UiState.Loading -> RojanLoadingState(message = "در حال بارگذاری متخصصان...")
+                is UiState.Error -> RojanErrorState(
+                    description = state.message,
+                    actionLabel = "تلاش مجدد",
+                    onAction = { viewModel.retry() },
+                )
+                is UiState.Empty -> RojanEmptyState(title = "متخصصی برای این سالن یافت نشد")
+                is UiState.Success -> {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
+                        itemsIndexed(state.data) { index, specialist ->
+                            SpecialistRow(
+                                specialist = specialist,
+                                onClick = { onSpecialistSelected(specialist.id) },
+                                animationDelayMillis = index * 60,
+                            )
+                        }
                     }
                 }
             }
@@ -116,7 +112,7 @@ fun SpecialistSelectionScreen(
 }
 
 @Composable
-private fun SpecialistRow(specialist: DemoSpecialist, onClick: () -> Unit, animationDelayMillis: Int = 0) {
+private fun SpecialistRow(specialist: Specialist, onClick: () -> Unit, animationDelayMillis: Int = 0) {
     HomeGlassSurface(
         modifier = Modifier
             .fillMaxWidth()
@@ -130,21 +126,19 @@ private fun SpecialistRow(specialist: DemoSpecialist, onClick: () -> Unit, anima
             horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {
             Box(
-                modifier = Modifier.size(56.dp).background(specialist.colorSeed.copy(alpha = 0.5f), CircleShape),
+                modifier = Modifier.size(56.dp).background(accentFor(specialist.id).copy(alpha = 0.5f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 SpecialistAvatar(
-                    assetRes = specialist.assetRes,
-                    contentDescription = specialist.name,
+                    assetRes = null,
+                    contentDescription = specialist.displayName,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
             Column {
-                Text(specialist.name, style = RojanTypography.Body, color = HomeColors.TextPrimary)
-                Text(specialist.title, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS)) {
-                    Icon(Icons.Filled.Star, contentDescription = "امتیاز", tint = HomeColors.Gold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
-                    Text(specialist.rating, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
+                Text(specialist.displayName, style = RojanTypography.Body, color = HomeColors.TextPrimary)
+                specialist.bio?.let { bio ->
+                    Text(bio, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                 }
             }
         }

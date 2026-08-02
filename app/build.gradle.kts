@@ -21,6 +21,13 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // See data/remote/NetworkConfig.kt. No deployed prod backend exists
+        // yet, so both build types point at the same local-dev value for
+        // now; this only relocates the previous hardcoded constant into
+        // BuildConfig so a real prod URL can be substituted per build type
+        // later without another code change.
+        buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/\"")
     }
 
     // Manager App split (see CLAUDE.md "App ID Separation" audit): two
@@ -58,6 +65,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

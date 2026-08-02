@@ -18,7 +18,7 @@ private const val MAX_RETRIES = 1
  *
  * Uses [plainAuthApi] (an [AuthApi] built on a client with no
  * [AuthInterceptor]/authenticator of its own — see
- * `di/BackendAuthContainer.kt`) for the refresh call itself, so refreshing
+ * `di/BackendApiContainer.kt`) for the refresh call itself, so refreshing
  * never recurses back into this authenticator.
  */
 class TokenAuthenticator(

@@ -13,9 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
@@ -30,38 +28,55 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-import ai.rojan.designlab.data.demo.DemoSalon
-import ai.rojan.designlab.domain.catalog.CatalogEngine
+import ai.rojan.designlab.domain.repository.Salon
+import ai.rojan.designlab.presentation.common.UiState
+import ai.rojan.designlab.presentation.salon.SalonListViewModel
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.screens.customer.hometheme.HomeTextField
 import ai.rojan.designlab.ui.animation.rojanEnterAnimation
-import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.interaction.rojanPressedShadow
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.state.RojanEmptyState
+import ai.rojan.designlab.ui.components.state.RojanErrorState
+import ai.rojan.designlab.ui.components.state.RojanLoadingState
+import ai.rojan.designlab.ui.theme.RojanAquaMint
+import ai.rojan.designlab.ui.theme.RojanBlushPink
 import ai.rojan.designlab.ui.theme.RojanDimens
+import ai.rojan.designlab.ui.theme.RojanPearlPink
 import ai.rojan.designlab.ui.theme.RojanShapes
+import ai.rojan.designlab.ui.theme.RojanSoftLavender
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
  * Booking Experience Refactor, spec section 9 — Salon Cards.
- * "Each card contains ONLY: Cover Image, Salon Name, Rating, Distance.
- * Do NOT add: Price, Address, Description, Opening hours, Phone,
- * Availability, Services." Enforced by construction — this composable
- * has no parameter or code path that could render any of the excluded
- * fields, not just "chooses not to show" them.
+ * "Each card contains ONLY: Cover Image, Salon Name, Rating, Distance."
  *
- * Code Cleanup pass: the previous disclosed simplification ("shows all
- * salons") is resolved — [ai.rojan.designlab.data.demo.DemoService]
- * gained real multi-salon support
- * ([ai.rojan.designlab.data.demo.DemoService.offeredBySalonIds]), so
- * [CatalogEngine.salonsOfferingAllServices] now does a genuine
- * intersection: only salons that offer EVERY selected service appear.
- * "Do not show unrelated salons" is enforced by the filter itself, not
- * a display choice on top of an unfiltered list.
+ * **Android <-> Backend Full Integration milestone:** now backed by
+ * [SalonListViewModel] -> `GET /api/v1/salons` instead of
+ * `DemoSalonRepository`. Two real data gaps from this swap, both
+ * deliberate rather than papered over with fabricated data:
+ *
+ * 1. The backend's `Salon` has no rating/review-aggregate or distance/
+ *    geolocation concept (no reviews system, no location tracking exist
+ *    server-side yet) — [MinimalSalonCard] no longer renders those two
+ *    rows rather than showing a fake number. "نزدیک من" stays visible
+ *    (removing a button is its own visible change) but is now a no-op —
+ *    there is no real distance to sort by.
+ * 2. [selectedServiceIds] — the entry point from the booking flow's
+ *    services-first path — can no longer filter salons by "which salons
+ *    offer every one of these services": the backend models a `Service`
+ *    as belonging to exactly one salon (via its category), not as one
+ *    global service spanning several salons the way
+ *    [ai.rojan.designlab.data.demo.DemoService.offeredBySalonIds] did.
+ *    There is no backend equivalent of that cross-salon lookup. Rather
+ *    than fabricate a matching algorithm the backend doesn't support,
+ *    this now always browses all active salons regardless of
+ *    [selectedServiceIds] — flagged as a real product/backend mismatch
+ *    for a future decision (e.g. a dedicated search endpoint, or making
+ *    the booking flow salon-first), not a redesign of the flow itself.
  */
 @Composable
 fun SalonListScreen(
@@ -70,28 +85,27 @@ fun SalonListScreen(
     onSalonSelected: (String) -> Unit,
     showBackButton: Boolean = true,
     onBusinessLoginClick: (() -> Unit)? = null,
+    viewModel: SalonListViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = ai.rojan.designlab.presentation.salon.SalonListViewModelFactory(
+            ai.rojan.designlab.di.BackendApiContainerHolder.get(
+                androidx.compose.ui.platform.LocalContext.current,
+            ).salonRepository,
+        ),
+    ),
 ) {
-    val catalogEngine = remember { CatalogEngine() }
-    val matchingSalons = remember(selectedServiceIds) {
-        catalogEngine.salonsOfferingAllServices(selectedServiceIds)
-    }
     var searchQuery by remember { mutableStateOf("") }
-    val displayedSalons = remember(matchingSalons, searchQuery) {
-        if (searchQuery.isBlank()) {
-            matchingSalons
-        } else {
-            val searchMatchIds = catalogEngine.searchSalons(searchQuery).map { it.id }.toSet()
-            matchingSalons.filter { it.id in searchMatchIds }
-        }
-    }
     var sortOption by remember { mutableStateOf(SalonSortOption.ALL) }
-    val sortedSalons = remember(displayedSalons, sortOption) {
-        if (sortOption == SalonSortOption.NEAREST) {
-            displayedSalons.sortedBy { parseDistanceKm(it.distanceKm) }
+
+    val loadedSalons = (viewModel.state as? UiState.Success)?.data.orEmpty()
+    val displayedSalons = remember(loadedSalons, searchQuery) {
+        if (searchQuery.isBlank()) {
+            loadedSalons
         } else {
-            displayedSalons
+            loadedSalons.filter { it.name.contains(searchQuery, ignoreCase = true) }
         }
     }
+    // "نزدیک من" has no real distance to sort by (see class doc) - kept as a visible, inert option.
+    val sortedSalons = displayedSalons
 
     HomeBackgroundTheme {
         Column(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD)) {
@@ -157,20 +171,34 @@ fun SalonListScreen(
                 )
             }
 
-            if (sortedSalons.isEmpty()) {
-                RojanEmptyState(
-                    title = "سالنی با تمام خدمات انتخابی یافت نشد",
+            when (val state = viewModel.state) {
+                is UiState.Loading -> RojanLoadingState(message = "در حال بارگذاری سالن‌ها...")
+                is UiState.Error -> RojanErrorState(
+                    description = state.message,
+                    actionLabel = "تلاش مجدد",
+                    onAction = { viewModel.retry() },
+                )
+                is UiState.Empty -> RojanEmptyState(
+                    title = "سالنی یافت نشد",
                     icon = Icons.Filled.Storefront,
                 )
-            }
+                is UiState.Success -> {
+                    if (sortedSalons.isEmpty()) {
+                        RojanEmptyState(
+                            title = "سالنی با این جستجو یافت نشد",
+                            icon = Icons.Filled.Storefront,
+                        )
+                    }
 
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD)) {
-                itemsIndexed(sortedSalons) { index, salon ->
-                    MinimalSalonCard(
-                        salon = salon,
-                        onClick = { onSalonSelected(salon.id) },
-                        animationDelayMillis = index * 60,
-                    )
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD)) {
+                        itemsIndexed(sortedSalons) { index, salon ->
+                            MinimalSalonCard(
+                                salon = salon,
+                                onClick = { onSalonSelected(salon.id) },
+                                animationDelayMillis = index * 60,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -179,8 +207,9 @@ fun SalonListScreen(
 
 private enum class SalonSortOption { ALL, NEAREST }
 
-private fun parseDistanceKm(distanceKm: String): Double =
-    distanceKm.takeWhile { it.isDigit() || it == '.' }.toDoubleOrNull() ?: Double.MAX_VALUE
+/** Deterministic per-salon tint — the backend has no per-salon color/branding concept, so this only varies the card's accent, never fabricates business data. */
+private val salonCardPalette = listOf(RojanSoftLavender, RojanAquaMint, RojanBlushPink, RojanPearlPink)
+private fun colorSeedFor(salonId: String) = salonCardPalette[Math.floorMod(salonId.hashCode(), salonCardPalette.size)]
 
 @Composable
 private fun SalonFilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
@@ -198,8 +227,14 @@ private fun SalonFilterChip(label: String, selected: Boolean, onClick: () -> Uni
     }
 }
 
+/**
+ * The backend's `Salon` has no rating/review-aggregate or distance concept
+ * (see [SalonListScreen]'s doc comment) — this card shows only what's real:
+ * a color-tinted placeholder (no image URL from the backend either) and the
+ * salon's name.
+ */
 @Composable
-private fun MinimalSalonCard(salon: DemoSalon, onClick: () -> Unit, animationDelayMillis: Int = 0) {
+private fun MinimalSalonCard(salon: Salon, onClick: () -> Unit, animationDelayMillis: Int = 0) {
     val interactionSource = remember { MutableInteractionSource() }
     HomeGlassSurface(
         modifier = Modifier
@@ -218,18 +253,10 @@ private fun MinimalSalonCard(salon: DemoSalon, onClick: () -> Unit, animationDel
             Box(
                 modifier = Modifier
                     .size(72.dp)
-                    .background(salon.colorSeed.copy(alpha = 0.35f), RojanShapes.Small),
+                    .background(colorSeedFor(salon.id).copy(alpha = 0.35f), RojanShapes.Small),
                 contentAlignment = Alignment.Center,
             ) {
-                if (salon.assetRes != null) {
-                    RojanSampleImage(
-                        resId = salon.assetRes,
-                        contentDescription = salon.name,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary)
-                }
+                Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary)
             }
 
             Column {
@@ -238,16 +265,6 @@ private fun MinimalSalonCard(salon: DemoSalon, onClick: () -> Unit, animationDel
                     style = RojanTypography.Body.rojanPressedShadow(interactionSource),
                     color = HomeColors.TextPrimary,
                 )
-
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS)) {
-                    Icon(Icons.Filled.Star, contentDescription = "امتیاز", tint = HomeColors.Gold, modifier = Modifier.size(RojanDimens.IconSizeSmall))
-                    Text(salon.rating, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS)) {
-                    Icon(Icons.Filled.LocationOn, contentDescription = null, tint = HomeColors.TextSecondary, modifier = Modifier.size(RojanDimens.IconSizeSmall))
-                    Text("${salon.distanceKm} km", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
-                }
             }
         }
     }

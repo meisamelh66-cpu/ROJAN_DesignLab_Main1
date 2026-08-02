@@ -25,6 +25,8 @@ data class DemoAppointment(
     val salonId: String? = null,
     /** Customer Journey Audit Phase A (P0-2): the payment method actually selected on Booking Confirmation — previously chosen in the UI but never recorded anywhere. Nullable since existing demo entries predate this field. */
     val paymentMethod: PaymentMethod? = null,
+    /** Android <-> Backend Full Integration milestone: the real backend `Booking.id` this local appointment corresponds to, when [ai.rojan.designlab.presentation.booking.BookingConfirmationViewModel]'s real `POST /api/v1/bookings` call succeeded. Null for every appointment seeded before this field existed, and for any created while that call fails (e.g. the expected 401s until native Phone-OTP auth lands) — those stay purely local, same as before this milestone. The join key real cancel needs: without it there's no way to know which backend booking a local appointment maps to. */
+    val backendBookingId: String? = null,
 )
 
 data class DemoWalletTransaction(
