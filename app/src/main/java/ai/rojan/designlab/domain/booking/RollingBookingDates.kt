@@ -79,4 +79,7 @@ object RollingBookingDates {
         }
         return result
     }
+
+    /** Display label for [isoDate] within the current rolling window, falling back to the raw key if it's outside it (e.g. a stale/edited selection). */
+    fun labelFor(isoDate: String): String = next7Days().find { it.first == isoDate }?.second ?: isoDate
 }

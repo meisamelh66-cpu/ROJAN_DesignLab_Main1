@@ -5,16 +5,14 @@ import ai.rojan.designlab.manager.domain.appointment.AppointmentStatus
 import ai.rojan.designlab.manager.domain.repository.AppointmentRepository
 
 /**
- * In-memory [AppointmentRepository] — new sample data, deliberately
- * independent from
- * [ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen]'s
- * own screen-local sample set (left untouched this phase). Migrating
- * Calendar to consume this repository requires the screen itself to
- * resolve customerId/serviceId/specialistId to display names, which is
- * screen-rework out of Phase 1's scope — see the Phase 1 report.
- * customerId/serviceId/specialistId here reference real ids from
+ * In-memory [AppointmentRepository] — sample seed data.
+ * [ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen]
+ * reads from this repository directly (resolving
+ * customerId/serviceId/specialistId to display names via
  * [InMemoryCustomerRepository]/[InMemoryServiceRepository]/
- * [InMemorySpecialistRepository] so a future join is consistent.
+ * [InMemorySpecialistRepository]), so an appointment created through the
+ * booking wizard ([ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel.confirm])
+ * shows up in Calendar as soon as it's (re)entered.
  */
 class InMemoryAppointmentRepository : AppointmentRepository {
 

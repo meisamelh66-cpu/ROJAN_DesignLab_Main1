@@ -5,6 +5,11 @@ import ai.rojan.designlab.manager.components.ManagerGlassSurface
 import ai.rojan.designlab.manager.components.ManagerGlassTheme
 import ai.rojan.designlab.manager.components.ManagerIconContainer
 import ai.rojan.designlab.manager.components.ManagerScaffold
+import ai.rojan.designlab.manager.data.ManagerRepositories
+import ai.rojan.designlab.manager.domain.appointment.Appointment
+import ai.rojan.designlab.manager.domain.appointment.AppointmentStatus as DomainAppointmentStatus
+import ai.rojan.designlab.manager.domain.appointment.ManagerCalendarWeek
+import ai.rojan.designlab.manager.domain.specialist.Specialist
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
@@ -51,14 +56,24 @@ import androidx.compose.ui.unit.dp
 
 private enum class ManagerCalendarViewMode { DAILY, WEEKLY }
 
-/** Status indicator — Turquoise/Gold extend naturally into "confirmed/pending"; [RojanErrorText] (existing token) covers "cancelled." */
+/** Status indicator — Turquoise/Gold extend naturally into "confirmed/pending"; [RojanErrorText] (existing token) covers "cancelled/no-show." */
 private enum class AppointmentStatus(val label: String, val color: Color) {
     CONFIRMED("تایید شده", ManagerColors.Turquoise),
     PENDING("در انتظار", ManagerColors.Gold),
+    COMPLETED("انجام شده", ManagerColors.Turquoise),
     CANCELLED("لغو شده", RojanErrorText),
+    NO_SHOW("عدم حضور", RojanErrorText),
 }
 
-/** Static placeholder appointment — no backend wired yet. */
+private fun DomainAppointmentStatus.toDisplayStatus(): AppointmentStatus = when (this) {
+    DomainAppointmentStatus.PENDING -> AppointmentStatus.PENDING
+    DomainAppointmentStatus.CONFIRMED -> AppointmentStatus.CONFIRMED
+    DomainAppointmentStatus.COMPLETED -> AppointmentStatus.COMPLETED
+    DomainAppointmentStatus.CANCELLED -> AppointmentStatus.CANCELLED
+    DomainAppointmentStatus.NO_SHOW -> AppointmentStatus.NO_SHOW
+}
+
+/** Display row for one real [Appointment] — customer/service/specialist ids resolved to names via [ManagerRepositories]. */
 private data class CalendarAppointment(
     val id: String,
     val time: String,
@@ -68,49 +83,13 @@ private data class CalendarAppointment(
     val status: AppointmentStatus,
 )
 
-private data class CalendarDay(val label: String, val dayNumber: String)
-
-private val sampleWeekDays = listOf(
-    CalendarDay("شنبه", "۲۵"),
-    CalendarDay("یکشنبه", "۲۶"),
-    CalendarDay("دوشنبه", "۲۷"),
-    CalendarDay("سه‌شنبه", "۲۸"),
-    CalendarDay("چهارشنبه", "۲۹"),
-    CalendarDay("پنجشنبه", "۳۰"),
-    CalendarDay("جمعه", "۱"),
-)
-
-private val sampleSpecialists = listOf("سارا کریمی", "مریم رضایی", "نگار احمدی")
-
-/** Keyed by day index into [sampleWeekDays]. Static sample only — no backend. */
-private val sampleAppointmentsByDay: Map<Int, List<CalendarAppointment>> = mapOf(
-    0 to listOf(
-        CalendarAppointment("a1", "۱۰:۰۰", "سارا محمدی", "رنگ مو", "سارا کریمی", AppointmentStatus.CONFIRMED),
-        CalendarAppointment("a2", "۱۱:۳۰", "نیلوفر احمدی", "میکاپ عروس", "مریم رضایی", AppointmentStatus.CONFIRMED),
-        CalendarAppointment("a3", "۱۲:۳۰", "پریسا کریمی", "مانیکور", "نگار احمدی", AppointmentStatus.PENDING),
-        CalendarAppointment("a4", "۱۴:۰۰", "الناز حسینی", "کوتاهی مو", "سارا کریمی", AppointmentStatus.CONFIRMED),
-        CalendarAppointment("a5", "۱۶:۳۰", "مینا صادقی", "پاکسازی پوست", "مریم رضایی", AppointmentStatus.CANCELLED),
-    ),
-    1 to listOf(
-        CalendarAppointment("b1", "۰۹:۳۰", "شیوا رستمی", "میکاپ", "نگار احمدی", AppointmentStatus.CONFIRMED),
-        CalendarAppointment("b2", "۱۳:۰۰", "دنیا فرهادی", "رنگ مو", "سارا کریمی", AppointmentStatus.PENDING),
-    ),
-    2 to listOf(
-        CalendarAppointment("c1", "۱۰:۰۰", "آیدا مرادی", "مانیکور", "مریم رضایی", AppointmentStatus.CONFIRMED),
-        CalendarAppointment("c2", "۱۱:۰۰", "رویا نجفی", "کوتاهی مو", "نگار احمدی", AppointmentStatus.CONFIRMED),
-        CalendarAppointment("c3", "۱۵:۳۰", "بهار کاظمی", "پدیکور", "سارا کریمی", AppointmentStatus.PENDING),
-    ),
-    3 to listOf(
-        CalendarAppointment("d1", "۱۲:۰۰", "ترانه یوسفی", "میکاپ عروس", "مریم رضایی", AppointmentStatus.CONFIRMED),
-    ),
-    4 to listOf(
-        CalendarAppointment("e1", "۰۹:۰۰", "غزل امیری", "رنگ مو", "سارا کریمی", AppointmentStatus.CONFIRMED),
-        CalendarAppointment("e2", "۱۴:۳۰", "سحر قاسمی", "مانیکور", "نگار احمدی", AppointmentStatus.PENDING),
-    ),
-    5 to emptyList(),
-    6 to listOf(
-        CalendarAppointment("g1", "۱۱:۰۰", "یاسمن رحیمی", "پاکسازی پوست", "مریم رضایی", AppointmentStatus.CONFIRMED),
-    ),
+private fun Appointment.toDisplay(): CalendarAppointment = CalendarAppointment(
+    id = id,
+    time = time,
+    clientName = ManagerRepositories.customers.getById(customerId)?.name ?: "—",
+    service = ManagerRepositories.services.getById(serviceId)?.name ?: "—",
+    specialist = ManagerRepositories.specialists.getById(specialistId)?.name ?: "—",
+    status = status.toDisplayStatus(),
 )
 
 /**
@@ -122,9 +101,11 @@ private val sampleAppointmentsByDay: Map<Int, List<CalendarAppointment>> = mapOf
  * luxury background ([ManagerScaffold]/[ManagerGlassSurface]/
  * [ManagerIconContainer]) — content/data/navigation unchanged.
  *
- * Specialist filter is a real, working local filter over the static
- * sample data (not just inert UI) — "foundation" for a future real
- * per-specialist data source, not a placeholder that does nothing.
+ * Reads [ManagerRepositories.appointments]/`.customers`/`.services`/
+ * `.specialists` directly (same in-memory singletons the booking wizard's
+ * [ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel.confirm]
+ * writes to) instead of a screen-local hardcoded sample set, so a newly
+ * booked appointment shows up here as soon as this screen is (re)entered.
  */
 @Composable
 fun ManagerCalendarScreen(
@@ -134,7 +115,15 @@ fun ManagerCalendarScreen(
 ) {
     var viewMode by remember { mutableStateOf(ManagerCalendarViewMode.DAILY) }
     var selectedDayIndex by remember { mutableIntStateOf(0) }
-    var selectedSpecialist by remember { mutableStateOf<String?>(null) }
+    var selectedSpecialistId by remember { mutableStateOf<String?>(null) }
+
+    // Read directly on every recomposition (no remember) so an appointment
+    // just created via the booking wizard (ManagerBookingViewModel.confirm(),
+    // same ManagerRepositories.appointments instance) shows up as soon as
+    // this screen is (re)entered, instead of the screen-local hardcoded
+    // sample set this used to render regardless of what was actually booked.
+    val specialists = ManagerRepositories.specialists.getAll()
+    val appointmentsByDayKey = ManagerRepositories.appointments.getAll().groupBy { it.date }
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         LazyColumn(
@@ -159,8 +148,9 @@ fun ManagerCalendarScreen(
 
             item {
                 SpecialistFilterRow(
-                    selectedSpecialist = selectedSpecialist,
-                    onSpecialistSelected = { selectedSpecialist = it },
+                    specialists = specialists,
+                    selectedSpecialistId = selectedSpecialistId,
+                    onSpecialistSelected = { selectedSpecialistId = it },
                 )
             }
 
@@ -173,8 +163,11 @@ fun ManagerCalendarScreen(
                         )
                     }
 
-                    val dayAppointments = (sampleAppointmentsByDay[selectedDayIndex] ?: emptyList())
-                        .filter { selectedSpecialist == null || it.specialist == selectedSpecialist }
+                    val dayKey = ManagerCalendarWeek.days[selectedDayIndex].key
+                    val dayAppointments = (appointmentsByDayKey[dayKey] ?: emptyList())
+                        .filter { selectedSpecialistId == null || it.specialistId == selectedSpecialistId }
+                        .sortedBy { it.time }
+                        .map { it.toDisplay() }
 
                     if (dayAppointments.isEmpty()) {
                         item { EmptyDayNotice() }
@@ -191,7 +184,8 @@ fun ManagerCalendarScreen(
                 ManagerCalendarViewMode.WEEKLY -> {
                     item {
                         WeeklyOverview(
-                            selectedSpecialist = selectedSpecialist,
+                            appointmentsByDayKey = appointmentsByDayKey,
+                            selectedSpecialistId = selectedSpecialistId,
                             onDayClick = { dayIndex ->
                                 selectedDayIndex = dayIndex
                                 viewMode = ManagerCalendarViewMode.DAILY
@@ -267,22 +261,23 @@ private fun ToggleChip(
 
 @Composable
 private fun SpecialistFilterRow(
-    selectedSpecialist: String?,
+    specialists: List<Specialist>,
+    selectedSpecialistId: String?,
     onSpecialistSelected: (String?) -> Unit,
 ) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
         item {
             SpecialistChip(
                 label = "همه",
-                selected = selectedSpecialist == null,
+                selected = selectedSpecialistId == null,
                 onClick = { onSpecialistSelected(null) },
             )
         }
-        items(sampleSpecialists) { specialist ->
+        items(specialists) { specialist ->
             SpecialistChip(
-                label = specialist,
-                selected = selectedSpecialist == specialist,
-                onClick = { onSpecialistSelected(specialist) },
+                label = specialist.name,
+                selected = selectedSpecialistId == specialist.id,
+                onClick = { onSpecialistSelected(specialist.id) },
             )
         }
     }
@@ -321,8 +316,8 @@ private fun SpecialistChip(label: String, selected: Boolean, onClick: () -> Unit
 @Composable
 private fun DaySelectorRow(selectedDayIndex: Int, onDaySelected: (Int) -> Unit) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
-        items(sampleWeekDays.indices.toList()) { index ->
-            val day = sampleWeekDays[index]
+        items(ManagerCalendarWeek.days.indices.toList()) { index ->
+            val day = ManagerCalendarWeek.days[index]
             val selected = index == selectedDayIndex
             ManagerGlassSurface(
                 modifier = Modifier
@@ -428,14 +423,17 @@ private fun EmptyDayNotice() {
 
 @Composable
 private fun WeeklyOverview(
-    selectedSpecialist: String?,
+    appointmentsByDayKey: Map<String, List<Appointment>>,
+    selectedSpecialistId: String?,
     onDayClick: (Int) -> Unit,
 ) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD)) {
-        items(sampleWeekDays.indices.toList()) { index ->
-            val day = sampleWeekDays[index]
-            val dayAppointments = (sampleAppointmentsByDay[index] ?: emptyList())
-                .filter { selectedSpecialist == null || it.specialist == selectedSpecialist }
+        items(ManagerCalendarWeek.days.indices.toList()) { index ->
+            val day = ManagerCalendarWeek.days[index]
+            val dayAppointments = (appointmentsByDayKey[day.key] ?: emptyList())
+                .filter { selectedSpecialistId == null || it.specialistId == selectedSpecialistId }
+                .sortedBy { it.time }
+                .map { it.toDisplay() }
 
             ManagerGlassSurface(
                 modifier = Modifier

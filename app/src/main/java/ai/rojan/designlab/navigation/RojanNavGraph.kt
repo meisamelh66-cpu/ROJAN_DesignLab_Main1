@@ -4,6 +4,7 @@ import ai.rojan.designlab.R
 import ai.rojan.designlab.ui.background.PremiumBackground
 import ai.rojan.designlab.components.PremiumLoadingBar
 import ai.rojan.designlab.domain.booking.BookingIntent
+import ai.rojan.designlab.domain.booking.RollingBookingDates
 import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.navigation.RojanDestinations.routeForBookingStep
 import ai.rojan.designlab.presentation.booking.BookingViewModel
@@ -13,6 +14,7 @@ import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModelFactor
 import ai.rojan.designlab.presentation.auth.AuthViewModel
 import ai.rojan.designlab.presentation.auth.AuthViewModelFactory
 import ai.rojan.designlab.domain.identity.PersonRole
+import kotlin.math.roundToInt
 import ai.rojan.designlab.domain.identity.SessionState
 import ai.rojan.designlab.presentation.session.SessionRestoreState
 import ai.rojan.designlab.presentation.session.SessionViewModel
@@ -808,14 +810,19 @@ fun RojanNavGraph() {
                             },
                             onEditDate = { navController.navigate(RojanDestinations.BOOKING_DATE) },
                             onEditTime = { navController.navigate(RojanDestinations.BOOKING_TIME) },
-                            onConfirmClick = { backendBookingId ->
+                            onConfirmClick = { backendBookingId, summary ->
                                 // Customer Journey Audit (Booking Success P0): record the
                                 // completed booking as a real appointment before leaving
                                 // this graph - BookingViewModel's state is destroyed once
                                 // the sub-graph pops on Success's "Done", so this is the
-                                // last point it's readable. Mirrors exactly what this same
-                                // screen already displays (same fallback strings), so the
-                                // recorded appointment matches what the user confirmed.
+                                // last point it's readable. [summary] is the same real
+                                // backend Salon/Specialist/Service BookingConfirmationScreen
+                                // already resolved and displayed (via
+                                // BookingConfirmationViewModel.loadSummary), so the
+                                // recorded appointment matches what the user confirmed
+                                // instead of re-deriving it from demo data by real ids
+                                // (which always resolved to null and silently dropped the
+                                // booking here before this fix).
                                 //
                                 // Android <-> Backend Full Integration milestone:
                                 // [backendBookingId] is the real backend `Booking.id` when
@@ -824,23 +831,20 @@ fun RojanNavGraph() {
                                 // until native Phone-OTP auth lands) - recorded so a later
                                 // real cancel can find it (see AppointmentsScreen).
                                 val confirmedState = bookingViewModel.state
-                                val catalogEngineForConfirm = CatalogEngine()
-                                val service = confirmedState.serviceId?.let { catalogEngineForConfirm.findServiceById(it) }
-                                val dateLabel = confirmedState.selectedDateKey?.let { catalogEngineForConfirm.dateLabelFor(it) }
+                                val service = summary.service
                                 val time = confirmedState.selectedTime
-                                if (service != null && confirmedState.selectedDateKey != null && dateLabel != null && time != null) {
-                                    val salon = confirmedState.salonId?.let { catalogEngineForConfirm.findSalonById(it) }
-                                    val specialist = confirmedState.specialistId?.let { catalogEngineForConfirm.findSpecialistById(it) }
+                                if (service != null && confirmedState.selectedDateKey != null && time != null) {
+                                    val dateLabel = RollingBookingDates.labelFor(confirmedState.selectedDateKey)
                                     customerEcosystemViewModel.bookAppointment(
-                                        salonName = salon?.name ?: "—",
+                                        salonName = summary.salon?.name ?: "—",
                                         serviceName = service.name,
-                                        specialistName = specialist?.name ?: "انتخاب خودکار",
+                                        specialistName = summary.specialist?.displayName ?: "انتخاب خودکار",
                                         serviceId = service.id,
-                                        specialistId = specialist?.id,
+                                        specialistId = summary.specialist?.id,
                                         dateKey = confirmedState.selectedDateKey,
                                         dateLabel = dateLabel,
                                         time = time,
-                                        price = service.discountPrice ?: service.price,
+                                        price = service.price.roundToInt(),
                                         salonId = confirmedState.salonId,
                                         paymentMethod = confirmedState.paymentMethod,
                                         backendBookingId = backendBookingId,

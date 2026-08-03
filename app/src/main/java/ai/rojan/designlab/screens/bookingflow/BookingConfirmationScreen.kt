@@ -38,9 +38,10 @@ import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.domain.booking.PaymentMethod
-import ai.rojan.designlab.domain.catalog.CatalogEngine
+import ai.rojan.designlab.domain.booking.RollingBookingDates
 import ai.rojan.designlab.presentation.booking.BookingConfirmationViewModel
 import ai.rojan.designlab.presentation.booking.BookingConfirmationViewModelFactory
+import ai.rojan.designlab.presentation.booking.BookingSummary
 import ai.rojan.designlab.presentation.booking.BookingViewModel
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
@@ -48,14 +49,18 @@ import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.components.feedback.RojanSuccessCheckmark
-import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.rtl.RtlListRow
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
+import ai.rojan.designlab.ui.theme.RojanAquaMint
+import ai.rojan.designlab.ui.theme.RojanBlushPink
 import ai.rojan.designlab.ui.theme.RojanDimens
+import ai.rojan.designlab.ui.theme.RojanPearlPink
 import ai.rojan.designlab.ui.theme.RojanShapes
+import ai.rojan.designlab.ui.theme.RojanSoftLavender
 import ai.rojan.designlab.ui.theme.RojanTypography
+import kotlin.math.roundToInt
 
 /**
  * Journey 1, Screen 7: Confirmation — summarizes [BookingViewModel]'s
@@ -82,7 +87,7 @@ import ai.rojan.designlab.ui.theme.RojanTypography
 fun BookingConfirmationScreen(
     bookingViewModel: BookingViewModel,
     onBackClick: () -> Unit,
-    onConfirmClick: (backendBookingId: String?) -> Unit,
+    onConfirmClick: (backendBookingId: String?, summary: BookingSummary) -> Unit,
     onEditSalon: () -> Unit = {},
     onEditSpecialist: () -> Unit = {},
     onEditService: () -> Unit = {},
@@ -91,14 +96,25 @@ fun BookingConfirmationScreen(
     confirmationViewModel: BookingConfirmationViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = BookingConfirmationViewModelFactory(
             bookingRepository = BackendApiContainerHolder.get(LocalContext.current).bookingRepository,
+            salonRepository = BackendApiContainerHolder.get(LocalContext.current).salonRepository,
+            specialistRepository = BackendApiContainerHolder.get(LocalContext.current).specialistRepository,
+            serviceCategoryRepository = BackendApiContainerHolder.get(LocalContext.current).serviceCategoryRepository,
+            serviceRepository = BackendApiContainerHolder.get(LocalContext.current).serviceRepository,
         ),
     ),
 ) {
-    val catalogEngine = remember { CatalogEngine() }
-    val salon = bookingViewModel.state.salonId?.let { catalogEngine.findSalonById(it) }
-    val specialist = bookingViewModel.state.specialistId?.let { catalogEngine.findSpecialistById(it) }
-    val service = bookingViewModel.state.serviceId?.let { catalogEngine.findServiceById(it) }
-    val dateLabel = bookingViewModel.state.selectedDateKey?.let { catalogEngine.dateLabelFor(it) }
+    LaunchedEffect(bookingViewModel.state.salonId, bookingViewModel.state.specialistId, bookingViewModel.state.serviceId) {
+        confirmationViewModel.loadSummary(
+            salonId = bookingViewModel.state.salonId,
+            specialistId = bookingViewModel.state.specialistId,
+            serviceId = bookingViewModel.state.serviceId,
+        )
+    }
+    val summary = confirmationViewModel.summary
+    val salon = summary.salon
+    val specialist = summary.specialist
+    val service = summary.service
+    val dateLabel = bookingViewModel.state.selectedDateKey?.let { RollingBookingDates.labelFor(it) }
     val time = bookingViewModel.state.selectedTime
     val selectedPaymentMethod = bookingViewModel.state.paymentMethod
 
@@ -156,34 +172,29 @@ fun BookingConfirmationScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
                             ) {
+                                // Real backend Salon has no color/image concept — same
+                                // deterministic-tint fallback already established in
+                                // SalonListScreen.kt's MinimalSalonCard for this exact reason.
                                 Box(
                                     modifier = Modifier
                                         .size(48.dp)
-                                        .background(salon.colorSeed.copy(alpha = 0.5f), RojanShapes.Small),
+                                        .background(colorSeedFor(salon.id).copy(alpha = 0.5f), RojanShapes.Small),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    if (salon.assetRes != null) {
-                                        RojanSampleImage(
-                                            resId = salon.assetRes,
-                                            contentDescription = salon.name,
-                                            modifier = Modifier.fillMaxSize(),
-                                        )
-                                    } else {
-                                        Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary)
-                                    }
+                                    Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary)
                                 }
                                 Text(salon.name, style = RojanTypography.Body, color = HomeColors.TextPrimary)
                             }
                         }
                         SummaryRow("سالن", salon?.name ?: "—", onClick = onEditSalon)
-                        SummaryRow("متخصص", specialist?.name ?: "انتخاب خودکار", onClick = onEditSpecialist)
+                        SummaryRow("متخصص", specialist?.displayName ?: "انتخاب خودکار", onClick = onEditSpecialist)
                         SummaryRow("خدمت", service?.name ?: "—", onClick = onEditService)
                         SummaryRow("تاریخ", dateLabel ?: "—", onClick = onEditDate)
                         SummaryRow("ساعت", time ?: "—", onClick = onEditTime)
                         if (service != null) {
                             SummaryRow(
                                 "مبلغ قابل پرداخت",
-                                "${service.discountPrice ?: service.price} تومان",
+                                "${service.price.roundToInt()} تومان",
                                 highlight = true,
                             )
                         }
@@ -217,15 +228,21 @@ fun BookingConfirmationScreen(
                             specialistId = state.specialistId,
                             dateKey = state.selectedDateKey,
                             time = state.selectedTime,
-                            onResult = { backendBookingId -> onConfirmClick(backendBookingId) },
+                            onResult = { backendBookingId -> onConfirmClick(backendBookingId, confirmationViewModel.summary) },
                         )
                     },
-                    enabled = bookingViewModel.isReadyForConfirmation() && !confirmationViewModel.isSubmitting,
+                    enabled = bookingViewModel.isReadyForConfirmation() &&
+                        !confirmationViewModel.isSubmitting &&
+                        !confirmationViewModel.isLoadingSummary,
                 )
             }
         }
     }
 }
+
+/** Deterministic per-salon tint — the backend has no per-salon color/branding concept. Same palette/approach as SalonListScreen.kt's MinimalSalonCard. */
+private val salonCardPalette = listOf(RojanSoftLavender, RojanAquaMint, RojanBlushPink, RojanPearlPink)
+private fun colorSeedFor(salonId: String) = salonCardPalette[Math.floorMod(salonId.hashCode(), salonCardPalette.size)]
 
 /** Display label for [PaymentMethod] — kept in the UI layer, same pattern as every other domain enum in this app (e.g. [ai.rojan.designlab.domain.booking.BookingIntent] carries no labels either). */
 private val PaymentMethod.label: String

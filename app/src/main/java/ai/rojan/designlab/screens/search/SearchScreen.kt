@@ -15,9 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
@@ -30,42 +28,62 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.SolidColor
+import androidx.lifecycle.viewmodel.compose.viewModel
 
-import ai.rojan.designlab.domain.catalog.CatalogEngine
+import ai.rojan.designlab.di.BackendApiContainerHolder
+import ai.rojan.designlab.presentation.common.UiState
+import ai.rojan.designlab.presentation.salon.SalonListViewModel
+import ai.rojan.designlab.presentation.salon.SalonListViewModelFactory
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.animation.rojanEnterAnimation
-import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.state.RojanEmptyState
+import ai.rojan.designlab.ui.components.state.RojanErrorState
+import ai.rojan.designlab.ui.components.state.RojanLoadingState
+import ai.rojan.designlab.ui.theme.RojanAquaMint
+import ai.rojan.designlab.ui.theme.RojanBlushPink
 import ai.rojan.designlab.ui.theme.RojanDimens
+import ai.rojan.designlab.ui.theme.RojanPearlPink
 import ai.rojan.designlab.ui.theme.RojanShapes
+import ai.rojan.designlab.ui.theme.RojanSoftLavender
 import ai.rojan.designlab.ui.theme.RojanTypography
-import ai.rojan.designlab.ui.components.icon.RojanIconContainer
-import ai.rojan.designlab.ui.components.icon.RojanIconSize
 
 /**
  * Journey 1, Screen 1: Search.
  *
- * Real (if simple) client-side filtering over [DemoSalonRepository] —
- * not a backend search, consistent with this phase's explicit "no
- * networking" scope. Same dark-canvas + glass language as every other
- * screen; no new visual system introduced.
+ * **Android <-> Backend Full Integration milestone:** now backed by the
+ * same [SalonListViewModel] -> `GET /api/v1/salons` [ai.rojan.designlab.screens.booking.SalonListScreen]
+ * uses, filtered client-side by name — replaces the old `CatalogEngine()`
+ * -> `DemoSalonRepository` read path, whose demo salon ids no longer
+ * resolved once Salon Details/booking started reading real backend ids
+ * (a real id from here would 404 downstream). Same real-data gaps as
+ * [ai.rojan.designlab.screens.booking.SalonListScreen]: no rating/
+ * distance concept server-side, so those rows are gone rather than
+ * fabricated.
  */
 @Composable
 fun SearchScreen(
     onBackClick: () -> Unit,
     onSalonClick: (String) -> Unit,
+    viewModel: SalonListViewModel = viewModel(
+        factory = SalonListViewModelFactory(
+            BackendApiContainerHolder.get(LocalContext.current).salonRepository,
+        ),
+    ),
 ) {
     var query by remember { mutableStateOf("") }
-    val catalogEngine = remember { CatalogEngine() }
 
-    val results = remember(query) { catalogEngine.searchSalons(query) }
+    val loadedSalons = (viewModel.state as? UiState.Success)?.data.orEmpty()
+    val results = remember(loadedSalons, query) {
+        if (query.isBlank()) loadedSalons else loadedSalons.filter { it.name.contains(query, ignoreCase = true) }
+    }
 
     HomeBackgroundTheme {
         Column(
@@ -132,7 +150,14 @@ fun SearchScreen(
 
             Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
 
-            if (results.isEmpty()) {
+            when (val state = viewModel.state) {
+                is UiState.Loading -> RojanLoadingState(message = "در حال بارگذاری سالن‌ها...")
+                is UiState.Error -> RojanErrorState(
+                    description = state.message,
+                    actionLabel = "تلاش مجدد",
+                    onAction = { viewModel.retry() },
+                )
+                else -> if (results.isEmpty()) {
                 RojanEmptyState(
                     title = "نتیجه‌ای یافت نشد",
                     description = "سالن یا خدمت دیگری را جستجو کنید",
@@ -154,25 +179,20 @@ fun SearchScreen(
                                 .padding(RojanDimens.SpaceMD),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            // Real backend Salon has no color/image concept — same
+                            // deterministic-tint fallback SalonListScreen.kt's
+                            // MinimalSalonCard already established for this reason.
                             Box(
                                 modifier = Modifier
                                     .size(56.dp)
-                                    .background(salon.colorSeed.copy(alpha = 0.5f), RojanShapes.Small),
+                                    .background(colorSeedFor(salon.id).copy(alpha = 0.5f), RojanShapes.Small),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                if (salon.assetRes != null) {
-                                    RojanSampleImage(
-                                        resId = salon.assetRes,
-                                        contentDescription = salon.name,
-                                        modifier = Modifier.fillMaxSize(),
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Filled.Storefront,
-                                        contentDescription = null,
-                                        tint = HomeColors.TextPrimary,
-                                    )
-                                }
+                                Icon(
+                                    imageVector = Icons.Filled.Storefront,
+                                    contentDescription = null,
+                                    tint = HomeColors.TextPrimary,
+                                )
                             }
 
                             Spacer(modifier = Modifier.size(RojanDimens.SpaceSM))
@@ -185,30 +205,6 @@ fun SearchScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    RojanIconContainer(
-    imageVector = Icons.Filled.Star,
-    contentDescription = null,
-    tint = HomeColors.TextSecondary,
-    size = RojanIconSize.Small,
-)
-                                    Text(
-                                        text = " ${salon.rating}  •  ",
-                                        style = RojanTypography.Caption,
-                                        color = HomeColors.TextSecondary,
-                                    )
-                                    RojanIconContainer(
-    imageVector = Icons.Filled.LocationOn,
-    contentDescription = null,
-    tint = HomeColors.TextSecondary,
-    size = RojanIconSize.Small,
-)
-                                    Text(
-                                        text = " ${salon.distanceKm} کیلومتر",
-                                        style = RojanTypography.Caption,
-                                        color = HomeColors.TextSecondary,
-                                    )
-                                }
                             }
 
                             // RTL/LTR Foundation Readiness: this app is RTL-first with
@@ -230,6 +226,11 @@ fun SearchScreen(
                 }
             }
             }
+            }
         }
     }
 }
+
+/** Deterministic per-salon tint — the backend has no per-salon color/branding concept. Same palette/approach as SalonListScreen.kt's MinimalSalonCard. */
+private val salonCardPalette = listOf(RojanSoftLavender, RojanAquaMint, RojanBlushPink, RojanPearlPink)
+private fun colorSeedFor(salonId: String) = salonCardPalette[Math.floorMod(salonId.hashCode(), salonCardPalette.size)]
