@@ -77,6 +77,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -336,9 +337,15 @@ fun RojanNavGraph() {
                         onSalonSelected = { salonId ->
                             navController.navigate(RojanDestinations.salonDetails(salonId))
                         },
-                        // Secondary entry point for Manager/Specialist roles —
-                        // WELCOME is no longer the default landing screen.
-                        onBusinessLoginClick = { navController.navigate(RojanDestinations.WELCOME) },
+                        // Android <-> Backend Full Integration milestone: the
+                        // business-login entry point (Manager/Specialist role
+                        // routing) is disabled — it matched a verified phone
+                        // number against demo staff records, which has no
+                        // real backend equivalent (no organizations/permissions
+                        // concept server-side). Leaving onBusinessLoginClick
+                        // unset hides the link (see SalonListScreen's own
+                        // `if (onBusinessLoginClick != null)` guard) rather
+                        // than wiring it to something that can never work.
                     )
                 }
 
@@ -439,9 +446,6 @@ fun RojanNavGraph() {
                                     }
                                 }
                             }
-                        },
-                        onFirstTimeUser = {
-                            navController.navigate(RojanDestinations.FIRST_TIME_NAME)
                         },
                     )
                 }
@@ -995,6 +999,13 @@ fun RojanNavGraph() {
                             onLoyaltyClick = { navController.navigate(RojanDestinations.LOYALTY) },
                             onReviewsClick = { navController.navigate(RojanDestinations.MY_REVIEWS) },
                             onBeautyTimelineClick = { navController.navigate(RojanDestinations.BEAUTY_TIMELINE) },
+                            onLogoutClick = {
+                                authViewModel.logout()
+                                navController.navigate(RojanDestinations.EXPLORE) {
+                                    popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            },
                         )
                     }
 

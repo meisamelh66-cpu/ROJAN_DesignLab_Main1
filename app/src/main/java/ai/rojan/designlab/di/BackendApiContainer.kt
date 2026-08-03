@@ -45,17 +45,14 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
  * gets transparent bearer-token attachment and 401-refresh-retry for free)
  * backs every `*Api` this class builds.
  *
- * **Auth migration frozen (Android <-> Backend Full Integration
- * milestone):** the Android app's existing Phone+OTP UX is not being
- * replaced this milestone — see `presentation/auth/AuthViewModelFactory.kt`,
- * which still constructs the mock `Demo*` identity/session providers, not
- * [backendAuthRepository] below. Every repository in this container is
- * therefore fully built and wired, but nothing populates [tokenRepository]
- * with a real token yet — calls will genuinely receive `401 Unauthorized`
- * until a future backend milestone adds native Phone-OTP endpoints and a
- * later Android milestone points the auth screens at them. This is the
- * deliberate, ready-but-dormant integration point that decision implies:
- * no workaround, no bridge identity, no shared test token.
+ * **Auth wired (Android <-> Backend Full Integration milestone):**
+ * `presentation/auth/AuthViewModelFactory.kt` now constructs
+ * [backendAuthRepository]/[tokenRepository] from this container alongside
+ * the still-demo `Demo*` identity/session providers — see
+ * `presentation/auth/AuthViewModel.kt`'s own doc comment for why both
+ * exist together. [tokenRepository] is populated with a real access/
+ * refresh token pair on a successful login, so every repository below
+ * genuinely authenticates against the backend.
  *
  * Construct once (e.g. held by the call site the same way
  * `AuthViewModelFactory` is currently constructed once in `RojanNavGraph`)

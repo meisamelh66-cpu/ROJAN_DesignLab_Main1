@@ -1,10 +1,11 @@
-﻿package ai.rojan.designlab.screens.auth
+package ai.rojan.designlab.screens.auth
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.TextButton
 import ai.rojan.designlab.ui.text.Text
@@ -31,6 +34,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import ai.rojan.designlab.ui.theme.RojanErrorText
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
@@ -47,38 +51,39 @@ import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
- * Booking Experience Refactor, Spec section 3 — Authentication.
- * "Single screen: Phone Number / SMS Verification Code... Do NOT create
- * separate pages." Both fields genuinely live on this one screen: the
- * OTP field only appears (via [AnimatedVisibility], not a navigation
- * change) once [AuthViewModel.sessionState] becomes
- * [SessionState.AwaitingOtp].
+ * Android <-> Backend Full Integration milestone: real
+ * `POST /api/v1/auth/login` / `/register` — the backend has no phone/OTP
+ * concept, so the previous single-screen phone-number + SMS-OTP flow
+ * (Booking Experience Refactor, Spec section 3) is replaced with
+ * email/password(+full name for Register) on this same screen, same
+ * visual system ([HomeGlassSurface]/[PremiumButton]/glow effects
+ * untouched) — a mode toggle switches between Login and Register instead
+ * of a navigation change, the same "stay on one screen" spirit the OTP
+ * flow followed.
  *
  * This screen is navigation-agnostic — it never calls a NavController
- * itself. [onExistingUserAuthenticated]/[onFirstTimeUser] are invoked
- * once, driven by a [LaunchedEffect] watching [AuthViewModel.sessionState],
- * exactly the same callback pattern every other screen in this codebase
- * uses.
+ * itself. [onExistingUserAuthenticated] is invoked once, driven by a
+ * [LaunchedEffect] watching [AuthViewModel.sessionState], the same
+ * callback pattern every other screen in this codebase uses.
  */
 @Composable
 fun AuthScreen(
     authViewModel: AuthViewModel,
     onBackClick: () -> Unit,
     onExistingUserAuthenticated: () -> Unit,
-    onFirstTimeUser: () -> Unit,
 ) {
     val sessionState by authViewModel.sessionState.collectAsStateWithLifecycle()
     val errorMessage by authViewModel.errorMessage.collectAsStateWithLifecycle()
+    val isSubmitting by authViewModel.isSubmitting.collectAsStateWithLifecycle()
 
-    var phoneNumber by remember { mutableStateOf("") }
-    var otpCode by remember { mutableStateOf("") }
+    var isRegisterMode by remember { mutableStateOf(false) }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var fullName by remember { mutableStateOf("") }
+    var rememberMe by remember { mutableStateOf(true) }
 
     LaunchedEffect(sessionState) {
-        when (val state = sessionState) {
-            is SessionState.LoggedIn -> onExistingUserAuthenticated()
-            is SessionState.AwaitingFirstName -> onFirstTimeUser()
-            else -> Unit
-        }
+        if (sessionState is SessionState.LoggedIn) onExistingUserAuthenticated()
     }
 
     HomeBackgroundTheme {
@@ -94,7 +99,7 @@ fun AuthScreen(
             Text("سلام 🌸", style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary)
             Spacer(modifier = Modifier.height(RojanDimens.SpaceXS))
             Text(
-                "برای ادامه، شماره موبایل خود را وارد کنید",
+                if (isRegisterMode) "برای ساخت حساب کاربری، اطلاعات زیر را وارد کنید" else "برای ادامه، ایمیل و رمز عبور خود را وارد کنید",
                 style = RojanTypography.Body,
                 color = HomeColors.TextSecondary,
             )
@@ -108,32 +113,52 @@ fun AuthScreen(
                         .padding(RojanDimens.SpaceMD),
                     verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
                 ) {
+                    AnimatedVisibility(visible = isRegisterMode) {
+                        HomeTextField(
+                            value = fullName,
+                            onValueChange = { fullName = it },
+                            label = { Text("نام و نام خانوادگی") },
+                            enabled = !isSubmitting,
+                            singleLine = true,
+                            textStyle = LocalTextStyle.current.withDirectionFor(fullName),
+                        )
+                    }
+
                     HomeTextField(
-                        value = phoneNumber,
-                        onValueChange = { phoneNumber = it },
-                        label = { Text("شماره موبایل") },
-                        placeholder = { Text("09xxxxxxxxx") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        enabled = sessionState is SessionState.LoggedOut,
+                        value = email,
+                        onValueChange = { email = it },
+                        label = { Text("ایمیل") },
+                        placeholder = { Text("you@example.com") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        enabled = !isSubmitting,
                         singleLine = true,
-                        textStyle = LocalTextStyle.current.withDirectionFor(phoneNumber),
+                        textStyle = LocalTextStyle.current.withDirectionFor(email),
                     )
 
-                    AnimatedVisibility(visible = sessionState is SessionState.AwaitingOtp) {
-                        Column(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
-                            HomeTextField(
-                                value = otpCode,
-                                onValueChange = { otpCode = it },
-                                label = { Text("کد تایید") },
-                                placeholder = { Text("۱۲۳۴") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                                singleLine = true,
-                                textStyle = LocalTextStyle.current.withDirectionFor(otpCode),
-                            )
+                    HomeTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("رمز عبور") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        visualTransformation = PasswordVisualTransformation(),
+                        enabled = !isSubmitting,
+                        singleLine = true,
+                    )
 
-                            TextButton(onClick = { authViewModel.editPhoneNumber(); otpCode = "" }) {
-                                Text("ویرایش شماره موبایل")
-                            }
+                    AnimatedVisibility(visible = !isRegisterMode) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Checkbox(
+                                checked = rememberMe,
+                                onCheckedChange = { rememberMe = it },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = HomeColors.Glow,
+                                    uncheckedColor = HomeColors.TextSecondary,
+                                ),
+                            )
+                            Text("مرا به خاطر بسپار", style = RojanTypography.Body, color = HomeColors.TextSecondary)
                         }
                     }
 
@@ -143,6 +168,13 @@ fun AuthScreen(
                             style = RojanTypography.Caption,
                             color = RojanErrorText,
                         )
+                    }
+
+                    TextButton(onClick = {
+                        isRegisterMode = !isRegisterMode
+                        password = ""
+                    }) {
+                        Text(if (isRegisterMode) "قبلاً ثبت‌نام کرده‌اید؟ وارد شوید" else "حساب کاربری ندارید؟ ثبت‌نام کنید")
                     }
                 }
             }
@@ -191,14 +223,15 @@ fun AuthScreen(
                 )
 
                 PremiumButton(
-                    text = if (sessionState is SessionState.AwaitingOtp) "تایید کد" else "ارسال کد",
+                    text = if (isRegisterMode) "ثبت‌نام" else "ورود",
                     onClick = {
-                        if (sessionState is SessionState.AwaitingOtp) {
-                            authViewModel.submitOtp(otpCode)
+                        if (isRegisterMode) {
+                            authViewModel.register(email, password, fullName, rememberMe)
                         } else {
-                            authViewModel.submitPhoneNumber(phoneNumber)
+                            authViewModel.login(email, password, rememberMe)
                         }
                     },
+                    enabled = !isSubmitting,
                 )
 
                 // Soft top-highlight sheen — a light-catching cue on top

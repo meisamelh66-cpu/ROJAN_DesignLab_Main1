@@ -1,6 +1,7 @@
 package ai.rojan.designlab.data.repository
 
 import ai.rojan.designlab.data.remote.AuthApi
+import ai.rojan.designlab.data.remote.safeApiCall
 import ai.rojan.designlab.data.remote.dto.LoginRequestDto
 import ai.rojan.designlab.data.remote.dto.NetworkUserRole
 import ai.rojan.designlab.data.remote.dto.RegisterRequestDto
@@ -15,7 +16,7 @@ class BackendAuthRepositoryImpl(
 ) : BackendAuthRepository {
 
     override suspend fun register(email: String, password: String, fullName: String): Result<AuthenticatedUser> =
-        runCatching {
+        safeApiCall {
             authApi.register(
                 RegisterRequestDto(
                     email = email,
@@ -27,14 +28,14 @@ class BackendAuthRepositoryImpl(
         }
 
     override suspend fun login(email: String, password: String): Result<AuthenticatedUser> =
-        runCatching {
+        safeApiCall {
             val response = authApi.login(LoginRequestDto(email = email, password = password))
             tokenRepository.saveTokens(response.accessToken, response.refreshToken)
             response.user.toDomain()
         }
 
     override suspend fun currentUser(): Result<AuthenticatedUser> =
-        runCatching { authApi.me().toDomain() }
+        safeApiCall { authApi.me().toDomain() }
 
     private fun UserResponseDto.toDomain() = AuthenticatedUser(
         id = id,

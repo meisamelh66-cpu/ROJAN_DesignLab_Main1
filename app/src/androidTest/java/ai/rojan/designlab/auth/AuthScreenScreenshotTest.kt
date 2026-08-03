@@ -3,6 +3,9 @@ package ai.rojan.designlab.auth
 import ai.rojan.designlab.data.identity.DemoIdentityProvider
 import ai.rojan.designlab.data.identity.DemoSessionProvider
 import ai.rojan.designlab.domain.repository.AuthSessionRepository
+import ai.rojan.designlab.domain.repository.AuthenticatedUser
+import ai.rojan.designlab.domain.repository.BackendAuthRepository
+import ai.rojan.designlab.domain.repository.TokenRepository
 import ai.rojan.designlab.presentation.auth.AuthViewModel
 import ai.rojan.designlab.screens.auth.AuthScreen
 import android.graphics.Bitmap
@@ -37,6 +40,26 @@ class AuthScreenScreenshotTest {
         override suspend fun savePersonId(personId: String) = Unit
         override suspend fun clearPersonId() = Unit
         override fun observePersonId(): Flow<String?> = flowOf(null)
+        override suspend fun saveRememberMe(remember: Boolean) = Unit
+        override fun observeRememberMe(): Flow<Boolean> = flowOf(true)
+    }
+
+    private class NoOpBackendAuthRepository : BackendAuthRepository {
+        override suspend fun register(email: String, password: String, fullName: String): Result<AuthenticatedUser> =
+            Result.failure(UnsupportedOperationException("not used by this screenshot test"))
+
+        override suspend fun login(email: String, password: String): Result<AuthenticatedUser> =
+            Result.failure(UnsupportedOperationException("not used by this screenshot test"))
+
+        override suspend fun currentUser(): Result<AuthenticatedUser> =
+            Result.failure(UnsupportedOperationException("not used by this screenshot test"))
+    }
+
+    private class NoOpTokenRepository : TokenRepository {
+        override fun saveTokens(accessToken: String, refreshToken: String) = Unit
+        override fun clearTokens() = Unit
+        override fun accessToken(): String? = null
+        override fun refreshToken(): String? = null
     }
 
     @Test
@@ -48,13 +71,14 @@ class AuthScreenScreenshotTest {
                 sessionProvider = sessionProvider,
                 identityProvider = identityProvider,
                 authSessionRepository = NoOpAuthSessionRepository(),
+                backendAuthRepository = NoOpBackendAuthRepository(),
+                tokenRepository = NoOpTokenRepository(),
             )
 
             AuthScreen(
                 authViewModel = authViewModel,
                 onBackClick = {},
                 onExistingUserAuthenticated = {},
-                onFirstTimeUser = {},
             )
         }
         composeTestRule.waitForIdle()

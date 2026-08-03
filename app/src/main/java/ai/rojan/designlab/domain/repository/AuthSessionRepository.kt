@@ -24,4 +24,10 @@ interface AuthSessionRepository {
      * is logged in), and re-emits whenever it changes.
      */
     fun observePersonId(): Flow<String?>
+
+    /** Persists the "Remember Me" choice made at login. */
+    suspend fun saveRememberMe(remember: Boolean)
+
+    /** Whether the current session should survive a cold start — defaults to `true` when never explicitly set, so this is additive and never regresses a pre-existing session. */
+    fun observeRememberMe(): Flow<Boolean>
 }

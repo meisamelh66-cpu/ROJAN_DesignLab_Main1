@@ -23,17 +23,20 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.RateReview
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material3.Icon
 import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 import ai.rojan.designlab.domain.customer.insights.ProfileInsightsEngine
 import ai.rojan.designlab.presentation.auth.AuthViewModel
@@ -85,10 +88,12 @@ fun ProfileScreen(
     onLoyaltyClick: () -> Unit,
     onReviewsClick: () -> Unit,
     onBeautyTimelineClick: () -> Unit,
+    onLogoutClick: () -> Unit,
 ) {
     val tier = ecosystemViewModel.membershipTier()
     val state = ecosystemViewModel.state
     val insights = remember(state) { ProfileInsightsEngine().computeInsights(state) }
+    val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
 
     val menuItems = listOf(
         ProfileMenuItem(Icons.Filled.CalendarMonth, "نوبت‌های من", "مشاهده نوبت‌های آینده و گذشته", onAppointmentsClick),
@@ -99,6 +104,7 @@ fun ProfileScreen(
         ProfileMenuItem(Icons.Filled.Stars, "امتیازات وفاداری", "امتیازهای کسب‌شده", onLoyaltyClick),
         ProfileMenuItem(Icons.Filled.RateReview, "نظرات من", "نظراتی که ثبت کرده‌اید", onReviewsClick),
         ProfileMenuItem(Icons.Filled.History, "تاریخچه زیبایی", "خدمات دریافت‌شده در طول زمان", onBeautyTimelineClick),
+        ProfileMenuItem(Icons.Filled.Logout, "خروج از حساب", "خروج از حساب کاربری", onLogoutClick),
     )
 
     HomeBackgroundTheme {
@@ -124,6 +130,9 @@ fun ProfileScreen(
                     }
                     Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
                     Text(authViewModel.currentDisplayName ?: "کاربر", style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary)
+                    currentUser?.email?.let {
+                        Text(it, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
+                    }
                     Text("عضو ${tier.currentTierName}", style = RojanTypography.Body, color = HomeColors.TextSecondary)
                 }
             }

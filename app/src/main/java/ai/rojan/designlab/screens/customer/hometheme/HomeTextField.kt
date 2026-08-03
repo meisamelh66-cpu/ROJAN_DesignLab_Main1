@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.ui.theme.RojanShapes
@@ -48,6 +49,10 @@ fun HomeTextField(
     singleLine: Boolean = false,
     enabled: Boolean = true,
     textStyle: TextStyle = LocalTextStyle.current,
+    // Android <-> Backend Full Integration milestone: added for the real
+    // email/password AuthScreen's password field. Defaults to `None`, so
+    // every existing call site is unaffected.
+    visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
@@ -122,6 +127,7 @@ fun HomeTextField(
             placeholder = placeholder,
             leadingIcon = leadingIcon,
             keyboardOptions = keyboardOptions,
+            visualTransformation = visualTransformation,
             interactionSource = interactionSource,
             shape = shape,
             colors = TextFieldDefaults.colors(
