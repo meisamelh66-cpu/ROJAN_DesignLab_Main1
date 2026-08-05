@@ -2,6 +2,7 @@ package ai.rojan.designlab.manager.data
 
 import ai.rojan.designlab.data.remote.ManagerBookingApi
 import ai.rojan.designlab.data.remote.dto.BookingResponseDto
+import ai.rojan.designlab.data.remote.dto.CreateBookingForCustomerRequestDto
 import ai.rojan.designlab.data.remote.dto.NetworkBookingStatus
 import ai.rojan.designlab.data.remote.safeApiCall
 import ai.rojan.designlab.manager.domain.appointment.Appointment
@@ -12,31 +13,26 @@ import java.time.format.DateTimeFormatter
 
 /**
  * Real backend-backed [AppointmentRepository] (Manager App Phase 2 —
- * Appointment Integration). `getAll()`/`getById()`/`getByCustomerId()`
- * read an in-memory cache populated by [sync], sourced from the real,
+ * Appointment Integration; Final Release Validation — Real Booking
+ * Calendar Integration). `getAll()`/`getById()`/`getByCustomerId()` read
+ * an in-memory cache populated by [sync], sourced from the real,
  * owner-authenticated `GET /api/v1/salons/{salonId}/bookings`
  * (`SalonBookingController`) — genuinely real data, not fabricated.
  *
- * `create`/`update`/`updateStatus`/`cancel` stay **local-cache only**,
- * matching the previous in-memory implementation's behavior, on purpose:
- * the backend has no owner-side booking-write endpoint. The only
- * booking-create endpoint that exists (`POST /api/v1/bookings`) derives
- * `customerId` from the caller's own JWT, not a request field — calling
- * it from the Manager app would silently attribute the booking to the
- * manager's own account, not the customer selected in the wizard, which
- * is worse than not integrating it. This is a real, confirmed backend
- * gap (see `ROJAN_Manager_App_Audit_Report.md`), not a shortcut taken
- * here.
+ * `create`/`update`/`updateStatus`/`cancel` stay **local-cache only** —
+ * the backend has no owner-side update/cancel endpoint for a booking
+ * already made (only create). [createForCustomer] is the one real write:
+ * `POST /api/v1/salons/{salonId}/bookings`, the owner-authorized
+ * counterpart to the customer-self-service `POST /api/v1/bookings` (which
+ * derives `customerId` from the caller's own JWT and so was never usable
+ * from the Manager app). A successful [createForCustomer] also appends
+ * the real, backend-returned appointment into the local cache, so
+ * Calendar reflects it immediately without a full [sync].
  *
- * **Known pre-existing gap this surfaces, not fixed here:**
- * [ai.rojan.designlab.manager.domain.appointment.ManagerCalendarWeek]'s own
- * doc comment states no real calendar/date library is wired into this
- * codebase - "today" and the week it shows are a static placeholder, not
- * derived from a real clock. Real backend appointments below are mapped
- * to their actual Gregorian date/time (correct, real data), but Calendar's
- * "today" grouping won't line them up with its still-fake reference week
- * until that separate, pre-existing gap is closed. Surfacing this rather
- * than silently reformatting real dates to fit the fake week.
+ * [ai.rojan.designlab.manager.domain.appointment.ManagerCalendarWeek] is
+ * now a real, clock-driven week too (previously a static placeholder),
+ * so appointments mapped below line up with Calendar's "today" grouping
+ * correctly — the drift this class's doc comment used to flag is closed.
  */
 class BackendAppointmentRepository(
     private val managerBookingApi: ManagerBookingApi,
@@ -78,6 +74,28 @@ class BackendAppointmentRepository(
     }
 
     override fun cancel(id: String): Appointment? = updateStatus(id, AppointmentStatus.CANCELLED)
+
+    override suspend fun createForCustomer(
+        customerId: String,
+        serviceId: String,
+        specialistId: String,
+        startTime: String,
+        notes: String?,
+    ): Result<Appointment> =
+        safeApiCall {
+            managerBookingApi.createForCustomer(
+                salonId = salonId,
+                request = CreateBookingForCustomerRequestDto(
+                    customerId = customerId,
+                    serviceId = serviceId,
+                    specialistId = specialistId,
+                    startTime = startTime,
+                    notes = notes,
+                ),
+            )
+        }.map { dto ->
+            dto.toDomain().also { created -> cache = cache + created }
+        }
 
     private fun BookingResponseDto.toDomain(): Appointment {
         // startTime is an ISO-8601 *local* date-time with no offset (see CreateBookingRequestDto's

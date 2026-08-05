@@ -110,6 +110,9 @@ class BackendApiContainer(context: Context) {
     val managerDashboardApi: ManagerDashboardApi = retrofit.create(ManagerDashboardApi::class.java)
     val serviceApi: ServiceApi = retrofit.create(ServiceApi::class.java)
     val serviceCategoryApi: ServiceCategoryApi = retrofit.create(ServiceCategoryApi::class.java)
+    // Raw here too (same reason as serviceApi/serviceCategoryApi above): BackendSpecialistRepository
+    // needs create/update, which specialistRepository (the Customer-flavor wrapper) doesn't expose.
+    val specialistApi: SpecialistApi = retrofit.create(SpecialistApi::class.java)
 
     private companion object {
 

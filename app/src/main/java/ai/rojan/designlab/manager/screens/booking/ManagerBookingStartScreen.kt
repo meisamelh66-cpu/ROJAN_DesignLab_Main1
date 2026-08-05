@@ -4,6 +4,7 @@ import ai.rojan.designlab.manager.components.ManagerColors
 import ai.rojan.designlab.manager.components.ManagerIconContainer
 import ai.rojan.designlab.manager.components.ManagerPrimaryButton
 import ai.rojan.designlab.manager.components.ManagerScaffold
+import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
@@ -21,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
@@ -29,6 +31,15 @@ import androidx.compose.ui.unit.dp
  * [ManagerBookingViewModel]'s state fresh every time a new booking
  * starts (in case a previous, abandoned session left stale selections),
  * then hands off to [ManagerBookingCustomerScreen] via [onStartClick].
+ *
+ * Also (re-)runs [ManagerRepositories.initialize] on entry (Final Release
+ * Validation — Real Booking Calendar Integration), same "safe to call
+ * again, just re-syncs" convention Dashboard/Calendar already use — this
+ * wizard's [ManagerBookingViewModel] was constructed once, synchronously,
+ * with whatever `salonId`/`availabilityRepository` were already resolved
+ * at that moment, so making sure they're fresh *before* the user reaches
+ * the date/time step matters more here than it does for those two
+ * screens' own reads.
  */
 @Composable
 fun ManagerBookingStartScreen(
@@ -36,8 +47,10 @@ fun ManagerBookingStartScreen(
     onBackClick: (() -> Unit)? = null,
     onStartClick: () -> Unit = {},
 ) {
+    val context = LocalContext.current
     LaunchedEffect(Unit) {
         viewModel.reset()
+        ManagerRepositories.initialize(context)
     }
 
     ManagerScaffold(onBackClick = onBackClick) {

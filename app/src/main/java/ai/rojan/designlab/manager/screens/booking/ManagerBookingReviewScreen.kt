@@ -6,10 +6,12 @@ import ai.rojan.designlab.manager.components.ManagerPrimaryButton
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.data.formatTomanPrice
 import ai.rojan.designlab.manager.domain.appointment.ManagerCalendarWeek
+import ai.rojan.designlab.manager.domain.booking.timeSlotLabel
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
+import ai.rojan.designlab.ui.theme.RojanErrorText
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
 import androidx.compose.foundation.layout.Arrangement
@@ -20,16 +22,26 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 
 /**
  * Manager Booking Journey Phase 2 — step 5: review the resolved
  * selections (ids -> display entities, via the repositories) before
- * confirming. Confirm creates the [ai.rojan.designlab.manager.domain.appointment.Appointment]
- * through [ManagerBookingViewModel.confirm] — the screen itself does no
- * business logic.
+ * confirming.
+ *
+ * Final Release Validation — Real Booking Calendar Integration: Confirm
+ * now calls the real, suspend [ManagerBookingViewModel.confirm] and only
+ * advances via [onConfirmed] on success — a real backend failure (e.g.
+ * the selected customer has no linked account, or the slot was taken by
+ * someone else between selection and confirm) is shown inline instead of
+ * silently navigating forward regardless, which is what this screen used
+ * to do. [ManagerBookingState.isSubmitting]/`confirmError` drive the
+ * button's loading state and the error message — the screen itself still
+ * does no business logic, just renders what the ViewModel already computed.
  */
 @Composable
 fun ManagerBookingReviewScreen(
@@ -42,6 +54,8 @@ fun ManagerBookingReviewScreen(
     val service = viewModel.serviceById(state.serviceId)
     val specialist = viewModel.specialistById(state.specialistId)
     val dateLabel = state.dateKey?.let { ManagerCalendarWeek.labelFor(it) }
+    val timeLabel = state.time?.let { timeSlotLabel(it) }
+    val coroutineScope = rememberCoroutineScope()
 
     ManagerScaffold(onBackClick = onBackClick) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -69,17 +83,32 @@ fun ManagerBookingReviewScreen(
                     }
                     ReviewRow(label = "متخصص", value = specialist?.name ?: "—")
                     ReviewRow(label = "تاریخ", value = dateLabel ?: "—")
-                    ReviewRow(label = "ساعت", value = state.time ?: "—")
+                    ReviewRow(label = "ساعت", value = timeLabel ?: "—")
                 }
             }
 
+            if (state.confirmError != null) {
+                Text(
+                    text = state.confirmError.orEmpty(),
+                    style = RojanTypography.Caption,
+                    color = RojanErrorText,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = RojanDimens.SpaceMD),
+                )
+            }
+
             ManagerPrimaryButton(
-                text = "تایید نهایی",
+                text = if (state.isSubmitting) "در حال ثبت..." else "تایید نهایی",
                 onClick = {
-                    viewModel.confirm()
-                    onConfirmed()
+                    coroutineScope.launch {
+                        val result = viewModel.confirm()
+                        if (result.isSuccess) {
+                            onConfirmed()
+                        }
+                    }
                 },
-                enabled = state.isReadyToConfirm,
+                enabled = state.isReadyToConfirm && !state.isSubmitting,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = RojanDimens.SpaceLG),

@@ -5,6 +5,6 @@ import ai.rojan.designlab.manager.domain.specialist.Specialist
 interface SpecialistRepository {
     fun getAll(): List<Specialist>
     fun getById(id: String): Specialist?
-    fun create(specialist: Specialist): Specialist
-    fun update(specialist: Specialist): Specialist?
+    suspend fun create(specialist: Specialist): Result<Specialist>
+    suspend fun update(specialist: Specialist): Result<Specialist?>
 }

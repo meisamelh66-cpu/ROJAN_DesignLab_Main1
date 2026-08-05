@@ -2,6 +2,7 @@ package ai.rojan.designlab.manager.data
 
 import ai.rojan.designlab.data.remote.dto.DashboardInsightsResponseDto
 import ai.rojan.designlab.di.BackendApiContainerHolder
+import ai.rojan.designlab.domain.repository.AvailabilityRepository
 import ai.rojan.designlab.manager.domain.appointment.Appointment
 import ai.rojan.designlab.manager.domain.appointment.AppointmentStatus
 import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
@@ -11,6 +12,7 @@ import ai.rojan.designlab.manager.domain.repository.CustomerRepository
 import ai.rojan.designlab.manager.domain.repository.ServiceRepository
 import ai.rojan.designlab.manager.domain.repository.SpecialistRepository
 import ai.rojan.designlab.manager.domain.service.Service
+import ai.rojan.designlab.manager.domain.specialist.Specialist
 import android.content.Context
 
 /** Empty until [ManagerRepositories.initialize] resolves a real salon - honest "nothing loaded yet," not fake sample data. */
@@ -34,6 +36,24 @@ private object EmptyAppointmentRepository : AppointmentRepository {
     override fun update(appointment: Appointment): Appointment? = null
     override fun updateStatus(id: String, status: AppointmentStatus): Appointment? = null
     override fun cancel(id: String): Appointment? = null
+    override suspend fun createForCustomer(
+        customerId: String,
+        serviceId: String,
+        specialistId: String,
+        startTime: String,
+        notes: String?,
+    ): Result<Appointment> =
+        Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
+}
+
+/** Empty until [ManagerRepositories.initialize] resolves a real salon - honest "nothing loaded yet," not fake sample data. */
+private object EmptySpecialistRepository : SpecialistRepository {
+    override fun getAll(): List<Specialist> = emptyList()
+    override fun getById(id: String): Specialist? = null
+    override suspend fun create(specialist: Specialist): Result<Specialist> =
+        Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
+    override suspend fun update(specialist: Specialist): Result<Specialist?> =
+        Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
 }
 
 /** Empty until [ManagerRepositories.initialize] resolves a real salon - honest "nothing loaded yet," not fake sample data. */
@@ -49,32 +69,38 @@ private object EmptyCustomerRepository : CustomerRepository {
 }
 
 /**
- * Composition root for the Manager module's repositories. [specialists]
- * remains in-memory - no backend Specialist-management API was in scope
- * for any phase so far. [services]/[appointments]/[customers] are real,
+ * Composition root for the Manager module's repositories.
+ * [services]/[appointments]/[customers]/[specialists] are all real,
  * backend-backed ([BackendServiceRepository]/[BackendAppointmentRepository]/
- * [BackendCustomerRepository] — the last added in Final Backend
- * Integration, replacing the removed `InMemoryCustomerRepository`).
+ * [BackendCustomerRepository]/[BackendSpecialistRepository] — the last
+ * added in Final Release Validation, replacing the removed
+ * `InMemorySpecialistRepository`; its fake `"sp1"`/`"sp2"`/`"sp3"` ids
+ * would have made the real availability/booking-write endpoints reject
+ * every call, since both require a real specialist `UUID`).
  * [dashboardInsights] is likewise real, from `GET /api/v1/dashboard/insights`
  * (`DashboardController`) — null until [initialize] completes, or if that
  * one call fails independently (see [initialize]'s doc comment); consumers
  * (`AIInsightCard`) must treat null as "no data yet," not an error.
+ * [salonId]/[availabilityRepository] (Final Release Validation) expose
+ * what [ManagerBookingViewModel] needs to call the real computed-
+ * availability API directly — [availabilityRepository] is the same
+ * stateless instance the Customer flavor already uses, reused rather than
+ * duplicated (salon id is a per-call parameter, not baked into it).
  *
  * [initialize] must be called once - from
  * [ai.rojan.designlab.ManagerActivity], in a coroutine - before
- * [services]/[appointments]/[customers]/[dashboardInsights] have real data;
- * until then they're the empty objects/null above. That is a genuine,
- * honest gap versus the old always-ready in-memory sample data: a real
- * network round-trip cannot be instant. Whichever screen first reads them
- * may see an empty list for a moment on cold start - this composition root
- * does not attempt to solve the Compose-recomposition-on-async-load
- * problem for every existing call site (Calendar's direct, non-`remember`
- * reads in particular); that is a real, separate follow-up for whoever
- * wires this to an actual device/emulator run, not something guessed at
- * blind here.
+ * [services]/[appointments]/[customers]/[specialists]/[dashboardInsights]/
+ * [salonId]/[availabilityRepository] have real data; until then they're
+ * the empty objects/null above. That is a genuine, honest gap versus the
+ * old always-ready in-memory sample data: a real network round-trip
+ * cannot be instant. Whichever screen first reads them may see an empty
+ * list for a moment on cold start - this composition root does not
+ * attempt to solve the Compose-recomposition-on-async-load problem for
+ * every existing call site (Calendar's direct, non-`remember` reads in
+ * particular); that is a real, separate follow-up for whoever wires this
+ * to an actual device/emulator run, not something guessed at blind here.
  */
 object ManagerRepositories {
-    val specialists: SpecialistRepository = InMemorySpecialistRepository()
 
     var services: ServiceRepository = EmptyServiceRepository
         private set
@@ -82,20 +108,26 @@ object ManagerRepositories {
         private set
     var customers: CustomerRepository = EmptyCustomerRepository
         private set
+    var specialists: SpecialistRepository = EmptySpecialistRepository
+        private set
     var dashboardInsights: DashboardInsightsResponseDto? = null
+        private set
+    var salonId: String? = null
+        private set
+    var availabilityRepository: AvailabilityRepository? = null
         private set
 
     /**
      * Resolves the authenticated owner's salon (`GET /api/v1/salons/mine`,
      * first result - multi-branch selection is out of scope) and syncs
-     * real Service/Appointment/Customer data, plus Dashboard Insights.
-     * Safe to call again to re-sync.
+     * real Service/Appointment/Customer/Specialist data, plus Dashboard
+     * Insights. Safe to call again to re-sync.
      *
      * Insights failing (401/404/409 - see `ManagerDashboardApi`'s own doc
      * comment for what each means) does not fail the whole call: it's
-     * fetched independently of salon/service/appointment/customer sync, so
-     * one genuinely-optional card being unavailable doesn't block the rest
-     * of the dashboard.
+     * fetched independently of salon/service/appointment/customer/specialist
+     * sync, so one genuinely-optional card being unavailable doesn't block
+     * the rest of the dashboard.
      */
     suspend fun initialize(context: Context): Result<Unit> {
         val container = BackendApiContainerHolder.get(context)
@@ -118,18 +150,27 @@ object ManagerRepositories {
             managerCustomerApi = container.managerCustomerApi,
             salonId = salon.id,
         )
+        val specialistRepo = BackendSpecialistRepository(
+            specialistApi = container.specialistApi,
+            salonId = salon.id,
+        )
 
         val serviceSync = serviceRepo.sync()
         val appointmentSync = appointmentRepo.sync()
         val customerSync = customerRepo.sync()
+        val specialistSync = specialistRepo.sync()
         dashboardInsights = runCatching { container.managerDashboardApi.insights() }.getOrNull()
 
         services = serviceRepo
         appointments = appointmentRepo
         customers = customerRepo
+        specialists = specialistRepo
+        salonId = salon.id
+        availabilityRepository = container.availabilityRepository
 
         return serviceSync
             .fold(onSuccess = { appointmentSync }, onFailure = { Result.failure(it) })
             .fold(onSuccess = { customerSync }, onFailure = { Result.failure(it) })
+            .fold(onSuccess = { specialistSync }, onFailure = { Result.failure(it) })
     }
 }

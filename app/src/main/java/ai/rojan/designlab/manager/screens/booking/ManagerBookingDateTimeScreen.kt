@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.screens.booking
 
+import ai.rojan.designlab.domain.repository.TimeSlot
 import ai.rojan.designlab.manager.components.ManagerColors
 import ai.rojan.designlab.manager.components.ManagerGlassSurface
 import ai.rojan.designlab.manager.components.ManagerGlassTheme
@@ -7,6 +8,7 @@ import ai.rojan.designlab.manager.components.ManagerPrimaryButton
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.domain.appointment.CalendarWeekDay
 import ai.rojan.designlab.manager.domain.appointment.ManagerCalendarWeek
+import ai.rojan.designlab.manager.domain.booking.timeSlotLabel
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
@@ -28,8 +30,11 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -38,11 +43,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * Manager Booking Journey Phase 2 — step 4: pick a date (from
- * [ManagerCalendarWeek], the same reference week Calendar itself uses)
- * and an available time. Time slots come from
- * [ManagerBookingViewModel.availableTimes] — a specialist's already-
- * booked, non-cancelled times on that date are excluded, a real
- * availability check, not a static list.
+ * [ManagerCalendarWeek], the same real, clock-driven reference week
+ * Calendar itself uses) and an available time.
+ *
+ * Final Release Validation — Real Booking Calendar Integration: time
+ * slots now come from [ManagerBookingViewModel.availableTimes], a
+ * genuine network call to the backend's computed-availability API —
+ * loaded via [LaunchedEffect] (re-run whenever the selected specialist or
+ * date changes), with real loading/empty/error states, replacing the
+ * previous synchronous local-list computation.
  */
 @Composable
 fun ManagerBookingDateTimeScreen(
@@ -55,11 +64,14 @@ fun ManagerBookingDateTimeScreen(
     val selectedDateKey = state.dateKey
     val selectedTime = state.time
 
-    val availableTimes = remember(specialistId, selectedDateKey) {
-        if (specialistId != null && selectedDateKey != null) {
+    var availableTimesResult by remember(specialistId, selectedDateKey) {
+        mutableStateOf<Result<List<TimeSlot>>?>(null)
+    }
+    LaunchedEffect(specialistId, selectedDateKey) {
+        availableTimesResult = if (specialistId != null && selectedDateKey != null) {
             viewModel.availableTimes(specialistId, selectedDateKey)
         } else {
-            emptyList()
+            null
         }
     }
 
@@ -100,36 +112,33 @@ fun ManagerBookingDateTimeScreen(
                         )
                     }
 
-                    if (availableTimes.isEmpty()) {
-                        item {
-                            ManagerGlassSurface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RojanShapes.Small,
-                            ) {
-                                Text(
-                                    text = "ساعت خالی برای این متخصص در این روز وجود ندارد.",
-                                    style = RojanTypography.Body,
-                                    color = ManagerColors.TextSecondary,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(RojanDimens.SpaceLG),
-                                )
-                            }
+                    val result = availableTimesResult
+                    when {
+                        result == null -> item { AvailabilityNotice(text = "در حال دریافت ساعت‌های آزاد...") }
+                        result.isFailure -> item {
+                            AvailabilityNotice(
+                                text = result.exceptionOrNull()?.message
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?.let { "خطا در دریافت ساعت‌های آزاد: $it" }
+                                    ?: "خطا در دریافت ساعت‌های آزاد. لطفاً دوباره تلاش کنید.",
+                            )
                         }
-                    } else {
-                        item {
+                        result.getOrNull().isNullOrEmpty() -> item {
+                            AvailabilityNotice(text = "ساعت خالی برای این متخصص در این روز وجود ندارد.")
+                        }
+                        else -> item {
+                            val slots = result.getOrNull().orEmpty()
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(4),
                                 modifier = Modifier.height(160.dp),
                                 horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
                                 verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
                             ) {
-                                items(availableTimes) { time ->
+                                items(slots) { slot ->
                                     TimeChip(
-                                        time = time,
-                                        selected = time == selectedTime,
-                                        onClick = { viewModel.selectTime(time) },
+                                        label = timeSlotLabel(slot.start),
+                                        selected = slot.start == selectedTime,
+                                        onClick = { viewModel.selectTime(slot.start) },
                                     )
                                 }
                             }
@@ -147,6 +156,24 @@ fun ManagerBookingDateTimeScreen(
                     .padding(top = RojanDimens.SpaceMD),
             )
         }
+    }
+}
+
+@Composable
+private fun AvailabilityNotice(text: String) {
+    ManagerGlassSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RojanShapes.Small,
+    ) {
+        Text(
+            text = text,
+            style = RojanTypography.Body,
+            color = ManagerColors.TextSecondary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(RojanDimens.SpaceLG),
+        )
     }
 }
 
@@ -184,7 +211,7 @@ private fun DateChip(day: CalendarWeekDay, selected: Boolean, onClick: () -> Uni
 }
 
 @Composable
-private fun TimeChip(time: String, selected: Boolean, onClick: () -> Unit) {
+private fun TimeChip(label: String, selected: Boolean, onClick: () -> Unit) {
     ManagerGlassSurface(
         modifier = Modifier.rojanPressable(onClick = onClick),
         shape = RojanShapes.Small,
@@ -192,7 +219,7 @@ private fun TimeChip(time: String, selected: Boolean, onClick: () -> Unit) {
         borderAlpha = if (selected) ManagerGlassTheme.BorderAlpha else ManagerGlassTheme.BorderAlpha * 0.4f,
     ) {
         Text(
-            text = time,
+            text = label,
             style = RojanTypography.Caption,
             color = if (selected) ManagerColors.Turquoise else ManagerColors.TextSecondary,
             textAlign = TextAlign.Center,
