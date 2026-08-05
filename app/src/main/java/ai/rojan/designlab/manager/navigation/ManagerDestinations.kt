@@ -3,11 +3,18 @@ package ai.rojan.designlab.manager.navigation
 /**
  * Route constants for the isolated Manager App workspace. Deliberately
  * separate from [ai.rojan.designlab.navigation.RojanDestinations] (which
- * stays untouched) — this module is not wired into the shared app nav
- * graph yet, only foundation for it.
+ * stays untouched).
+ *
+ * [LOGIN] (Manager Auth Flow Implementation): the real backend
+ * email/password login/register screen ([ai.rojan.designlab.screens.auth.AuthScreen] —
+ * the exact same screen/ViewModel the Customer flow uses, not a
+ * Manager-specific rebuild), registered by [ai.rojan.designlab.manager.navigation.ManagerNavGraph]
+ * (the top-level gate composable) directly, not inside [managerNavGraph]
+ * itself — it is reached only before a session exists, never navigated to
+ * from within the authenticated app.
  */
 object ManagerDestinations {
-    const val SPLASH = "manager_splash"
+    const val LOGIN = "manager_login"
     const val DASHBOARD = "manager_dashboard_root"
     const val CALENDAR = "manager_calendar"
     const val CUSTOMERS = "manager_customers"
