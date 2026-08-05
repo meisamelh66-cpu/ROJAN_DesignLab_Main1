@@ -5,6 +5,9 @@ import ai.rojan.designlab.data.remote.AuthApi
 import ai.rojan.designlab.data.remote.AuthInterceptor
 import ai.rojan.designlab.data.remote.AvailabilityApi
 import ai.rojan.designlab.data.remote.BookingApi
+import ai.rojan.designlab.data.remote.ManagerBookingApi
+import ai.rojan.designlab.data.remote.ManagerSalonApi
+import ai.rojan.designlab.data.remote.ManagerServiceApi
 import ai.rojan.designlab.data.remote.NetworkConfig
 import ai.rojan.designlab.data.remote.SalonApi
 import ai.rojan.designlab.data.remote.ServiceApi
@@ -85,6 +88,24 @@ class BackendApiContainer(context: Context) {
 
     val bookingRepository: BookingRepository =
         BookingRepositoryImpl(retrofit.create(BookingApi::class.java))
+
+    // Manager-flavor-only APIs (owner-authenticated). Exposed as raw Retrofit
+    // interfaces rather than wrapped repositories here, since
+    // manager/data/BackendServiceRepository.kt and BackendAppointmentRepository.kt
+    // need salon-scoped composition (resolving `salonId` first via
+    // [managerSalonApi]) that doesn't fit this container's flat
+    // one-repository-per-API shape without duplicating that resolution logic
+    // per repository. serviceApi/serviceCategoryApi are the same instances
+    // [serviceRepository]/[serviceCategoryRepository] above already wrap for
+    // Customer - exposed raw here too since BackendServiceRepository needs
+    // to call getCategories()/getServices() directly (Manager's
+    // create/update/delete need the category id those return, which the
+    // wrapped Customer repository doesn't expose).
+    val managerSalonApi: ManagerSalonApi = retrofit.create(ManagerSalonApi::class.java)
+    val managerServiceApi: ManagerServiceApi = retrofit.create(ManagerServiceApi::class.java)
+    val managerBookingApi: ManagerBookingApi = retrofit.create(ManagerBookingApi::class.java)
+    val serviceApi: ServiceApi = retrofit.create(ServiceApi::class.java)
+    val serviceCategoryApi: ServiceCategoryApi = retrofit.create(ServiceCategoryApi::class.java)
 
     private companion object {
 

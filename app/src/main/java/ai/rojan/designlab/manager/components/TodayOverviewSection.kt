@@ -50,8 +50,12 @@ private fun overviewStatsFrom(stats: ManagerDashboardStats): List<OverviewStat> 
  * luxury background — content/layout unchanged.
  */
 @Composable
-fun TodayOverviewSection(modifier: Modifier = Modifier) {
-    val overviewStats = remember { overviewStatsFrom(computeManagerDashboardStats()) }
+fun TodayOverviewSection(modifier: Modifier = Modifier, refreshKey: Int = 0) {
+    // Manager App Phase 2: keyed on refreshKey (bumped by ManagerDashboardScreen once
+    // ManagerRepositories.initialize() completes) so real backend-synced appointment/service
+    // data is reflected once, not just whatever was in the (possibly still-empty) repositories
+    // at this Composable's first entry into composition.
+    val overviewStats = remember(refreshKey) { overviewStatsFrom(computeManagerDashboardStats()) }
 
     Column(modifier = modifier.fillMaxWidth()) {
         RtlSectionHeader(

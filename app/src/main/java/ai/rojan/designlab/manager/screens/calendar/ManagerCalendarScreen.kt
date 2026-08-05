@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ViewDay
 import androidx.compose.material.icons.filled.ViewWeek
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -50,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -117,11 +119,24 @@ fun ManagerCalendarScreen(
     var selectedDayIndex by remember { mutableIntStateOf(0) }
     var selectedSpecialistId by remember { mutableStateOf<String?>(null) }
 
+    // Manager App Phase 2: syncs real Service/Appointment data on screen entry (same
+    // ManagerRepositories.initialize() as ManagerDashboardScreen - safe to call twice, it just
+    // re-syncs). refreshTrigger's only purpose is being read below so Compose recomposes this
+    // screen once the sync completes and picks up the real data the same way it already picks up
+    // a locally-created appointment.
+    val context = LocalContext.current
+    var refreshTrigger by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        ManagerRepositories.initialize(context)
+        refreshTrigger++
+    }
+
     // Read directly on every recomposition (no remember) so an appointment
     // just created via the booking wizard (ManagerBookingViewModel.confirm(),
     // same ManagerRepositories.appointments instance) shows up as soon as
     // this screen is (re)entered, instead of the screen-local hardcoded
     // sample set this used to render regardless of what was actually booked.
+    @Suppress("UNUSED_EXPRESSION") refreshTrigger
     val specialists = ManagerRepositories.specialists.getAll()
     val appointmentsByDayKey = ManagerRepositories.appointments.getAll().groupBy { it.date }
 

@@ -8,13 +8,20 @@ import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.components.QuickActionsSection
 import ai.rojan.designlab.manager.components.SalonIdentityCard
 import ai.rojan.designlab.manager.components.TodayOverviewSection
+import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 
 /**
@@ -51,6 +58,18 @@ fun ManagerDashboardScreen(
     onViewCustomersClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
 ) {
+    val context = LocalContext.current
+    var refreshKey by remember { mutableIntStateOf(0) }
+
+    // Manager App Phase 2: resolves the owner's real salon and syncs real Service/Appointment
+    // data (see ManagerRepositories.initialize's own doc comment). Runs once per screen entry;
+    // failure is swallowed here deliberately - TodayOverviewSection/Calendar simply keep showing
+    // an empty state rather than crashing the dashboard over a network error on load.
+    LaunchedEffect(Unit) {
+        ManagerRepositories.initialize(context)
+        refreshKey++
+    }
+
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -61,7 +80,7 @@ fun ManagerDashboardScreen(
         ) {
             item { ManagerHeader(onProfileClick = onProfileClick) }
             item { SalonIdentityCard() }
-            item { TodayOverviewSection() }
+            item { TodayOverviewSection(refreshKey = refreshKey) }
             item {
                 QuickActionsSection(
                     onActionClick = { action ->

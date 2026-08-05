@@ -21,13 +21,6 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        // See data/remote/NetworkConfig.kt. No deployed prod backend exists
-        // yet, so both build types point at the same local-dev value for
-        // now; this only relocates the previous hardcoded constant into
-        // BuildConfig so a real prod URL can be substituted per build type
-        // later without another code change.
-        buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/\"")
     }
 
     // Manager App split (see CLAUDE.md "App ID Separation" audit): two
@@ -39,7 +32,23 @@ android {
     // ManagerActivity + a manifest + an app_name override; it reuses the
     // same src/main Manager package (screens/navigation/components) and
     // the existing rojan_manager_logo asset — nothing duplicated.
+    //
+    // Manager App Phase 2 (Environment Configuration): a second,
+    // independent flavor dimension replaces the single hardcoded
+    // API_BASE_URL with three real, separately-buildable environments.
+    // `dev` keeps the previous emulator-local value unchanged - no
+    // regression for existing local development. `staging`/`production`
+    // deliberately do NOT hardcode a guessed real URL (there is no
+    // confirmed staging/production deployment to point at yet, and
+    // inventing one would fabricate infrastructure that doesn't exist) -
+    // each reads its URL from a Gradle property
+    // (`-PSTAGING_API_BASE_URL=...` / `-PPRODUCTION_API_BASE_URL=...`, or
+    // set in `gradle.properties`, which is gitignored for real values).
+    // NetworkConfig.kt fails loudly at first use if that property was left
+    // unset for the environment actually being built, rather than silently
+    // falling back to a fake-looking default.
     flavorDimensions += "target"
+    flavorDimensions += "environment"
     productFlavors {
         create("customer") {
             dimension = "target"
@@ -47,6 +56,28 @@ android {
         create("manager") {
             dimension = "target"
             applicationId = "ai.rojan.designlab.manager"
+        }
+
+        create("dev") {
+            dimension = "environment"
+            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/\"")
+        }
+        create("staging") {
+            dimension = "environment"
+            applicationIdSuffix = ".staging"
+            buildConfigField(
+                "String",
+                "API_BASE_URL",
+                "\"${project.findProperty("STAGING_API_BASE_URL") ?: ""}\"",
+            )
+        }
+        create("production") {
+            dimension = "environment"
+            buildConfigField(
+                "String",
+                "API_BASE_URL",
+                "\"${project.findProperty("PRODUCTION_API_BASE_URL") ?: ""}\"",
+            )
         }
     }
 
