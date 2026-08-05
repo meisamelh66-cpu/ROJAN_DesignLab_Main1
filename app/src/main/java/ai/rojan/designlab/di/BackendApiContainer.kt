@@ -6,6 +6,8 @@ import ai.rojan.designlab.data.remote.AuthInterceptor
 import ai.rojan.designlab.data.remote.AvailabilityApi
 import ai.rojan.designlab.data.remote.BookingApi
 import ai.rojan.designlab.data.remote.ManagerBookingApi
+import ai.rojan.designlab.data.remote.ManagerCustomerApi
+import ai.rojan.designlab.data.remote.ManagerDashboardApi
 import ai.rojan.designlab.data.remote.ManagerSalonApi
 import ai.rojan.designlab.data.remote.ManagerServiceApi
 import ai.rojan.designlab.data.remote.NetworkConfig
@@ -104,6 +106,8 @@ class BackendApiContainer(context: Context) {
     val managerSalonApi: ManagerSalonApi = retrofit.create(ManagerSalonApi::class.java)
     val managerServiceApi: ManagerServiceApi = retrofit.create(ManagerServiceApi::class.java)
     val managerBookingApi: ManagerBookingApi = retrofit.create(ManagerBookingApi::class.java)
+    val managerCustomerApi: ManagerCustomerApi = retrofit.create(ManagerCustomerApi::class.java)
+    val managerDashboardApi: ManagerDashboardApi = retrofit.create(ManagerDashboardApi::class.java)
     val serviceApi: ServiceApi = retrofit.create(ServiceApi::class.java)
     val serviceCategoryApi: ServiceCategoryApi = retrofit.create(ServiceCategoryApi::class.java)
 

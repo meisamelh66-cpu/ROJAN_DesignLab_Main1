@@ -7,7 +7,7 @@ interface CustomerRepository {
     fun getAll(): List<ManagerCustomer>
     fun getById(id: String): ManagerCustomer?
     fun search(query: String): List<ManagerCustomer>
-    fun create(customer: ManagerCustomer): ManagerCustomer
-    fun update(customer: ManagerCustomer): ManagerCustomer?
+    suspend fun create(customer: ManagerCustomer): Result<ManagerCustomer>
+    suspend fun update(customer: ManagerCustomer): Result<ManagerCustomer?>
     fun getServiceHistory(customerId: String): List<CustomerServiceHistoryEntry>
 }

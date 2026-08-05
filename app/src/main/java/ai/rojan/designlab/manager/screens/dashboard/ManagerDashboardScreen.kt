@@ -92,7 +92,7 @@ fun ManagerDashboardScreen(
                     },
                 )
             }
-            item { AIInsightCard() }
+            item { AIInsightCard(refreshKey = refreshKey) }
             item { CalendarPreviewSection(onViewCalendarClick = onViewCalendarClick) }
         }
     }

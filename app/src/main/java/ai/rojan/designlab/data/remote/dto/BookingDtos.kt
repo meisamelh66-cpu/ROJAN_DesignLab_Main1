@@ -20,6 +20,22 @@ data class CreateBookingRequestDto(
     val notes: String? = null,
 )
 
+/**
+ * Request body for `POST /api/v1/salons/{salonId}/bookings` — the owner-authorized counterpart to
+ * [CreateBookingRequestDto], which always books the caller themself and has no `customerId` field
+ * at all. [customerId] is a CRM `Customer` id (from `GET /salons/{salonId}/customers`), not a
+ * `User` id — the target customer must already be linked to an account (backend returns 409
+ * otherwise; see `ManagerBookingApi.createForCustomer`'s doc comment).
+ */
+@Serializable
+data class CreateBookingForCustomerRequestDto(
+    val customerId: String,
+    val serviceId: String,
+    val specialistId: String,
+    val startTime: String,
+    val notes: String? = null,
+)
+
 @Serializable
 data class BookingResponseDto(
     val id: String,
