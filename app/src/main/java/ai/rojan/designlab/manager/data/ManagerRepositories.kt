@@ -122,7 +122,9 @@ object ManagerRepositories {
     /**
      * Resolves the authenticated owner's salon (`GET /api/v1/salons/mine`,
      * first result - multi-branch selection is out of scope) and syncs
-     * real Service/Appointment/Customer/Specialist data, plus Dashboard
+     * real Service/Appointment/Specialist/Customer data (in that order -
+     * [customerRepo] resolves service/specialist names for its per-
+     * customer visit history, so both must exist first), plus Dashboard
      * Insights. Safe to call again to re-sync.
      *
      * Insights failing (401/404/409 - see `ManagerDashboardApi`'s own doc
@@ -150,6 +152,7 @@ object ManagerRepositories {
         )
         val specialistRepo = BackendSpecialistRepository(
             specialistApi = container.specialistApi,
+            managerSpecialistApi = container.managerSpecialistApi,
             salonId = salon.id,
         )
         val customerRepo = BackendCustomerRepository(
@@ -161,20 +164,20 @@ object ManagerRepositories {
 
         val serviceSync = serviceRepo.sync()
         val appointmentSync = appointmentRepo.sync()
-        val customerSync = customerRepo.sync()
         val specialistSync = specialistRepo.sync()
+        val customerSync = customerRepo.sync()
         dashboardInsights = runCatching { container.managerDashboardApi.insights() }.getOrNull()
 
         services = serviceRepo
         appointments = appointmentRepo
-        customers = customerRepo
         specialists = specialistRepo
+        customers = customerRepo
         salonId = salon.id
         availabilityRepository = container.availabilityRepository
 
         return serviceSync
             .fold(onSuccess = { appointmentSync }, onFailure = { Result.failure(it) })
-            .fold(onSuccess = { customerSync }, onFailure = { Result.failure(it) })
             .fold(onSuccess = { specialistSync }, onFailure = { Result.failure(it) })
+            .fold(onSuccess = { customerSync }, onFailure = { Result.failure(it) })
     }
 }

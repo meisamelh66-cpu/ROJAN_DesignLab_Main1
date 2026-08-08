@@ -31,7 +31,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
  * Manager Booking Journey Phase 2 — step 3: pick the specialist.
  * [ManagerBookingViewModel.specialistsFor] prefers specialists whose
  * skills cover the already-selected service, falling back to the full
- * roster rather than dead-ending on an empty list.
+ * roster rather than dead-ending on an empty list. Since Phase 2 (M3),
+ * [ai.rojan.designlab.manager.domain.specialist.Specialist.skills] is
+ * always empty for real backend data (see
+ * [ai.rojan.designlab.manager.data.BackendSpecialistRepository]'s own
+ * doc comment), so this always takes that fallback today — every active
+ * specialist shows, none is filtered out.
  */
 @Composable
 fun ManagerBookingSpecialistScreen(
@@ -87,16 +92,20 @@ private fun BookingSpecialistRow(specialist: Specialist, onClick: () -> Unit) {
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(text = specialist.name, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
-                Text(
-                    text = specialist.skills.joinToString(" · "),
-                    style = RojanTypography.Caption,
-                    color = ManagerColors.TextSecondary,
-                )
-                Text(
-                    text = specialist.workingHours,
-                    style = RojanTypography.Caption,
-                    color = ManagerColors.Gold,
-                )
+                if (specialist.skills.isNotEmpty()) {
+                    Text(
+                        text = specialist.skills.joinToString(" · "),
+                        style = RojanTypography.Caption,
+                        color = ManagerColors.TextSecondary,
+                    )
+                }
+                if (specialist.workingHours.isNotBlank()) {
+                    Text(
+                        text = specialist.workingHours,
+                        style = RojanTypography.Caption,
+                        color = ManagerColors.Gold,
+                    )
+                }
             }
         }
     }

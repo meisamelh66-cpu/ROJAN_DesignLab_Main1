@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.data
 
+import ai.rojan.designlab.data.remote.ManagerSpecialistApi
 import ai.rojan.designlab.data.remote.SpecialistApi
 import ai.rojan.designlab.data.remote.dto.CreateSpecialistRequestDto
 import ai.rojan.designlab.data.remote.dto.SpecialistResponseDto
@@ -9,33 +10,36 @@ import ai.rojan.designlab.manager.domain.repository.SpecialistRepository
 import ai.rojan.designlab.manager.domain.specialist.Specialist
 
 /**
- * Real backend-backed [SpecialistRepository] (Final Release Validation —
- * Real Booking Calendar Integration). Replaces `InMemorySpecialistRepository`,
- * which used fake ids (`"sp1"`/`"sp2"`/`"sp3"`) that the real
- * `available-slots`/`createForCustomer` endpoints would reject outright
- * (both require a real specialist `UUID`) — real availability could not
- * work correctly until this was real too, even though no ticket had
- * previously scoped a "Specialist Module."
+ * Real backend-backed [SpecialistRepository] (Phase 2, M3) — replaces
+ * [InMemorySpecialistRepository]'s hardcoded roster (fake ids like
+ * `"sp1"`/`"sp2"`/`"sp3"` that the real `available-slots`/
+ * `createForCustomer` endpoints would reject outright, since both require
+ * a real specialist `UUID`). Reuses [SpecialistApi], the same read
+ * endpoints Customer already calls (`GET .../specialists`), for [sync] —
+ * matching [BackendServiceRepository]'s reuse of
+ * `ServiceApi`/`ServiceCategoryApi` — plus [ManagerSpecialistApi] for the
+ * owner-only writes, same "shared reads, owner-scoped writes" split
+ * [BackendCustomerRepository] already established.
  *
- * Reuses the same `SpecialistApi`/`SpecialistResponseDto` the Customer
- * flavor already talks to (`ROJAN_Backend/api/salon/SpecialistController.kt`)
- * rather than a new endpoint — same reuse the Service Manager repository
- * already established for `serviceApi`/`serviceCategoryApi`.
- *
- * **Fields with no real backend equivalent, mapped to honest defaults:**
- * [Specialist.skills] (backend has no skills/specialties list) -> empty
- * list. [ManagerBookingViewModel.specialistsFor] already falls back to the
- * full active roster when no specialist matches a skill, so an
- * always-empty skills list degrades to "show everyone," not a dead end.
- * [Specialist.workingHours] -> `"—"` (no schedule field on
- * `SpecialistResponse`; real working hours live behind
- * `SpecialistScheduleController`, out of scope here).
- * [Specialist.commissionRate] -> `0.0` (no such concept on the backend;
- * this was never real even before this phase — the in-memory sample data
- * had commission numbers with nothing behind them either).
+ * [Specialist.skills] is always empty here — the backend's real
+ * eligibility mechanism is per-specialist
+ * (`ManagerSpecialistApi.eligibleServiceIds`), which would mean one
+ * extra call per roster member just to populate a filter, not a bulk
+ * field this sync can fetch for free. Not wired in this step to keep it
+ * scoped; [ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel.specialistsFor]'s
+ * existing "fall back to the full active roster when nothing matches"
+ * behavior already degrades to exactly that with an empty skill set, so
+ * nothing dead-ends - the wizard just always shows every active
+ * specialist for now, a disclosed simplification, not a silent one.
+ * [Specialist.workingHours]/[Specialist.commissionRate] have no backend
+ * equivalent either (business-internal figures the API doesn't expose);
+ * `workingHours` stays `"—"` (matching the same honest-placeholder
+ * convention [BackendCustomerRepository] uses) and `commissionRate` stays
+ * `0.0` (never rendered anywhere in this codebase).
  */
 class BackendSpecialistRepository(
     private val specialistApi: SpecialistApi,
+    private val managerSpecialistApi: ManagerSpecialistApi,
     private val salonId: String,
 ) : SpecialistRepository {
 
@@ -54,7 +58,7 @@ class BackendSpecialistRepository(
 
     override suspend fun create(specialist: Specialist): Result<Specialist> =
         safeApiCall {
-            specialistApi.createSpecialist(
+            managerSpecialistApi.create(
                 salonId = salonId,
                 request = CreateSpecialistRequestDto(displayName = specialist.name),
             )
@@ -64,7 +68,7 @@ class BackendSpecialistRepository(
 
     override suspend fun update(specialist: Specialist): Result<Specialist?> =
         safeApiCall {
-            specialistApi.updateSpecialist(
+            managerSpecialistApi.update(
                 salonId = salonId,
                 specialistId = specialist.id,
                 request = UpdateSpecialistRequestDto(displayName = specialist.name),
