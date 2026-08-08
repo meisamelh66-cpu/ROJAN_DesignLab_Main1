@@ -44,7 +44,6 @@ import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.rtl.RtlListRow
-import ai.rojan.designlab.ui.components.state.RojanComingSoonState
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
@@ -62,12 +61,12 @@ private data class ProfileMenuItem(
  *
  * Production Data Integrity Phase 1: the Wallet/Loyalty/Membership
  * summary strip and the Beauty Score/Profile Completion/Preferred Salon/
- * Recent Activity "insights" card are gated — both were entirely
+ * Recent Activity "insights" card were removed — both were entirely
  * `CustomerEcosystemViewModel`/`ProfileInsightsEngine` demo derivations
- * with no backend counterpart (same reasoning as the individual Wallet/
- * Loyalty/Membership screens, which were already gated; showing live-
- * looking numbers here while those screens say "Coming soon" would be a
- * direct contradiction, not just an inconsistency).
+ * with no backend counterpart. Each area they surfaced (Wallet, Coupons,
+ * Membership, Loyalty, Reviews, Beauty Timeline) already has its own
+ * menu item below, each navigating to its own honestly-gated screen
+ * (Phase 2, C7) — no separate placeholder is needed here.
  *
  * Customer Journey Audit Phase A (P0-4) fix: the displayed name now
  * comes from [AuthViewModel.currentDisplayName] — a real lookup of the
@@ -131,8 +130,6 @@ fun ProfileScreen(
                     }
                 }
             }
-
-            item { RojanComingSoonState() }
 
             itemsIndexed(menuItems) { index, menuItem ->
                 HomeGlassSurface(
