@@ -1,6 +1,6 @@
 package ai.rojan.designlab
 
-import ai.rojan.designlab.manager.navigation.ManagerNavGraph
+import ai.rojan.designlab.manager.navigation.ManagerRootGraph
 import ai.rojan.designlab.ui.theme.LocalRojanPalette
 import ai.rojan.designlab.ui.theme.ManagerPalette
 import ai.rojan.designlab.ui.theme.RojanTheme
@@ -13,14 +13,14 @@ import androidx.compose.runtime.CompositionLocalProvider
  * ROJAN Manager app's launcher entry point — the `manager` product
  * flavor's counterpart to Customer's [MainActivity] (which this flavor
  * removes via `src/manager/AndroidManifest.xml`). Reuses the existing,
- * unmodified [ManagerNavGraph]/Manager screens/theme — nothing
- * duplicated or redesigned, just a new thin entry point in the
- * flavor-only `src/manager` source set.
+ * unmodified Manager screens/theme — nothing duplicated or redesigned,
+ * just a thin entry point in the flavor-only `src/manager` source set.
  *
- * [ManagerNavGraph] (Manager Auth Flow Implementation) now owns both the
- * session-restore gate and the `NavHost` that used to be built directly
- * here — mirrors [MainActivity]'s own `setContent { RojanNavGraph() }`
- * shape exactly.
+ * OTP Authentication Entry Flow Integration: delegates to
+ * [ManagerRootGraph] instead of building a raw `NavHost` directly — no
+ * JWT/session/OTP logic lives in this Activity itself (matching this
+ * integration's own "do not place JWT handling inside Activity"
+ * requirement); this class only sets up theming and hands off.
  */
 class ManagerActivity : ComponentActivity() {
 
@@ -30,7 +30,7 @@ class ManagerActivity : ComponentActivity() {
         setContent {
             CompositionLocalProvider(LocalRojanPalette provides ManagerPalette) {
                 RojanTheme {
-                    ManagerNavGraph()
+                    ManagerRootGraph()
                 }
             }
         }

@@ -19,8 +19,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Storefront
@@ -39,7 +37,6 @@ import androidx.compose.ui.unit.sp
 import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.domain.repository.Salon
 import ai.rojan.designlab.presentation.common.UiState
-import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
 import ai.rojan.designlab.presentation.salon.SalonDetailsViewModel
 import ai.rojan.designlab.presentation.salon.SalonDetailsViewModelFactory
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
@@ -47,7 +44,6 @@ import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
-import ai.rojan.designlab.ui.components.effects.RojanAmbientGlow
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.state.RojanErrorState
@@ -126,15 +122,13 @@ private fun accentFor(id: String) = accentPalette[Math.floorMod(id.hashCode(), a
  * capability-to-service mapping exists in the data model), same disclosed
  * simplification as before this milestone.
  *
- * UX Refactor Phase 1: "Follow (optional)" reuses the existing
- * [CustomerEcosystemViewModel] favorite system — untouched this milestone
- * (customer-ecosystem/local-state territory, out of this catalog swap's
- * scope), works pre-login same as before.
+ * Production Data Integrity Phase 1: the "Follow" toggle was removed
+ * (see the Coming-Soon-gating note further down) — no backend
+ * favorite/follow endpoint exists.
  */
 @Composable
 fun SalonDetailsScreen(
     salonId: String,
-    ecosystemViewModel: CustomerEcosystemViewModel,
     onBackClick: () -> Unit,
     onSpecialistClick: (String) -> Unit,
     onServiceClick: (String) -> Unit,
@@ -153,8 +147,6 @@ fun SalonDetailsScreen(
         },
     ),
 ) {
-    val isFollowed = ecosystemViewModel.state.favoriteSalonIds.contains(salonId)
-
     HomeBackgroundTheme {
         when (val loadState = viewModel.state) {
             is UiState.Loading -> SalonDetailsScaffoldState(onBackClick) {
@@ -201,29 +193,14 @@ fun SalonDetailsScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.Top,
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    if (isFollowed) {
-                                        RojanAmbientGlow(
-                                            modifier = Modifier.size(44.dp),
-                                            color = HomeColors.Magenta,
-                                            alpha = 0.30f,
-                                            blurRadius = 10.dp,
-                                        )
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .size(RojanDimens.MinTouchTarget)
-                                            .rojanPressable(onClick = { ecosystemViewModel.toggleFavoriteSalon(salonId) }),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Icon(
-                                            imageVector = if (isFollowed) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                                            contentDescription = if (isFollowed) "لغو دنبال کردن این سالن" else "دنبال کردن این سالن",
-                                            tint = HomeColors.Magenta,
-                                            modifier = Modifier.size(28.dp),
-                                        )
-                                    }
-                                }
+                                // Production Data Integrity Phase 1: the follow/favorite
+                                // toggle is removed (not just its visual "active" state) —
+                                // it had no backend persistence anywhere (no favorite/follow
+                                // endpoint on SalonApi; the previous state was in-memory,
+                                // per-session only, defaulting from DemoSalonRepository). A
+                                // non-functional icon would itself be a fake affordance, so
+                                // the control is gone rather than kept inert.
+                                Spacer(modifier = Modifier.size(RojanDimens.MinTouchTarget))
                                 Column(
                                     modifier = Modifier.weight(1f),
                                     horizontalAlignment = Alignment.End,

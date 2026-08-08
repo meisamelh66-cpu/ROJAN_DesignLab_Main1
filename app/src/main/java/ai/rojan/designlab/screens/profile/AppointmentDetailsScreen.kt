@@ -1,148 +1,151 @@
-﻿package ai.rojan.designlab.screens.profile
+package ai.rojan.designlab.screens.profile
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material3.Icon
 import ai.rojan.designlab.ui.text.Text
-import ai.rojan.designlab.ui.text.withDirectionFor
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
-import ai.rojan.designlab.data.demo.AppointmentStatus
-import ai.rojan.designlab.data.demo.DemoUserReview
-import ai.rojan.designlab.domain.customer.ReviewLifecycleStatus
-import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
+import ai.rojan.designlab.di.BackendApiContainerHolder
+import ai.rojan.designlab.presentation.booking.AppointmentDetailsData
+import ai.rojan.designlab.presentation.booking.AppointmentDetailsViewModel
+import ai.rojan.designlab.presentation.booking.AppointmentDetailsViewModelFactory
+import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
+import ai.rojan.designlab.ui.components.state.RojanComingSoonState
+import ai.rojan.designlab.ui.components.state.RojanErrorState
+import ai.rojan.designlab.ui.components.state.RojanLoadingState
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
- * Journey 2, Appointment History completion (checklist item 8) + Review
- * lifecycle UI (item 4). Reached by tapping any appointment card.
+ * Journey 2: Appointment details.
  *
- * Disclosed scope decision: "Invoice"/"Receipt"/"Download" are
- * implemented as a real in-app detail view of the transaction, not
- * actual PDF file generation/export — building a genuine document
- * pipeline is meaningfully larger scope than the rest of this
- * checklist, and I'm not silently treating "shows the same information
- * on screen" as equivalent to "produces a downloadable file."
+ * Production Data Integrity Phase 1: now backed by the real
+ * `GET /api/v1/bookings/{id}` (via [AppointmentDetailsViewModel], which
+ * also resolves salon/specialist/service name+price — bounded to this one
+ * booking's salon, see that ViewModel's doc comment) instead of
+ * `CustomerEcosystemViewModel.state.appointments`. Two sections removed
+ * along with the demo data source, not carried over as fake content on a
+ * real booking:
+ * - The reviews section — no review DTO exists anywhere on the backend
+ *   (gated, matching `MyReviewsScreen.kt`).
+ * - The "Photos" placeholder tiles — decorative empty squares implying a
+ *   photo-upload capability that never existed, demo or real.
+ *
+ * Phase 2 (C1): [onRebookClick] now also passes the booking's real `salonId`
+ * — the previous single-arg version left `ServiceDetailsScreen` with no
+ * salon to book against, surfacing its own disclosed "no salon" error on
+ * every rebook. The real `Booking` always carries `salonId`, so there's
+ * nothing to guess here.
  */
 @Composable
 fun AppointmentDetailsScreen(
     appointmentId: String,
-    ecosystemViewModel: CustomerEcosystemViewModel,
     onBackClick: () -> Unit,
-    onRebookClick: (serviceId: String) -> Unit,
+    onRebookClick: (serviceId: String, salonId: String) -> Unit,
+    viewModel: AppointmentDetailsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = run {
+            val container = BackendApiContainerHolder.get(LocalContext.current)
+            AppointmentDetailsViewModelFactory(
+                appointmentId = appointmentId,
+                bookingRepository = container.bookingRepository,
+                salonRepository = container.salonRepository,
+                specialistRepository = container.specialistRepository,
+                serviceCategoryRepository = container.serviceCategoryRepository,
+                serviceRepository = container.serviceRepository,
+            )
+        },
+    ),
 ) {
-    val appointment = ecosystemViewModel.state.appointments.find { it.id == appointmentId }
-    val pendingReview = ecosystemViewModel.state.pendingReviewFor(appointmentId)
-
     HomeBackgroundTheme {
-        if (appointment == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("نوبت یافت نشد", color = HomeColors.TextPrimary, style = RojanTypography.Body)
+        Column(modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD)) {
+            GlassBackButton(onClick = onBackClick)
+            Text(
+                text = "جزئیات نوبت",
+                style = RojanTypography.HeroTitle,
+                color = HomeColors.TextPrimary,
+                modifier = Modifier.padding(vertical = RojanDimens.SpaceMD),
+            )
+
+            when (val state = viewModel.state) {
+                is UiState.Loading -> RojanLoadingState(message = "در حال بارگذاری...")
+                is UiState.Error -> RojanErrorState(
+                    description = state.message,
+                    actionLabel = "تلاش مجدد",
+                    onAction = { viewModel.retry() },
+                )
+                is UiState.Empty -> Text("نوبت یافت نشد", color = HomeColors.TextPrimary, style = RojanTypography.Body)
+                is UiState.Success -> AppointmentDetailsContent(state.data, onRebookClick)
             }
-            return@HomeBackgroundTheme
         }
+    }
+}
 
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(RojanDimens.SpaceMD),
-            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
-        ) {
-            item { GlassBackButton(onClick = onBackClick) }
-            item { Text("جزئیات نوبت", style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary) }
+@Composable
+private fun AppointmentDetailsContent(
+    data: AppointmentDetailsData,
+    onRebookClick: (serviceId: String, salonId: String) -> Unit,
+) {
+    val booking = data.booking
 
-            item {
-                HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD)) {
-                        Text(appointment.salonName, style = RojanTypography.Body, color = HomeColors.TextPrimary)
-                        Text(
-                            "${appointment.serviceName} • ${appointment.specialistName}",
-                            style = RojanTypography.Caption,
-                            color = HomeColors.TextSecondary,
-                        )
-                        Text(appointment.dateLabel, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
-                    }
-                }
-            }
-
-            item {
-                // Receipt / Invoice — real in-app detail view (see disclosed scope decision above)
-                HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.Receipt, contentDescription = null, tint = HomeColors.Glow)
-                            Text(" رسید و فاکتور", style = RojanTypography.Body, color = HomeColors.TextPrimary)
-                        }
-                        Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
-                        InvoiceRow("خدمت", appointment.serviceName)
-                        InvoiceRow("مبلغ", "${appointment.price} تومان")
-                        InvoiceRow("تاریخ", appointment.dateLabel)
-                        InvoiceRow("شماره پیگیری", appointment.id)
-                    }
-                }
-            }
-
-            item {
-                // Photos — placeholder tiles, no new assets, same tinted-square language used everywhere else
-                Text("تصاویر", style = RojanTypography.Body, color = HomeColors.TextPrimary)
-            }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
-                    repeat(3) {
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .background(HomeColors.Lavender.copy(alpha = 0.4f), RojanShapes.Small),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(Icons.Filled.CameraAlt, contentDescription = null, tint = HomeColors.TextSecondary)
-                        }
-                    }
-                }
-            }
-
-            if (appointment.relatedServiceId != null) {
-                item {
-                    PremiumButton(
-                        text = "رزرو مجدد",
-                        onClick = { onRebookClick(appointment.relatedServiceId) },
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD)) {
+        item {
+            HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
+                Column(modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD)) {
+                    Text(data.salonName ?: booking.salonId, style = RojanTypography.Body, color = HomeColors.TextPrimary)
+                    Text(
+                        listOfNotNull(data.serviceName, data.specialistName).joinToString(" • "),
+                        style = RojanTypography.Caption,
+                        color = HomeColors.TextSecondary,
                     )
+                    Text(booking.startTime.replace('T', ' '), style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                 }
             }
+        }
 
-            if (appointment.status == AppointmentStatus.COMPLETED && pendingReview != null) {
-                item { ReviewSection(appointmentId, pendingReview.status, ecosystemViewModel) }
+        item {
+            HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
+                Column(modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD)) {
+                    Row {
+                        Icon(Icons.Filled.Receipt, contentDescription = null, tint = HomeColors.Glow)
+                        Text(" رسید و فاکتور", style = RojanTypography.Body, color = HomeColors.TextPrimary)
+                    }
+                    Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
+                    data.serviceName?.let { InvoiceRow("خدمت", it) }
+                    data.servicePrice?.let { InvoiceRow("مبلغ", "${it.toInt()} تومان") }
+                    InvoiceRow("وضعیت", booking.status.name)
+                    InvoiceRow("شماره پیگیری", booking.id)
+                }
             }
         }
+
+        if (data.serviceName != null) {
+            item {
+                PremiumButton(
+                    text = "رزرو مجدد",
+                    onClick = { onRebookClick(booking.serviceId, booking.salonId) },
+                )
+            }
+        }
+
+        item { RojanComingSoonState() }
     }
 }
 
@@ -151,82 +154,5 @@ private fun InvoiceRow(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
         Text(value, style = RojanTypography.Caption, color = HomeColors.TextPrimary)
-    }
-}
-
-@Composable
-private fun ReviewSection(
-    appointmentId: String,
-    status: ReviewLifecycleStatus,
-    ecosystemViewModel: CustomerEcosystemViewModel,
-) {
-    when (status) {
-        ReviewLifecycleStatus.REQUESTED -> {
-            var text by remember { mutableStateOf("") }
-            val salonName = ecosystemViewModel.state.appointments
-                .find { it.id == appointmentId }?.salonName ?: ""
-
-            HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
-                Column(modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD)) {
-                    Text("نظر خود را ثبت کنید", style = RojanTypography.Body, color = HomeColors.TextPrimary)
-                    Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
-                    BasicTextField(
-                        value = text,
-                        onValueChange = { text = it },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(HomeColors.Lavender.copy(alpha = 0.3f), RojanShapes.Small)
-                            .padding(RojanDimens.SpaceSM),
-                        textStyle = RojanTypography.Body.copy(color = HomeColors.TextPrimary).withDirectionFor(text),
-                        cursorBrush = SolidColor(HomeColors.Glow),
-                    )
-                    Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
-                    PremiumButton(
-                        text = "ثبت نظر",
-                        onClick = {
-                            if (text.isNotBlank()) {
-                                // Submit only — publishing is a deliberately
-                                // separate step (see CustomerEcosystemEngine's
-                                // own doc comment on publishReview), not
-                                // auto-chained here. A real moderation/
-                                // approval step, if BOOK 3 specifies one,
-                                // would call publish independently.
-                                ecosystemViewModel.submitReview(
-                                    appointmentId,
-                                    DemoUserReview(
-                                        id = "ureview_$appointmentId",
-                                        salonName = salonName,
-                                        rating = "5.0",
-                                        comment = text,
-                                        dateLabel = "امروز",
-                                    ),
-                                )
-                            }
-                        },
-                    )
-                }
-            }
-        }
-        ReviewLifecycleStatus.SUBMITTED -> {
-            HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
-                Text(
-                    "نظر شما ثبت شد و در انتظار انتشار است",
-                    style = RojanTypography.Body,
-                    color = HomeColors.TextPrimary,
-                    modifier = Modifier.padding(RojanDimens.SpaceMD),
-                )
-            }
-        }
-        ReviewLifecycleStatus.PUBLISHED -> {
-            HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
-                Text(
-                    "نظر شما منتشر شد",
-                    style = RojanTypography.Body,
-                    color = HomeColors.TextPrimary,
-                    modifier = Modifier.padding(RojanDimens.SpaceMD),
-                )
-            }
-        }
-        ReviewLifecycleStatus.PENDING_REQUEST -> Unit
     }
 }

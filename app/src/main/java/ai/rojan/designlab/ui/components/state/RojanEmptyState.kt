@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,6 +73,29 @@ fun RojanEmptyState(
         iconTint = RojanTextSecondary,
         actionLabel = actionLabel,
         onAction = onAction,
+    )
+}
+
+/**
+ * ROJAN AI shared "Coming soon" state — Production Data Integrity Phase 1.
+ * For a feature surface with no backend capability behind it yet (see
+ * CLAUDE.md "no mock data in production flows"): the entry point/section
+ * stays in place, but its content is this instead of demo data. Same
+ * [RojanEmptyState] mechanic/shape, just a shared default title/icon so
+ * every gated screen reads consistently rather than each one inventing
+ * its own "coming soon" copy.
+ */
+@Composable
+fun RojanComingSoonState(
+    modifier: Modifier = Modifier,
+    description: String? = "این بخش به‌زودی با اطلاعات واقعی فعال می‌شود",
+    icon: ImageVector = Icons.Filled.Schedule,
+) {
+    RojanEmptyState(
+        title = "به‌زودی",
+        modifier = modifier,
+        description = description,
+        icon = icon,
     )
 }
 

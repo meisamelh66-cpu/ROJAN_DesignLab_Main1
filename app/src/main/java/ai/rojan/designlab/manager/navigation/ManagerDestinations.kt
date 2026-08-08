@@ -5,16 +5,16 @@ package ai.rojan.designlab.manager.navigation
  * separate from [ai.rojan.designlab.navigation.RojanDestinations] (which
  * stays untouched).
  *
- * [LOGIN] (Manager Auth Flow Implementation): the real backend
- * email/password login/register screen ([ai.rojan.designlab.screens.auth.AuthScreen] —
- * the exact same screen/ViewModel the Customer flow uses, not a
- * Manager-specific rebuild), registered by [ai.rojan.designlab.manager.navigation.ManagerNavGraph]
+ * [OTP_AUTH] (OTP Authentication Entry Flow Integration): the real backend
+ * phone + OTP login screen ([ai.rojan.designlab.manager.screens.auth.ManagerOtpAuthScreen]),
+ * registered by [ai.rojan.designlab.manager.navigation.ManagerNavGraph]
  * (the top-level gate composable) directly, not inside [managerNavGraph]
  * itself — it is reached only before a session exists, never navigated to
  * from within the authenticated app.
  */
 object ManagerDestinations {
-    const val LOGIN = "manager_login"
+    /** OTP Authentication Entry Flow Integration — the gate's "not authenticated" destination. Splash is no longer a NavHost route (see `ManagerRootGraph.kt`): it's shown by the gate itself, before this NavHost is even created, so its startDestination can be chosen correctly (Dashboard vs. this) instead of always starting at a splash route. */
+    const val OTP_AUTH = "manager_otp_auth"
     const val DASHBOARD = "manager_dashboard_root"
     const val CALENDAR = "manager_calendar"
     const val CUSTOMERS = "manager_customers"

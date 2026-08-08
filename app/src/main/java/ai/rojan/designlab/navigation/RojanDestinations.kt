@@ -34,7 +34,7 @@ object RojanDestinations {
     // and SpecialistProfileScreen shows a disclosed "no salon" error
     // rather than guessing.
     const val SPECIALIST_PROFILE = "specialist_profile/{specialistId}?salonId={salonId}"
-    const val SERVICE_DETAILS = "service_details/{serviceId}"
+    const val SERVICE_DETAILS = "service_details/{serviceId}?salonId={salonId}"
     const val BOOKING_DATE = "booking_date"
     const val BOOKING_TIME = "booking_time"
     const val BOOKING_CONFIRMATION = "booking_confirmation"
@@ -62,7 +62,8 @@ object RojanDestinations {
         "salon_details/$salonId?selectedServiceIds=${selectedServiceIds.joinToString(",")}"
     fun specialistProfile(specialistId: String, salonId: String? = null) =
         "specialist_profile/$specialistId" + if (salonId != null) "?salonId=$salonId" else ""
-    fun serviceDetails(serviceId: String) = "service_details/$serviceId"
+    fun serviceDetails(serviceId: String, salonId: String? = null) =
+        "service_details/$serviceId" + if (salonId != null) "?salonId=$salonId" else ""
 
     // ── Journey 2: Home → Profile → Appointments/Favorites/Wallet/... ──
     const val PROFILE_GRAPH = "profile_graph"

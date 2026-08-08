@@ -19,6 +19,7 @@ import ai.rojan.designlab.data.remote.SpecialistApi
 import ai.rojan.designlab.data.remote.TokenAuthenticator
 import ai.rojan.designlab.data.repository.AvailabilityRepositoryImpl
 import ai.rojan.designlab.data.repository.BackendAuthRepositoryImpl
+import ai.rojan.designlab.data.repository.BookingHistoryRepositoryImpl
 import ai.rojan.designlab.data.repository.BookingRepositoryImpl
 import ai.rojan.designlab.data.repository.SalonRepositoryImpl
 import ai.rojan.designlab.data.repository.ServiceCategoryRepositoryImpl
@@ -27,6 +28,7 @@ import ai.rojan.designlab.data.repository.SpecialistRepositoryImpl
 import ai.rojan.designlab.data.repository.TokenRepositoryImpl
 import ai.rojan.designlab.domain.repository.AvailabilityRepository
 import ai.rojan.designlab.domain.repository.BackendAuthRepository
+import ai.rojan.designlab.domain.repository.BookingHistoryRepository
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.SalonRepository
 import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
@@ -128,6 +130,8 @@ class BackendApiContainer(context: Context) {
     val specialistApi: SpecialistApi =
         retrofit.create(SpecialistApi::class.java)
 
+    val bookingHistoryRepository: BookingHistoryRepository =
+        BookingHistoryRepositoryImpl(bookingRepository, salonRepository, specialistRepository)
 
     private companion object {
 

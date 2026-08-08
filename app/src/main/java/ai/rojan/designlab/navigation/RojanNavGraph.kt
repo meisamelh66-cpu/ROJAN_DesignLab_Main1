@@ -3,18 +3,15 @@ package ai.rojan.designlab.navigation
 import ai.rojan.designlab.R
 import ai.rojan.designlab.ui.background.PremiumBackground
 import ai.rojan.designlab.components.PremiumLoadingBar
+import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.domain.booking.BookingIntent
 import ai.rojan.designlab.domain.booking.RollingBookingDates
-import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.navigation.RojanDestinations.routeForBookingStep
 import ai.rojan.designlab.presentation.booking.BookingViewModel
 import ai.rojan.designlab.presentation.booking.BookingViewModelFactory
-import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
-import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModelFactory
 import ai.rojan.designlab.presentation.auth.AuthViewModel
 import ai.rojan.designlab.presentation.auth.AuthViewModelFactory
 import ai.rojan.designlab.domain.identity.PersonRole
-import kotlin.math.roundToInt
 import ai.rojan.designlab.domain.identity.SessionState
 import ai.rojan.designlab.presentation.session.SessionRestoreState
 import ai.rojan.designlab.presentation.session.SessionViewModel
@@ -64,7 +61,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -141,18 +140,6 @@ private fun NavController.hasBookingFlowInProgress(): Boolean =
  */
 private fun NavController.hasBusinessLoginInProgress(): Boolean =
     runCatching { getBackStackEntry(RojanDestinations.WELCOME) }.isSuccess
-
-// Customer Journey Audit (Booking Success P0): CustomerEcosystemViewModel
-// used to be obtained per-nested-graph (a separate instance for
-// CUSTOMER_HOME, PROFILE_GRAPH, and BookingTimeScreen each) - meaning a
-// booking completed via Search -> ... -> Confirmation had no reliable,
-// always-present instance to record an appointment into (PROFILE_GRAPH's
-// back-stack entry doesn't exist until the user has actually visited
-// Profile/Appointments/Favorites at least once in the session, so
-// obtaining it there would crash for the common "Home -> Search"
-// direct path). Hoisted to session scope instead - obtained once below,
-// alongside sessionViewModel/authViewModel, and threaded through to
-// every consumer that previously created its own local instance.
 
 /**
  * Production Readiness Audit (V1.0 Module 6): real navigation guard for
@@ -235,10 +222,6 @@ fun RojanNavGraph() {
 
     val authViewModel: AuthViewModel = viewModel(
         factory = AuthViewModelFactory(appContext)
-    )
-
-    val customerEcosystemViewModel: CustomerEcosystemViewModel = viewModel(
-        factory = CustomerEcosystemViewModelFactory()
     )
 
 
@@ -596,7 +579,6 @@ fun RojanNavGraph() {
                             ?.split(",")?.filter { it.isNotBlank() }
                         SalonDetailsScreen(
                             salonId = salonId,
-                            ecosystemViewModel = customerEcosystemViewModel,
                             selectedServiceIds = selectedServiceIds,
                             onBackClick = { navController.popBackStack() },
                             onSpecialistClick = { specialistId ->
@@ -679,13 +661,27 @@ fun RojanNavGraph() {
 
                     composable(
                         route = RojanDestinations.SERVICE_DETAILS,
-                        arguments = listOf(navArgument("serviceId") { type = NavType.StringType }),
+                        arguments = listOf(
+                            navArgument("serviceId") { type = NavType.StringType },
+                            navArgument("salonId") { type = NavType.StringType; nullable = true },
+                        ),
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
                         val bookingViewModel = bookingViewModelFor(navController, backStackEntry)
                         val serviceId = backStackEntry.arguments?.getString("serviceId") ?: ""
-                        val catalogEngineForSpecialistCheck = CatalogEngine()
+                        val specialistRepository = BackendApiContainerHolder.get(LocalContext.current).specialistRepository
+                        val coroutineScope = rememberCoroutineScope()
+                        // Phase 2 (C1): entry points that reach ServiceDetails without
+                        // having walked the salon-first flow (e.g. rebooking from
+                        // AppointmentDetailsScreen, outside BOOKING_FLOW_GRAPH) carry
+                        // salonId as a nav arg instead - seed the fresh BookingViewModel
+                        // from it exactly once so this stays the state's single source
+                        // of truth downstream, same as every other entry point.
+                        val salonIdArg = backStackEntry.arguments?.getString("salonId")
+                        if (bookingViewModel.state.salonId == null && salonIdArg != null) {
+                            bookingViewModel.onSalonSelected(salonIdArg)
+                        }
                         ServiceDetailsScreen(
                             serviceId = serviceId,
                             salonId = bookingViewModel.state.salonId,
@@ -695,23 +691,30 @@ fun RojanNavGraph() {
                                 if (bookingViewModel.state.intent == BookingIntent.UNKNOWN) {
                                     bookingViewModel.onIntentDetected(BookingIntent.SERVICE)
                                 }
-                                // Customer Journey Audit Phase A (P0-1) fix:
-                                // auto-select the specialist when the salon
-                                // only has one — mirrors SalonDetailsScreen's
-                                // existing onContinueBooking behavior — so
-                                // BookingStepResolver only asks the customer
-                                // when there's a genuine choice to make.
-                                if (bookingViewModel.state.specialistId == null) {
-                                    val specialists = bookingViewModel.state.salonId
-                                        ?.let { catalogEngineForSpecialistCheck.specialistsForSalon(it) }
-                                        ?: emptyList()
-                                    if (specialists.size == 1) {
-                                        bookingViewModel.onSpecialistSelected(specialists.first().id)
+                                coroutineScope.launch {
+                                    // Customer Journey Audit Phase A (P0-1) fix:
+                                    // auto-select the specialist when the salon
+                                    // only has one — mirrors SalonDetailsScreen's
+                                    // existing onContinueBooking behavior — so
+                                    // BookingStepResolver only asks the customer
+                                    // when there's a genuine choice to make.
+                                    // Production Data Integrity Phase 1: sourced
+                                    // from the real, salon-scoped SpecialistRepository
+                                    // instead of CatalogEngine — single lookup by a
+                                    // known salonId, not a cross-salon listing, so
+                                    // this is a real migration, not an N+1 case.
+                                    if (bookingViewModel.state.specialistId == null) {
+                                        val specialists = bookingViewModel.state.salonId
+                                            ?.let { specialistRepository.getSpecialists(it).getOrNull() }
+                                            ?: emptyList()
+                                        if (specialists.size == 1) {
+                                            bookingViewModel.onSpecialistSelected(specialists.first().id)
+                                        }
                                     }
+                                    navController.navigate(
+                                        routeForBookingStep(bookingViewModel.nextStep(), bookingViewModel.state.salonId)
+                                    )
                                 }
-                                navController.navigate(
-                                    routeForBookingStep(bookingViewModel.nextStep(), bookingViewModel.state.salonId)
-                                )
                             },
                         )
                     }
@@ -750,7 +753,6 @@ fun RojanNavGraph() {
                             dateKey = bookingViewModel.state.selectedDateKey
                                 ?: ai.rojan.designlab.domain.booking.RollingBookingDates.next7Days().first().first,
                             bookingViewModel = bookingViewModel,
-                            ecosystemViewModel = customerEcosystemViewModel,
                             onBackClick = { navController.popBackStack() },
                             onTimeSelected = { time ->
                                 bookingViewModel.onTimeSelected(time)
@@ -814,46 +816,16 @@ fun RojanNavGraph() {
                             },
                             onEditDate = { navController.navigate(RojanDestinations.BOOKING_DATE) },
                             onEditTime = { navController.navigate(RojanDestinations.BOOKING_TIME) },
-                            onConfirmClick = { backendBookingId, summary ->
-                                // Customer Journey Audit (Booking Success P0): record the
-                                // completed booking as a real appointment before leaving
-                                // this graph - BookingViewModel's state is destroyed once
-                                // the sub-graph pops on Success's "Done", so this is the
-                                // last point it's readable. [summary] is the same real
-                                // backend Salon/Specialist/Service BookingConfirmationScreen
-                                // already resolved and displayed (via
-                                // BookingConfirmationViewModel.loadSummary), so the
-                                // recorded appointment matches what the user confirmed
-                                // instead of re-deriving it from demo data by real ids
-                                // (which always resolved to null and silently dropped the
-                                // booking here before this fix).
-                                //
-                                // Android <-> Backend Full Integration milestone:
-                                // [backendBookingId] is the real backend `Booking.id` when
-                                // BookingConfirmationViewModel's real POST /api/v1/bookings
-                                // call succeeded (null otherwise, e.g. the expected 401s
-                                // until native Phone-OTP auth lands) - recorded so a later
-                                // real cancel can find it (see AppointmentsScreen).
-                                val confirmedState = bookingViewModel.state
-                                val service = summary.service
-                                val time = confirmedState.selectedTime
-                                if (service != null && confirmedState.selectedDateKey != null && time != null) {
-                                    val dateLabel = RollingBookingDates.labelFor(confirmedState.selectedDateKey)
-                                    customerEcosystemViewModel.bookAppointment(
-                                        salonName = summary.salon?.name ?: "—",
-                                        serviceName = service.name,
-                                        specialistName = summary.specialist?.displayName ?: "انتخاب خودکار",
-                                        serviceId = service.id,
-                                        specialistId = summary.specialist?.id,
-                                        dateKey = confirmedState.selectedDateKey,
-                                        dateLabel = dateLabel,
-                                        time = time,
-                                        price = service.price.roundToInt(),
-                                        salonId = confirmedState.salonId,
-                                        paymentMethod = confirmedState.paymentMethod,
-                                        backendBookingId = backendBookingId,
-                                    )
-                                }
+                            onConfirmClick = { _, _ ->
+                                // Production Data Integrity Phase 1 (Task 7): the
+                                // real booking already exists on the backend
+                                // (BookingConfirmationViewModel's POST
+                                // /api/v1/bookings) by the time this fires -
+                                // AppointmentsScreen/UpcomingBookings/RecentVisits
+                                // now read it back directly via
+                                // BookingHistoryRepository, so recording it a
+                                // second time into the local, now-gated
+                                // CustomerEcosystemViewModel is no longer needed.
                                 navController.navigate(RojanDestinations.BOOKING_SUCCESS)
                             },
                         )
@@ -906,7 +878,6 @@ fun RojanNavGraph() {
                     // the Dashboard, not the marketplace-heavy screen — see
                     // CustomerDashboardScreen's own doc comment.
                     CustomerDashboardScreen(
-                        ecosystemViewModel = customerEcosystemViewModel,
                         authViewModel = authViewModel,
                         onProfileClick = { navController.navigate(RojanDestinations.PROFILE) },
                         onBookAppointmentClick = { navController.navigate(RojanDestinations.MEMBER_SALONS_LIST) },
@@ -944,7 +915,6 @@ fun RojanNavGraph() {
                     // screen IS the Landing screen.
                     val isLandingEntry = navController.previousBackStackEntry == null
                     CustomerHomeScreen(
-                        ecosystemViewModel = customerEcosystemViewModel,
                         authViewModel = authViewModel,
                         bottomBarActiveTab = if (isLandingEntry) CustomerHomeTab.HOME else CustomerHomeTab.SEARCH,
                         onProfileClick = { navController.navigate(RojanDestinations.PROFILE) },
@@ -986,9 +956,7 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModel
                         ProfileScreen(
-                            ecosystemViewModel = ecosystemViewModel,
                             authViewModel = authViewModel,
                             onBackClick = { navController.popBackStack() },
                             onAppointmentsClick = { navController.navigate(RojanDestinations.APPOINTMENTS) },
@@ -1021,9 +989,7 @@ fun RojanNavGraph() {
                             authViewModel = authViewModel,
                             onAccessDenied = { navController.popBackStack() },
                         ) {
-                            val ecosystemViewModel = customerEcosystemViewModel
                             AppointmentsScreen(
-                                ecosystemViewModel = ecosystemViewModel,
                                 onBackClick = { navController.popBackStack() },
                                 onAppointmentClick = { appointmentId ->
                                     navController.navigate(RojanDestinations.appointmentDetails(appointmentId))
@@ -1045,9 +1011,7 @@ fun RojanNavGraph() {
                             authViewModel = authViewModel,
                             onAccessDenied = { navController.popBackStack() },
                         ) {
-                            val ecosystemViewModel = customerEcosystemViewModel
                             WaitlistScreen(
-                                ecosystemViewModel = ecosystemViewModel,
                                 onBackClick = { navController.popBackStack() },
                             )
                         }
@@ -1063,11 +1027,9 @@ fun RojanNavGraph() {
                             authViewModel = authViewModel,
                             onAccessDenied = { navController.popBackStack() },
                         ) {
-                            val ecosystemViewModel = customerEcosystemViewModel
                             val appointmentId = backStackEntry.arguments?.getString("appointmentId") ?: ""
                             RescheduleAppointmentScreen(
                                 appointmentId = appointmentId,
-                                ecosystemViewModel = ecosystemViewModel,
                                 onBackClick = { navController.popBackStack() },
                                 onRescheduled = { navController.popBackStack() },
                             )
@@ -1087,25 +1049,25 @@ fun RojanNavGraph() {
                             authViewModel = authViewModel,
                             onAccessDenied = { navController.popBackStack() },
                         ) {
-                            val ecosystemViewModel = customerEcosystemViewModel
                             val appointmentId = backStackEntry.arguments?.getString("appointmentId") ?: ""
                             AppointmentDetailsScreen(
                                 appointmentId = appointmentId,
-                                ecosystemViewModel = ecosystemViewModel,
                                 onBackClick = { navController.popBackStack() },
-                                onRebookClick = { serviceId ->
+                                onRebookClick = { serviceId, salonId ->
                                     // Cross-graph navigation into BOOKING_FLOW_GRAPH's
                                     // ServiceDetails - navigating directly to the
                                     // destination route enters that graph correctly on
                                     // its own (same lesson learned/fixed once already
                                     // in Journey 1's own navigation wiring).
                                     //
-                                    // This path doesn't set BookingViewModel.state.salonId
-                                    // (appointments/rebooking are still local
-                                    // CustomerEcosystemViewModel state, not yet wired to
-                                    // the backend) - ServiceDetailsScreen shows its
-                                    // disclosed "no salon" error rather than guessing.
-                                    navController.navigate(RojanDestinations.serviceDetails(serviceId))
+                                    // Phase 2 (C1): salonId now travels as a nav arg -
+                                    // the real Booking already carries it (unlike the
+                                    // old demo appointment model this bug predates), so
+                                    // there's no reason to make the customer re-pick a
+                                    // salon ServiceDetailsScreen already knows. The
+                                    // SERVICE_DETAILS composable seeds the fresh
+                                    // BookingViewModel from this arg.
+                                    navController.navigate(RojanDestinations.serviceDetails(serviceId, salonId))
                                 },
                             )
                         }
@@ -1123,9 +1085,7 @@ fun RojanNavGraph() {
                             authViewModel = authViewModel,
                             onAccessDenied = { navController.popBackStack() },
                         ) {
-                            val ecosystemViewModel = customerEcosystemViewModel
                             FavoritesScreen(
-                                ecosystemViewModel = ecosystemViewModel,
                                 onBackClick = { navController.popBackStack() },
                                 onSalonClick = { salonId -> navController.navigate(RojanDestinations.salonDetails(salonId)) },
                             )
@@ -1140,9 +1100,7 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModel
                         WalletScreen(
-                            ecosystemViewModel = ecosystemViewModel,
                             onBackClick = { navController.popBackStack() },
                         )
                     }
@@ -1155,9 +1113,7 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModel
                         CouponsScreen(
-                            ecosystemViewModel = ecosystemViewModel,
                             onBackClick = { navController.popBackStack() },
                         )
                     }
@@ -1170,9 +1126,7 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModel
                         MembershipScreen(
-                            ecosystemViewModel = ecosystemViewModel,
                             onBackClick = { navController.popBackStack() },
                         )
                     }
@@ -1185,9 +1139,7 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModel
                         LoyaltyScreen(
-                            ecosystemViewModel = ecosystemViewModel,
                             onBackClick = { navController.popBackStack() },
                         )
                     }
@@ -1200,8 +1152,7 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModel
-                        MyReviewsScreen(ecosystemViewModel = ecosystemViewModel, onBackClick = { navController.popBackStack() })
+                        MyReviewsScreen(onBackClick = { navController.popBackStack() })
                     }
 
 
@@ -1212,8 +1163,7 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        val ecosystemViewModel = customerEcosystemViewModel
-                        BeautyTimelineScreen(ecosystemViewModel = ecosystemViewModel, onBackClick = { navController.popBackStack() })
+                        BeautyTimelineScreen(onBackClick = { navController.popBackStack() })
                     }
 
                 }

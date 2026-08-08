@@ -12,75 +12,66 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
+import ai.rojan.designlab.domain.repository.BookingStatus
+import ai.rojan.designlab.presentation.booking.BookingHistoryViewModel
+import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.screens.customer.hometheme.HomeCard
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
-import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
+import ai.rojan.designlab.ui.theme.RojanDimens
+import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
- * Customer Home "Previous Salons" — UX Refactor Phase 1 relabeling of
- * what was internally still "recent visits."
+ * Customer Home "Previous Salons".
  *
- * Code Cleanup pass: migrated off its previous local `fakeRecentVisits`
- * list onto [CustomerEcosystemViewModel.state]'s real
- * [ai.rojan.designlab.domain.customer.CustomerEcosystemState.pastAppointments] —
- * the same real completed-appointment data
- * [ai.rojan.designlab.screens.profile.AppointmentsScreen] already reads.
- * "زمان نسبی" (relative time) now comes from real
- * [ai.rojan.designlab.data.demo.DemoAppointment.daysAgo] instead of a
- * separate hand-written string per fake entry.
- *
- * UX Refactor Phase 1: [onSalonClick] navigates to that appointment's
- * salon via [ai.rojan.designlab.data.demo.DemoAppointment.salonId] — a
- * no-op for the rare pre-existing appointment predating that field.
+ * Production Data Integrity Phase 1: now backed by the real
+ * `GET /api/v1/bookings/my` (via the shared [BookingHistoryViewModel]
+ * `CustomerHomeScreen` hoists once for this section and [UpcomingBookings]
+ * — one network call for both), filtered to
+ * [ai.rojan.designlab.domain.repository.BookingStatus.COMPLETED] —
+ * replaces the previous `CustomerEcosystemViewModel.state.pastAppointments`
+ * demo read. No relative "days ago" label: that came from
+ * `DemoAppointment.daysAgo`, a precomputed demo field with no backend
+ * equivalent — the real booking date is shown instead of a fabricated
+ * relative string.
  */
 @Composable
-fun RecentVisits(ecosystemViewModel: CustomerEcosystemViewModel, onSalonClick: (String) -> Unit = {}) {
-    val pastVisits = ecosystemViewModel.state.pastAppointments
+fun RecentVisits(viewModel: BookingHistoryViewModel, onSalonClick: (String) -> Unit = {}) {
+    val pastVisits = ((viewModel.state as? UiState.Success)?.data.orEmpty())
+        .filter { it.booking.status == BookingStatus.COMPLETED }
 
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
     ) {
-        itemsIndexed(pastVisits) { index, visit ->
+        itemsIndexed(pastVisits) { index, item ->
+            val booking = item.booking
+
             HomeCard(
                 accentColor = HomeColors.Lavender,
                 accentAlpha = 0.25f,
-                onClick = { visit.salonId?.let(onSalonClick) },
+                onClick = { onSalonClick(booking.salonId) },
                 width = 170.dp,
                 height = 150.dp,
                 index = index,
             ) {
                 Text(
-                    text = visit.salonName,
+                    text = item.salonName ?: booking.salonId,
                     style = RojanTypography.Caption,
                     color = HomeColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
 
-                Text(
-                    text = "${visit.serviceName} · ${visit.specialistName}",
-                    style = RojanTypography.Caption,
-                    color = HomeColors.TextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-
-                Text(
-                    text = visit.daysAgo?.let { days ->
-                        when {
-                            days == 0 -> "امروز"
-                            days < 7 -> "$days روز پیش"
-                            days < 30 -> "${days / 7} هفته پیش"
-                            else -> "${days / 30} ماه پیش"
-                        }
-                    } ?: "",
-                    style = RojanTypography.Caption,
-                    color = HomeColors.TextSecondary,
-                )
+                item.specialistName?.let { name ->
+                    Text(
+                        text = name,
+                        style = RojanTypography.Caption,
+                        color = HomeColors.TextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -93,7 +84,7 @@ fun RecentVisits(ecosystemViewModel: CustomerEcosystemViewModel, onSalonClick: (
                         size = RojanIconSize.Small,
                     )
                     Text(
-                        text = "رزرو مجدد",
+                        text = booking.startTime.substringBefore('T'),
                         style = RojanTypography.Caption,
                         color = HomeColors.Primary,
                     )

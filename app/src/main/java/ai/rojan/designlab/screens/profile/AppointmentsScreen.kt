@@ -1,4 +1,4 @@
-﻿package ai.rojan.designlab.screens.profile
+package ai.rojan.designlab.screens.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -34,179 +34,151 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
-import ai.rojan.designlab.data.demo.AppointmentStatus
-import ai.rojan.designlab.data.demo.DemoAppointment
 import ai.rojan.designlab.di.BackendApiContainerHolder
-import ai.rojan.designlab.domain.catalog.CatalogEngine
-import ai.rojan.designlab.domain.customer.EcosystemEvent
 import ai.rojan.designlab.domain.reminder.ReminderTime
-import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
+import ai.rojan.designlab.domain.repository.BookingStatus
+import ai.rojan.designlab.domain.repository.BookingWithDetails
+import ai.rojan.designlab.presentation.booking.BookingHistoryViewModel
+import ai.rojan.designlab.presentation.booking.BookingHistoryViewModelFactory
+import ai.rojan.designlab.presentation.booking.ReminderViewModel
+import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.animation.rojanEnterAnimation
-import ai.rojan.designlab.ui.components.image.RojanSampleImage
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.state.RojanEmptyState
+import ai.rojan.designlab.ui.components.state.RojanErrorState
+import ai.rojan.designlab.ui.components.state.RojanLoadingState
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanErrorText
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanStatusOnline
 import ai.rojan.designlab.ui.theme.RojanTypography
+import ai.rojan.designlab.ui.theme.salonAccentColorFor
 
 /**
- * Journey 2, Screen 2: My Appointments — now reads the live, shared
- * [CustomerEcosystemViewModel.state] instead of the static repository
- * directly, and includes the flagship real cross-module interaction:
- * completing an upcoming appointment (a demo stand-in for "the
- * appointment time has passed") genuinely cascades through
- * [ai.rojan.designlab.domain.customer.CustomerEcosystemEngine] and
- * shows the resulting event chain inline — Wallet/Loyalty/Membership on
- * other screens reflect the change immediately since they read the same
- * shared state.
+ * Journey 2, Screen 2: My Appointments.
+ *
+ * Production Data Integrity Phase 1: now backed by the real
+ * `GET /api/v1/bookings/my` (via [BookingHistoryViewModel]) instead of
+ * `CustomerEcosystemViewModel.state.upcomingAppointments`/`pastAppointments`
+ * (demo). Cancel was already real (`bookingRepository.cancelBooking`,
+ * fired alongside a local demo cancel before this pass); it stays real,
+ * minus the now-removed demo half. Dropped along with the demo data
+ * source, not carried over as fake affordances on real bookings:
+ * - "تکمیل نوبت (نمایشی)" — a demo-only status-flip button.
+ * - The event-cascade summary — narrated fake loyalty/wallet/coupon/
+ *   waitlist side effects that no longer exist (those screens are gated,
+ *   see the Phase 1 plan).
+ * - Price and service name — `Booking` has neither (see
+ *   `BookingHistoryRepository`'s doc comment on why service name can't be
+ *   resolved without a scan).
+ * - The waitlist entry-count link — waitlist has no backend endpoint.
+ *
+ * The reminder toggle now uses the standalone [ReminderViewModel] — a
+ * genuine on-device notification preference (see
+ * `domain/reminder/ReminderScheduler.kt`), not backend business data, so
+ * it's out of this phase's "no mock production data" scope, but no longer
+ * needs the bigger `CustomerEcosystemViewModel` just to reach it (Task 7).
  */
 @Composable
 fun AppointmentsScreen(
-    ecosystemViewModel: CustomerEcosystemViewModel,
     onBackClick: () -> Unit,
     onAppointmentClick: (String) -> Unit,
     onRescheduleClick: (String) -> Unit = {},
     onWaitlistClick: () -> Unit = {},
+    viewModel: BookingHistoryViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = BookingHistoryViewModelFactory(
+            BackendApiContainerHolder.get(LocalContext.current).bookingHistoryRepository,
+        ),
+    ),
+    reminderViewModel: ReminderViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
 ) {
-    val state = ecosystemViewModel.state
-    val upcoming = state.upcomingAppointments
-    val past = state.pastAppointments
-
-    // Android <-> Backend Full Integration milestone: cancel is a real
-    // `PATCH /bookings/{id}/cancel` call when this appointment has a real
-    // backend id (DemoAppointment.backendBookingId's doc comment), fired
-    // alongside the existing local cancel, not instead of it.
     val coroutineScope = rememberCoroutineScope()
     val bookingRepository = BackendApiContainerHolder.get(LocalContext.current).bookingRepository
 
     HomeBackgroundTheme {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(RojanDimens.SpaceMD),
-            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
-        ) {
-            item { GlassBackButton(onClick = onBackClick) }
-            item { Text("نوبت‌های من", style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary) }
+        Column(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD)) {
+            GlassBackButton(onClick = onBackClick)
+            Text(
+                text = "نوبت‌های من",
+                style = RojanTypography.HeroTitle,
+                color = HomeColors.TextPrimary,
+                modifier = Modifier.padding(vertical = RojanDimens.SpaceMD),
+            )
 
-            if (state.activeWaitlistEntries.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "لیست انتظار من (${state.activeWaitlistEntries.size})",
-                        style = RojanTypography.Body,
-                        color = HomeColors.Glow,
-                        modifier = Modifier.clickable(onClick = onWaitlistClick),
-                    )
-                }
-            }
-
-            if (ecosystemViewModel.lastEvents.isNotEmpty()) {
-                item { EventCascadeSummary(ecosystemViewModel.lastEvents) }
-            }
-
-            if (upcoming.isEmpty() && past.isEmpty()) {
-                item {
-                    RojanEmptyState(
-                        title = "هنوز نوبتی ندارید",
-                        description = "برای رزرو نوبت جدید به صفحه اصلی بازگردید",
-                    )
-                }
-            }
-
-            if (upcoming.isNotEmpty()) {
-                item { Text("پیش‌رو", style = RojanTypography.Body, color = HomeColors.TextPrimary) }
-                itemsIndexed(upcoming) { index, appt ->
-                    AppointmentCard(
-                        appointment = appt,
-                        onClick = { onAppointmentClick(appt.id) },
-                        onCompleteDemo = { ecosystemViewModel.completeAppointment(appt.id) },
-                        onCancel = {
-                            appt.backendBookingId?.let { backendBookingId ->
-                                coroutineScope.launch { bookingRepository.cancelBooking(backendBookingId) }
-                            }
-                            ecosystemViewModel.cancelAppointment(appt.id)
-                        },
-                        onReschedule = { onRescheduleClick(appt.id) },
-                        ecosystemViewModel = ecosystemViewModel,
-                        animationDelayMillis = index * 60,
-                    )
-                }
-            }
-
-            if (past.isNotEmpty()) {
-                item { Text("گذشته", style = RojanTypography.Body, color = HomeColors.TextPrimary) }
-                itemsIndexed(past) { index, appt ->
-                    AppointmentCard(
-                        appointment = appt,
-                        onClick = { onAppointmentClick(appt.id) },
-                        onCompleteDemo = null,
-                        animationDelayMillis = index * 60,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EventCascadeSummary(events: List<EcosystemEvent>) {
-    HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
-        Column(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
-            Text("این اتفاق افتاد:", style = RojanTypography.Body, color = HomeColors.TextPrimary)
-            events.forEach { event ->
-                Text(
-                    text = "• ${describeEvent(event)}",
-                    style = RojanTypography.Caption,
-                    color = HomeColors.TextSecondary,
+            when (val state = viewModel.state) {
+                is UiState.Loading -> RojanLoadingState(message = "در حال بارگذاری نوبت‌ها...")
+                is UiState.Error -> RojanErrorState(
+                    description = state.message,
+                    actionLabel = "تلاش مجدد",
+                    onAction = { viewModel.retry() },
                 )
+                is UiState.Empty -> RojanEmptyState(
+                    title = "هنوز نوبتی ندارید",
+                    description = "برای رزرو نوبت جدید به صفحه اصلی بازگردید",
+                )
+                is UiState.Success -> {
+                    val upcoming = state.data.filter {
+                        it.booking.status == BookingStatus.PENDING || it.booking.status == BookingStatus.CONFIRMED
+                    }
+                    val past = state.data.filter {
+                        it.booking.status == BookingStatus.COMPLETED || it.booking.status == BookingStatus.CANCELLED
+                    }
+
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD)) {
+                        if (upcoming.isNotEmpty()) {
+                            item { Text("پیش‌رو", style = RojanTypography.Body, color = HomeColors.TextPrimary) }
+                            itemsIndexed(upcoming) { index, item ->
+                                AppointmentCard(
+                                    item = item,
+                                    onClick = { onAppointmentClick(item.booking.id) },
+                                    onCancel = {
+                                        coroutineScope.launch { bookingRepository.cancelBooking(item.booking.id) }
+                                        viewModel.retry()
+                                    },
+                                    onReschedule = { onRescheduleClick(item.booking.id) },
+                                    reminderViewModel = reminderViewModel,
+                                    animationDelayMillis = index * 60,
+                                )
+                            }
+                        }
+
+                        if (past.isNotEmpty()) {
+                            item { Text("گذشته", style = RojanTypography.Body, color = HomeColors.TextPrimary) }
+                            itemsIndexed(past) { index, item ->
+                                AppointmentCard(
+                                    item = item,
+                                    onClick = { onAppointmentClick(item.booking.id) },
+                                    animationDelayMillis = index * 60,
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-private fun describeEvent(event: EcosystemEvent): String = when (event) {
-    is EcosystemEvent.BeautyTimelineEntryAdded -> "تاریخچه زیبایی به‌روزرسانی شد"
-    is EcosystemEvent.LoyaltyPointsEarned -> "${event.points} امتیاز وفاداری کسب کردید"
-    is EcosystemEvent.WalletCashbackAdded -> "${event.amount} تومان بازگشت وجه به کیف پول اضافه شد"
-    is EcosystemEvent.MembershipProgressUpdated -> "${event.incrementPoints} امتیاز به پیشرفت عضویت اضافه شد"
-    is EcosystemEvent.ReviewRequestCreated -> "درخواست ثبت نظر ایجاد شد"
-    is EcosystemEvent.CouponRedeemed -> "${event.discountAmount} تومان تخفیف اعمال شد"
-    is EcosystemEvent.CouponRejected -> "کد تخفیف قابل استفاده نیست"
-    is EcosystemEvent.ReviewRejected -> "نظر شما قبلاً ثبت شده است"
-    is EcosystemEvent.NotificationEnqueued -> "اعلان جدید ثبت شد"
-    is EcosystemEvent.AppointmentBooked -> "نوبت شما با موفقیت رزرو شد"
-    is EcosystemEvent.AppointmentStatusChanged -> "وضعیت نوبت به‌روزرسانی شد"
-    is EcosystemEvent.AppointmentRescheduled -> "زمان نوبت تغییر کرد"
-    is EcosystemEvent.WaitlistJoined -> "به لیست انتظار اضافه شدید"
-    is EcosystemEvent.WaitlistJoinRejected -> event.reason
-    is EcosystemEvent.WaitlistLeft -> "از لیست انتظار خارج شدید"
-    is EcosystemEvent.WaitlistPromoted -> "یک نوبت از لیست انتظار برای شما رزرو شد"
-    is EcosystemEvent.ReviewLifecycleAdvanced -> "وضعیت نظر به‌روزرسانی شد"
-    is EcosystemEvent.ReviewSubmitted -> "نظر شما ثبت شد"
-    is EcosystemEvent.FavoriteSalonToggled ->
-        if (event.isNowFavorite) "به علاقه‌مندی‌ها اضافه شد" else "از علاقه‌مندی‌ها حذف شد"
-    is EcosystemEvent.WalletDebited -> "${event.amount} تومان از کیف پول کسر شد"
-    is EcosystemEvent.WalletDebitRejected -> "موجودی کیف پول کافی نیست"
+private fun BookingStatus.label(): String = when (this) {
+    BookingStatus.PENDING -> "در انتظار تایید"
+    BookingStatus.CONFIRMED -> "تایید شده"
+    BookingStatus.COMPLETED -> "انجام شده"
+    BookingStatus.CANCELLED -> "لغو شده"
 }
 
 @Composable
 private fun AppointmentCard(
-    appointment: DemoAppointment,
+    item: BookingWithDetails,
     onClick: () -> Unit,
-    onCompleteDemo: (() -> Unit)?,
     onCancel: (() -> Unit)? = null,
     onReschedule: (() -> Unit)? = null,
-    ecosystemViewModel: CustomerEcosystemViewModel? = null,
+    reminderViewModel: ReminderViewModel? = null,
     animationDelayMillis: Int = 0,
 ) {
-    val catalogEngine = remember { CatalogEngine() }
-    val salon = appointment.salonId?.let { catalogEngine.findSalonById(it) }
+    val booking = item.booking
 
     HomeGlassSurface(
         modifier = Modifier
@@ -224,55 +196,25 @@ private fun AppointmentCard(
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .background(
-                            (salon?.colorSeed ?: HomeColors.TextSecondary).copy(alpha = 0.5f),
-                            RojanShapes.Small,
-                        ),
+                        .background(salonAccentColorFor(booking.salonId).copy(alpha = 0.5f), RojanShapes.Small),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (salon?.assetRes != null) {
-                        RojanSampleImage(
-                            resId = salon.assetRes,
-                            contentDescription = salon.name,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else {
-                        Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary)
-                    }
+                    Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary)
                 }
 
                 Spacer(modifier = Modifier.width(RojanDimens.SpaceSM))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(appointment.salonName, style = RojanTypography.Body, color = HomeColors.TextPrimary)
-                    Text(
-                        "${appointment.serviceName} • ${appointment.specialistName}",
-                        style = RojanTypography.Caption,
-                        color = HomeColors.TextSecondary,
-                    )
-                    Text(appointment.dateLabel, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
+                    Text(item.salonName ?: booking.salonId, style = RojanTypography.Body, color = HomeColors.TextPrimary)
+                    item.specialistName?.let { name ->
+                        Text(name, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
+                    }
+                    Text(booking.startTime.replace('T', ' '), style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("${appointment.price} تومان", style = RojanTypography.Caption, color = HomeColors.Glow)
-                    Text(
-                        text = when (appointment.status) {
-                            AppointmentStatus.UPCOMING -> "تایید شده"
-                            AppointmentStatus.COMPLETED -> "انجام شده"
-                            AppointmentStatus.CANCELLED -> "لغو شده"
-                        },
-                        style = RojanTypography.Caption,
-                        color = if (appointment.status == AppointmentStatus.CANCELLED) HomeColors.TextSecondary else HomeColors.Gold,
-                    )
-                }
-            }
-
-            if (onCompleteDemo != null) {
-                Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
                 Text(
-                    text = "تکمیل نوبت (نمایشی)",
+                    text = booking.status.label(),
                     style = RojanTypography.Caption,
-                    color = RojanStatusOnline,
-                    modifier = Modifier.clickable(onClick = onCompleteDemo),
+                    color = if (booking.status == BookingStatus.CANCELLED) HomeColors.TextSecondary else HomeColors.Gold,
                 )
             }
 
@@ -319,9 +261,9 @@ private fun AppointmentCard(
                 }
             }
 
-            if (ecosystemViewModel != null && appointment.status == AppointmentStatus.UPCOMING) {
+            if (reminderViewModel != null && booking.status == BookingStatus.CONFIRMED) {
                 Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
-                val preference = ecosystemViewModel.state.reminderPreferenceFor(appointment.id)
+                val preference = reminderViewModel.reminderPreferenceFor(booking.id)
                 val isEnabled = preference?.enabled ?: false
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -336,12 +278,12 @@ private fun AppointmentCard(
                     Switch(
                         checked = isEnabled,
                         onCheckedChange = { checked ->
-                            ecosystemViewModel.setReminderPreference(
-                                appointmentId = appointment.id,
+                            reminderViewModel.setReminderPreference(
+                                appointmentId = booking.id,
                                 enabled = checked,
                                 reminderTime = preference?.reminderTime ?: ReminderTime.H3,
-                                appointmentDateLabel = appointment.dateLabel,
-                                appointmentTime = appointment.time,
+                                appointmentDateLabel = booking.startTime.substringBefore('T'),
+                                appointmentTime = booking.startTime.substringAfter('T').take(5),
                             )
                         },
                     )

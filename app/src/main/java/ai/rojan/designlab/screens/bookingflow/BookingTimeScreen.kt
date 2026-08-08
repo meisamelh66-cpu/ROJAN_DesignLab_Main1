@@ -13,27 +13,21 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 
 import ai.rojan.designlab.di.BackendApiContainerHolder
-import ai.rojan.designlab.domain.catalog.CatalogEngine
 import ai.rojan.designlab.domain.repository.TimeSlot
 import ai.rojan.designlab.presentation.booking.BookingTimeViewModel
 import ai.rojan.designlab.presentation.booking.BookingTimeViewModelFactory
 import ai.rojan.designlab.presentation.booking.BookingViewModel
 import ai.rojan.designlab.presentation.common.UiState
-import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
-import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
+import ai.rojan.designlab.ui.components.state.RojanEmptyState
 import ai.rojan.designlab.ui.components.state.RojanErrorState
 import ai.rojan.designlab.ui.components.state.RojanLoadingState
 import ai.rojan.designlab.ui.theme.RojanDimens
@@ -55,14 +49,12 @@ private fun TimeSlot.timeLabel(): String = start.substringAfter('T').take(5)
  * (the real endpoint takes `serviceId` directly and computes slot width
  * itself, so no duration resolution is needed here anymore).
  *
- * Appointment System completion (V1.0 Module 6 - Waiting List):
- * [ecosystemViewModel] is optional (default `null`) — when provided and
- * zero slots are available for the selected date, a real "Join Waiting
- * List" action appears instead of an empty grid, calling through to
- * [CustomerEcosystemViewModel.joinWaitlist]. This branch is untouched by
- * this milestone — waitlist/appointments are still local
- * `CustomerEcosystemViewModel` state (Phase 6 territory), including its
- * salon/service name lookups via [CatalogEngine].
+ * Production Data Integrity Phase 1: the "Join Waiting List" fallback
+ * (shown when zero slots are available) is gated — no waitlist endpoint
+ * exists on the backend (see `WaitlistScreen.kt`), and the previous
+ * version called through to `CustomerEcosystemViewModel.joinWaitlist`, an
+ * in-memory-only action, using `CatalogEngine` for salon/service name
+ * lookups.
  */
 @Composable
 fun BookingTimeScreen(
@@ -70,7 +62,6 @@ fun BookingTimeScreen(
     bookingViewModel: BookingViewModel,
     onBackClick: () -> Unit,
     onTimeSelected: (String) -> Unit,
-    ecosystemViewModel: CustomerEcosystemViewModel? = null,
     viewModel: BookingTimeViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = BookingTimeViewModelFactory(
             salonId = bookingViewModel.state.salonId,
@@ -81,8 +72,6 @@ fun BookingTimeScreen(
         ),
     ),
 ) {
-    val catalogEngine = remember { CatalogEngine() }
-
     HomeBackgroundTheme {
         Column(
             modifier = Modifier
@@ -104,17 +93,10 @@ fun BookingTimeScreen(
                     actionLabel = "تلاش مجدد",
                     onAction = { viewModel.retry() },
                 )
-                is UiState.Empty -> {
-                    if (ecosystemViewModel != null) {
-                        WaitlistJoinPrompt(
-                            dateKey = dateKey,
-                            specialistId = bookingViewModel.state.specialistId,
-                            bookingViewModel = bookingViewModel,
-                            ecosystemViewModel = ecosystemViewModel,
-                            catalogEngine = catalogEngine,
-                        )
-                    }
-                }
+                is UiState.Empty -> RojanEmptyState(
+                    title = "زمانی برای این تاریخ موجود نیست",
+                    description = "لطفاً تاریخ دیگری را انتخاب کنید",
+                )
                 is UiState.Success -> {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
@@ -142,63 +124,6 @@ fun BookingTimeScreen(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun WaitlistJoinPrompt(
-    dateKey: String,
-    specialistId: String?,
-    bookingViewModel: BookingViewModel,
-    ecosystemViewModel: CustomerEcosystemViewModel,
-    catalogEngine: CatalogEngine,
-) {
-    var joined by remember(dateKey) { mutableStateOf(false) }
-
-    Column {
-        Text(
-            text = "برای این تاریخ زمانی موجود نیست",
-            style = RojanTypography.Body,
-            color = HomeColors.TextPrimary,
-        )
-        Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
-        Text(
-            text = "می‌توانید به لیست انتظار بپیوندید تا در صورت آزاد شدن زمانی، نوبت شما خودکار رزرو شود.",
-            style = RojanTypography.Caption,
-            color = HomeColors.TextSecondary,
-        )
-        Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))
-
-        if (joined) {
-            Text(
-                text = "✓ به لیست انتظار پیوستید",
-                style = RojanTypography.Body,
-                color = HomeColors.TextPrimary,
-            )
-        } else {
-            PremiumButton(
-                text = "پیوستن به لیست انتظار",
-                onClick = {
-                    val salonId = bookingViewModel.state.salonId
-                    val serviceId = bookingViewModel.state.serviceId
-                    val salon = salonId?.let { catalogEngine.findSalonById(it) }
-                    val service = serviceId?.let { catalogEngine.findServiceById(it) }
-                    val dateLabel = catalogEngine.dateLabelFor(dateKey)
-                    if (salon != null && service != null) {
-                        ecosystemViewModel.joinWaitlist(
-                            salonId = salon.id,
-                            salonName = salon.name,
-                            serviceId = service.id,
-                            serviceName = service.name,
-                            specialistId = specialistId,
-                            dateKey = dateKey,
-                            dateLabel = dateLabel,
-                        )
-                        joined = true
-                    }
-                },
-            )
         }
     }
 }

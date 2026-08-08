@@ -15,11 +15,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 import ai.rojan.designlab.components.hero.HeroBookingCard
+import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.presentation.auth.AuthViewModel
-import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
+import ai.rojan.designlab.presentation.booking.BookingHistoryViewModel
+import ai.rojan.designlab.presentation.booking.BookingHistoryViewModelFactory
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.ui.theme.RojanDimens
 
@@ -48,7 +52,6 @@ import ai.rojan.designlab.ui.theme.RojanDimens
  */
 @Composable
 fun CustomerDashboardScreen(
-    ecosystemViewModel: CustomerEcosystemViewModel,
     authViewModel: AuthViewModel,
     onProfileClick: () -> Unit = {},
     onBookAppointmentClick: () -> Unit = {},
@@ -69,6 +72,11 @@ fun CustomerDashboardScreen(
     // real screen width like CustomerHomeScreen already does.
     val density = LocalDensity.current
     var bottomBarHeight by remember { mutableStateOf(0.dp) }
+    val bookingHistoryViewModel: BookingHistoryViewModel = viewModel(
+        factory = BookingHistoryViewModelFactory(
+            BackendApiContainerHolder.get(LocalContext.current).bookingHistoryRepository,
+        ),
+    )
 
     HomeBackgroundTheme(
         modifier = Modifier.fillMaxSize(),
@@ -86,7 +94,7 @@ fun CustomerDashboardScreen(
             ) {
                 item { HomeHeader(displayName = authViewModel.currentDisplayName) }
                 item { HeroBookingCard(onClick = onBookAppointmentClick) }
-                item { UpcomingBookings(ecosystemViewModel) }
+                item { UpcomingBookings(bookingHistoryViewModel) }
                 item { RecommendedSalons(onSalonClick = onSalonClick) }
                 item { TopSpecialists() }
             }

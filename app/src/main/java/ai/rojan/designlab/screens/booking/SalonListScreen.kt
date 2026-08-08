@@ -42,13 +42,10 @@ import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.state.RojanEmptyState
 import ai.rojan.designlab.ui.components.state.RojanErrorState
 import ai.rojan.designlab.ui.components.state.RojanLoadingState
-import ai.rojan.designlab.ui.theme.RojanAquaMint
-import ai.rojan.designlab.ui.theme.RojanBlushPink
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanPearlPink
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanSoftLavender
 import ai.rojan.designlab.ui.theme.RojanTypography
+import ai.rojan.designlab.ui.theme.salonAccentColorFor
 
 /**
  * Booking Experience Refactor, spec section 9 — Salon Cards.
@@ -207,10 +204,6 @@ fun SalonListScreen(
 
 private enum class SalonSortOption { ALL, NEAREST }
 
-/** Deterministic per-salon tint — the backend has no per-salon color/branding concept, so this only varies the card's accent, never fabricates business data. */
-private val salonCardPalette = listOf(RojanSoftLavender, RojanAquaMint, RojanBlushPink, RojanPearlPink)
-private fun colorSeedFor(salonId: String) = salonCardPalette[Math.floorMod(salonId.hashCode(), salonCardPalette.size)]
-
 @Composable
 private fun SalonFilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
     HomeGlassSurface(
@@ -253,7 +246,7 @@ private fun MinimalSalonCard(salon: Salon, onClick: () -> Unit, animationDelayMi
             Box(
                 modifier = Modifier
                     .size(72.dp)
-                    .background(colorSeedFor(salon.id).copy(alpha = 0.35f), RojanShapes.Small),
+                    .background(salonAccentColorFor(salon.id).copy(alpha = 0.35f), RojanShapes.Small),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary)

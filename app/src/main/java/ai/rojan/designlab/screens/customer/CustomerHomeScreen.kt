@@ -15,12 +15,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 import ai.rojan.designlab.components.hero.HeroBookingCard
+import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.presentation.auth.AuthViewModel
-import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
+import ai.rojan.designlab.presentation.booking.BookingHistoryViewModel
+import ai.rojan.designlab.presentation.booking.BookingHistoryViewModelFactory
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.ui.theme.RojanDimens
 
@@ -100,7 +104,6 @@ import ai.rojan.designlab.ui.theme.RojanDimens
  */
 @Composable
 fun CustomerHomeScreen(
-    ecosystemViewModel: CustomerEcosystemViewModel,
     authViewModel: AuthViewModel,
     onProfileClick: () -> Unit = {},
     onBookAppointmentClick: () -> Unit = {},
@@ -121,6 +124,14 @@ fun CustomerHomeScreen(
     bottomBarActiveTab: CustomerHomeTab = CustomerHomeTab.SEARCH,
 ) {
     var searchMode by remember { mutableStateOf(SearchMode.SERVICES) }
+
+    // Shared by UpcomingBookings/RecentVisits below - one real
+    // `myBookings` network call backs both sections, not two.
+    val bookingHistoryViewModel: BookingHistoryViewModel = viewModel(
+        factory = BookingHistoryViewModelFactory(
+            BackendApiContainerHolder.get(LocalContext.current).bookingHistoryRepository,
+        ),
+    )
 
     // Fixed bottom bar (overlay behavior): CustomerBottomBar moved out of the
     // LazyColumn and pinned via Box + Alignment.BottomCenter so it stays put
@@ -166,16 +177,16 @@ fun CustomerHomeScreen(
                         onSelectedChange = { searchMode = it },
                     )
                 }
-                item { PopularServices(onViewAllClick = onViewAllServicesClick) }
+                item { PopularServices() }
                 item { TopSpecialists(onSpecialistClick = onSpecialistClick) }
                 item { PromotionsSection() }
-                item { FeaturedSalons() }
+                item { FeaturedSalons(onSalonClick = onSalonClick) }
                 item { HeroBookingCard(onClick = onBookAppointmentClick) }
                 item { NearbySalons() }
                 item { RecommendedSalons(onSalonClick = onSalonClick) }
-                item { UpcomingBookings(ecosystemViewModel) }
-                item { RecentVisits(ecosystemViewModel, onSalonClick = onSalonClick) }
-                item { FollowedSalons(ecosystemViewModel, onSalonClick = onSalonClick) }
+                item { UpcomingBookings(bookingHistoryViewModel) }
+                item { RecentVisits(bookingHistoryViewModel, onSalonClick = onSalonClick) }
+                item { FollowedSalons(onSalonClick = onSalonClick) }
             }
 
             CustomerBottomBar(

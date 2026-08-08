@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -31,16 +30,13 @@ import androidx.compose.material3.Icon
 import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-import ai.rojan.designlab.domain.customer.insights.ProfileInsightsEngine
 import ai.rojan.designlab.presentation.auth.AuthViewModel
-import ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
@@ -48,7 +44,7 @@ import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.rtl.RtlListRow
-import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
+import ai.rojan.designlab.ui.components.state.RojanComingSoonState
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
@@ -62,12 +58,16 @@ private data class ProfileMenuItem(
 
 /**
  * Journey 2, Screen 1: Profile hub — the customer's real identity
- * center. Wallet/Loyalty/Membership summary read live shared state;
- * Beauty Score, Profile Completion, Preferred Salon/Specialist,
- * Upcoming Appointment, Last Visit, and Recent Activity are computed
- * via [ProfileInsightsEngine] — real derivations and (where genuinely a
- * judgment call) real rule-provider-backed calculations, not hardcoded
- * display strings.
+ * center.
+ *
+ * Production Data Integrity Phase 1: the Wallet/Loyalty/Membership
+ * summary strip and the Beauty Score/Profile Completion/Preferred Salon/
+ * Recent Activity "insights" card are gated — both were entirely
+ * `CustomerEcosystemViewModel`/`ProfileInsightsEngine` demo derivations
+ * with no backend counterpart (same reasoning as the individual Wallet/
+ * Loyalty/Membership screens, which were already gated; showing live-
+ * looking numbers here while those screens say "Coming soon" would be a
+ * direct contradiction, not just an inconsistency).
  *
  * Customer Journey Audit Phase A (P0-4) fix: the displayed name now
  * comes from [AuthViewModel.currentDisplayName] — a real lookup of the
@@ -77,7 +77,6 @@ private data class ProfileMenuItem(
  */
 @Composable
 fun ProfileScreen(
-    ecosystemViewModel: CustomerEcosystemViewModel,
     authViewModel: AuthViewModel,
     onBackClick: () -> Unit,
     onAppointmentsClick: () -> Unit,
@@ -90,9 +89,6 @@ fun ProfileScreen(
     onBeautyTimelineClick: () -> Unit,
     onLogoutClick: () -> Unit,
 ) {
-    val tier = ecosystemViewModel.membershipTier()
-    val state = ecosystemViewModel.state
-    val insights = remember(state) { ProfileInsightsEngine().computeInsights(state) }
     val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
 
     val menuItems = listOf(
@@ -133,105 +129,10 @@ fun ProfileScreen(
                     currentUser?.email?.let {
                         Text(it, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
                     }
-                    Text("عضو ${tier.currentTierName}", style = RojanTypography.Body, color = HomeColors.TextSecondary)
                 }
             }
 
-            item {
-                HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .rojanPressable(onClick = onWalletClick)
-                            .padding(RojanDimens.SpaceMD),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("${state.walletBalance}", style = RojanTypography.Body, color = HomeColors.Glow)
-                            Text("موجودی کیف پول", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("${state.loyaltyPoints}", style = RojanTypography.Body, color = HomeColors.Glow)
-                            Text("امتیاز وفاداری", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(tier.currentTierName, style = RojanTypography.Body, color = HomeColors.Glow)
-                            Text("سطح عضویت", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
-                        }
-                    }
-                }
-            }
-
-            item {
-                HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(RojanDimens.SpaceMD),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("${insights.beautyScore}", style = RojanTypography.Body, color = HomeColors.Glow)
-                            Text("امتیاز زیبایی", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("${insights.profileCompletionPercent}٪", style = RojanTypography.Body, color = HomeColors.Glow)
-                            Text("تکمیل پروفایل", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(state.customerBirthday, style = RojanTypography.Body, color = HomeColors.Glow)
-                            Text("تولد", style = RojanTypography.Caption, color = HomeColors.TextSecondary)
-                        }
-                    }
-                }
-            }
-
-            if (insights.upcomingAppointment != null || insights.lastVisit != null || insights.preferredSalonName != null) {
-                item {
-                    HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
-                        Column(modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD)) {
-                            insights.upcomingAppointment?.let {
-                                InsightRow("نوبت پیش‌رو", "${it.salonName} • ${it.dateLabel}")
-                            }
-                            insights.lastVisit?.let {
-                                InsightRow("آخرین مراجعه", "${it.salonName} • ${it.dateLabel}")
-                            }
-                            insights.preferredSalonName?.let {
-                                InsightRow("سالن مورد علاقه", it)
-                            }
-                            insights.preferredSpecialistName?.let {
-                                InsightRow("متخصص مورد علاقه", it)
-                            }
-                            InsightRow("تعداد نوبت‌های انجام‌شده", "${insights.completedAppointmentCount}")
-                            insights.daysSinceLastVisit?.let {
-                                InsightRow("روز از آخرین مراجعه", "$it روز")
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (insights.recentActivity.isNotEmpty()) {
-                item { RtlSectionHeader("فعالیت‌های اخیر", horizontalPadding = 0.dp, color = HomeColors.TextPrimary) }
-                itemsIndexed(insights.recentActivity) { index, activity ->
-                    HomeGlassSurface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .rojanEnterAnimation(delayMillis = index * 60),
-                        shape = RojanShapes.Small,
-                    ) {
-                        RtlListRow(
-                            title = activity.label,
-                            titleStyle = RojanTypography.Caption,
-                            titleColor = HomeColors.TextPrimary,
-                            value = activity.dateLabel,
-                            valueStyle = RojanTypography.Caption,
-                            valueColor = HomeColors.TextSecondary,
-                            modifier = Modifier.padding(RojanDimens.SpaceMD),
-                        )
-                    }
-                }
-            }
+            item { RojanComingSoonState() }
 
             itemsIndexed(menuItems) { index, menuItem ->
                 HomeGlassSurface(
@@ -254,16 +155,4 @@ fun ProfileScreen(
             }
         }
     }
-}
-
-@Composable
-private fun InsightRow(label: String, value: String) {
-    RtlListRow(
-        title = label,
-        titleStyle = RojanTypography.Caption,
-        titleColor = HomeColors.TextSecondary,
-        value = value,
-        valueStyle = RojanTypography.Caption,
-        valueColor = HomeColors.TextPrimary,
-    )
 }

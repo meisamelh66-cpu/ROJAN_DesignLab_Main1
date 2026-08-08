@@ -2,6 +2,7 @@ package ai.rojan.designlab.manager.screens.profile
 
 import ai.rojan.designlab.R
 import ai.rojan.designlab.manager.components.ManagerColors
+import ai.rojan.designlab.manager.components.ManagerPrimaryButton
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
@@ -23,14 +24,23 @@ import androidx.compose.ui.unit.dp
 /**
  * Manager App workspace — profile placeholder. Carries the official
  * Manager logo asset (`R.drawable.rojan_manager_logo` — pre-existing,
- * not recreated/redesigned here) as the account avatar mark. Static
- * placeholder content, no backend/navigation wired yet — consistent
- * with the rest of the Manager module's foundation-first screens.
+ * not recreated/redesigned here) as the account avatar mark. Mostly
+ * static placeholder content, no backend-driven profile data wired yet —
+ * consistent with the rest of the Manager module's foundation-first
+ * screens.
+ *
+ * OTP Authentication Entry Flow Integration: [onLogoutClick] is the one
+ * real, backend-connected action on this screen (wired to
+ * [ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel.logout]
+ * by `ManagerNavGraph.kt`) — optional and defaults to `null` so this
+ * screen's existing preview/call shape is unaffected wherever a caller
+ * doesn't supply it.
  */
 @Composable
 fun ManagerProfileScreen(
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
+    onLogoutClick: (() -> Unit)? = null,
     managerName: String = "مدیر سالن",
     salonName: String = "سالن رویان",
 ) {
@@ -59,6 +69,16 @@ fun ManagerProfileScreen(
                 color = ManagerColors.TextSecondary,
                 modifier = Modifier.padding(top = RojanDimens.SpaceXS),
             )
+
+            if (onLogoutClick != null) {
+                ManagerPrimaryButton(
+                    text = "خروج از حساب",
+                    onClick = onLogoutClick,
+                    modifier = Modifier
+                        .padding(top = RojanDimens.SpaceXXL)
+                        .padding(horizontal = RojanDimens.SpaceMD),
+                )
+            }
         }
     }
 }

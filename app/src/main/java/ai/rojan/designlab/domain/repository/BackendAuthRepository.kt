@@ -8,13 +8,20 @@ data class AuthenticatedUser(
     val role: String,
 )
 
+/** Domain-facing result of a successful OTP request/resend — mirrors the backend's `OtpIssuedResponse`. */
+data class OtpIssued(
+    val phoneNumber: String,
+    val expiresInSeconds: Long,
+    val canResendAfterSeconds: Long,
+)
+
 /**
- * Talks to the ROJAN backend's auth API (register/login/refresh/me — see
- * `ROJAN_Backend/API.md`). A successful [login] persists the returned
- * tokens via [TokenRepository] as a side effect; callers never handle raw
- * tokens directly. Token refresh on a 401 happens transparently inside the
- * networking layer (see `data/remote/TokenAuthenticator.kt`), not through
- * this interface.
+ * Talks to the ROJAN backend's auth API (register/login/refresh/me/otp — see
+ * `ROJAN_Backend/API.md`). A successful [login]/[verifyOtp] persists the
+ * returned tokens via [TokenRepository] as a side effect; callers never
+ * handle raw tokens directly. Token refresh on a 401 happens transparently
+ * inside the networking layer (see `data/remote/TokenAuthenticator.kt`), not
+ * through this interface.
  */
 interface BackendAuthRepository {
 
@@ -26,4 +33,20 @@ interface BackendAuthRepository {
 
     /** Fetches the account behind the currently stored access token. */
     suspend fun currentUser(): Result<AuthenticatedUser>
+
+    /**
+     * OTP Authentication Entry Flow Integration: requests (or resends) an
+     * OTP code for [phoneNumber] via the backend's already-existing
+     * `POST /api/v1/auth/otp/request`. Does not persist anything — no
+     * session exists yet until [verifyOtp] succeeds.
+     */
+    suspend fun requestOtp(phoneNumber: String): Result<OtpIssued>
+
+    /**
+     * Verifies a previously-requested OTP [code] for [phoneNumber] via the
+     * backend's already-existing `POST /api/v1/auth/otp/verify`, and
+     * persists the returned access/refresh token pair via [TokenRepository]
+     * on success — same side-effect shape as [login].
+     */
+    suspend fun verifyOtp(phoneNumber: String, code: String): Result<AuthenticatedUser>
 }
