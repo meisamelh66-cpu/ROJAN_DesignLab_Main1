@@ -37,6 +37,12 @@ data class CreateBookingForCustomerRequestDto(
 )
 
 @Serializable
+data class RescheduleBookingRequestDto(
+    /** ISO-8601 local date-time, e.g. `"2026-09-02T14:00:00"` — one of the windows returned by the availability endpoint. */
+    val newStartTime: String,
+)
+
+@Serializable
 data class BookingResponseDto(
     val id: String,
     val salonId: String,

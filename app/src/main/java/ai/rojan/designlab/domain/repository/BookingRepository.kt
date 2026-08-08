@@ -44,4 +44,13 @@ interface BookingRepository {
     suspend fun getBooking(bookingId: String): Result<Booking>
 
     suspend fun cancelBooking(bookingId: String): Result<Booking>
+
+    /**
+     * Moves an existing booking to [newStartTime] (ISO-8601 local date-time,
+     * one of the windows returned by the availability endpoint — same
+     * shape [createBooking]'s [startTime] already expects). Its own
+     * customer or the salon owner/manager/receptionist may call this;
+     * the backend re-checks the new time for conflicts.
+     */
+    suspend fun rescheduleBooking(bookingId: String, newStartTime: String): Result<Booking>
 }
