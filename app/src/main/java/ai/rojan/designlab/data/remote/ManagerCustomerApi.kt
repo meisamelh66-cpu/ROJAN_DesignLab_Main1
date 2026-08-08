@@ -1,6 +1,8 @@
 package ai.rojan.designlab.data.remote
 
+import ai.rojan.designlab.data.remote.dto.BookingResponseDto
 import ai.rojan.designlab.data.remote.dto.CreateCustomerRequestDto
+import ai.rojan.designlab.data.remote.dto.CustomerNoteResponseDto
 import ai.rojan.designlab.data.remote.dto.CustomerResponseDto
 import ai.rojan.designlab.data.remote.dto.PagedResponseDto
 import ai.rojan.designlab.data.remote.dto.UpdateCustomerRequestDto
@@ -11,7 +13,19 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
-/** Owner-only, real CRM (`ROJAN_Backend/api/customer/CustomerController.kt`). Only the four endpoints this phase's scope covers (list/get/create/update) — the controller has more (notes/tags/timeline), not wired here. */
+/**
+ * Owner-only Retrofit contract for the ROJAN backend Customer CRM API.
+ *
+ * Supports:
+ * - customer list/search/filter
+ * - customer profile
+ * - customer notes
+ * - customer booking history
+ * - create/update customer
+ *
+ * Backend:
+ * ROJAN_Backend CustomerController
+ */
 interface ManagerCustomerApi {
 
     @GET("api/v1/salons/{salonId}/customers")
@@ -25,17 +39,38 @@ interface ManagerCustomerApi {
         @Query("sortDirection") sortDirection: String = "ASC",
     ): PagedResponseDto<CustomerResponseDto>
 
+
     @GET("api/v1/salons/{salonId}/customers/{customerId}")
     suspend fun get(
         @Path("salonId") salonId: String,
         @Path("customerId") customerId: String,
     ): CustomerResponseDto
 
+
+    @GET("api/v1/salons/{salonId}/customers/{customerId}/notes")
+    suspend fun notes(
+        @Path("salonId") salonId: String,
+        @Path("customerId") customerId: String,
+    ): List<CustomerNoteResponseDto>
+
+
+    @GET("api/v1/salons/{salonId}/customers/{customerId}/bookings")
+    suspend fun bookings(
+        @Path("salonId") salonId: String,
+        @Path("customerId") customerId: String,
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20,
+        @Query("status") status: String? = null,
+        @Query("sortDirection") sortDirection: String = "DESC",
+    ): PagedResponseDto<BookingResponseDto>
+
+
     @POST("api/v1/salons/{salonId}/customers")
     suspend fun create(
         @Path("salonId") salonId: String,
         @Body request: CreateCustomerRequestDto,
     ): CustomerResponseDto
+
 
     @PATCH("api/v1/salons/{salonId}/customers/{customerId}")
     suspend fun update(

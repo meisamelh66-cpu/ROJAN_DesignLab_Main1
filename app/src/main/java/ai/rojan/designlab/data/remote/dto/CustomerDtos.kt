@@ -2,7 +2,13 @@ package ai.rojan.designlab.data.remote.dto
 
 import kotlinx.serialization.Serializable
 
-/** Wire-format shape of `ROJAN_Backend`'s `CustomerStatus` (`domain/customer/Customer.kt`) — a real CRM lifecycle, richer than the mobile app's own 4-value `CustomerTag`. See `BackendCustomerRepository`'s mapping for how these are reconciled. */
+/**
+ * Wire-format CRM status for a customer record.
+ *
+ * Backend:
+ * ROJAN_Backend CustomerStatus.
+ * Distinct from booking status and mobile CustomerTag concepts.
+ */
 @Serializable
 enum class NetworkCustomerStatus {
     LEAD,
@@ -13,7 +19,12 @@ enum class NetworkCustomerStatus {
     CHURNED,
 }
 
-/** `CreateCustomerRequest` (backend) — email/phoneNumber both nullable, but the domain requires at least one (enforced server-side, not a Bean Validation rule; a request with neither returns a real validation error, not silently accepted). */
+
+/**
+ * Request body for POST /api/v1/salons/{salonId}/customers.
+ *
+ * email/phoneNumber are nullable, but backend requires at least one.
+ */
 @Serializable
 data class CreateCustomerRequestDto(
     val fullName: String,
@@ -22,7 +33,13 @@ data class CreateCustomerRequestDto(
     val company: String? = null,
 )
 
-/** `UpdateCustomerRequest` (backend) — every field optional, absent means "leave unchanged" (PATCH merge semantics, not a full replace). */
+
+/**
+ * Request body for PATCH /api/v1/salons/{salonId}/customers/{customerId}.
+ *
+ * Partial update semantics:
+ * null means keep existing value.
+ */
 @Serializable
 data class UpdateCustomerRequestDto(
     val fullName: String? = null,
@@ -32,21 +49,50 @@ data class UpdateCustomerRequestDto(
     val status: NetworkCustomerStatus? = null,
 )
 
+
+/**
+ * Backend Customer CRM response.
+ */
 @Serializable
 data class CustomerResponseDto(
     val id: String,
     val salonId: String,
-    /** Linked backend account, if any — null for a walk-in customer with no app account. */
+
+    /**
+     * Linked backend account, if any.
+     * Null for walk-in customers without app account.
+     */
     val userId: String? = null,
+
     val fullName: String,
     val phoneNumber: String? = null,
     val email: String? = null,
     val company: String? = null,
+
     val status: NetworkCustomerStatus,
-    /** Sum of completed-booking service prices, computed server-side — a monetary total, not a 0-100 loyalty score; the mobile domain model's `loyaltyScore` field has no real backend equivalent (see `BackendCustomerRepository`). */
+
+    /**
+     * Sum of completed booking service prices.
+     * Computed server-side.
+     */
     val lifetimeValue: Double,
-    val tags: List<String>,
+
+    val tags: List<String> = emptyList(),
+
     val active: Boolean,
+
     val createdAt: String,
     val updatedAt: String,
+)
+
+
+/**
+ * Customer CRM note response.
+ */
+@Serializable
+data class CustomerNoteResponseDto(
+    val id: String,
+    val authorId: String,
+    val text: String,
+    val createdAt: String,
 )
