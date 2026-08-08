@@ -12,6 +12,7 @@ import ai.rojan.designlab.data.remote.ManagerSalonApi
 import ai.rojan.designlab.data.remote.ManagerServiceApi
 import ai.rojan.designlab.data.remote.ManagerSpecialistApi
 import ai.rojan.designlab.data.remote.NetworkConfig
+import ai.rojan.designlab.data.remote.PublicSalonApi
 import ai.rojan.designlab.data.remote.SalonApi
 import ai.rojan.designlab.data.remote.ServiceApi
 import ai.rojan.designlab.data.remote.ServiceCategoryApi
@@ -21,6 +22,7 @@ import ai.rojan.designlab.data.repository.AvailabilityRepositoryImpl
 import ai.rojan.designlab.data.repository.BackendAuthRepositoryImpl
 import ai.rojan.designlab.data.repository.BookingHistoryRepositoryImpl
 import ai.rojan.designlab.data.repository.BookingRepositoryImpl
+import ai.rojan.designlab.data.repository.PublicSalonRepositoryImpl
 import ai.rojan.designlab.data.repository.SalonRepositoryImpl
 import ai.rojan.designlab.data.repository.ServiceCategoryRepositoryImpl
 import ai.rojan.designlab.data.repository.ServiceRepositoryImpl
@@ -30,6 +32,7 @@ import ai.rojan.designlab.domain.repository.AvailabilityRepository
 import ai.rojan.designlab.domain.repository.BackendAuthRepository
 import ai.rojan.designlab.domain.repository.BookingHistoryRepository
 import ai.rojan.designlab.domain.repository.BookingRepository
+import ai.rojan.designlab.domain.repository.PublicSalonRepository
 import ai.rojan.designlab.domain.repository.SalonRepository
 import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
 import ai.rojan.designlab.domain.repository.ServiceRepository
@@ -133,39 +136,39 @@ class BackendApiContainer(context: Context) {
     val bookingHistoryRepository: BookingHistoryRepository =
         BookingHistoryRepositoryImpl(bookingRepository, salonRepository, specialistRepository)
 
+    // Deliberately NOT built on [retrofit] - the public salon QR journey is
+    // unauthenticated by design (see PublicSalonApi's own doc comment), so
+    // it gets its own plain client with no AuthInterceptor/TokenAuthenticator,
+    // same reasoning as plainAuthApi below.
+    val publicSalonRepository: PublicSalonRepository =
+        PublicSalonRepositoryImpl(buildPlainRetrofit().create(PublicSalonApi::class.java))
+
+    /** No AuthInterceptor/authenticator - a plain, no-token client, for endpoints that need none. */
+    private fun buildPlainRetrofit(): Retrofit =
+        Retrofit.Builder()
+            .baseUrl(NetworkConfig.BASE_URL)
+            .client(OkHttpClient.Builder().addInterceptor(loggingInterceptor).build())
+            .addConverterFactory(jsonConverterFactory)
+            .build()
+
     private companion object {
 
-        fun buildAuthenticatedRetrofit(
-            tokenRepository: TokenRepository
-        ): Retrofit {
+        val jsonConverterFactory = Json { ignoreUnknownKeys = true }
+            .asConverterFactory("application/json".toMediaType())
 
-            val jsonConverterFactory =
-                Json {
-                    ignoreUnknownKeys = true
-                }.asConverterFactory(
-                    "application/json".toMediaType()
-                )
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BASIC
+        }
 
-
-            val loggingInterceptor =
-                HttpLoggingInterceptor().apply {
-                    level = HttpLoggingInterceptor.Level.BASIC
-                }
-
-
-            // Used only for token refresh
-            val plainAuthApi: AuthApi =
-                Retrofit.Builder()
-                    .baseUrl(NetworkConfig.BASE_URL)
-                    .client(
-                        OkHttpClient.Builder()
-                            .addInterceptor(loggingInterceptor)
-                            .build()
-                    )
-                    .addConverterFactory(jsonConverterFactory)
-                    .build()
-                    .create(AuthApi::class.java)
-
+        fun buildAuthenticatedRetrofit(tokenRepository: TokenRepository): Retrofit {
+            // Used only for the refresh call itself inside TokenAuthenticator,
+            // so refreshing never recurses back into itself.
+            val plainAuthApi: AuthApi = Retrofit.Builder()
+                .baseUrl(NetworkConfig.BASE_URL)
+                .client(OkHttpClient.Builder().addInterceptor(loggingInterceptor).build())
+                .addConverterFactory(jsonConverterFactory)
+                .build()
+                .create(AuthApi::class.java)
 
             val authenticatedClient =
                 OkHttpClient.Builder()
