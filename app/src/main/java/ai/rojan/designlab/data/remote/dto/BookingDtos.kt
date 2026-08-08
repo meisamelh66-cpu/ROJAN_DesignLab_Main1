@@ -32,6 +32,7 @@ data class CreateBookingForCustomerRequestDto(
     val customerId: String,
     val serviceId: String,
     val specialistId: String,
+    /** ISO-8601 local date-time, e.g. `"2026-09-01T10:00:00"` — one of the windows returned by the availability endpoint. */
     val startTime: String,
     val notes: String? = null,
 )

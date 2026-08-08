@@ -11,6 +11,9 @@ import ai.rojan.designlab.manager.domain.repository.CustomerRepository
 import ai.rojan.designlab.manager.domain.repository.ServiceRepository
 import ai.rojan.designlab.manager.domain.repository.SpecialistRepository
 import ai.rojan.designlab.manager.domain.specialist.Specialist
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,6 +53,12 @@ class ManagerBookingViewModel(
 
     private val _uiState = MutableStateFlow(ManagerBookingState())
     val uiState: StateFlow<ManagerBookingState> = _uiState.asStateFlow()
+
+    var isSubmitting by mutableStateOf(false)
+        private set
+
+    var submitError by mutableStateOf<String?>(null)
+        private set
 
     fun reset() {
         _uiState.value = ManagerBookingState()

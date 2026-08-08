@@ -10,16 +10,15 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
- * Owner-scoped bookings (`ROJAN_Backend/api/booking/SalonBookingController.kt`).
- *
- * `createForCustomer` is the owner-authorized counterpart to the customer-self-service
- * `POST /api/v1/bookings`: it takes an explicit `customerId` rather than deriving one from the
- * caller's JWT, which is what makes it usable from the Manager app at all. The endpoint itself is
- * implemented and correct here, but is deliberately not called from the Manager Booking wizard's
- * "confirm" action — see [ai.rojan.designlab.manager.data.BackendAppointmentRepository]'s doc
- * comment for why (the wizard's date/time selection is still a static placeholder calendar with no
- * reliable conversion to the real `LocalDateTime` this endpoint needs; a wrong `startTime` would
- * create a real, wrong appointment).
+ * Owner-only read/create of a salon's bookings (`ROJAN_Backend/API_CONTRACT.md`,
+ * `SalonBookingController`). [createForCustomer] is the owner-authorized
+ * counterpart to the customer-self-service `POST /api/v1/bookings` (which
+ * derives `customerId` from the caller's own JWT, and stays exactly as-is
+ * for Customer) — it takes an explicit Customer CRM id instead, so it's
+ * safe for the Manager app to call on a customer's behalf. There is still
+ * no owner-side update/cancel-booking endpoint; see
+ * [ai.rojan.designlab.manager.data.BackendAppointmentRepository] for how
+ * those stay local-cache-only.
  */
 interface ManagerBookingApi {
 

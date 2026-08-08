@@ -32,7 +32,8 @@ private object EmptyAppointmentRepository : AppointmentRepository {
     override fun getAll(): List<Appointment> = emptyList()
     override fun getById(id: String): Appointment? = null
     override fun getByCustomerId(customerId: String): List<Appointment> = emptyList()
-    override fun create(appointment: Appointment): Appointment = appointment
+    override suspend fun create(appointment: Appointment): Result<Appointment> =
+        Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
     override fun update(appointment: Appointment): Appointment? = null
     override fun updateStatus(id: String, status: AppointmentStatus): Appointment? = null
     override fun cancel(id: String): Appointment? = null
