@@ -24,6 +24,18 @@ import java.time.format.DateTimeFormatter
  * *availability*, not full Jalali-calendar UI — see this class's own
  * history for why a full calendar system was never wired in. This keeps
  * [dayNumber] real and clock-driven either way, just not Jalali.
+ *
+ * Phase 2, M7: [days] became a real, clock-driven rolling 7-day window
+ * (today + next six days) instead of a static hardcoded reference week —
+ * that mismatch was a genuine bug, not just a cosmetic gap: real backend
+ * appointments compare their [Appointment.date] against [ManagerCalendarWeek.todayKey]
+ * by plain string equality (Calendar's day grouping, Dashboard's "today"
+ * KPIs/[ai.rojan.designlab.manager.data.computeTodaysUpcomingSlots]), and a
+ * fixed fake date never equalled any real appointment's actual date, so
+ * those views silently showed nothing for real data (see
+ * [ai.rojan.designlab.manager.data.BackendAppointmentRepository]'s own doc
+ * comment, which flagged this exact gap when it made appointment data
+ * real).
  */
 data class CalendarWeekDay(val key: String, val label: String, val dayNumber: String, val isoDate: String)
 

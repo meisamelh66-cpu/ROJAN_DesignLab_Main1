@@ -51,10 +51,14 @@ import java.time.format.DateTimeFormatter
  * backend still has no owner-side update/cancel-booking endpoint - only
  * [create] closed, this phase.
  *
- * [ai.rojan.designlab.manager.domain.appointment.ManagerCalendarWeek] is
- * now a real, clock-driven week too (previously a static placeholder),
- * so appointments mapped below line up with Calendar's "today" grouping
- * correctly — the drift this class's doc comment used to flag is closed.
+ * **Formerly a known pre-existing gap, closed in Phase 2, M7:**
+ * [ai.rojan.designlab.manager.domain.appointment.ManagerCalendarWeek]
+ * used to be a static hardcoded reference week with no relation to the
+ * real clock, so real backend appointments (mapped below to their
+ * actual Gregorian date/time - always correct) never matched its
+ * "today" grouping. `ManagerCalendarWeek` now computes a real rolling
+ * window in the same `yyyy/MM/dd` format [toDomain] produces here, so
+ * the two line up.
  */
 class BackendAppointmentRepository(
     private val managerBookingApi: ManagerBookingApi,
