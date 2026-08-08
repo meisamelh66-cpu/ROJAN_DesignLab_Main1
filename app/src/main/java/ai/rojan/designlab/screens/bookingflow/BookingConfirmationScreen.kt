@@ -87,7 +87,7 @@ import kotlin.math.roundToInt
 fun BookingConfirmationScreen(
     bookingViewModel: BookingViewModel,
     onBackClick: () -> Unit,
-    onConfirmClick: (backendBookingId: String?, summary: BookingSummary) -> Unit,
+    onConfirmClick: (backendBookingId: String, summary: BookingSummary) -> Unit,
     onEditSalon: () -> Unit = {},
     onEditSpecialist: () -> Unit = {},
     onEditService: () -> Unit = {},
@@ -218,23 +218,29 @@ fun BookingConfirmationScreen(
             }
 
             Box(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
-                PremiumButton(
-                    text = "تایید نهایی رزرو",
-                    onClick = {
-                        val state = bookingViewModel.state
-                        confirmationViewModel.confirmBooking(
-                            salonId = state.salonId,
-                            serviceId = state.serviceId,
-                            specialistId = state.specialistId,
-                            dateKey = state.selectedDateKey,
-                            time = state.selectedTime,
-                            onResult = { backendBookingId -> onConfirmClick(backendBookingId, confirmationViewModel.summary) },
-                        )
-                    },
-                    enabled = bookingViewModel.isReadyForConfirmation() &&
-                        !confirmationViewModel.isSubmitting &&
-                        !confirmationViewModel.isLoadingSummary,
-                )
+                Column {
+                    confirmationViewModel.submitError?.let {
+                        Text(it, style = RojanTypography.Caption, color = HomeColors.Magenta)
+                        Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
+                    }
+                    PremiumButton(
+                        text = "تایید نهایی رزرو",
+                        onClick = {
+                            val state = bookingViewModel.state
+                            confirmationViewModel.confirmBooking(
+                                salonId = state.salonId,
+                                serviceId = state.serviceId,
+                                specialistId = state.specialistId,
+                                dateKey = state.selectedDateKey,
+                                time = state.selectedTime,
+                                onSuccess = { backendBookingId -> onConfirmClick(backendBookingId, confirmationViewModel.summary) },
+                            )
+                        },
+                        enabled = bookingViewModel.isReadyForConfirmation() &&
+                            !confirmationViewModel.isSubmitting &&
+                            !confirmationViewModel.isLoadingSummary,
+                    )
+                }
             }
         }
     }
