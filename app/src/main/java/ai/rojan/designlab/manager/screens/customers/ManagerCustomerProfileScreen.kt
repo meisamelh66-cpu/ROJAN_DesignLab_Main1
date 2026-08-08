@@ -33,23 +33,33 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 /**
- * Manager App workspace — Customer Profile foundation: identity header,
- * service history, and manager notes. Additive-only, same primitives as
- * the rest of the Manager MVP. Data sourced from
- * [ManagerRepositories.customers] (Manager Domain Foundation Phase 1) —
- * no backend.
+ * Manager App workspace — Customer Profile: identity header, service
+ * history, and manager notes. Data sourced from
+ * [ManagerRepositories.customers] (Phase 2, M2 — real backend Customer
+ * CRM API). The bulk-listed [ManagerRepositories.customers]-cached
+ * fields (name/phone/tag) render immediately; visit history and the
+ * latest note are per-customer detail the bulk listing doesn't include
+ * (see [ai.rojan.designlab.manager.data.BackendCustomerRepository]'s own
+ * doc comment), so [LaunchedEffect] fetches them for just this one
+ * customer on entry — a single detail view, not the N+1 case Phase 1
+ * ruled out for list screens.
  *
  * ROJAN AI Manager Visual Theme Implementation: re-themed for the dark
  * luxury background — content/data/navigation unchanged.
  *
- * "Foundation" per this pass's scope: [onEditNotesClick] is present but
- * inert (`{}` default) — no note-editing UI/persistence yet.
+ * [onEditNotesClick] is present but inert (`{}` default) — no
+ * note-editing UI/persistence yet.
  */
 @Composable
 fun ManagerCustomerProfileScreen(
@@ -58,19 +68,33 @@ fun ManagerCustomerProfileScreen(
     customerId: String = "c1",
     onEditNotesClick: () -> Unit = {},
 ) {
+    var isLoadingDetail by remember(customerId) { mutableStateOf(true) }
+
+    LaunchedEffect(customerId) {
+        isLoadingDetail = true
+        ManagerRepositories.customers.loadDetail(customerId)
+        isLoadingDetail = false
+    }
+
     val customer = ManagerRepositories.customers.getById(customerId)
-        ?: ManagerRepositories.customers.getAll().first()
-    val history = ManagerRepositories.customers.getServiceHistory(customerId)
-    val notes = customer.notes
+        ?: ManagerRepositories.customers.getAll().firstOrNull()
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
+        if (customer == null) {
+            return@ManagerScaffold
+        }
+
+        val history = ManagerRepositories.customers.getServiceHistory(customerId)
+
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceLG),
         ) {
             item { CustomerIdentityHeader(customer) }
-            item { ServiceHistorySection(history) }
-            item { ManagerNotesSection(notes = notes, onEditClick = onEditNotesClick) }
+            if (!isLoadingDetail) {
+                item { ServiceHistorySection(history) }
+                item { ManagerNotesSection(notes = customer.notes, onEditClick = onEditNotesClick) }
+            }
         }
     }
 }

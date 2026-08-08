@@ -52,10 +52,14 @@ import androidx.compose.ui.unit.dp
  * luxury background ([ManagerScaffold]/[ManagerGlassSurface]) —
  * content/data/navigation unchanged.
  *
- * Search is a real, working local filter, delegated to
- * [ManagerRepositories.customers] (Manager Domain Foundation Phase 1 —
- * previously a screen-local sample list) — "foundation" for a future
- * real data source, not inert UI.
+ * Search is a real, working local filter over the cache
+ * [ManagerRepositories.customers] syncs from the real backend Customer
+ * CRM API (Phase 2, M2). The list row deliberately doesn't show a
+ * per-customer "last visit" — the bulk listing endpoint doesn't include
+ * it, and fetching it per row would be an N+1 call (see
+ * [ai.rojan.designlab.manager.data.BackendCustomerRepository]'s own doc
+ * comment); it's shown on the profile screen instead, where a single
+ * extra call for one customer is the normal case.
  */
 @Composable
 fun ManagerCustomersListScreen(
@@ -178,14 +182,7 @@ private fun CustomerCard(customer: ManagerCustomer, onClick: () -> Unit) {
                 Text(text = customer.phone, style = RojanTypography.Caption, color = ManagerColors.TextSecondary)
             }
 
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = customer.lastVisit,
-                    style = RojanTypography.Caption,
-                    color = ManagerColors.TextSecondary,
-                )
-                TagChip(text = customer.tag.displayLabel, modifier = Modifier.padding(top = RojanDimens.SpaceXS))
-            }
+            TagChip(text = customer.tag.displayLabel)
         }
     }
 }

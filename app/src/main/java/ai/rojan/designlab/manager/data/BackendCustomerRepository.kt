@@ -10,45 +10,51 @@ import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
 import ai.rojan.designlab.manager.domain.customer.CustomerTag
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
 import ai.rojan.designlab.manager.domain.repository.CustomerRepository
+import ai.rojan.designlab.manager.domain.repository.ServiceRepository
+import ai.rojan.designlab.manager.domain.repository.SpecialistRepository
+import java.time.LocalDateTime
 
 /**
- * Real backend-backed [CustomerRepository] (Final Backend Integration —
- * Customer Module). `getAll()`/`getById()`/`search()` read an in-memory
- * cache populated by [sync], sourced from the real, owner-authenticated
- * `GET /api/v1/salons/{salonId}/customers` (`CustomerController`) — same
- * cache-then-serve-synchronously shape as [BackendServiceRepository]/
- * [BackendAppointmentRepository], for the same reason: existing call
- * sites (`ManagerBookingViewModel`, `ManagerCalendarScreen`,
- * `ManagerCustomerProfileScreen`, `ManagerCustomersListScreen`) read these
- * synchronously and weren't rewritten to `suspend` for this pass.
+ * Real backend-backed [CustomerRepository] (Phase 2, M2) — replaces
+ * [InMemoryCustomerRepository]'s hardcoded roster with the real,
+ * owner-authenticated `CustomerController` (`ROJAN_Backend`).
  *
- * `create`/`update` call the real `POST`/`PATCH` endpoints — neither has
- * an existing caller (verified by grep), so making them `suspend` here is
- * a zero-risk interface change; implemented against the real controller so
- * whichever screen eventually adds customer creation/editing has something
- * real to call immediately.
+ * `getAll()`/`getById()`/`search()` read an in-memory cache populated by
+ * [sync] (same "cache populated by an explicit suspend sync, read
+ * synchronously" shape as [BackendServiceRepository]/
+ * [BackendAppointmentRepository]) — sourced from the bulk
+ * `GET .../customers` listing only, which does **not** include per-
+ * customer visit history (fetching that per row would be an N+1 call
+ * this codebase's Phase 1 "keep list screens lightweight" rule
+ * explicitly forbids). [ManagerCustomer.lastVisit]/[ManagerCustomer.totalVisits]/
+ * [ManagerCustomer.notes] are placeholders until [loadDetail] runs for
+ * that one customer - a single profile view is not an N+1 case, exactly
+ * the same distinction Phase 1 drew everywhere else.
  *
- * **Fields with no real backend equivalent, mapped to honest "no data"
- * defaults, not fabricated:** [ManagerCustomer.loyaltyScore] (the backend
- * has `lifetimeValue`, a monetary total, not a 0-100 score — see
- * `CustomerResponseDto`'s own doc comment), [ManagerCustomer.lastVisit] and
- * [ManagerCustomer.totalVisits] (no visit-count/last-visit field anywhere
- * in `CustomerResponse`; the backend's booking-per-customer data lives
- * behind a separate, out-of-scope-for-this-phase endpoint,
- * `GET .../customers/{id}/bookings`).
+ * [ManagerCustomer.loyaltyScore] has no backend equivalent (the real
+ * `lifetimeValue` field is a currency total, not a 0-100 score) and is
+ * always `0` here rather than a fabricated derivation - no screen
+ * currently renders it, so this is an honest gap, not a visible
+ * regression.
  *
- * [getServiceHistory] returns an empty list for every customer — no
- * backend endpoint for this was in this phase's scope (the closest is the
- * same out-of-scope `.../bookings` endpoint above, which doesn't carry
- * specialist/price in the shape [CustomerServiceHistoryEntry] needs
- * without further mapping this pass doesn't assume).
+ * `update()` also writes [ManagerCustomer.tag] back through
+ * [CustomerTag.toNetworkStatus] — the DTO supports it and there's no
+ * reason to silently drop a tag change a caller explicitly made.
+ *
+ * Booking dates are formatted Gregorian, with Persian digits - this
+ * codebase has no Jalali/Persian-calendar conversion utility (see
+ * [ai.rojan.designlab.domain.booking.RollingBookingDates]'s own doc
+ * comment for the same disclosed simplification on the Customer side).
  */
 class BackendCustomerRepository(
     private val managerCustomerApi: ManagerCustomerApi,
+    private val serviceRepository: ServiceRepository,
+    private val specialistRepository: SpecialistRepository,
     private val salonId: String,
 ) : CustomerRepository {
 
     private var cache: List<ManagerCustomer> = emptyList()
+    private val historyCache = mutableMapOf<String, List<CustomerServiceHistoryEntry>>()
 
     /** Fetches this salon's customers from the backend and repopulates the cache. Call before first read, and to refresh. */
     suspend fun sync(): Result<Unit> = safeApiCall {
@@ -98,8 +104,47 @@ class BackendCustomerRepository(
             }
         }
 
-    /** No backend endpoint in this phase's scope — see class doc comment. */
-    override fun getServiceHistory(customerId: String): List<CustomerServiceHistoryEntry> = emptyList()
+    override fun getServiceHistory(customerId: String): List<CustomerServiceHistoryEntry> =
+        historyCache[customerId] ?: emptyList()
+
+    override suspend fun loadDetail(customerId: String): Result<Unit> =
+        safeApiCall {
+            val bookings = managerCustomerApi.bookings(salonId, customerId, page = 0, size = 20, sortDirection = "DESC")
+            val notes = managerCustomerApi.notes(salonId, customerId)
+            bookings to notes
+        }.map { (bookings, notes) ->
+            historyCache[customerId] = bookings.content.map { booking ->
+                val service = serviceRepository.getById(booking.serviceId)
+                val specialist = specialistRepository.getById(booking.specialistId)
+                CustomerServiceHistoryEntry(
+                    date = formatVisitDate(booking.startTime),
+                    service = service?.name ?: "—",
+                    specialist = specialist?.name ?: "—",
+                    price = service?.let { formatTomanPrice(it.price) } ?: "—",
+                )
+            }
+
+            val lastVisit = bookings.content.firstOrNull()?.startTime?.let(::formatVisitDate) ?: "—"
+            val latestNote = notes.maxByOrNull { it.createdAt }?.text
+
+            cache = cache.map { existing ->
+                if (existing.id == customerId) {
+                    existing.copy(
+                        lastVisit = lastVisit,
+                        totalVisits = bookings.totalElements.toInt(),
+                        notes = latestNote,
+                    )
+                } else {
+                    existing
+                }
+            }
+        }
+
+    private fun formatVisitDate(isoStartTime: String): String {
+        // startTime is an ISO-8601 *local* date-time with no offset, same shape BackendAppointmentRepository parses.
+        val date = LocalDateTime.parse(isoStartTime)
+        return "%04d/%02d/%02d".format(date.year, date.monthValue, date.dayOfMonth).toPersianDigits()
+    }
 
     private fun CustomerResponseDto.toDomain() = ManagerCustomer(
         id = id,

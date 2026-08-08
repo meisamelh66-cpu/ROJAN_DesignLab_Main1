@@ -66,6 +66,8 @@ private object EmptyCustomerRepository : CustomerRepository {
     override suspend fun update(customer: ManagerCustomer): Result<ManagerCustomer?> =
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
     override fun getServiceHistory(customerId: String): List<CustomerServiceHistoryEntry> = emptyList()
+    override suspend fun loadDetail(customerId: String): Result<Unit> =
+        Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
 }
 
 /**
@@ -146,12 +148,14 @@ object ManagerRepositories {
             managerBookingApi = container.managerBookingApi,
             salonId = salon.id,
         )
-        val customerRepo = BackendCustomerRepository(
-            managerCustomerApi = container.managerCustomerApi,
-            salonId = salon.id,
-        )
         val specialistRepo = BackendSpecialistRepository(
             specialistApi = container.specialistApi,
+            salonId = salon.id,
+        )
+        val customerRepo = BackendCustomerRepository(
+            managerCustomerApi = container.managerCustomerApi,
+            serviceRepository = serviceRepo,
+            specialistRepository = specialistRepo,
             salonId = salon.id,
         )
 
