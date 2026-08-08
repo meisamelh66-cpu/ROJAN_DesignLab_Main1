@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.components
 
+import ai.rojan.designlab.manager.data.UpcomingSlot
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
@@ -24,30 +25,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** Static placeholder appointment — no backend wired yet. */
-private data class UpcomingSlot(
-    val time: String,
-    val clientName: String,
-    val service: String,
-)
-
-private val sampleUpcomingSlots = listOf(
-    UpcomingSlot("۱۰:۰۰", "سارا محمدی", "رنگ مو"),
-    UpcomingSlot("۱۲:۳۰", "نیلوفر احمدی", "میکاپ عروس"),
-    UpcomingSlot("۱۵:۰۰", "پریسا کریمی", "مانیکور"),
-)
-
 /**
- * Manager App workspace — today's calendar preview. Static sample slots
- * only; "مشاهده تقویم کامل" is inert for now ([onViewCalendarClick]
- * no-op default) since routing isn't wired in this pass.
+ * Manager App workspace — today's calendar preview. Phase 2, M6: [slots]
+ * is a real slice of today's non-cancelled appointments
+ * ([ai.rojan.designlab.manager.data.computeTodaysUpcomingSlots]) instead
+ * of 3 hardcoded sample rows; empty shows [EmptyUpcomingNotice] rather
+ * than nothing. "مشاهده تقویم کامل" routes to the real Calendar screen
+ * via [onViewCalendarClick].
  *
  * ROJAN AI Manager Visual Theme Implementation: re-themed for the dark
- * luxury background — content/layout/navigation unchanged.
+ * luxury background — content/layout unchanged.
  */
 @Composable
 fun CalendarPreviewSection(
     modifier: Modifier = Modifier,
+    slots: List<UpcomingSlot> = emptyList(),
     onViewCalendarClick: () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -67,9 +59,12 @@ fun CalendarPreviewSection(
             shape = RojanShapes.GlassCard,
         ) {
             Column(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
-                sampleUpcomingSlots.forEachIndexed { index, slot ->
+                if (slots.isEmpty()) {
+                    EmptyUpcomingNotice()
+                }
+                slots.forEachIndexed { index, slot ->
                     UpcomingSlotRow(slot = slot)
-                    if (index != sampleUpcomingSlots.lastIndex) {
+                    if (index != slots.lastIndex) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -103,6 +98,18 @@ fun CalendarPreviewSection(
             }
         }
     }
+}
+
+@Composable
+private fun EmptyUpcomingNotice() {
+    Text(
+        text = "امروز نوبتی ثبت نشده است.",
+        style = RojanTypography.Body,
+        color = ManagerColors.TextSecondary,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = RojanDimens.SpaceSM),
+    )
 }
 
 @Composable

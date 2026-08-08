@@ -2,16 +2,19 @@ package ai.rojan.designlab.data.remote
 
 import ai.rojan.designlab.data.remote.dto.DashboardInsightsResponseDto
 import retrofit2.http.GET
+import retrofit2.http.Query
 
 /**
- * `ROJAN_Backend/api/dashboard/DashboardController.kt`. No `salonId` parameter — the backend
- * resolves the caller's salon from the JWT itself, and documents exactly three non-200 outcomes:
- * 401 (missing/invalid token), 404 (caller owns no salon), 409 (caller owns more than one salon -
- * context can't be resolved implicitly). All three surface as a real [ai.rojan.designlab.data.remote.BackendApiException]
- * via [safeApiCall] with that status code - see `BackendDashboardInsightsRepository` for how the UI maps them.
+ * `ROJAN_Backend/api/dashboard/DashboardController.kt`. The real endpoint's
+ * `salonId` query param is optional there (falls back to the caller's
+ * single owned salon, 409 if they own more than one) - always passed
+ * explicitly here instead, since [ai.rojan.designlab.manager.data.ManagerRepositories.initialize]
+ * already resolves a concrete salon id via `GET /salons/mine` before this
+ * call, so there's no reason to rely on the implicit fallback (or risk its
+ * 409 for a multi-salon owner).
  */
 interface ManagerDashboardApi {
 
     @GET("api/v1/dashboard/insights")
-    suspend fun insights(): DashboardInsightsResponseDto
+    suspend fun insights(@Query("salonId") salonId: String): DashboardInsightsResponseDto
 }

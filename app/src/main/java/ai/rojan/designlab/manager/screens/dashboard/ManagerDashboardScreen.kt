@@ -9,6 +9,7 @@ import ai.rojan.designlab.manager.components.QuickActionsSection
 import ai.rojan.designlab.manager.components.SalonIdentityCard
 import ai.rojan.designlab.manager.components.TodayOverviewSection
 import ai.rojan.designlab.manager.data.ManagerRepositories
+import ai.rojan.designlab.manager.data.computeTodaysUpcomingSlots
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -45,9 +46,11 @@ import androidx.compose.ui.tooling.preview.Preview
  * standalone/in `@Preview`. The remaining Quick Actions
  * (خدمات/کارکنان/تنظیمات) have no implemented screen yet, so
  * [QuickActionsSection] renders them disabled rather than wiring them to
- * a placeholder. [TodayOverviewSection] and [SalonIdentityCard]/
- * [AIInsightCard] still render their own data — see those components for
- * what's real vs. placeholder.
+ * a placeholder. Phase 2, M6: [SalonIdentityCard]/[AIInsightCard]/
+ * [CalendarPreviewSection] are now wired to real backend data too
+ * ([ManagerRepositories.salon]/[ManagerRepositories.dashboardInsights]/
+ * [computeTodaysUpcomingSlots]) — see those components for the exact
+ * shape.
  */
 @Composable
 fun ManagerDashboardScreen(
@@ -79,7 +82,14 @@ fun ManagerDashboardScreen(
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSectionToSection),
         ) {
             item { ManagerHeader(onProfileClick = onProfileClick) }
-            item { SalonIdentityCard() }
+            item {
+                val salon = ManagerRepositories.salon
+                if (salon != null) {
+                    SalonIdentityCard(salonName = salon.name, salonCategory = salon.description, isActive = salon.active)
+                } else {
+                    SalonIdentityCard()
+                }
+            }
             item { TodayOverviewSection(refreshKey = refreshKey) }
             item {
                 QuickActionsSection(
@@ -92,8 +102,11 @@ fun ManagerDashboardScreen(
                     },
                 )
             }
-            item { AIInsightCard(refreshKey = refreshKey) }
-            item { CalendarPreviewSection(onViewCalendarClick = onViewCalendarClick) }
+            item { AIInsightCard(message = ManagerRepositories.dashboardInsights?.topRecommendationMessage) }
+            item {
+                val slots = remember(refreshKey) { computeTodaysUpcomingSlots() }
+                CalendarPreviewSection(slots = slots, onViewCalendarClick = onViewCalendarClick)
+            }
         }
     }
 }

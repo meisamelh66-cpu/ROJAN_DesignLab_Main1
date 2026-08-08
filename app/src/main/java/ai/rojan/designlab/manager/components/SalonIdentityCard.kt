@@ -22,10 +22,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /**
- * Manager App workspace — salon identity summary. Static placeholder
- * content (salon name/status), rendered from the frozen-then-updated
- * Manager theme ([ManagerGlassSurface], [ManagerIconContainer],
- * [ManagerColors]) — no backend, no Customer-facing component reused.
+ * Manager App workspace — salon identity summary, rendered from the
+ * frozen-then-updated Manager theme ([ManagerGlassSurface],
+ * [ManagerIconContainer], [ManagerColors]) — no Customer-facing
+ * component reused.
+ *
+ * Phase 2, M6: [salonName]/[salonCategory]/[isActive] are real backend
+ * fields (`GET /salons/mine`'s `name`/`description`/`active`) once
+ * [ai.rojan.designlab.manager.data.ManagerRepositories.salon] loads —
+ * the defaults here only cover the brief cold-start window before that
+ * happens (and `@Preview`), not fabricated production data. [salonCategory]
+ * is the salon's free-text `description`; the backend has no distinct
+ * "category" field.
  *
  * ROJAN AI Manager Visual Theme Implementation: re-themed for the dark
  * luxury background — content/layout unchanged.
@@ -34,7 +42,7 @@ import androidx.compose.ui.unit.dp
 fun SalonIdentityCard(
     modifier: Modifier = Modifier,
     salonName: String = "سالن رویان",
-    salonCategory: String = "آرایش و زیبایی بانوان",
+    salonCategory: String? = "آرایش و زیبایی بانوان",
     isActive: Boolean = true,
 ) {
     ManagerGlassSurface(
@@ -60,12 +68,14 @@ fun SalonIdentityCard(
                     style = RojanTypography.CardTitle,
                     color = ManagerColors.TextPrimary,
                 )
-                Text(
-                    text = salonCategory,
-                    style = RojanTypography.Caption,
-                    color = ManagerColors.TextSecondary,
-                    modifier = Modifier.padding(top = RojanDimens.SpaceXS),
-                )
+                if (!salonCategory.isNullOrBlank()) {
+                    Text(
+                        text = salonCategory,
+                        style = RojanTypography.Caption,
+                        color = ManagerColors.TextSecondary,
+                        modifier = Modifier.padding(top = RojanDimens.SpaceXS),
+                    )
+                }
 
                 Row(
                     modifier = Modifier.padding(top = RojanDimens.SpaceSM),
