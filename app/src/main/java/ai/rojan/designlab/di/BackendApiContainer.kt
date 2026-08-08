@@ -14,6 +14,7 @@ import ai.rojan.designlab.data.remote.ManagerSpecialistApi
 import ai.rojan.designlab.data.remote.NetworkConfig
 import ai.rojan.designlab.data.remote.PublicSalonApi
 import ai.rojan.designlab.data.remote.SalonApi
+import ai.rojan.designlab.data.remote.SalonMembershipApi
 import ai.rojan.designlab.data.remote.ServiceApi
 import ai.rojan.designlab.data.remote.ServiceCategoryApi
 import ai.rojan.designlab.data.remote.SpecialistApi
@@ -38,6 +39,8 @@ import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
 import ai.rojan.designlab.domain.repository.ServiceRepository
 import ai.rojan.designlab.domain.repository.SpecialistRepository
 import ai.rojan.designlab.domain.repository.TokenRepository
+import ai.rojan.designlab.manager.data.BackendSalonMembershipRepository
+import ai.rojan.designlab.manager.domain.repository.SalonMembershipRepository
 import android.content.Context
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -142,6 +145,18 @@ class BackendApiContainer(context: Context) {
     // same reasoning as plainAuthApi below.
     val publicSalonRepository: PublicSalonRepository =
         PublicSalonRepositoryImpl(buildPlainRetrofit().create(PublicSalonApi::class.java))
+
+    // Manager-only, owner-authenticated, but exposed fully wrapped here
+    // (unlike the raw manager*Api section above) - unlike
+    // BackendServiceRepository/BackendCustomerRepository/etc.,
+    // SalonMembershipApi takes salonId per call rather than needing it
+    // baked into the repository at construction time, so there's no
+    // salon-scoped composition step this container would have to
+    // duplicate. Data layer only this phase (Phase 2, M4) - no screen
+    // consumes this yet.
+    val salonMembershipRepository: SalonMembershipRepository =
+        BackendSalonMembershipRepository(retrofit.create(SalonMembershipApi::class.java))
+
 
     /** No AuthInterceptor/authenticator - a plain, no-token client, for endpoints that need none. */
     private fun buildPlainRetrofit(): Retrofit =
