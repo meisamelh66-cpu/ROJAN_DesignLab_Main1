@@ -75,6 +75,7 @@ object RojanDestinations {
     const val RESCHEDULE_APPOINTMENT = "reschedule_appointment/{appointmentId}"
     fun rescheduleAppointment(appointmentId: String) = "reschedule_appointment/$appointmentId"
     const val FAVORITES = "favorites"
+    const val FOLLOWED_SALONS = "followed_salons"
     const val WALLET = "wallet"
     const val COUPONS = "coupons"
     const val MEMBERSHIP = "membership"

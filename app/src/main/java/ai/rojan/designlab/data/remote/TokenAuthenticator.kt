@@ -1,6 +1,7 @@
 package ai.rojan.designlab.data.remote
 
 import ai.rojan.designlab.data.remote.dto.RefreshRequestDto
+import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.TokenRepository
 import kotlinx.coroutines.runBlocking
 import okhttp3.Authenticator
@@ -20,10 +21,21 @@ private const val MAX_RETRIES = 1
  * [AuthInterceptor]/authenticator of its own — see
  * `di/BackendApiContainer.kt`) for the refresh call itself, so refreshing
  * never recurses back into this authenticator.
+ *
+ * Authentication Session Persistence fix: a genuinely failed refresh (the
+ * refresh token itself expired/was revoked, not just a transient network
+ * error) now also clears [authSessionRepository]'s persisted personId, not
+ * just the token pair. Previously only [tokenRepository] was cleared here,
+ * so the next cold start still read a stale personId from DataStore and
+ * optimistically routed to CUSTOMER_HOME before discovering — again — that
+ * the session was dead. `runBlocking` mirrors the refresh call just above,
+ * for the same reason: [Authenticator.authenticate] is a synchronous OkHttp
+ * SPI callback with no coroutine scope of its own.
  */
 class TokenAuthenticator(
     private val tokenRepository: TokenRepository,
     private val plainAuthApi: AuthApi,
+    private val authSessionRepository: AuthSessionRepository,
 ) : Authenticator {
 
     override fun authenticate(route: Route?, response: Response): Request? {
@@ -37,6 +49,7 @@ class TokenAuthenticator(
             runCatching { plainAuthApi.refresh(RefreshRequestDto(refreshToken)) }
         }.getOrElse {
             tokenRepository.clearTokens()
+            runBlocking { authSessionRepository.clearPersonId() }
             return null
         }
 

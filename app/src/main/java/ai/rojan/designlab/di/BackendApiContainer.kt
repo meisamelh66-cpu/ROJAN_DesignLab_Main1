@@ -1,5 +1,6 @@
 package ai.rojan.designlab.di
 
+import ai.rojan.designlab.data.local.authSessionDataStore
 import ai.rojan.designlab.data.local.createTokenPreferences
 import ai.rojan.designlab.data.remote.AuthApi
 import ai.rojan.designlab.data.remote.AuthInterceptor
@@ -15,15 +16,18 @@ import ai.rojan.designlab.data.remote.NetworkConfig
 import ai.rojan.designlab.data.remote.PublicSalonApi
 import ai.rojan.designlab.data.remote.SalonApi
 import ai.rojan.designlab.data.remote.SalonMembershipApi
+import ai.rojan.designlab.data.remote.SalonRelationshipApi
 import ai.rojan.designlab.data.remote.ServiceApi
 import ai.rojan.designlab.data.remote.ServiceCategoryApi
 import ai.rojan.designlab.data.remote.SpecialistApi
 import ai.rojan.designlab.data.remote.TokenAuthenticator
 import ai.rojan.designlab.data.remote.WorkingHoursApi
+import ai.rojan.designlab.data.repository.AuthSessionRepositoryImpl
 import ai.rojan.designlab.data.repository.AvailabilityRepositoryImpl
 import ai.rojan.designlab.data.repository.BackendAuthRepositoryImpl
 import ai.rojan.designlab.data.repository.BookingHistoryRepositoryImpl
 import ai.rojan.designlab.data.repository.BookingRepositoryImpl
+import ai.rojan.designlab.data.repository.CustomerRelationshipRepositoryImpl
 import ai.rojan.designlab.data.repository.PublicSalonRepositoryImpl
 import ai.rojan.designlab.data.repository.SalonRepositoryImpl
 import ai.rojan.designlab.data.repository.ServiceCategoryRepositoryImpl
@@ -33,10 +37,12 @@ import ai.rojan.designlab.data.repository.TokenRepositoryImpl
 import ai.rojan.designlab.data.repository.WorkingHoursRepositoryImpl
 import ai.rojan.designlab.domain.beauty.BeautyProfileRepository
 import ai.rojan.designlab.domain.beauty.InMemoryBeautyProfileRepository
+import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.AvailabilityRepository
 import ai.rojan.designlab.domain.repository.BackendAuthRepository
 import ai.rojan.designlab.domain.repository.BookingHistoryRepository
 import ai.rojan.designlab.domain.repository.BookingRepository
+import ai.rojan.designlab.domain.repository.CustomerRelationshipRepository
 import ai.rojan.designlab.domain.repository.PublicSalonRepository
 import ai.rojan.designlab.domain.repository.SalonRepository
 import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
@@ -68,8 +74,15 @@ class BackendApiContainer(context: Context) {
     val tokenRepository: TokenRepository =
         TokenRepositoryImpl(context.createTokenPreferences())
 
-    private val retrofit: Retrofit =
-        buildAuthenticatedRetrofit(tokenRepository)
+    // Same DataStore singleton (per-Context, via the `by preferencesDataStore(...)`
+    // delegate) that AuthViewModelFactory/SessionViewModelFactory each already
+    // construct their own AuthSessionRepositoryImpl from - needed here too so
+    // TokenAuthenticator can clear the persisted personId on a genuinely failed
+    // refresh, not just the token pair (Authentication Session Persistence fix).
+    private val authSessionRepository: AuthSessionRepository =
+        AuthSessionRepositoryImpl(context.authSessionDataStore)
+
+    private val retrofit: Retrofit = buildAuthenticatedRetrofit(tokenRepository, authSessionRepository)
 
     val backendAuthRepository: BackendAuthRepository =
         BackendAuthRepositoryImpl(
@@ -147,6 +160,9 @@ class BackendApiContainer(context: Context) {
     val workingHoursRepository: WorkingHoursRepository =
         WorkingHoursRepositoryImpl(retrofit.create(WorkingHoursApi::class.java))
 
+    val customerRelationshipRepository: CustomerRelationshipRepository =
+        CustomerRelationshipRepositoryImpl(retrofit.create(SalonRelationshipApi::class.java))
+
     // Not backend-networked (unlike every other member of this container) -
     // no customer beauty-profile endpoint exists yet. Held here anyway as
     // the single composition root/singleton this app already has, so
@@ -192,7 +208,7 @@ class BackendApiContainer(context: Context) {
             level = HttpLoggingInterceptor.Level.BASIC
         }
 
-        fun buildAuthenticatedRetrofit(tokenRepository: TokenRepository): Retrofit {
+        fun buildAuthenticatedRetrofit(tokenRepository: TokenRepository, authSessionRepository: AuthSessionRepository): Retrofit {
             // Used only for the refresh call itself inside TokenAuthenticator,
             // so refreshing never recurses back into itself.
             val plainAuthApi: AuthApi = Retrofit.Builder()
@@ -202,20 +218,11 @@ class BackendApiContainer(context: Context) {
                 .build()
                 .create(AuthApi::class.java)
 
-            val authenticatedClient =
-                OkHttpClient.Builder()
-                    .addInterceptor(loggingInterceptor)
-                    .addInterceptor(
-                        AuthInterceptor(tokenRepository)
-                    )
-                    .authenticator(
-                        TokenAuthenticator(
-                            tokenRepository,
-                            plainAuthApi
-                        )
-                    )
-                    .build()
-
+            val authenticatedClient = OkHttpClient.Builder()
+                .addInterceptor(loggingInterceptor)
+                .addInterceptor(AuthInterceptor(tokenRepository))
+                .authenticator(TokenAuthenticator(tokenRepository, plainAuthApi, authSessionRepository))
+                .build()
 
             return Retrofit.Builder()
                 .baseUrl(NetworkConfig.BASE_URL)

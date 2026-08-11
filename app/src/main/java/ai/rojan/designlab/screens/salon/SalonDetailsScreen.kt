@@ -20,16 +20,24 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -40,6 +48,8 @@ import android.net.Uri
 import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.domain.repository.Salon
 import ai.rojan.designlab.presentation.common.UiState
+import ai.rojan.designlab.presentation.relationship.SalonRelationshipViewModel
+import ai.rojan.designlab.presentation.relationship.SalonRelationshipViewModelFactory
 import ai.rojan.designlab.presentation.salon.SalonDetailsViewModel
 import ai.rojan.designlab.presentation.salon.SalonDetailsViewModelFactory
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
@@ -147,6 +157,7 @@ fun SalonDetailsScreen(
     onBackClick: () -> Unit,
     onSpecialistClick: (String) -> Unit,
     onServiceClick: (String) -> Unit,
+    onLoginRequired: () -> Unit = {},
     selectedServiceIds: List<String>? = null,
     onContinueBooking: ((autoSelectedSpecialistId: String?) -> Unit)? = null,
     viewModel: SalonDetailsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
@@ -162,7 +173,35 @@ fun SalonDetailsScreen(
             )
         },
     ),
+    relationshipViewModel: SalonRelationshipViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        key = "salon_relationship_$salonId",
+        factory = run {
+            val container = BackendApiContainerHolder.get(LocalContext.current)
+            SalonRelationshipViewModelFactory(
+                salonId = salonId,
+                followSalonUseCase = ai.rojan.designlab.domain.usecase.relationship.FollowSalonUseCase(container.customerRelationshipRepository),
+                unfollowSalonUseCase = ai.rojan.designlab.domain.usecase.relationship.UnfollowSalonUseCase(container.customerRelationshipRepository),
+                getFollowedSalonsUseCase = ai.rojan.designlab.domain.usecase.relationship.GetFollowedSalonsUseCase(container.customerRelationshipRepository),
+                favoriteSalonUseCase = ai.rojan.designlab.domain.usecase.relationship.FavoriteSalonUseCase(container.customerRelationshipRepository),
+                unfavoriteSalonUseCase = ai.rojan.designlab.domain.usecase.relationship.UnfavoriteSalonUseCase(container.customerRelationshipRepository),
+                getFavoriteSalonsUseCase = ai.rojan.designlab.domain.usecase.relationship.GetFavoriteSalonsUseCase(container.customerRelationshipRepository),
+            )
+        },
+    ),
 ) {
+    // Protected Route Handling fix: Follow/Favorite are the only actions on
+    // this otherwise-unauthenticated-browsable screen that need a real
+    // customer session. relationshipViewModel.requiresLogin flips true when
+    // the backend rejects one with a real 401 - redirect to login rather
+    // than leave it as an opaque error, then immediately consume the event
+    // so it doesn't refire on the next recomposition.
+    LaunchedEffect(relationshipViewModel.requiresLogin) {
+        if (relationshipViewModel.requiresLogin) {
+            onLoginRequired()
+            relationshipViewModel.consumeLoginRequired()
+        }
+    }
+
     HomeBackgroundTheme {
         when (val loadState = viewModel.state) {
             is UiState.Loading -> SalonDetailsScaffoldState(onBackClick) {
@@ -210,14 +249,11 @@ fun SalonDetailsScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.Top,
                             ) {
-                                // Production Data Integrity Phase 1: the follow/favorite
-                                // toggle is removed (not just its visual "active" state) —
-                                // it had no backend persistence anywhere (no favorite/follow
-                                // endpoint on SalonApi; the previous state was in-memory,
-                                // per-session only, defaulting from DemoSalonRepository). A
-                                // non-functional icon would itself be a fake affordance, so
-                                // the control is gone rather than kept inert.
-                                Spacer(modifier = Modifier.size(RojanDimens.MinTouchTarget))
+                                // Customer Relationship Foundation: real, backend-backed
+                                // Follow/Favorite controls, replacing the Spacer this slot
+                                // held during Production Data Integrity Phase 1 (when no
+                                // backend endpoint existed for either yet).
+                                RelationshipButtonsRow(relationshipViewModel)
                                 Column(
                                     modifier = Modifier.weight(1f),
                                     horizontalAlignment = Alignment.End,
@@ -237,6 +273,16 @@ fun SalonDetailsScreen(
                                         )
                                     }
                                 }
+                            }
+                            relationshipViewModel.followError?.let { message ->
+                                Text(
+                                    message,
+                                    style = RojanTypography.Caption,
+                                    color = HomeColors.TextSecondary,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceXS),
+                                )
                             }
                         }
                     }
@@ -494,6 +540,54 @@ private fun SalonHeroSection(
             contentAlignment = Alignment.Center,
         ) {
             Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary)
+        }
+    }
+}
+
+/**
+ * Follow (bell - updates/news intent) and Favorite (heart - personal-bookmark
+ * intent), kept visually and semantically distinct per the backend's own
+ * deliberate separation of the two concepts. Both read/write through
+ * [SalonRelationshipViewModel], never a fake local toggle.
+ */
+@Composable
+private fun RelationshipButtonsRow(viewModel: SalonRelationshipViewModel) {
+    Row(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS)) {
+        RelationshipIconButton(
+            icon = if (viewModel.isFollowing) Icons.Filled.NotificationsActive else Icons.Filled.NotificationsNone,
+            contentDescription = if (viewModel.isFollowing) "لغو دنبال کردن سالن" else "دنبال کردن سالن",
+            tint = if (viewModel.isFollowing) HomeColors.Glow else HomeColors.TextSecondary,
+            loading = viewModel.isInitialLoading || viewModel.isFollowActionInProgress,
+            onClick = viewModel::toggleFollow,
+        )
+        RelationshipIconButton(
+            icon = if (viewModel.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+            contentDescription = if (viewModel.isFavorite) "حذف از علاقه‌مندی‌ها" else "افزودن به علاقه‌مندی‌ها",
+            tint = if (viewModel.isFavorite) HomeColors.Glow else HomeColors.TextSecondary,
+            loading = viewModel.isInitialLoading || viewModel.isFavoriteActionInProgress,
+            onClick = viewModel::toggleFavorite,
+        )
+    }
+}
+
+@Composable
+private fun RelationshipIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    tint: Color,
+    loading: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(RojanDimens.MinTouchTarget)
+            .rojanPressable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (loading) {
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = HomeColors.TextSecondary, strokeWidth = 2.dp)
+        } else {
+            RojanIconContainer(imageVector = icon, contentDescription = contentDescription, tint = tint, size = RojanIconSize.Medium)
         }
     }
 }

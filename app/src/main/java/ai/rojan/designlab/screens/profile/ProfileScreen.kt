@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.RateReview
@@ -65,8 +66,13 @@ private data class ProfileMenuItem(
  * center.
  *
  * Restructured into named sections (Personal Information / Beauty DNA /
- * Appointments / Favorite Salons / Settings), per the Customer App
- * architecture spec — was previously one flat, undifferentiated menu list.
+ * Appointments / Followed Salons / Favorite Salons / Settings), per the
+ * Customer App architecture spec — was previously one flat, undifferentiated
+ * menu list. Followed Salons (updates/news intent) and Favorite Salons
+ * (personal-bookmark intent) are deliberately separate sections, not one
+ * merged "saved salons" concept — mirrors the backend's own separation of
+ * `SalonFollow`/`SalonFavorite` (Customer Relationship Foundation,
+ * `ROJAN_Backend` commit db5faea).
  * Wallet/Coupons/Membership/Loyalty/Reviews/Beauty Timeline are existing
  * features, kept (not removed) under their own additional "امکانات حساب"
  * group rather than folded into Settings, which would mislabel them.
@@ -98,6 +104,7 @@ fun ProfileScreen(
     onBackClick: () -> Unit,
     onBeautyDnaClick: () -> Unit,
     onAppointmentsClick: () -> Unit,
+    onFollowedSalonsClick: () -> Unit,
     onFavoritesClick: () -> Unit,
     onWalletClick: () -> Unit,
     onCouponsClick: () -> Unit,
@@ -199,6 +206,16 @@ fun ProfileScreen(
                     title = "نوبت‌های من",
                     subtitle = "مشاهده نوبت‌های آینده و گذشته",
                     onClick = onAppointmentsClick,
+                )
+            }
+
+            item { RtlSectionHeader("سالن‌های دنبال‌شده", color = HomeColors.TextPrimary) }
+            item {
+                MenuRow(
+                    icon = Icons.Filled.NotificationsNone,
+                    title = "سالن‌های دنبال‌شده",
+                    subtitle = "دریافت اخبار و به‌روزرسانی‌ها",
+                    onClick = onFollowedSalonsClick,
                 )
             }
 

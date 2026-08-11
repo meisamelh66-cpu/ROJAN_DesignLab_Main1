@@ -72,12 +72,21 @@ import ai.rojan.designlab.ui.theme.RojanTypography
 fun SearchScreen(
     onBackClick: () -> Unit,
     onSalonClick: (String) -> Unit,
+    onLoginRequired: (() -> Unit)? = null,
     viewModel: SalonListViewModel = viewModel(
         factory = SalonListViewModelFactory(
             BackendApiContainerHolder.get(LocalContext.current).salonRepository,
         ),
     ),
 ) {
+    // Protected Route Handling fix: see SalonListScreen's identical LifecycleResumeEffect for why this is needed - same shared SalonListViewModel, same stale-401-after-login gap.
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        if (viewModel.isUnauthorized) {
+            viewModel.retry()
+        }
+        onPauseOrDispose { }
+    }
+
     var query by remember { mutableStateOf("") }
 
     val loadedSalons = (viewModel.state as? UiState.Success)?.data.orEmpty()
@@ -152,11 +161,20 @@ fun SearchScreen(
 
             when (val state = viewModel.state) {
                 is UiState.Loading -> RojanLoadingState(message = "در حال بارگذاری سالن‌ها...")
-                is UiState.Error -> RojanErrorState(
-                    description = state.message,
-                    actionLabel = "تلاش مجدد",
-                    onAction = { viewModel.retry() },
-                )
+                is UiState.Error -> if (viewModel.isUnauthorized && onLoginRequired != null) {
+                    RojanErrorState(
+                        title = "برای جستجوی سالن‌ها وارد شوید",
+                        description = state.message,
+                        actionLabel = "ورود",
+                        onAction = onLoginRequired,
+                    )
+                } else {
+                    RojanErrorState(
+                        description = state.message,
+                        actionLabel = "تلاش مجدد",
+                        onAction = { viewModel.retry() },
+                    )
+                }
                 else -> if (results.isEmpty()) {
                 RojanEmptyState(
                     title = "نتیجه‌ای یافت نشد",

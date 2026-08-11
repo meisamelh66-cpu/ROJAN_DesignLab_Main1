@@ -82,6 +82,7 @@ fun SalonListScreen(
     onSalonSelected: (String) -> Unit,
     showBackButton: Boolean = true,
     onBusinessLoginClick: (() -> Unit)? = null,
+    onLoginRequired: (() -> Unit)? = null,
     viewModel: SalonListViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = ai.rojan.designlab.presentation.salon.SalonListViewModelFactory(
             ai.rojan.designlab.di.BackendApiContainerHolder.get(
@@ -90,6 +91,21 @@ fun SalonListScreen(
         ),
     ),
 ) {
+    // Protected Route Handling fix: an anonymous customer redirected to AUTH
+    // from here returns to this exact NavBackStackEntry - same ViewModel
+    // instance, still holding its stale pre-login 401 error. Without this,
+    // "do not lose user intent" would only be half true: the user is back
+    // on the right screen, but it's still showing "please log in" even
+    // though they just did. Retrying on every resume (guarded by
+    // isUnauthorized, so it's a no-op on the ordinary first-launch resume)
+    // picks the real data back up automatically.
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        if (viewModel.isUnauthorized) {
+            viewModel.retry()
+        }
+        onPauseOrDispose { }
+    }
+
     var searchQuery by remember { mutableStateOf("") }
     var sortOption by remember { mutableStateOf(SalonSortOption.ALL) }
 
@@ -170,11 +186,20 @@ fun SalonListScreen(
 
             when (val state = viewModel.state) {
                 is UiState.Loading -> RojanLoadingState(message = "در حال بارگذاری سالن‌ها...")
-                is UiState.Error -> RojanErrorState(
-                    description = state.message,
-                    actionLabel = "تلاش مجدد",
-                    onAction = { viewModel.retry() },
-                )
+                is UiState.Error -> if (viewModel.isUnauthorized && onLoginRequired != null) {
+                    RojanErrorState(
+                        title = "برای مشاهده سالن‌ها وارد شوید",
+                        description = state.message,
+                        actionLabel = "ورود",
+                        onAction = onLoginRequired,
+                    )
+                } else {
+                    RojanErrorState(
+                        description = state.message,
+                        actionLabel = "تلاش مجدد",
+                        onAction = { viewModel.retry() },
+                    )
+                }
                 is UiState.Empty -> RojanEmptyState(
                     title = "سالنی یافت نشد",
                     icon = Icons.Filled.Storefront,

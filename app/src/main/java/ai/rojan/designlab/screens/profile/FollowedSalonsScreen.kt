@@ -7,8 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.NotificationsNone
 import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -16,10 +15,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 import ai.rojan.designlab.di.BackendApiContainerHolder
-import ai.rojan.designlab.domain.usecase.relationship.GetFavoriteSalonsUseCase
+import ai.rojan.designlab.domain.usecase.relationship.GetFollowedSalonsUseCase
 import ai.rojan.designlab.presentation.common.UiState
-import ai.rojan.designlab.presentation.relationship.FavoriteSalonsViewModel
-import ai.rojan.designlab.presentation.relationship.FavoriteSalonsViewModelFactory
+import ai.rojan.designlab.presentation.relationship.FollowedSalonsViewModel
+import ai.rojan.designlab.presentation.relationship.FollowedSalonsViewModelFactory
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
@@ -35,23 +34,20 @@ import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
- * Journey 2, Screen 3: Favorites.
- *
- * Customer Relationship Foundation, Phase 5/6: real data via
- * [FavoriteSalonsViewModel] -> `GET /api/v1/customer/favorite-salons`
- * (self-scoped by JWT). Replaces the `RojanComingSoonState` this screen
- * showed during Production Data Integrity Phase 1, when no favorite/follow
- * endpoint existed on the backend yet.
+ * Customer Relationship Foundation, Phase 5/6: the customer's own actively
+ * followed salons, real data via [FollowedSalonsViewModel] ->
+ * `GET /api/v1/customer/followed-salons` (self-scoped by JWT - no
+ * customerId anywhere on this path, so no cross-customer data to leak).
  */
 @Composable
-fun FavoritesScreen(
+fun FollowedSalonsScreen(
     onBackClick: () -> Unit,
     onSalonClick: (String) -> Unit,
-    viewModel: FavoriteSalonsViewModel = viewModel(
+    viewModel: FollowedSalonsViewModel = viewModel(
         factory = run {
             val container = BackendApiContainerHolder.get(LocalContext.current)
-            FavoriteSalonsViewModelFactory(
-                getFavoriteSalonsUseCase = GetFavoriteSalonsUseCase(container.customerRelationshipRepository),
+            FollowedSalonsViewModelFactory(
+                getFollowedSalonsUseCase = GetFollowedSalonsUseCase(container.customerRelationshipRepository),
                 salonRepository = container.salonRepository,
             )
         },
@@ -65,15 +61,15 @@ fun FavoritesScreen(
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {
             item { GlassBackButton(onClick = onBackClick) }
-            item { Text("علاقه‌مندی‌ها", style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary) }
+            item { Text("سالن‌های دنبال‌شده", style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary) }
 
             when (val loadState = viewModel.state) {
                 is UiState.Loading -> item { RojanLoadingState(message = "در حال بارگذاری...") }
                 is UiState.Empty -> item {
                     RojanEmptyState(
-                        title = "هنوز سالنی را ذخیره نکرده‌اید",
-                        description = "سالن‌های مورد علاقه خود را برای دسترسی سریع‌تر ذخیره کنید.",
-                        icon = Icons.Filled.FavoriteBorder,
+                        title = "هنوز سالنی را دنبال نکرده‌اید",
+                        description = "برای دریافت اخبار و به‌روزرسانی‌های یک سالن، آن را دنبال کنید.",
+                        icon = Icons.Filled.NotificationsNone,
                     )
                 }
                 is UiState.Error -> item {
@@ -93,7 +89,7 @@ fun FavoritesScreen(
                                 titleColor = HomeColors.TextPrimary,
                                 subtitle = item.salonAddress,
                                 subtitleColor = HomeColors.TextSecondary,
-                                icon = Icons.Filled.Favorite,
+                                icon = Icons.Filled.NotificationsNone,
                                 iconTint = HomeColors.Glow,
                                 modifier = Modifier.padding(RojanDimens.SpaceMD),
                             )

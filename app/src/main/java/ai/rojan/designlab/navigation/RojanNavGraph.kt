@@ -37,6 +37,7 @@ import ai.rojan.designlab.screens.profile.BeautyDnaScreen
 import ai.rojan.designlab.screens.profile.BeautyTimelineScreen
 import ai.rojan.designlab.screens.profile.CouponsScreen
 import ai.rojan.designlab.screens.profile.FavoritesScreen
+import ai.rojan.designlab.screens.profile.FollowedSalonsScreen
 import ai.rojan.designlab.screens.profile.LoyaltyScreen
 import ai.rojan.designlab.screens.profile.MembershipScreen
 import ai.rojan.designlab.screens.profile.MyReviewsScreen
@@ -257,15 +258,32 @@ fun RojanNavGraph() {
 
         is SessionRestoreState.Restored -> {
 
-            // UX Refactor Phase 2: hydrates authViewModel's in-memory
-            // session from the persisted personId (if any) before any
-            // screen below can read it — synchronous, no suspend point,
-            // so this completes before a user could navigate anywhere.
-            // Replaces Phase 1's one-way bridge (which wrote Role.CUSTOMER
-            // on OTP success so cold starts could fake a "logged in"
-            // signal); this restores the real identity instead.
+            // Authentication Session Persistence fix: a stored personId is
+            // only a *claim* — it must be validated against the real
+            // backend (restoreSession -> GET /api/v1/auth/me, transparently
+            // refreshing the access token first) before this composable
+            // decides where to route. The previous version fired
+            // restoreSession fire-and-forget and computed startDestination
+            // immediately from the raw, unvalidated personId, so a user
+            // whose refresh token had actually expired/been revoked still
+            // got routed straight to CUSTOMER_HOME for a frame before
+            // things silently started failing with no "please log in
+            // again" signal anywhere. This blocks on the real result
+            // first ("Check stored session -> Validate/refresh token ->
+            // Restore authenticated state -> Enter application").
+            var isRestoringSession by remember { mutableStateOf(state.personId != null) }
+
             LaunchedEffect(state) {
-                state.personId?.let { authViewModel.restoreSession(it) }
+                val personId = state.personId
+                if (personId != null) {
+                    authViewModel.restoreSession(personId)
+                }
+                isRestoringSession = false
+            }
+
+            if (isRestoringSession) {
+                RestoringSessionContent()
+                return
             }
 
             // Bug fix: startDestination must be captured once, at the first
@@ -321,6 +339,7 @@ fun RojanNavGraph() {
                         onSalonSelected = { salonId ->
                             navController.navigate(RojanDestinations.salonDetails(salonId))
                         },
+                        onLoginRequired = { navController.navigate(RojanDestinations.AUTH) },
                         // Android <-> Backend Full Integration milestone: the
                         // business-login entry point (Manager/Specialist role
                         // routing) is disabled — it matched a verified phone
@@ -363,8 +382,21 @@ fun RojanNavGraph() {
                     // UX Refactor Phase 1: must be read here, at composition
                     // time (bookingViewModelFor is @Composable) — not inside
                     // the click callbacks below, which run outside composition.
-                    val bookingFlowInProgress = navController.hasBookingFlowInProgress()
-                    val inProgressBookingViewModel = if (bookingFlowInProgress) {
+                    //
+                    // Authentication Session Persistence fix: tightened from
+                    // hasBookingFlowInProgress() (true whenever BOOKING_FLOW_GRAPH
+                    // exists ANYWHERE in the back stack) to the precise immediate-
+                    // predecessor check the doc comment below already claimed was
+                    // true — SALON_DETAILS lives inside BOOKING_FLOW_GRAPH too
+                    // (Journey 1's salon browsing), so the loose check falsely
+                    // matched a Follow/Favorite-triggered login from Salon Details
+                    // and would have hijacked it into "resume booking" instead of
+                    // just returning to Salon Details (Part 3's protected-route
+                    // fix, below). BOOKING_TIME's own onTimeSelected is confirmed
+                    // (by grep) to be the only real call site that reaches AUTH
+                    // this way.
+                    val cameFromBookingTime = navController.previousBackStackEntry?.destination?.route == RojanDestinations.BOOKING_TIME
+                    val inProgressBookingViewModel = if (cameFromBookingTime) {
                         bookingViewModelFor(navController, backStackEntry)
                     } else {
                         null
@@ -422,9 +454,24 @@ fun RojanNavGraph() {
                                         authViewModel.denyAccessAndLogout("این شماره دسترسی کسب‌وکار ندارد")
                                     }
                                 }
+                                // Protected Route Handling fix: every
+                                // CustomerAccessGuard-gated screen (Appointments,
+                                // Waitlist, Reschedule, Favorites, Followed Salons)
+                                // and the Salon Details Follow/Favorite buttons now
+                                // reach AUTH this way — navigate(AUTH) without
+                                // popping the origin first, so it's still the very
+                                // next entry back. Returning to it (not a fixed
+                                // destination) is what "do not lose user intent"
+                                // means here: the guard re-evaluates with the now-
+                                // real LoggedIn state and simply renders its real
+                                // content.
+                                navController.previousBackStackEntry != null -> {
+                                    navController.popBackStack()
+                                }
                                 else -> {
-                                    // Defensive only — no current call site
-                                    // reaches AUTH any other way.
+                                    // Defensive fallback only — reachable if AUTH
+                                    // somehow has no prior back-stack entry, which
+                                    // no current call site produces.
                                     navController.navigate(RojanDestinations.MEMBER_SALONS_LIST) {
                                         popUpTo(RojanDestinations.AUTH) { inclusive = true }
                                     }
@@ -533,6 +580,7 @@ fun RojanNavGraph() {
                         onSalonSelected = { salonId ->
                             navController.navigate(RojanDestinations.salonDetails(salonId))
                         },
+                        onLoginRequired = { navController.navigate(RojanDestinations.AUTH) },
                     )
                 }
 
@@ -559,6 +607,7 @@ fun RojanNavGraph() {
                             onSalonClick = { salonId ->
                                 navController.navigate(RojanDestinations.salonDetails(salonId))
                             },
+                            onLoginRequired = { navController.navigate(RojanDestinations.AUTH) },
                         )
                     }
 
@@ -590,6 +639,7 @@ fun RojanNavGraph() {
                                 bookingViewModel.onIntentDetected(BookingIntent.SALON)
                                 navController.navigate(RojanDestinations.serviceDetails(serviceId))
                             },
+                            onLoginRequired = { navController.navigate(RojanDestinations.AUTH) },
                             onContinueBooking = if (selectedServiceIds != null) { autoSpecialistId ->
                                 bookingViewModel.onSalonSelected(salonId)
                                 if (autoSpecialistId != null) {
@@ -963,6 +1013,7 @@ fun RojanNavGraph() {
                             onBackClick = { navController.popBackStack() },
                             onBeautyDnaClick = { navController.navigate(RojanDestinations.BEAUTY_DNA) },
                             onAppointmentsClick = { navController.navigate(RojanDestinations.APPOINTMENTS) },
+                            onFollowedSalonsClick = { navController.navigate(RojanDestinations.FOLLOWED_SALONS) },
                             onFavoritesClick = { navController.navigate(RojanDestinations.FAVORITES) },
                             onWalletClick = { navController.navigate(RojanDestinations.WALLET) },
                             onCouponsClick = { navController.navigate(RojanDestinations.COUPONS) },
@@ -990,7 +1041,7 @@ fun RojanNavGraph() {
                     ) { backStackEntry ->
                         CustomerAccessGuard(
                             authViewModel = authViewModel,
-                            onAccessDenied = { navController.popBackStack() },
+                            onAccessDenied = { navController.navigate(RojanDestinations.AUTH) },
                         ) {
                             AppointmentsScreen(
                                 onBackClick = { navController.popBackStack() },
@@ -1012,7 +1063,7 @@ fun RojanNavGraph() {
                     ) { backStackEntry ->
                         CustomerAccessGuard(
                             authViewModel = authViewModel,
-                            onAccessDenied = { navController.popBackStack() },
+                            onAccessDenied = { navController.navigate(RojanDestinations.AUTH) },
                         ) {
                             WaitlistScreen(
                                 onBackClick = { navController.popBackStack() },
@@ -1028,7 +1079,7 @@ fun RojanNavGraph() {
                     ) { backStackEntry ->
                         CustomerAccessGuard(
                             authViewModel = authViewModel,
-                            onAccessDenied = { navController.popBackStack() },
+                            onAccessDenied = { navController.navigate(RojanDestinations.AUTH) },
                         ) {
                             val appointmentId = backStackEntry.arguments?.getString("appointmentId") ?: ""
                             RescheduleAppointmentScreen(
@@ -1050,7 +1101,7 @@ fun RojanNavGraph() {
                     ) { backStackEntry ->
                         CustomerAccessGuard(
                             authViewModel = authViewModel,
-                            onAccessDenied = { navController.popBackStack() },
+                            onAccessDenied = { navController.navigate(RojanDestinations.AUTH) },
                         ) {
                             val appointmentId = backStackEntry.arguments?.getString("appointmentId") ?: ""
                             AppointmentDetailsScreen(
@@ -1086,9 +1137,25 @@ fun RojanNavGraph() {
                     ) { backStackEntry ->
                         CustomerAccessGuard(
                             authViewModel = authViewModel,
-                            onAccessDenied = { navController.popBackStack() },
+                            onAccessDenied = { navController.navigate(RojanDestinations.AUTH) },
                         ) {
                             FavoritesScreen(
+                                onBackClick = { navController.popBackStack() },
+                                onSalonClick = { salonId -> navController.navigate(RojanDestinations.salonDetails(salonId)) },
+                            )
+                        }
+                    }
+
+                    composable(
+                        route = RojanDestinations.FOLLOWED_SALONS,
+                        enterTransition = { motionEnter },
+                        exitTransition = { motionExit },
+                    ) { backStackEntry ->
+                        CustomerAccessGuard(
+                            authViewModel = authViewModel,
+                            onAccessDenied = { navController.navigate(RojanDestinations.AUTH) },
+                        ) {
+                            FollowedSalonsScreen(
                                 onBackClick = { navController.popBackStack() },
                                 onSalonClick = { salonId -> navController.navigate(RojanDestinations.salonDetails(salonId)) },
                             )

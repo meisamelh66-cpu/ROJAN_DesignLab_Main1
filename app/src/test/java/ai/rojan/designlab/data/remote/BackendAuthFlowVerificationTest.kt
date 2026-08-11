@@ -2,7 +2,10 @@ package ai.rojan.designlab.data.remote
 
 import ai.rojan.designlab.data.remote.dto.LoginRequestDto
 import ai.rojan.designlab.data.repository.BackendAuthRepositoryImpl
+import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.TokenRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -53,10 +56,20 @@ class BackendAuthFlowVerificationTest {
         override fun refreshToken(): String? = refresh
     }
 
+    /** Not under test here - TokenAuthenticator's clearPersonId-on-failed-refresh is covered elsewhere; this just satisfies the constructor. */
+    private class FakeAuthSessionRepository : AuthSessionRepository {
+        override suspend fun savePersonId(personId: String) {}
+        override suspend fun clearPersonId() {}
+        override fun observePersonId(): Flow<String?> = flowOf(null)
+        override suspend fun saveRememberMe(remember: Boolean) {}
+        override fun observeRememberMe(): Flow<Boolean> = flowOf(true)
+    }
+
     private val baseUrl = "http://localhost:8080/"
     private val jsonConverterFactory = Json { ignoreUnknownKeys = true }
         .asConverterFactory("application/json".toMediaType())
     private val tokenRepository = FakeTokenRepository()
+    private val authSessionRepository = FakeAuthSessionRepository()
 
     private val plainAuthApi: AuthApi = Retrofit.Builder()
         .baseUrl(baseUrl)
@@ -70,7 +83,7 @@ class BackendAuthFlowVerificationTest {
         .client(
             OkHttpClient.Builder()
                 .addInterceptor(AuthInterceptor(tokenRepository))
-                .authenticator(TokenAuthenticator(tokenRepository, plainAuthApi))
+                .authenticator(TokenAuthenticator(tokenRepository, plainAuthApi, authSessionRepository))
                 .build(),
         )
         .addConverterFactory(jsonConverterFactory)

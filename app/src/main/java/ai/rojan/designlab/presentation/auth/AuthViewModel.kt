@@ -210,7 +210,17 @@ class AuthViewModel(
     }
 
 
-    /** Discards the real backend session (tokens + persisted identity) and reverts to [SessionState.LoggedOut]. */
+    /**
+     * Discards the real backend session (tokens + persisted identity) and
+     * reverts to [SessionState.LoggedOut]. Security Review fix: also resets
+     * the persisted "Remember Me" flag — previously left at its prior
+     * value, which was harmless only because [authSessionRepository]'s
+     * `observePersonId()` already returns `null` whenever `personId` itself
+     * is cleared (as it is here) regardless of this flag, but a future
+     * caller reading "Remember Me" independently of `personId` should not
+     * see a stale `true` surviving an explicit logout — "no cached previous
+     * account data" applies to this flag too, not just the identity itself.
+     */
     fun logout() {
 
         sessionProvider.logout()
@@ -220,6 +230,7 @@ class AuthViewModel(
 
         viewModelScope.launch {
             authSessionRepository.clearPersonId()
+            authSessionRepository.saveRememberMe(false)
         }
 
         _sessionState.value =
@@ -285,16 +296,21 @@ class AuthViewModel(
      * it never emits a [personId] at all when the last session wasn't
      * marked to be remembered, so this method is simply never called in
      * that case.
+     *
+     * Authentication Session Persistence fix: `suspend`, not fire-and-forget
+     * `viewModelScope.launch` — the sole caller (`RojanNavGraph`'s cold-start
+     * gate) needs to await real completion before deciding a start
+     * destination, rather than optimistically routing to `CUSTOMER_HOME`
+     * before this resolves (the confirmed bug this fixes: an expired/
+     * revoked refresh token used to still land the user on the Dashboard
+     * for one frame before things silently started failing).
      */
-    fun restoreSession(personId: String) {
-
-        viewModelScope.launch {
-            backendAuthRepository.currentUser()
-                .onSuccess { user -> onAuthenticated(user, rememberMe = true) }
-                .onFailure {
-                    tokenRepository.clearTokens()
-                    authSessionRepository.clearPersonId()
-                }
-        }
+    suspend fun restoreSession(personId: String) {
+        backendAuthRepository.currentUser()
+            .onSuccess { user -> onAuthenticated(user, rememberMe = true) }
+            .onFailure {
+                tokenRepository.clearTokens()
+                authSessionRepository.clearPersonId()
+            }
     }
 }
