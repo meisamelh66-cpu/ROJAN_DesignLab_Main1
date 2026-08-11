@@ -33,6 +33,7 @@ import ai.rojan.designlab.screens.profile.AppointmentDetailsScreen
 import ai.rojan.designlab.screens.profile.AppointmentsScreen
 import ai.rojan.designlab.screens.profile.RescheduleAppointmentScreen
 import ai.rojan.designlab.screens.profile.WaitlistScreen
+import ai.rojan.designlab.screens.profile.BeautyDnaScreen
 import ai.rojan.designlab.screens.profile.BeautyTimelineScreen
 import ai.rojan.designlab.screens.profile.CouponsScreen
 import ai.rojan.designlab.screens.profile.FavoritesScreen
@@ -884,6 +885,7 @@ fun RojanNavGraph() {
                         onBookingsClick = { navController.navigate(RojanDestinations.APPOINTMENTS) },
                         onFavoritesClick = { navController.navigate(RojanDestinations.FAVORITES) },
                         onExploreClick = { navController.navigate(RojanDestinations.EXPLORE) },
+                        onSearchClick = { navController.navigate(RojanDestinations.SEARCH) },
                         onSalonClick = { salonId ->
                             navController.navigate(RojanDestinations.salonDetails(salonId))
                         },
@@ -959,6 +961,7 @@ fun RojanNavGraph() {
                         ProfileScreen(
                             authViewModel = authViewModel,
                             onBackClick = { navController.popBackStack() },
+                            onBeautyDnaClick = { navController.navigate(RojanDestinations.BEAUTY_DNA) },
                             onAppointmentsClick = { navController.navigate(RojanDestinations.APPOINTMENTS) },
                             onFavoritesClick = { navController.navigate(RojanDestinations.FAVORITES) },
                             onWalletClick = { navController.navigate(RojanDestinations.WALLET) },
@@ -1164,6 +1167,22 @@ fun RojanNavGraph() {
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
                         BeautyTimelineScreen(onBackClick = { navController.popBackStack() })
+                    }
+
+
+
+
+                    composable(
+                        route = RojanDestinations.BEAUTY_DNA,
+                        enterTransition = { motionEnter },
+                        exitTransition = { motionExit },
+                    ) { backStackEntry ->
+                        val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
+                        BeautyDnaScreen(
+                            customerId = currentUser?.id ?: "",
+                            beautyProfileRepository = BackendApiContainerHolder.get(LocalContext.current).beautyProfileRepository,
+                            onBackClick = { navController.popBackStack() },
+                        )
                     }
 
                 }

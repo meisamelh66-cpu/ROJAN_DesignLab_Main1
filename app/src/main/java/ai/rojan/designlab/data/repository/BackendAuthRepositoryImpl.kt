@@ -54,6 +54,7 @@ class BackendAuthRepositoryImpl(
     private fun UserResponseDto.toDomain() = AuthenticatedUser(
         id = id,
         email = email,
+        phoneNumber = phoneNumber,
         fullName = fullName,
         role = role.name,
     )

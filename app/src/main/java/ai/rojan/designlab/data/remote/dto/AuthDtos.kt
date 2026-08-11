@@ -36,10 +36,21 @@ data class RefreshRequestDto(
     val refreshToken: String,
 )
 
+/**
+ * [email]/[phoneNumber] are each independently nullable - mirrors the real
+ * backend `UserResponse` (`ai.rojan.backend.api.auth.UserResponse`), where a
+ * phone-only OTP account has no email and an email/password account has no
+ * phone. Previously declared `email: String` (non-nullable) with no
+ * [phoneNumber] field at all - harmless while only the email/password flow
+ * was wired, but would have thrown a deserialization error the moment an
+ * OTP-registered (phone-only, null email) account's response arrived, and
+ * silently dropped a real, already-returned field this app has never read.
+ */
 @Serializable
 data class UserResponseDto(
     val id: String,
-    val email: String,
+    val email: String? = null,
+    val phoneNumber: String? = null,
     val fullName: String,
     val role: NetworkUserRole,
 )

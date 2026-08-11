@@ -3,9 +3,15 @@ package ai.rojan.designlab.screens.customer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Icon
+import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,7 +31,13 @@ import ai.rojan.designlab.presentation.auth.AuthViewModel
 import ai.rojan.designlab.presentation.booking.BookingHistoryViewModel
 import ai.rojan.designlab.presentation.booking.BookingHistoryViewModelFactory
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
+import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.theme.RojanDimens
+import ai.rojan.designlab.ui.theme.RojanShapes
+import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
  * ROJAN AI Customer Home Dashboard — UX Correction (Explore Repositioning).
@@ -58,6 +70,7 @@ fun CustomerDashboardScreen(
     onBookingsClick: () -> Unit = {},
     onFavoritesClick: () -> Unit = {},
     onExploreClick: () -> Unit = {},
+    onSearchClick: () -> Unit = {},
     onSalonClick: (String) -> Unit = {},
 ) {
     // Fixed bottom bar (overlay behavior), matching CustomerHomeScreen's
@@ -93,10 +106,16 @@ fun CustomerDashboardScreen(
                 verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceLG),
             ) {
                 item { HomeHeader(displayName = authViewModel.currentDisplayName) }
+                item { HomeSearchEntry(onClick = onSearchClick) }
                 item { HeroBookingCard(onClick = onBookAppointmentClick) }
                 item { UpcomingBookings(bookingHistoryViewModel) }
+                item { RtlSectionHeader("سالن‌های پیشنهادی", color = HomeColors.TextPrimary) }
+                item { FeaturedSalons(onSalonClick = onSalonClick) }
                 item { RecommendedSalons(onSalonClick = onSalonClick) }
                 item { TopSpecialists() }
+                item { RtlSectionHeader("فعالیت اخیر", color = HomeColors.TextPrimary) }
+                item { RecentVisits(bookingHistoryViewModel, onSalonClick = onSalonClick) }
+                item { FollowedSalons(onSalonClick = onSalonClick) }
             }
 
             CustomerBottomBar(
@@ -115,6 +134,36 @@ fun CustomerDashboardScreen(
                         CustomerHomeTab.PROFILE -> onProfileClick()
                     }
                 }
+            )
+        }
+    }
+}
+
+/**
+ * Tap-through entry point into real salon search ([SearchScreen], backed
+ * by the real `GET /api/v1/salons`) - not a second search implementation,
+ * this only opens that existing screen, same "reuse, don't duplicate"
+ * reasoning as [ai.rojan.designlab.screens.customer.CustomerBottomBar]'s
+ * own SEARCH tab.
+ */
+@Composable
+private fun HomeSearchEntry(onClick: () -> Unit) {
+    HomeGlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .rojanPressable(onClick = onClick),
+        shape = RojanShapes.Small,
+    ) {
+        Row(
+            modifier = Modifier.padding(RojanDimens.SpaceMD),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.Search, contentDescription = null, tint = HomeColors.TextSecondary)
+            Text(
+                text = "جستجوی سالن، خدمت یا متخصص...",
+                style = RojanTypography.Body,
+                color = HomeColors.TextSecondary,
+                modifier = Modifier.padding(start = RojanDimens.SpaceSM),
             )
         }
     }

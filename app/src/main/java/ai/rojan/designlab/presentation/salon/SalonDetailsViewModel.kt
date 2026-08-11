@@ -2,12 +2,14 @@ package ai.rojan.designlab.presentation.salon
 
 import ai.rojan.designlab.domain.repository.Salon
 import ai.rojan.designlab.domain.repository.SalonRepository
+import ai.rojan.designlab.domain.repository.SalonWorkingHours
 import ai.rojan.designlab.domain.repository.Service
 import ai.rojan.designlab.domain.repository.ServiceCategory
 import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
 import ai.rojan.designlab.domain.repository.ServiceRepository
 import ai.rojan.designlab.domain.repository.Specialist
 import ai.rojan.designlab.domain.repository.SpecialistRepository
+import ai.rojan.designlab.domain.repository.WorkingHoursRepository
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.presentation.common.userMessageFor
 import androidx.compose.runtime.getValue
@@ -22,6 +24,7 @@ data class SalonDetailsData(
     val categories: List<ServiceCategory>,
     val services: List<Service>,
     val specialists: List<Specialist>,
+    val workingHours: List<SalonWorkingHours>,
 )
 
 /**
@@ -38,6 +41,7 @@ class SalonDetailsViewModel(
     private val serviceCategoryRepository: ServiceCategoryRepository,
     private val serviceRepository: ServiceRepository,
     private val specialistRepository: SpecialistRepository,
+    private val workingHoursRepository: WorkingHoursRepository,
 ) : ViewModel() {
 
     var state by mutableStateOf<UiState<SalonDetailsData>>(UiState.Loading)
@@ -57,7 +61,11 @@ class SalonDetailsViewModel(
                     serviceRepository.getServices(salonId, category.id).getOrThrow()
                 }
                 val specialists = specialistRepository.getSpecialists(salonId).getOrThrow()
-                SalonDetailsData(salon, categories, services, specialists)
+                // Enrichment, not a hard gate (same principle BookingStepResolver already
+                // applies to Salon): a working-hours fetch failure shouldn't take down the
+                // whole salon page, so it degrades to an empty list instead of getOrThrow().
+                val workingHours = workingHoursRepository.getWorkingHours(salonId).getOrDefault(emptyList())
+                SalonDetailsData(salon, categories, services, specialists, workingHours)
             }
             state = result.fold(
                 onSuccess = { UiState.Success(it) },

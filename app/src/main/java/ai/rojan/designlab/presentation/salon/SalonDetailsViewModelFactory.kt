@@ -4,6 +4,7 @@ import ai.rojan.designlab.domain.repository.SalonRepository
 import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
 import ai.rojan.designlab.domain.repository.ServiceRepository
 import ai.rojan.designlab.domain.repository.SpecialistRepository
+import ai.rojan.designlab.domain.repository.WorkingHoursRepository
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 
@@ -14,6 +15,7 @@ class SalonDetailsViewModelFactory(
     private val serviceCategoryRepository: ServiceCategoryRepository,
     private val serviceRepository: ServiceRepository,
     private val specialistRepository: SpecialistRepository,
+    private val workingHoursRepository: WorkingHoursRepository,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -23,6 +25,7 @@ class SalonDetailsViewModelFactory(
             serviceCategoryRepository = serviceCategoryRepository,
             serviceRepository = serviceRepository,
             specialistRepository = specialistRepository,
+            workingHoursRepository = workingHoursRepository,
         ) as T
     }
 }

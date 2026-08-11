@@ -19,6 +19,7 @@ import ai.rojan.designlab.data.remote.ServiceApi
 import ai.rojan.designlab.data.remote.ServiceCategoryApi
 import ai.rojan.designlab.data.remote.SpecialistApi
 import ai.rojan.designlab.data.remote.TokenAuthenticator
+import ai.rojan.designlab.data.remote.WorkingHoursApi
 import ai.rojan.designlab.data.repository.AvailabilityRepositoryImpl
 import ai.rojan.designlab.data.repository.BackendAuthRepositoryImpl
 import ai.rojan.designlab.data.repository.BookingHistoryRepositoryImpl
@@ -29,6 +30,9 @@ import ai.rojan.designlab.data.repository.ServiceCategoryRepositoryImpl
 import ai.rojan.designlab.data.repository.ServiceRepositoryImpl
 import ai.rojan.designlab.data.repository.SpecialistRepositoryImpl
 import ai.rojan.designlab.data.repository.TokenRepositoryImpl
+import ai.rojan.designlab.data.repository.WorkingHoursRepositoryImpl
+import ai.rojan.designlab.domain.beauty.BeautyProfileRepository
+import ai.rojan.designlab.domain.beauty.InMemoryBeautyProfileRepository
 import ai.rojan.designlab.domain.repository.AvailabilityRepository
 import ai.rojan.designlab.domain.repository.BackendAuthRepository
 import ai.rojan.designlab.domain.repository.BookingHistoryRepository
@@ -39,6 +43,7 @@ import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
 import ai.rojan.designlab.domain.repository.ServiceRepository
 import ai.rojan.designlab.domain.repository.SpecialistRepository
 import ai.rojan.designlab.domain.repository.TokenRepository
+import ai.rojan.designlab.domain.repository.WorkingHoursRepository
 import ai.rojan.designlab.manager.data.BackendSalonMembershipRepository
 import ai.rojan.designlab.manager.domain.repository.SalonMembershipRepository
 import android.content.Context
@@ -138,6 +143,18 @@ class BackendApiContainer(context: Context) {
 
     val bookingHistoryRepository: BookingHistoryRepository =
         BookingHistoryRepositoryImpl(bookingRepository, salonRepository, specialistRepository)
+
+    val workingHoursRepository: WorkingHoursRepository =
+        WorkingHoursRepositoryImpl(retrofit.create(WorkingHoursApi::class.java))
+
+    // Not backend-networked (unlike every other member of this container) -
+    // no customer beauty-profile endpoint exists yet. Held here anyway as
+    // the single composition root/singleton this app already has, so
+    // navigating away from and back to Beauty DNA keeps the same in-memory
+    // data for the process lifetime, same reasoning as every real
+    // repository above just without a Retrofit client backing it. See
+    // domain/beauty/BeautyProfileRepository.kt's own doc comment.
+    val beautyProfileRepository: BeautyProfileRepository = InMemoryBeautyProfileRepository()
 
     // Deliberately NOT built on [retrofit] - the public salon QR journey is
     // unauthenticated by design (see PublicSalonApi's own doc comment), so

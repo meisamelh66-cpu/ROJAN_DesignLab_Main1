@@ -1,9 +1,18 @@
 package ai.rojan.designlab.domain.repository
 
-/** Domain-facing shape of a user account as returned by the ROJAN backend. */
+/**
+ * Domain-facing shape of a user account as returned by the ROJAN backend.
+ * [email]/[phoneNumber] are each independently nullable, mirroring the
+ * backend account model - an email/password account has no phone, a
+ * phone-only OTP account has no email. A non-null [phoneNumber] is always
+ * verified: the backend's only path to setting it is completing real OTP
+ * verification (`User.registerWithPhone`) - there is no unverified-phone
+ * state to distinguish.
+ */
 data class AuthenticatedUser(
     val id: String,
-    val email: String,
+    val email: String?,
+    val phoneNumber: String? = null,
     val fullName: String,
     val role: String,
 )

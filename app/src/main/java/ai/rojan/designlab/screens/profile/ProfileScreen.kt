@@ -18,12 +18,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CardGiftcard
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.RateReview
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.Stars
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material3.Icon
@@ -44,6 +48,7 @@ import ai.rojan.designlab.ui.animation.rojanEnterAnimation
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.rtl.RtlListRow
+import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
@@ -59,25 +64,39 @@ private data class ProfileMenuItem(
  * Journey 2, Screen 1: Profile hub — the customer's real identity
  * center.
  *
+ * Restructured into named sections (Personal Information / Beauty DNA /
+ * Appointments / Favorite Salons / Settings), per the Customer App
+ * architecture spec — was previously one flat, undifferentiated menu list.
+ * Wallet/Coupons/Membership/Loyalty/Reviews/Beauty Timeline are existing
+ * features, kept (not removed) under their own additional "امکانات حساب"
+ * group rather than folded into Settings, which would mislabel them.
+ *
  * Production Data Integrity Phase 1: the Wallet/Loyalty/Membership
  * summary strip and the Beauty Score/Profile Completion/Preferred Salon/
  * Recent Activity "insights" card were removed — both were entirely
  * `CustomerEcosystemViewModel`/`ProfileInsightsEngine` demo derivations
- * with no backend counterpart. Each area they surfaced (Wallet, Coupons,
- * Membership, Loyalty, Reviews, Beauty Timeline) already has its own
- * menu item below, each navigating to its own honestly-gated screen
- * (Phase 2, C7) — no separate placeholder is needed here.
+ * with no backend counterpart. Each area they surfaced already has its
+ * own menu item below, each navigating to its own honestly-gated screen.
  *
- * Customer Journey Audit Phase A (P0-4) fix: the displayed name now
- * comes from [AuthViewModel.currentDisplayName] — a real lookup of the
- * actually signed-in person that already existed but was never called
- * from any screen — instead of a hardcoded literal shown to every user
- * regardless of who was really logged in.
+ * Customer Journey Audit Phase A (P0-4) fix: the displayed name comes
+ * from [AuthViewModel.currentDisplayName] — a real lookup of the actually
+ * signed-in person — instead of a hardcoded literal.
+ *
+ * Personal Information shows only backend-real fields (name, verified
+ * phone, email) - birthday/city/photo are intentionally not shown: no
+ * such fields exist on the backend `User` model and no update-profile
+ * endpoint exists at all yet (confirmed against `UserController`/`User.kt`
+ * in ROJAN_Backend), so showing them would mean either fabricating data
+ * or a form with nothing real to submit to. A non-null phone number is
+ * always verified - the backend's only path to setting it is completing
+ * real OTP verification, so no separate "unverified" state exists to
+ * represent.
  */
 @Composable
 fun ProfileScreen(
     authViewModel: AuthViewModel,
     onBackClick: () -> Unit,
+    onBeautyDnaClick: () -> Unit,
     onAppointmentsClick: () -> Unit,
     onFavoritesClick: () -> Unit,
     onWalletClick: () -> Unit,
@@ -90,16 +109,13 @@ fun ProfileScreen(
 ) {
     val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
 
-    val menuItems = listOf(
-        ProfileMenuItem(Icons.Filled.CalendarMonth, "نوبت‌های من", "مشاهده نوبت‌های آینده و گذشته", onAppointmentsClick),
-        ProfileMenuItem(Icons.Filled.Favorite, "علاقه‌مندی‌ها", "سالن‌های ذخیره‌شده", onFavoritesClick),
+    val accountFeatureItems = listOf(
         ProfileMenuItem(Icons.Filled.AccountBalanceWallet, "کیف پول", "موجودی و تراکنش‌ها", onWalletClick),
         ProfileMenuItem(Icons.Filled.CardGiftcard, "کدهای تخفیف", "تخفیف‌های فعال شما", onCouponsClick),
         ProfileMenuItem(Icons.Filled.WorkspacePremium, "عضویت", "سطح عضویت و مزایا", onMembershipClick),
         ProfileMenuItem(Icons.Filled.Stars, "امتیازات وفاداری", "امتیازهای کسب‌شده", onLoyaltyClick),
         ProfileMenuItem(Icons.Filled.RateReview, "نظرات من", "نظراتی که ثبت کرده‌اید", onReviewsClick),
         ProfileMenuItem(Icons.Filled.History, "تاریخچه زیبایی", "خدمات دریافت‌شده در طول زمان", onBeautyTimelineClick),
-        ProfileMenuItem(Icons.Filled.Logout, "خروج از حساب", "خروج از حساب کاربری", onLogoutClick),
     )
 
     HomeBackgroundTheme {
@@ -125,31 +141,124 @@ fun ProfileScreen(
                     }
                     Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
                     Text(authViewModel.currentDisplayName ?: "کاربر", style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary)
-                    currentUser?.email?.let {
-                        Text(it, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
+                }
+            }
+
+            item { RtlSectionHeader("اطلاعات شخصی", color = HomeColors.TextPrimary) }
+            item {
+                HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(RojanDimens.SpaceMD),
+                        verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
+                    ) {
+                        RtlListRow(
+                            title = authViewModel.currentDisplayName ?: "کاربر",
+                            titleColor = HomeColors.TextPrimary,
+                            icon = Icons.Filled.Person,
+                            iconTint = HomeColors.Glow,
+                        )
+                        currentUser?.phoneNumber?.let { phone ->
+                            RtlListRow(
+                                title = phone,
+                                subtitle = "تایید شده",
+                                titleColor = HomeColors.TextPrimary,
+                                subtitleColor = HomeColors.Glow,
+                                icon = Icons.Filled.Phone,
+                                iconTint = HomeColors.Glow,
+                                trailingIcon = Icons.Filled.VerifiedUser,
+                            )
+                        }
+                        currentUser?.email?.let { email ->
+                            RtlListRow(
+                                title = email,
+                                titleColor = HomeColors.TextPrimary,
+                                icon = Icons.Filled.Email,
+                                iconTint = HomeColors.Glow,
+                            )
+                        }
                     }
                 }
             }
 
-            itemsIndexed(menuItems) { index, menuItem ->
-                HomeGlassSurface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .rojanEnterAnimation(delayMillis = index * 60)
-                        .rojanPressable(onClick = menuItem.onClick),
-                    shape = RojanShapes.Small,
-                ) {
-                    RtlListRow(
-                        title = menuItem.title,
-                        titleColor = HomeColors.TextPrimary,
-                        subtitle = menuItem.subtitle,
-                        subtitleColor = HomeColors.TextSecondary,
-                        icon = menuItem.icon,
-                        iconTint = HomeColors.Glow,
-                        modifier = Modifier.padding(RojanDimens.SpaceMD),
-                    )
-                }
+            item { RtlSectionHeader("بیوتی دی‌ان‌ای", color = HomeColors.TextPrimary) }
+            item {
+                MenuRow(
+                    icon = Icons.Filled.Spa,
+                    title = "بیوتی دی‌ان‌ای من",
+                    subtitle = "مو، پوست و ناخن",
+                    onClick = onBeautyDnaClick,
+                )
+            }
+
+            item { RtlSectionHeader("نوبت‌ها", color = HomeColors.TextPrimary) }
+            item {
+                MenuRow(
+                    icon = Icons.Filled.CalendarMonth,
+                    title = "نوبت‌های من",
+                    subtitle = "مشاهده نوبت‌های آینده و گذشته",
+                    onClick = onAppointmentsClick,
+                )
+            }
+
+            item { RtlSectionHeader("سالن‌های مورد علاقه", color = HomeColors.TextPrimary) }
+            item {
+                MenuRow(
+                    icon = Icons.Filled.Favorite,
+                    title = "علاقه‌مندی‌ها",
+                    subtitle = "سالن‌های ذخیره‌شده",
+                    onClick = onFavoritesClick,
+                )
+            }
+
+            item { RtlSectionHeader("امکانات حساب", color = HomeColors.TextPrimary) }
+            itemsIndexed(accountFeatureItems) { index, menuItem ->
+                MenuRow(
+                    icon = menuItem.icon,
+                    title = menuItem.title,
+                    subtitle = menuItem.subtitle,
+                    onClick = menuItem.onClick,
+                    animationDelayMillis = index * 60,
+                )
+            }
+
+            item { RtlSectionHeader("تنظیمات", color = HomeColors.TextPrimary) }
+            item {
+                MenuRow(
+                    icon = Icons.Filled.Logout,
+                    title = "خروج از حساب",
+                    subtitle = "خروج از حساب کاربری",
+                    onClick = onLogoutClick,
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun MenuRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    animationDelayMillis: Int = 0,
+) {
+    HomeGlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .rojanEnterAnimation(delayMillis = animationDelayMillis)
+            .rojanPressable(onClick = onClick),
+        shape = RojanShapes.Small,
+    ) {
+        RtlListRow(
+            title = title,
+            titleColor = HomeColors.TextPrimary,
+            subtitle = subtitle,
+            subtitleColor = HomeColors.TextSecondary,
+            icon = icon,
+            iconTint = HomeColors.Glow,
+            modifier = Modifier.padding(RojanDimens.SpaceMD),
+        )
     }
 }

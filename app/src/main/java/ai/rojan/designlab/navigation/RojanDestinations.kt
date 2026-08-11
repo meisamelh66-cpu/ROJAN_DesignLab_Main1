@@ -81,6 +81,7 @@ object RojanDestinations {
     const val LOYALTY = "loyalty"
     const val MY_REVIEWS = "my_reviews"
     const val BEAUTY_TIMELINE = "beauty_timeline"
+    const val BEAUTY_DNA = "beauty_dna"
 
     /**
      * Maps a pure business [ai.rojan.designlab.domain.booking.BookingStep]

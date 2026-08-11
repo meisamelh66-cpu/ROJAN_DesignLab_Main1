@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Storefront
@@ -33,6 +34,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
+import android.net.Uri
 
 import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.domain.repository.Salon
@@ -87,6 +90,18 @@ private val HERO_SHAPE = RoundedCornerShape(
 /** Deterministic per-salon/specialist tint, mirroring [ai.rojan.designlab.screens.booking.SalonListScreen]'s [colorSeedFor]-equivalent: neither the backend `Salon` nor `Specialist` has a color/branding or photo-URL concept this app can render (no image-loading library for remote URLs exists in this codebase), so this only varies an accent tint, never fabricates business data. */
 private val accentPalette = listOf(RojanSoftLavender, RojanAquaMint, RojanBlushPink, RojanPearlPink)
 private fun accentFor(id: String) = accentPalette[Math.floorMod(id.hashCode(), accentPalette.size)]
+
+/** `java.time.DayOfWeek`'s English enum name, as returned by the backend (`WorkingHoursResponse.dayOfWeek`). */
+private fun String.toPersianDayLabel(): String = when (this) {
+    "SATURDAY" -> "شنبه"
+    "SUNDAY" -> "یکشنبه"
+    "MONDAY" -> "دوشنبه"
+    "TUESDAY" -> "سه‌شنبه"
+    "WEDNESDAY" -> "چهارشنبه"
+    "THURSDAY" -> "پنجشنبه"
+    "FRIDAY" -> "جمعه"
+    else -> this
+}
 
 /**
  * Journey 1, Screen 2: Salon Details.
@@ -143,6 +158,7 @@ fun SalonDetailsScreen(
                 serviceCategoryRepository = container.serviceCategoryRepository,
                 serviceRepository = container.serviceRepository,
                 specialistRepository = container.specialistRepository,
+                workingHoursRepository = container.workingHoursRepository,
             )
         },
     ),
@@ -159,6 +175,7 @@ fun SalonDetailsScreen(
                 RojanErrorState(description = loadState.message, actionLabel = "تلاش مجدد", onAction = viewModel::retry)
             }
             is UiState.Success -> {
+                val context = LocalContext.current
                 val data = loadState.data
                 val salon = data.salon
                 val specialists = data.specialists
@@ -240,8 +257,71 @@ fun SalonDetailsScreen(
                                 verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
                                 horizontalAlignment = Alignment.End,
                             ) {
-                                RtlInfoRow(Icons.Filled.LocationOn, salon.address, iconTint = HomeColors.TextSecondary, textColor = HomeColors.TextSecondary)
-                                RtlInfoRow(Icons.Filled.Phone, salon.phone, iconTint = HomeColors.TextSecondary, textColor = HomeColors.TextSecondary)
+                                RtlInfoRow(
+                                    Icons.Filled.LocationOn,
+                                    salon.address,
+                                    iconTint = HomeColors.TextSecondary,
+                                    textColor = HomeColors.TextSecondary,
+                                    modifier = Modifier.rojanPressable(
+                                        onClick = {
+                                            // Text-query navigation, not coordinate-based - the
+                                            // backend Salon has no geo-coordinate concept, only a
+                                            // postal address (see this screen's own doc comment on
+                                            // real-data gaps). "geo:0,0?q=" is the standard Android
+                                            // way to open Maps on a text query with no known point.
+                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=" + Uri.encode(salon.address)))
+                                            runCatching { context.startActivity(intent) }
+                                        },
+                                    ),
+                                )
+                                RtlInfoRow(
+                                    Icons.Filled.Phone,
+                                    salon.phone,
+                                    iconTint = HomeColors.TextSecondary,
+                                    textColor = HomeColors.TextSecondary,
+                                    modifier = Modifier.rojanPressable(
+                                        onClick = {
+                                            // ACTION_DIAL (not ACTION_CALL): opens the dialer
+                                            // pre-filled, doesn't place the call itself - needs no
+                                            // CALL_PHONE runtime permission.
+                                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${salon.phone}"))
+                                            runCatching { context.startActivity(intent) }
+                                        },
+                                    ),
+                                )
+                            }
+                        }
+                    }
+
+                    if (data.workingHours.isNotEmpty()) {
+                        item { RtlSectionHeader("ساعات کاری", color = HomeColors.TextPrimary) }
+                        item {
+                            HomeGlassSurface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = RojanDimens.SpaceMD),
+                                shape = RojanShapes.Small,
+                                glassAlpha = 0.28f,
+                                glassSecondaryAlpha = 0.10f,
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = RojanDimens.SpaceLG, vertical = RojanDimens.SpaceMD),
+                                    verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+                                ) {
+                                    data.workingHours.forEach { hours ->
+                                        RtlListRow(
+                                            title = hours.dayOfWeek.toPersianDayLabel(),
+                                            titleColor = HomeColors.TextPrimary,
+                                            icon = Icons.Filled.AccessTime,
+                                            iconTint = HomeColors.TextSecondary,
+                                            value = hours.intervals.joinToString(" ، ") { "${it.start.take(5)}-${it.end.take(5)}" },
+                                            valueColor = HomeColors.TextSecondary,
+                                            valueStyle = RojanTypography.Caption,
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
