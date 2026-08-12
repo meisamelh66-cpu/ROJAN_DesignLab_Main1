@@ -57,6 +57,30 @@ import androidx.compose.ui.unit.dp
  * to them here would look like it works while silently doing nothing real
  * on the backend, which is exactly what this screen avoids.
  *
+ * **Future integration points (Phase 11 Step 2 backend specification —
+ * not yet implemented backend-side, so none of this is built yet):**
+ * - A cancel action belongs in [AppointmentIdentityHeader] or as a
+ *   trailing action alongside the status chip there, since status is
+ *   what it changes — not a separate section.
+ * - A reschedule action belongs in [DateTimeSection], next to the
+ *   date/time it would change.
+ * - Both are destructive/impactful enough to need a confirmation dialog
+ *   before firing (this app has no existing confirmation-dialog pattern
+ *   to reuse yet — Customer's cancel flow in `AppointmentsScreen.kt` also
+ *   has none, so this would be a first, not a retrofit).
+ * - Both need real loading (in-flight) and error states once wired to
+ *   `Result`-returning repository calls — mirroring
+ *   [ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel]'s
+ *   existing `isSubmitting`/`submitError` shape and its
+ *   `confirmErrorMessage()` code-to-Persian-message mapping pattern,
+ *   applied to the new `BOOKING_NOT_FOUND`/`UNAUTHORIZED_SALON_ACCESS`/
+ *   `INVALID_STATUS_TRANSITION`/`BOOKING_CONFLICT`/`INVALID_TIME_SLOT`
+ *   codes that specification defines - none of which exist on the
+ *   backend yet either.
+ * - This screen currently has no ViewModel at all (reads
+ *   [ManagerRepositories] directly); real mutation would need one, since
+ *   `isSubmitting`/error state can't live in a stateless `@Composable`.
+ *
  * Resolves [Appointment.customerId]/[serviceId]/[specialistId] to display
  * data via [ManagerRepositories], the identical resolution
  * [ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen.toDisplay]

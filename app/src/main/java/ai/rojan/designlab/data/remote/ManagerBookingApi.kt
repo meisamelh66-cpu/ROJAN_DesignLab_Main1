@@ -19,6 +19,21 @@ import retrofit2.http.Query
  * no owner-side update/cancel-booking endpoint; see
  * [ai.rojan.designlab.manager.data.BackendAppointmentRepository] for how
  * those stay local-cache-only.
+ *
+ * **Future landing point (Phase 11 Step 2 backend specification, not yet
+ * implemented backend-side — confirmed absent as of that audit, not
+ * inferred from naming convention):** once real, this interface is where
+ * the following would be added, matching [list]/[createForCustomer]'s
+ * existing shape —
+ * `GET api/v1/salons/{salonId}/bookings/{bookingId}` (detail),
+ * `PATCH api/v1/salons/{salonId}/bookings/{bookingId}/cancel` (no body,
+ * returns [BookingResponseDto]), and
+ * `PUT api/v1/salons/{salonId}/bookings/{bookingId}/reschedule` (reusing
+ * the existing `RescheduleBookingRequestDto` from `BookingDtos.kt` as-is —
+ * no new DTO needed). None of these are added here now: the backend
+ * contract doesn't exist yet, and adding the method signatures ahead of a
+ * real endpoint would let the app compile against a call that 404s at
+ * runtime.
  */
 interface ManagerBookingApi {
 

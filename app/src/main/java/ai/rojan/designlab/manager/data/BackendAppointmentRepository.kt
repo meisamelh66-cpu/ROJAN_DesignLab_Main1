@@ -49,7 +49,16 @@ import java.time.format.DateTimeFormatter
  * `update`/`updateStatus`/`cancel` stay **local-cache only**, matching
  * the previous in-memory implementation's behavior, on purpose: the
  * backend still has no owner-side update/cancel-booking endpoint - only
- * [create] closed, this phase.
+ * [create] closed, this phase. Confirmed still true and still unreferenced
+ * by any call site as of Phase 11 Step 3 - see
+ * [ai.rojan.designlab.manager.domain.repository.AppointmentRepository.cancel]'s
+ * doc comment for the real `PATCH .../cancel` contract (Phase 11 Step 2's
+ * backend specification) these three should be replaced with, not
+ * extended in place, once that endpoint exists. That replacement should
+ * follow [create]/[createForCustomer]'s exact existing shape immediately
+ * below: `safeApiCall { managerBookingApi.<newMethod>(...) }.map { dto ->
+ * dto.toDomain().also { updated -> cache = ... } }` - updating [cache]
+ * from the real response rather than requiring a full [sync] afterward.
  *
  * **Formerly a known pre-existing gap, closed in Phase 2, M7:**
  * [ai.rojan.designlab.manager.domain.appointment.ManagerCalendarWeek]

@@ -1,5 +1,6 @@
 package ai.rojan.designlab.di
 
+import ai.rojan.designlab.BuildConfig
 import ai.rojan.designlab.data.local.activeSalonDataStore
 import ai.rojan.designlab.data.local.authSessionDataStore
 import ai.rojan.designlab.data.local.createTokenPreferences
@@ -233,8 +234,15 @@ class BackendApiContainer(context: Context) {
         val jsonConverterFactory = Json { ignoreUnknownKeys = true }
             .asConverterFactory("application/json".toMediaType())
 
+        // Release Logging Hardening (Phase 10, Step 4): BASIC logs request/
+        // response lines (method, URL, response code) - never headers or
+        // bodies, so bearer tokens/JSON payloads were never exposed here -
+        // but URLs can carry customer/salon ids and query data, and this
+        // ran unconditionally in release Logcat until now. NONE in release
+        // is a hard off, not a lower verbosity level - deterministic, no
+        // logging call is made at all.
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.NONE
         }
 
         fun buildAuthenticatedRetrofit(tokenRepository: TokenRepository, authSessionRepository: AuthSessionRepository): Retrofit {

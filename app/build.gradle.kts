@@ -133,6 +133,41 @@ android {
     }
 }
 
+// Production API Configuration Hardening (Phase 10, Step 8): the
+// `production` flavor's buildConfigField above already reads
+// PRODUCTION_API_BASE_URL and NetworkConfig.kt already fails loudly if it's
+// blank - but only the first time BASE_URL is actually accessed at runtime,
+// which is well after a "production" release APK/AAB has already been
+// built, signed, and could be handed out. This closes that gap at build
+// time instead: inspecting the *resolved* task graph (not just the
+// literally-typed task names) means this also catches aggregate
+// invocations like `./gradlew build` that pull in a Production+Release
+// variant indirectly, not only a direct `assembleManagerProductionRelease`.
+// Re-evaluated on every invocation (a `whenReady` listener, unlike plain
+// configuration-phase code, isn't skipped when the configuration cache is
+// reused), so a stale cached "it was fine last time" can't mask a
+// genuinely missing property today. Dev/staging are untouched - dev keeps
+// its hardcoded local URL, staging keeps its own existing
+// STAGING_API_BASE_URL handling exactly as before.
+gradle.taskGraph.whenReady {
+    val buildsProductionRelease = allTasks.any { it.name.contains("ProductionRelease") }
+    if (buildsProductionRelease) {
+        val productionUrl = project.findProperty("PRODUCTION_API_BASE_URL") as String?
+        if (productionUrl.isNullOrBlank()) {
+            throw GradleException(
+                "Missing required property: PRODUCTION_API_BASE_URL\n" +
+                    "\n" +
+                    "Production release builds require a real, deployed backend URL - there is no " +
+                    "local fallback or fake endpoint for this environment.\n" +
+                    "\n" +
+                    "Provide it one of these ways:\n" +
+                    "  - Command line:   ./gradlew assembleManagerProductionRelease -PPRODUCTION_API_BASE_URL=https://your-real-backend/\n" +
+                    "  - gradle.properties (local only - never commit a real value): PRODUCTION_API_BASE_URL=https://your-real-backend/\n" +
+                    "  - CI: inject it as a Gradle property or environment-backed property for the release job.",
+            )
+        }
+    }
+}
 
 dependencies {
 
