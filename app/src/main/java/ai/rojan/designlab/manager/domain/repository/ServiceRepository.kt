@@ -21,4 +21,7 @@ interface ServiceRepository {
     suspend fun create(service: Service): Result<Service>
     suspend fun update(service: Service): Result<Service?>
     suspend fun delete(id: String): Result<Boolean>
+
+    /** Every category name [create]/[update] can resolve to a real `categoryId` for — populated by the same `sync()` that populates [getAll], no extra network call. A create/edit form must pick from this list, never free-type a name (there is no category-creation endpoint). */
+    fun getCategoryNames(): List<String>
 }

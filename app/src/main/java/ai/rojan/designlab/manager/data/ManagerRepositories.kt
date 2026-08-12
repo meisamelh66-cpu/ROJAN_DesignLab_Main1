@@ -27,6 +27,7 @@ private object EmptyServiceRepository : ServiceRepository {
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
     override suspend fun delete(id: String): Result<Boolean> =
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
+    override fun getCategoryNames(): List<String> = emptyList()
 }
 
 /** Empty until [ManagerRepositories.initialize] resolves a real salon - honest "nothing loaded yet," not fake sample data. */

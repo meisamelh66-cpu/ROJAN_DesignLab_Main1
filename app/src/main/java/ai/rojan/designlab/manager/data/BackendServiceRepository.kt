@@ -58,6 +58,8 @@ class BackendServiceRepository(
 
     override fun getById(id: String): Service? = cache.find { it.id == id }
 
+    override fun getCategoryNames(): List<String> = categoryIdByName.keys.toList()
+
     override suspend fun create(service: Service): Result<Service> {
         val categoryId = categoryIdByName[service.category]
             ?: return Result.failure(

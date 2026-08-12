@@ -10,6 +10,7 @@ import ai.rojan.designlab.manager.domain.service.Service
 import ai.rojan.designlab.manager.screens.customers.TagChip
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.text.withDirectionFor
@@ -28,6 +29,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
@@ -43,12 +45,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 /**
- * Manager App workspace — Services MVP: list + search. Additive-only, same
- * "MVP: list + search" scope as
- * [ai.rojan.designlab.manager.screens.customers.ManagerCustomersListScreen]
- * (create/edit/deactivate UI deliberately deferred, matching that screen's
- * own precedent — [ai.rojan.designlab.manager.domain.repository.ServiceRepository]
- * already supports them for whenever that's built).
+ * Manager App workspace — Services: list + search + create/edit/deactivate
+ * (Manager Operational Foundation, Phase 6 Step 3 — create/edit/deactivate
+ * complete the CRUD this screen's Step 1 MVP deliberately deferred, via
+ * [onAddClick]/[onServiceClick] routing to
+ * [ai.rojan.designlab.manager.screens.services.ManagerServiceEditScreen]).
  *
  * Reads [ManagerRepositories.services] directly, no re-[ManagerRepositories.initialize]
  * call — this screen is only reachable via the Dashboard's Quick Actions,
@@ -59,6 +60,8 @@ import androidx.compose.ui.unit.dp
 fun ManagerServicesScreen(
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
+    onAddClick: () -> Unit = {},
+    onServiceClick: (String) -> Unit = {},
 ) {
     var query by remember { mutableStateOf("") }
     val filteredServices = remember(query) {
@@ -84,6 +87,8 @@ fun ManagerServicesScreen(
                 )
             }
 
+            item { AddServiceRow(onClick = onAddClick) }
+
             item {
                 ServiceSearchField(
                     query = query,
@@ -95,9 +100,35 @@ fun ManagerServicesScreen(
                 item { EmptyServicesNotice() }
             } else {
                 items(filteredServices) { service ->
-                    ServiceCard(service = service)
+                    ServiceCard(service = service, onClick = { onServiceClick(service.id) })
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AddServiceRow(onClick: () -> Unit) {
+    ManagerGlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .rojanPressable(onClick = onClick),
+        shape = RojanShapes.Small,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+        ) {
+            RojanIconContainer(
+                imageVector = Icons.Filled.AddCircle,
+                contentDescription = "افزودن خدمت",
+                size = RojanIconSize.Medium,
+                tint = ManagerColors.Gold,
+            )
+            Text(text = "افزودن خدمت", style = RojanTypography.Body, color = ManagerColors.TextPrimary)
         }
     }
 }
@@ -145,9 +176,11 @@ private fun ServiceSearchField(query: String, onQueryChange: (String) -> Unit) {
 }
 
 @Composable
-private fun ServiceCard(service: Service) {
+private fun ServiceCard(service: Service, onClick: () -> Unit) {
     ManagerGlassSurface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .rojanPressable(onClick = onClick),
         shape = RojanShapes.Small,
     ) {
         Row(

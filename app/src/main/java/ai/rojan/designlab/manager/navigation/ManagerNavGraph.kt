@@ -17,6 +17,7 @@ import ai.rojan.designlab.manager.screens.auth.ManagerOtpAuthScreen
 import ai.rojan.designlab.manager.screens.auth.ManagerSalonSelectionScreen
 import ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen
 import ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen
+import ai.rojan.designlab.manager.screens.services.ManagerServiceEditScreen
 import ai.rojan.designlab.manager.screens.services.ManagerServicesScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerStaffEditScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerStaffScreen
@@ -36,9 +37,10 @@ import androidx.navigation.navArgument
  * Registers [ManagerDestinations.OTP_AUTH], [ManagerDestinations.SALON_SELECTION]
  * (Active Salon Context & Selection Flow), [ManagerDestinations.DASHBOARD],
  * [ManagerDestinations.CALENDAR], [ManagerDestinations.CUSTOMERS],
- * [ManagerDestinations.CUSTOMER_PROFILE], [ManagerDestinations.SERVICES]
- * (Manager Operational Foundation, Phase 6 Step 1), [ManagerDestinations.STAFF]/
- * [ManagerDestinations.STAFF_EDIT] (Phase 6 Step 2), [ManagerDestinations.PROFILE],
+ * [ManagerDestinations.CUSTOMER_PROFILE], [ManagerDestinations.SERVICES]/
+ * [ManagerDestinations.SERVICE_EDIT] (Manager Operational Foundation, Phase
+ * 6 Steps 1 and 3), [ManagerDestinations.STAFF]/[ManagerDestinations.STAFF_EDIT]
+ * (Phase 6 Step 2), [ManagerDestinations.PROFILE],
  * and the [ManagerDestinations.BOOKING_FLOW_GRAPH] nested graph
  * (settings is still a foundation folder only, no screen yet). This is
  * the real entry graph for the separately
@@ -94,6 +96,20 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
     composable(ManagerDestinations.SERVICES) {
         ManagerServicesScreen(
             onBackClick = { navController.popBackStack() },
+            onAddClick = { navController.navigate(ManagerDestinations.serviceEdit(ManagerDestinations.NEW_SERVICE_ID)) },
+            onServiceClick = { serviceId -> navController.navigate(ManagerDestinations.serviceEdit(serviceId)) },
+        )
+    }
+
+    composable(
+        route = ManagerDestinations.SERVICE_EDIT,
+        arguments = listOf(navArgument("serviceId") { type = NavType.StringType }),
+    ) { backStackEntry ->
+        val serviceId = backStackEntry.arguments?.getString("serviceId") ?: ManagerDestinations.NEW_SERVICE_ID
+        ManagerServiceEditScreen(
+            serviceId = serviceId,
+            onBackClick = { navController.popBackStack() },
+            onSaved = { navController.popBackStack() },
         )
     }
 
