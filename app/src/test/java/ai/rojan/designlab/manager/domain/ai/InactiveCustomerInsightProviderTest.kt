@@ -60,6 +60,7 @@ class InactiveCustomerInsightProviderTest {
 
         assertEquals(2, insights.size)
         assertEquals(setOf("c2", "c4"), insights.map { it.id.removePrefix("inactive-customer-") }.toSet())
+        assertTrue(insights.all { it.category == ManagerCrmInsightCategory.INACTIVE_CUSTOMER })
     }
 
     @Test

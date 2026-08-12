@@ -3,14 +3,30 @@ package ai.rojan.designlab.manager.domain.ai
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
 
 /**
+ * What kind of real, already-classified fact a [ManagerCrmInsight]
+ * restates (Phase 7 Step 5) — not a score or priority, just which rule
+ * produced it, so a consumer that only cares about one kind (e.g.
+ * [ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen]'s
+ * inactive-customer count) can filter correctly once more than one rule
+ * contributes to the same list (see [CompositeManagerCrmInsightProvider]).
+ */
+enum class ManagerCrmInsightCategory {
+    INACTIVE_CUSTOMER,
+    VIP_CUSTOMER,
+}
+
+/**
  * One CRM insight a provider surfaces for a salon (Manager CRM AI
  * Foundation, Phase 7 Step 1) — same minimal shape as
  * [ai.rojan.designlab.domain.ai.AiRecommendation] (the Customer-side
  * equivalent this mirrors), not expanded with score/confidence/priority
- * fields no real implementation exists to populate yet.
+ * fields no real implementation exists to populate yet. [category]
+ * (Phase 7 Step 5) is the one addition — a classification tag, not a
+ * score.
  */
 data class ManagerCrmInsight(
     val id: String,
+    val category: ManagerCrmInsightCategory,
     val title: String,
     val reason: String,
 )
@@ -47,7 +63,7 @@ interface ManagerCrmInsightProvider {
     fun insightsFor(context: ManagerCrmInsightContext): List<ManagerCrmInsight>
 }
 
-/** Returns nothing — this is the honest current state for a salon this provider has no real rule for, not a placeholder pretending to work. Superseded as the DI-registered default by [InactiveCustomerInsightProvider] (Phase 7 Step 3) - kept for tests/future rules that genuinely have nothing to say yet. */
+/** Returns nothing — this is the honest current state for a salon this provider has no real rule for, not a placeholder pretending to work. Superseded as the DI-registered default by [CompositeManagerCrmInsightProvider] (Phase 7 Step 5, wrapping [InactiveCustomerInsightProvider]/[VipCustomerInsightProvider]) - kept for tests/future rules that genuinely have nothing to say yet. */
 class NoOpManagerCrmInsightProvider : ManagerCrmInsightProvider {
     override fun insightsFor(context: ManagerCrmInsightContext): List<ManagerCrmInsight> = emptyList()
 }

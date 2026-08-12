@@ -10,6 +10,7 @@ import ai.rojan.designlab.manager.components.SalonIdentityCard
 import ai.rojan.designlab.manager.components.TodayOverviewSection
 import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.data.computeTodaysUpcomingSlots
+import ai.rojan.designlab.manager.domain.ai.ManagerCrmInsightCategory
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -67,6 +68,14 @@ import androidx.compose.ui.tooling.preview.Preview
  * untouched otherwise: section order/count and [AIInsightCard]'s existing
  * layout are unchanged - see that component's own doc comment for what
  * was added inside it.
+ *
+ * Phase 7 Step 5: [ManagerRepositories.crmInsights] can now hold more
+ * than one kind of insight ([ai.rojan.designlab.manager.domain.ai.VipCustomerInsightProvider]
+ * joined [ai.rojan.designlab.manager.domain.ai.InactiveCustomerInsightProvider]
+ * via [ai.rojan.designlab.manager.domain.ai.CompositeManagerCrmInsightProvider]),
+ * so the count passed here is filtered to
+ * [ManagerCrmInsightCategory.INACTIVE_CUSTOMER] - otherwise this label
+ * (fixed text "X مشتری غیرفعال") would start counting VIP insights too.
  */
 @Composable
 fun ManagerDashboardScreen(
@@ -126,7 +135,7 @@ fun ManagerDashboardScreen(
             item {
                 AIInsightCard(
                     message = ManagerRepositories.dashboardInsights?.topRecommendationMessage,
-                    inactiveCustomerCount = ManagerRepositories.crmInsights.size,
+                    inactiveCustomerCount = ManagerRepositories.crmInsights.count { it.category == ManagerCrmInsightCategory.INACTIVE_CUSTOMER },
                     onInactiveCustomersClick = onViewInactiveCustomersClick,
                 )
             }

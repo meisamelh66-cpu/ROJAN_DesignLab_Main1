@@ -56,8 +56,10 @@ import ai.rojan.designlab.domain.repository.SpecialistRepository
 import ai.rojan.designlab.domain.repository.TokenRepository
 import ai.rojan.designlab.domain.repository.WorkingHoursRepository
 import ai.rojan.designlab.manager.data.BackendSalonMembershipRepository
+import ai.rojan.designlab.manager.domain.ai.CompositeManagerCrmInsightProvider
 import ai.rojan.designlab.manager.domain.ai.InactiveCustomerInsightProvider
 import ai.rojan.designlab.manager.domain.ai.ManagerCrmInsightProvider
+import ai.rojan.designlab.manager.domain.ai.VipCustomerInsightProvider
 import ai.rojan.designlab.manager.domain.repository.SalonMembershipRepository
 import android.content.Context
 import kotlinx.serialization.json.Json
@@ -205,12 +207,14 @@ class BackendApiContainer(context: Context) {
     val salonMembershipRepository: SalonMembershipRepository =
         BackendSalonMembershipRepository(retrofit.create(SalonMembershipApi::class.java))
 
-    // Manager CRM AI Foundation, Phase 7 Step 3 - the first real,
-    // deterministic implementation (surfaces the already-real
-    // CustomerTag.INACTIVE classification, no invented logic - see that
-    // class's own doc comment). Pure/synchronous, no network client of
-    // its own, same as the NoOp it replaces.
-    val managerCrmInsightProvider: ManagerCrmInsightProvider = InactiveCustomerInsightProvider()
+    // Manager CRM AI Foundation, Phase 7 Steps 3 and 5 - each real rule
+    // (surfaces an already-real CustomerTag classification, no invented
+    // logic - see each class's own doc comment) stays its own small,
+    // independently-testable provider; CompositeManagerCrmInsightProvider
+    // just runs both and concatenates results. Pure/synchronous, no
+    // network client of its own, same as the NoOp this superseded.
+    val managerCrmInsightProvider: ManagerCrmInsightProvider =
+        CompositeManagerCrmInsightProvider(listOf(InactiveCustomerInsightProvider(), VipCustomerInsightProvider()))
 
     /** No AuthInterceptor/authenticator - a plain, no-token client, for endpoints that need none. */
     private fun buildPlainRetrofit(): Retrofit =

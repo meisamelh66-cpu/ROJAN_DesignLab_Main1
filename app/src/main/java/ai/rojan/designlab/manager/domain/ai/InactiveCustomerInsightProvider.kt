@@ -34,6 +34,7 @@ class InactiveCustomerInsightProvider : ManagerCrmInsightProvider {
             .map { customer ->
                 ManagerCrmInsight(
                     id = "inactive-customer-${customer.id}",
+                    category = ManagerCrmInsightCategory.INACTIVE_CUSTOMER,
                     title = customer.name,
                     reason = "این مشتری غیرفعال است.",
                 )
