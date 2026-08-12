@@ -6,6 +6,7 @@ import ai.rojan.designlab.data.remote.dto.CustomerResponseDto
 import ai.rojan.designlab.data.remote.dto.NetworkCustomerStatus
 import ai.rojan.designlab.data.remote.dto.UpdateCustomerRequestDto
 import ai.rojan.designlab.data.remote.safeApiCall
+import ai.rojan.designlab.manager.domain.customer.CustomerNote
 import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
 import ai.rojan.designlab.manager.domain.customer.CustomerTag
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
@@ -45,6 +46,13 @@ import java.time.LocalDateTime
  * codebase has no Jalali/Persian-calendar conversion utility (see
  * [ai.rojan.designlab.domain.booking.RollingBookingDates]'s own doc
  * comment for the same disclosed simplification on the Customer side).
+ *
+ * CRM Foundation, Phase 6 Step 5: [loadDetail] also now keeps every note
+ * `GET .../customers/{id}/notes` returns (not just the latest one used
+ * for [ManagerCustomer.notes]), exposed via [getNoteHistory] - no extra
+ * network call, the full list was already being fetched and discarded.
+ * Read-only, same as everything else this class exposes past `create`/
+ * `update` - the backend has no note-creation endpoint.
  */
 class BackendCustomerRepository(
     private val managerCustomerApi: ManagerCustomerApi,
@@ -55,6 +63,7 @@ class BackendCustomerRepository(
 
     private var cache: List<ManagerCustomer> = emptyList()
     private val historyCache = mutableMapOf<String, List<CustomerServiceHistoryEntry>>()
+    private val notesHistoryCache = mutableMapOf<String, List<CustomerNote>>()
 
     /** Fetches this salon's customers from the backend and repopulates the cache. Call before first read, and to refresh. */
     suspend fun sync(): Result<Unit> = safeApiCall {
@@ -107,6 +116,9 @@ class BackendCustomerRepository(
     override fun getServiceHistory(customerId: String): List<CustomerServiceHistoryEntry> =
         historyCache[customerId] ?: emptyList()
 
+    override fun getNoteHistory(customerId: String): List<CustomerNote> =
+        notesHistoryCache[customerId] ?: emptyList()
+
     override suspend fun loadDetail(customerId: String): Result<Unit> =
         safeApiCall {
             val bookings = managerCustomerApi.bookings(salonId, customerId, page = 0, size = 20, sortDirection = "DESC")
@@ -125,7 +137,12 @@ class BackendCustomerRepository(
             }
 
             val lastVisit = bookings.content.firstOrNull()?.startTime?.let(::formatVisitDate) ?: "—"
-            val latestNote = notes.maxByOrNull { it.createdAt }?.text
+            val sortedNotes = notes.sortedByDescending { it.createdAt }
+            val latestNote = sortedNotes.firstOrNull()?.text
+
+            notesHistoryCache[customerId] = sortedNotes.map { dto ->
+                CustomerNote(id = dto.id, text = dto.text, createdAt = formatVisitDate(dto.createdAt))
+            }
 
             cache = cache.map { existing ->
                 if (existing.id == customerId) {

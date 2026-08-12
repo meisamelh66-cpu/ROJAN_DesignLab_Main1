@@ -2,8 +2,10 @@ package ai.rojan.designlab.manager.screens.customers
 
 import ai.rojan.designlab.manager.components.ManagerColors
 import ai.rojan.designlab.manager.components.ManagerGlassSurface
+import ai.rojan.designlab.manager.components.ManagerGlassTheme
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.data.ManagerRepositories
+import ai.rojan.designlab.manager.domain.customer.CustomerTag
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
 import ai.rojan.designlab.manager.domain.customer.displayLabel
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
@@ -26,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
@@ -60,6 +63,10 @@ import androidx.compose.ui.unit.dp
  * [ai.rojan.designlab.manager.data.BackendCustomerRepository]'s own doc
  * comment); it's shown on the profile screen instead, where a single
  * extra call for one customer is the normal case.
+ *
+ * CRM Foundation, Phase 6 Step 5: [selectedTag] adds a [CustomerTag]
+ * filter on top of [query] — both local, over the same already-synced
+ * cache `search()` already reads, no extra network call.
  */
 @Composable
 fun ManagerCustomersListScreen(
@@ -68,8 +75,11 @@ fun ManagerCustomersListScreen(
     onCustomerClick: (String) -> Unit = {},
 ) {
     var query by remember { mutableStateOf("") }
-    val filteredCustomers = remember(query) {
-        ManagerRepositories.customers.search(query)
+    var selectedTag by remember { mutableStateOf<CustomerTag?>(null) }
+    val filteredCustomers = remember(query, selectedTag) {
+        ManagerRepositories.customers.search(query).filter { customer ->
+            selectedTag == null || customer.tag == selectedTag
+        }
     }
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
@@ -90,6 +100,13 @@ fun ManagerCustomersListScreen(
                 CustomerSearchField(
                     query = query,
                     onQueryChange = { query = it },
+                )
+            }
+
+            item {
+                CustomerTagFilterRow(
+                    selectedTag = selectedTag,
+                    onTagSelected = { selectedTag = it },
                 )
             }
 
@@ -146,6 +163,44 @@ private fun CustomerSearchField(query: String, onQueryChange: (String) -> Unit) 
                 )
             }
         }
+    }
+}
+
+/** CRM Foundation, Phase 6 Step 5 — same selectable-chip-row pattern as [ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen]'s specialist filter; "همه" (all) plus one chip per real [CustomerTag] value. */
+@Composable
+private fun CustomerTagFilterRow(selectedTag: CustomerTag?, onTagSelected: (CustomerTag?) -> Unit) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
+        item {
+            CustomerTagChip(
+                label = "همه",
+                selected = selectedTag == null,
+                onClick = { onTagSelected(null) },
+            )
+        }
+        items(CustomerTag.entries) { tag ->
+            CustomerTagChip(
+                label = tag.displayLabel,
+                selected = selectedTag == tag,
+                onClick = { onTagSelected(tag) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun CustomerTagChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    ManagerGlassSurface(
+        modifier = Modifier.rojanPressable(onClick = onClick),
+        shape = RojanShapes.Small,
+        fillAlpha = if (selected) ManagerGlassTheme.FillAlpha else ManagerGlassTheme.FillAlpha * 0.5f,
+        borderAlpha = if (selected) ManagerGlassTheme.BorderAlpha else ManagerGlassTheme.BorderAlpha * 0.4f,
+    ) {
+        Text(
+            text = label,
+            style = RojanTypography.Caption,
+            color = if (selected) ManagerColors.TextPrimary else ManagerColors.TextSecondary,
+            modifier = Modifier.padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
+        )
     }
 }
 

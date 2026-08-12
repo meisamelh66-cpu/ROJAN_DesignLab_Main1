@@ -5,12 +5,12 @@ import ai.rojan.designlab.manager.components.ManagerGlassSurface
 import ai.rojan.designlab.manager.components.ManagerIconContainer
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.data.ManagerRepositories
+import ai.rojan.designlab.manager.domain.customer.CustomerNote
 import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
 import ai.rojan.designlab.manager.domain.customer.displayLabel
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
-import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
@@ -58,15 +58,19 @@ import androidx.compose.ui.unit.dp
  * ROJAN AI Manager Visual Theme Implementation: re-themed for the dark
  * luxury background — content/data/navigation unchanged.
  *
- * [onEditNotesClick] is present but inert (`{}` default) — no
- * note-editing UI/persistence yet.
+ * CRM Foundation, Phase 6 Step 5: the notes section now shows the full,
+ * real note history via [ManagerRepositories.customers]'s
+ * `getNoteHistory` (previously a single "tap to edit" row backed by only
+ * the latest note — dropped along with the `onEditNotesClick` callback it
+ * existed for, since the backend has no note-creation endpoint to edit
+ * *into*; see that repository's own doc comment). Read-only, same as the
+ * service history section below it.
  */
 @Composable
 fun ManagerCustomerProfileScreen(
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
     customerId: String = "c1",
-    onEditNotesClick: () -> Unit = {},
 ) {
     var isLoadingDetail by remember(customerId) { mutableStateOf(true) }
 
@@ -85,6 +89,7 @@ fun ManagerCustomerProfileScreen(
         }
 
         val history = ManagerRepositories.customers.getServiceHistory(customerId)
+        val noteHistory = ManagerRepositories.customers.getNoteHistory(customerId)
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -93,7 +98,7 @@ fun ManagerCustomerProfileScreen(
             item { CustomerIdentityHeader(customer) }
             if (!isLoadingDetail) {
                 item { ServiceHistorySection(history) }
-                item { ManagerNotesSection(notes = customer.notes, onEditClick = onEditNotesClick) }
+                item { ManagerNotesSection(notes = noteHistory) }
             }
         }
     }
@@ -199,43 +204,76 @@ private fun ServiceHistorySection(history: List<CustomerServiceHistoryEntry>) {
     }
 }
 
+/** CRM Foundation, Phase 6 Step 5 — every real manager note on this customer, newest first (see [CustomerNote]'s own doc comment on why read-only). */
 @Composable
-private fun ManagerNotesSection(notes: String?, onEditClick: () -> Unit) {
+private fun ManagerNotesSection(notes: List<CustomerNote>) {
     Column(modifier = Modifier.fillMaxWidth()) {
         RtlSectionHeader(
-            text = "یادداشت مدیر",
+            text = "یادداشت‌های مدیر",
             style = RojanTypography.SectionTitle,
             color = ManagerColors.TextPrimary,
             horizontalPadding = 0.dp,
         )
 
-        ManagerGlassSurface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .rojanPressable(onClick = onEditClick)
-                .padding(top = RojanDimens.SpaceMD),
-            shape = RojanShapes.GlassCard,
-        ) {
-            Row(
+        if (notes.isEmpty()) {
+            ManagerGlassSurface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(RojanDimens.SpaceMD),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+                    .padding(top = RojanDimens.SpaceMD),
+                shape = RojanShapes.GlassCard,
             ) {
-                ManagerIconContainer(
-                    imageVector = Icons.Filled.EditNote,
-                    contentDescription = "ویرایش یادداشت",
-                    containerSize = 44.dp,
-                    accentColor = ManagerColors.Gold,
-                )
-                Text(
-                    text = notes ?: "هنوز یادداشتی برای این مشتری ثبت نشده است.",
-                    style = RojanTypography.Body,
-                    color = if (notes != null) ManagerColors.TextPrimary else ManagerColors.TextSecondary,
-                    modifier = Modifier.weight(1f),
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(RojanDimens.SpaceMD),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+                ) {
+                    ManagerIconContainer(
+                        imageVector = Icons.Filled.EditNote,
+                        contentDescription = null,
+                        containerSize = 44.dp,
+                        accentColor = ManagerColors.Gold,
+                    )
+                    Text(
+                        text = "هنوز یادداشتی برای این مشتری ثبت نشده است.",
+                        style = RojanTypography.Body,
+                        color = ManagerColors.TextSecondary,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = RojanDimens.SpaceMD),
+                verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+            ) {
+                notes.forEach { note -> ManagerNoteRow(note) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ManagerNoteRow(note: CustomerNote) {
+    ManagerGlassSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RojanShapes.GlassCard,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(RojanDimens.SpaceMD),
+        ) {
+            Text(text = note.text, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
+            Text(
+                text = note.createdAt,
+                style = RojanTypography.Caption,
+                color = ManagerColors.TextSecondary,
+                modifier = Modifier.padding(top = RojanDimens.SpaceXS),
+            )
         }
     }
 }

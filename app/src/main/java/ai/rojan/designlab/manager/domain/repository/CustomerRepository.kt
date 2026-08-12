@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.domain.repository
 
+import ai.rojan.designlab.manager.domain.customer.CustomerNote
 import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
 
@@ -10,6 +11,14 @@ interface CustomerRepository {
     suspend fun create(customer: ManagerCustomer): Result<ManagerCustomer>
     suspend fun update(customer: ManagerCustomer): Result<ManagerCustomer?>
     fun getServiceHistory(customerId: String): List<CustomerServiceHistoryEntry>
+
+    /**
+     * CRM Foundation, Phase 6 Step 5 — every manager note on this
+     * customer, newest first, populated by the same [loadDetail] call
+     * that already populates [getServiceHistory]. Read-only - the
+     * backend has no note-creation endpoint.
+     */
+    fun getNoteHistory(customerId: String): List<CustomerNote>
 
     /**
      * Loads the real per-customer detail (visit history, latest note) a

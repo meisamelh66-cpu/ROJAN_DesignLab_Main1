@@ -4,6 +4,7 @@ import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.domain.repository.AvailabilityRepository
 import ai.rojan.designlab.manager.domain.appointment.Appointment
 import ai.rojan.designlab.manager.domain.appointment.AppointmentStatus
+import ai.rojan.designlab.manager.domain.customer.CustomerNote
 import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
 import ai.rojan.designlab.manager.domain.dashboard.ManagerDashboardInsights
@@ -72,6 +73,7 @@ private object EmptyCustomerRepository : CustomerRepository {
     override suspend fun update(customer: ManagerCustomer): Result<ManagerCustomer?> =
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
     override fun getServiceHistory(customerId: String): List<CustomerServiceHistoryEntry> = emptyList()
+    override fun getNoteHistory(customerId: String): List<CustomerNote> = emptyList()
     override suspend fun loadDetail(customerId: String): Result<Unit> =
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
 }
