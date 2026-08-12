@@ -57,6 +57,8 @@ private object EmptySpecialistRepository : SpecialistRepository {
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
     override suspend fun update(specialist: Specialist): Result<Specialist?> =
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
+    override suspend fun delete(id: String): Result<Boolean> =
+        Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
 }
 
 /** Empty until [ManagerRepositories.initialize] resolves a real salon - honest "nothing loaded yet," not fake sample data. */

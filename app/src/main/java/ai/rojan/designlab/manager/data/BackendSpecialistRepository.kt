@@ -79,6 +79,14 @@ class BackendSpecialistRepository(
             }
         }
 
+    override suspend fun delete(id: String): Result<Boolean> =
+        safeApiCall {
+            managerSpecialistApi.deactivate(salonId, id)
+        }.map {
+            cache = cache.filterNot { it.id == id }
+            true
+        }
+
     private fun SpecialistResponseDto.toDomain() = Specialist(
         id = id,
         name = displayName,

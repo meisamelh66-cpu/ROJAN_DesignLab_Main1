@@ -42,13 +42,16 @@ import androidx.compose.ui.tooling.preview.Preview
  * — the only existing customers destination; there is no separate
  * customer-creation screen), [onViewServicesClick] (Quick Actions'
  * "خدمات", routes to [ai.rojan.designlab.manager.screens.services.ManagerServicesScreen] —
- * Manager Operational Foundation, Phase 6 Step 1), and [onProfileClick]
- * (header greeting, routes to [ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen]).
+ * Manager Operational Foundation, Phase 6 Step 1), [onViewStaffClick]
+ * (Quick Actions' "کارکنان", routes to
+ * [ai.rojan.designlab.manager.screens.staff.ManagerStaffScreen] — Phase 6
+ * Step 2), and [onProfileClick] (header greeting, routes to
+ * [ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen]).
  * All default to no-op so this screen stays navigation-agnostic
- * standalone/in `@Preview`. The remaining Quick Actions (کارکنان/تنظیمات)
- * have no implemented screen yet, so [QuickActionsSection] renders them
- * like every other chip with no handler wired for those two cases — not
- * disabled, not a placeholder (see that component's own doc comment).
+ * standalone/in `@Preview`. The remaining "تنظیمات" Quick Action has no
+ * implemented screen yet, so [QuickActionsSection] renders it like every
+ * other chip with no handler wired for that case — not disabled, not a
+ * placeholder (see that component's own doc comment).
  * Phase 2, M6: [SalonIdentityCard]/[AIInsightCard]/
  * [CalendarPreviewSection] are now wired to real backend data too
  * ([ManagerRepositories.salon]/[ManagerRepositories.dashboardInsights]/
@@ -63,6 +66,7 @@ fun ManagerDashboardScreen(
     onCreateAppointmentClick: () -> Unit = {},
     onViewCustomersClick: () -> Unit = {},
     onViewServicesClick: () -> Unit = {},
+    onViewStaffClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -102,6 +106,7 @@ fun ManagerDashboardScreen(
                             ManagerQuickAction.NEW_APPOINTMENT -> onCreateAppointmentClick()
                             ManagerQuickAction.NEW_CUSTOMER -> onViewCustomersClick()
                             ManagerQuickAction.SERVICES -> onViewServicesClick()
+                            ManagerQuickAction.STAFF -> onViewStaffClick()
                             else -> Unit
                         }
                     },

@@ -18,6 +18,8 @@ import ai.rojan.designlab.manager.screens.auth.ManagerSalonSelectionScreen
 import ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen
 import ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen
 import ai.rojan.designlab.manager.screens.services.ManagerServicesScreen
+import ai.rojan.designlab.manager.screens.staff.ManagerStaffEditScreen
+import ai.rojan.designlab.manager.screens.staff.ManagerStaffScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -35,10 +37,11 @@ import androidx.navigation.navArgument
  * (Active Salon Context & Selection Flow), [ManagerDestinations.DASHBOARD],
  * [ManagerDestinations.CALENDAR], [ManagerDestinations.CUSTOMERS],
  * [ManagerDestinations.CUSTOMER_PROFILE], [ManagerDestinations.SERVICES]
- * (Manager Operational Foundation, Phase 6 Step 1), [ManagerDestinations.PROFILE],
+ * (Manager Operational Foundation, Phase 6 Step 1), [ManagerDestinations.STAFF]/
+ * [ManagerDestinations.STAFF_EDIT] (Phase 6 Step 2), [ManagerDestinations.PROFILE],
  * and the [ManagerDestinations.BOOKING_FLOW_GRAPH] nested graph
- * (staff/settings are still foundation folders only, no screens yet).
- * This is the real entry graph for the separately
+ * (settings is still a foundation folder only, no screen yet). This is
+ * the real entry graph for the separately
  * installable ROJAN Manager app (`ManagerActivity`, `manager` product
  * flavor) — the shared `RojanNavGraph.kt`/Customer app are untouched
  * and unaffected.
@@ -83,6 +86,7 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
             onCreateAppointmentClick = { navController.navigate(ManagerDestinations.CREATE_APPOINTMENT) },
             onViewCustomersClick = { navController.navigate(ManagerDestinations.CUSTOMERS) },
             onViewServicesClick = { navController.navigate(ManagerDestinations.SERVICES) },
+            onViewStaffClick = { navController.navigate(ManagerDestinations.STAFF) },
             onProfileClick = { navController.navigate(ManagerDestinations.PROFILE) },
         )
     }
@@ -90,6 +94,26 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
     composable(ManagerDestinations.SERVICES) {
         ManagerServicesScreen(
             onBackClick = { navController.popBackStack() },
+        )
+    }
+
+    composable(ManagerDestinations.STAFF) {
+        ManagerStaffScreen(
+            onBackClick = { navController.popBackStack() },
+            onAddClick = { navController.navigate(ManagerDestinations.staffEdit(ManagerDestinations.NEW_SPECIALIST_ID)) },
+            onSpecialistClick = { specialistId -> navController.navigate(ManagerDestinations.staffEdit(specialistId)) },
+        )
+    }
+
+    composable(
+        route = ManagerDestinations.STAFF_EDIT,
+        arguments = listOf(navArgument("specialistId") { type = NavType.StringType }),
+    ) { backStackEntry ->
+        val specialistId = backStackEntry.arguments?.getString("specialistId") ?: ManagerDestinations.NEW_SPECIALIST_ID
+        ManagerStaffEditScreen(
+            specialistId = specialistId,
+            onBackClick = { navController.popBackStack() },
+            onSaved = { navController.popBackStack() },
         )
     }
 

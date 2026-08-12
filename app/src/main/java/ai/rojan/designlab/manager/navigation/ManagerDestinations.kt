@@ -25,6 +25,11 @@ object ManagerDestinations {
     fun customerProfile(customerId: String) = "manager_customer_profile/$customerId"
     const val SERVICES = "manager_services"
     const val STAFF = "manager_staff"
+
+    /** Manager Operational Foundation, Phase 6 Step 2 — one screen for both create and edit; [NEW_SPECIALIST_ID] as [specialistId] means create, same "route param doubles as a sentinel" shape as [staffEdit] callers below. */
+    const val STAFF_EDIT = "manager_staff_edit/{specialistId}"
+    fun staffEdit(specialistId: String) = "manager_staff_edit/$specialistId"
+    const val NEW_SPECIALIST_ID = "new"
     const val SETTINGS = "manager_settings"
     const val PROFILE = "manager_profile"
 
