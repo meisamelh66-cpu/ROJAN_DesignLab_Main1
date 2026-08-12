@@ -17,6 +17,7 @@ import ai.rojan.designlab.manager.screens.auth.ManagerOtpAuthScreen
 import ai.rojan.designlab.manager.screens.auth.ManagerSalonSelectionScreen
 import ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen
 import ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen
+import ai.rojan.designlab.manager.screens.services.ManagerServicesScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -33,10 +34,11 @@ import androidx.navigation.navArgument
  * Registers [ManagerDestinations.OTP_AUTH], [ManagerDestinations.SALON_SELECTION]
  * (Active Salon Context & Selection Flow), [ManagerDestinations.DASHBOARD],
  * [ManagerDestinations.CALENDAR], [ManagerDestinations.CUSTOMERS],
- * [ManagerDestinations.CUSTOMER_PROFILE], [ManagerDestinations.PROFILE],
+ * [ManagerDestinations.CUSTOMER_PROFILE], [ManagerDestinations.SERVICES]
+ * (Manager Operational Foundation, Phase 6 Step 1), [ManagerDestinations.PROFILE],
  * and the [ManagerDestinations.BOOKING_FLOW_GRAPH] nested graph
- * (services/staff/settings are still foundation folders only, no
- * screens yet). This is the real entry graph for the separately
+ * (staff/settings are still foundation folders only, no screens yet).
+ * This is the real entry graph for the separately
  * installable ROJAN Manager app (`ManagerActivity`, `manager` product
  * flavor) — the shared `RojanNavGraph.kt`/Customer app are untouched
  * and unaffected.
@@ -80,7 +82,14 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
             onViewCalendarClick = { navController.navigate(ManagerDestinations.CALENDAR) },
             onCreateAppointmentClick = { navController.navigate(ManagerDestinations.CREATE_APPOINTMENT) },
             onViewCustomersClick = { navController.navigate(ManagerDestinations.CUSTOMERS) },
+            onViewServicesClick = { navController.navigate(ManagerDestinations.SERVICES) },
             onProfileClick = { navController.navigate(ManagerDestinations.PROFILE) },
+        )
+    }
+
+    composable(ManagerDestinations.SERVICES) {
+        ManagerServicesScreen(
+            onBackClick = { navController.popBackStack() },
         )
     }
 
