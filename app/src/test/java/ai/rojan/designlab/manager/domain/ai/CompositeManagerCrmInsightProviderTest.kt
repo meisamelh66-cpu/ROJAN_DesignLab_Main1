@@ -1,5 +1,7 @@
 package ai.rojan.designlab.manager.domain.ai
 
+import ai.rojan.designlab.manager.domain.appointment.Appointment
+import ai.rojan.designlab.manager.domain.appointment.AppointmentStatus
 import ai.rojan.designlab.manager.domain.customer.CustomerTag
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
 import org.junit.Assert.assertEquals
@@ -11,7 +13,8 @@ import org.junit.Test
  * [CompositeManagerCrmInsightProvider] using small fake sub-providers, so
  * this test verifies only the combining behavior (order, concatenation),
  * never a real rule's own logic (already covered by
- * [InactiveCustomerInsightProviderTest]/[VipCustomerInsightProviderTest]).
+ * [InactiveCustomerInsightProviderTest]/[VipCustomerInsightProviderTest]/
+ * [VipWithoutAppointmentsInsightProviderTest]).
  */
 class CompositeManagerCrmInsightProviderTest {
 
@@ -76,5 +79,27 @@ class CompositeManagerCrmInsightProviderTest {
         assertEquals("c1", combined[0].customerId)
         assertEquals("vip-customer-c2", combined[1].id)
         assertEquals("c2", combined[1].customerId)
+    }
+
+    @Test
+    fun `Phase 8 Step 3 - all three real providers, including VipWithoutAppointments, combine correctly`() {
+        val customers = listOf(
+            ManagerCustomer(id = "c1", name = "A", phone = "1", tag = CustomerTag.INACTIVE, loyaltyScore = 0, notes = null, lastVisit = "—", totalVisits = 0),
+            ManagerCustomer(id = "c2", name = "B", phone = "2", tag = CustomerTag.VIP, loyaltyScore = 0, notes = null, lastVisit = "—", totalVisits = 0),
+            ManagerCustomer(id = "c3", name = "C", phone = "3", tag = CustomerTag.REGULAR, loyaltyScore = 0, notes = null, lastVisit = "—", totalVisits = 0),
+            ManagerCustomer(id = "c4", name = "D", phone = "4", tag = CustomerTag.VIP, loyaltyScore = 0, notes = null, lastVisit = "—", totalVisits = 0),
+        )
+        val appointments = listOf(
+            Appointment(id = "a1", customerId = "c2", serviceId = "svc", specialistId = "spec", date = "1404/01/01", time = "10:00", status = AppointmentStatus.CONFIRMED),
+        )
+        val composite = CompositeManagerCrmInsightProvider(
+            listOf(InactiveCustomerInsightProvider(), VipCustomerInsightProvider(), VipWithoutAppointmentsInsightProvider()),
+        )
+
+        val combined = composite.insightsFor(ManagerCrmInsightContext(salonId = "s1", customers = customers, appointments = appointments))
+
+        assertEquals(4, combined.size)
+        assertEquals(listOf("inactive-customer-c1", "vip-customer-c2", "vip-customer-c4", "vip-without-appointments-c4"), combined.map { it.id })
+        assertTrue(combined.any { it.category == ManagerCrmInsightCategory.VIP_WITHOUT_APPOINTMENTS && it.customerId == "c4" })
     }
 }

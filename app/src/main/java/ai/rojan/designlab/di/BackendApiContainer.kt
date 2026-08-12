@@ -60,6 +60,7 @@ import ai.rojan.designlab.manager.domain.ai.CompositeManagerCrmInsightProvider
 import ai.rojan.designlab.manager.domain.ai.InactiveCustomerInsightProvider
 import ai.rojan.designlab.manager.domain.ai.ManagerCrmInsightProvider
 import ai.rojan.designlab.manager.domain.ai.VipCustomerInsightProvider
+import ai.rojan.designlab.manager.domain.ai.VipWithoutAppointmentsInsightProvider
 import ai.rojan.designlab.manager.domain.repository.SalonMembershipRepository
 import android.content.Context
 import kotlinx.serialization.json.Json
@@ -207,14 +208,17 @@ class BackendApiContainer(context: Context) {
     val salonMembershipRepository: SalonMembershipRepository =
         BackendSalonMembershipRepository(retrofit.create(SalonMembershipApi::class.java))
 
-    // Manager CRM AI Foundation, Phase 7 Steps 3 and 5 - each real rule
-    // (surfaces an already-real CustomerTag classification, no invented
-    // logic - see each class's own doc comment) stays its own small,
-    // independently-testable provider; CompositeManagerCrmInsightProvider
-    // just runs both and concatenates results. Pure/synchronous, no
-    // network client of its own, same as the NoOp this superseded.
+    // Manager CRM AI Foundation, Phase 7 Steps 3 and 5, Phase 8 Step 3 -
+    // each real rule (surfaces an already-real classification or a real
+    // existence check over already-synced data, no invented logic - see
+    // each class's own doc comment) stays its own small, independently-
+    // testable provider; CompositeManagerCrmInsightProvider just runs all
+    // three and concatenates results. Pure/synchronous, no network client
+    // of its own, same as the NoOp this superseded.
     val managerCrmInsightProvider: ManagerCrmInsightProvider =
-        CompositeManagerCrmInsightProvider(listOf(InactiveCustomerInsightProvider(), VipCustomerInsightProvider()))
+        CompositeManagerCrmInsightProvider(
+            listOf(InactiveCustomerInsightProvider(), VipCustomerInsightProvider(), VipWithoutAppointmentsInsightProvider()),
+        )
 
     /** No AuthInterceptor/authenticator - a plain, no-token client, for endpoints that need none. */
     private fun buildPlainRetrofit(): Retrofit =
