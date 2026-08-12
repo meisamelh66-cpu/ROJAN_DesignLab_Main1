@@ -2,6 +2,8 @@ package ai.rojan.designlab.manager.data
 
 import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.domain.repository.AvailabilityRepository
+import ai.rojan.designlab.manager.domain.ai.ManagerCrmInsight
+import ai.rojan.designlab.manager.domain.ai.ManagerCrmInsightContext
 import ai.rojan.designlab.manager.domain.appointment.Appointment
 import ai.rojan.designlab.manager.domain.appointment.AppointmentStatus
 import ai.rojan.designlab.manager.domain.customer.CustomerNote
@@ -101,10 +103,13 @@ private object EmptyCustomerRepository : CustomerRepository {
  * stateless instance the Customer flavor already uses, reused rather than
  * duplicated (salon id is a per-call parameter, not baked into it).
  *
+ * [crmInsights] (Phase 7 Step 2) is populated the same way but is always
+ * empty today - see its own doc comment.
+ *
  * [initialize] must be called once - from
  * [ai.rojan.designlab.ManagerActivity], in a coroutine - before
  * [services]/[appointments]/[customers]/[specialists]/[salon]/
- * [dashboardInsights]/[salonId]/[availabilityRepository] have real data;
+ * [dashboardInsights]/[salonId]/[availabilityRepository]/[crmInsights] have real data;
  * until then they're the empty objects/null above. That is a genuine,
  * honest gap versus the old always-ready in-memory sample data: a real
  * network round-trip cannot be instant. Whichever screen first reads them
@@ -132,6 +137,19 @@ object ManagerRepositories {
     var salonId: String? = null
         private set
     var availabilityRepository: AvailabilityRepository? = null
+        private set
+
+    /**
+     * Manager CRM AI Consumption Layer, Phase 7 Step 2 — the registered
+     * [ai.rojan.designlab.di.BackendApiContainer.managerCrmInsightProvider]'s
+     * output for this salon, refreshed every [initialize]. Always
+     * `emptyList()` today: that provider is
+     * [ai.rojan.designlab.manager.domain.ai.NoOpManagerCrmInsightProvider]
+     * (see its own doc comment) - no rule/scoring logic exists yet. Not
+     * read by any screen this step; populated so the plumbing exists
+     * ahead of that decision.
+     */
+    var crmInsights: List<ManagerCrmInsight> = emptyList()
         private set
 
     /**
@@ -203,6 +221,7 @@ object ManagerRepositories {
         salon = ManagerSalonSummary(name = salonDto.name, description = salonDto.description, active = salonDto.active)
         salonId = salonDto.id
         availabilityRepository = container.availabilityRepository
+        crmInsights = container.managerCrmInsightProvider.insightsFor(ManagerCrmInsightContext(salonId = salonDto.id))
 
         return serviceSync
             .fold(onSuccess = { appointmentSync }, onFailure = { Result.failure(it) })
