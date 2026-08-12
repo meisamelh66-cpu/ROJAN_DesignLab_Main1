@@ -5,6 +5,7 @@ import ai.rojan.designlab.manager.components.ManagerGlassSurface
 import ai.rojan.designlab.manager.components.ManagerIconContainer
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.data.ManagerRepositories
+import ai.rojan.designlab.manager.domain.ai.ManagerCrmInsight
 import ai.rojan.designlab.manager.domain.customer.CustomerNote
 import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
@@ -30,6 +31,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.runtime.Composable
@@ -65,6 +67,17 @@ import androidx.compose.ui.unit.dp
  * existed for, since the backend has no note-creation endpoint to edit
  * *into*; see that repository's own doc comment). Read-only, same as the
  * service history section below it.
+ *
+ * Insight → Customer Profile Action, Phase 7 Step 7: also reads
+ * [ManagerRepositories.crmInsights] (already populated by the same
+ * [ManagerRepositories.initialize] that resolved [customer] itself - no
+ * new fetch), filtered to [ManagerCrmInsight.customerId] == [customerId],
+ * and renders an "پیشنهاد هوش مصنوعی" section only when at least one
+ * matches - nothing added, nothing changed, for a customer with none.
+ * Distinct from [CustomerIdentityHeader]'s existing [TagChip]: the chip
+ * states the customer's raw status; this section states which real CRM
+ * rule fired and why (see [AiInsightRow]) - reached only via the
+ * unchanged, already-existing navigation into this screen, no new route.
  */
 @Composable
 fun ManagerCustomerProfileScreen(
@@ -90,12 +103,16 @@ fun ManagerCustomerProfileScreen(
 
         val history = ManagerRepositories.customers.getServiceHistory(customerId)
         val noteHistory = ManagerRepositories.customers.getNoteHistory(customerId)
+        val customerInsights = ManagerRepositories.crmInsights.filter { it.customerId == customerId }
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceLG),
         ) {
             item { CustomerIdentityHeader(customer) }
+            if (customerInsights.isNotEmpty()) {
+                item { AiInsightSection(customerInsights) }
+            }
             if (!isLoadingDetail) {
                 item { ServiceHistorySection(history) }
                 item { ManagerNotesSection(notes = noteHistory) }
@@ -152,6 +169,61 @@ private fun CustomerIdentityHeader(customer: ManagerCustomer) {
                     modifier = Modifier.padding(top = RojanDimens.SpaceXS),
                 )
                 TagChip(text = customer.tag.displayLabel, modifier = Modifier.padding(top = RojanDimens.SpaceSM))
+            }
+        }
+    }
+}
+
+/** Insight → Customer Profile Action, Phase 7 Step 7 — one card per real, already-computed [ManagerCrmInsight] belonging to this customer; see [AiInsightRow]. */
+@Composable
+private fun AiInsightSection(insights: List<ManagerCrmInsight>) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        RtlSectionHeader(
+            text = "پیشنهاد هوش مصنوعی",
+            style = RojanTypography.SectionTitle,
+            color = ManagerColors.TextPrimary,
+            horizontalPadding = 0.dp,
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = RojanDimens.SpaceMD),
+            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+        ) {
+            insights.forEach { insight -> AiInsightRow(insight) }
+        }
+    }
+}
+
+/** Shows [ManagerCrmInsight.title]/[ManagerCrmInsight.reason] as-is — the real text a provider already computed, nothing derived or added here. Same icon/accent as [ai.rojan.designlab.manager.components.AIInsightCard] for visual consistency across the two surfaces. */
+@Composable
+private fun AiInsightRow(insight: ManagerCrmInsight) {
+    ManagerGlassSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RojanShapes.GlassCard,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(RojanDimens.SpaceMD),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+        ) {
+            ManagerIconContainer(
+                imageVector = Icons.Filled.AutoAwesome,
+                contentDescription = "پیشنهاد هوش مصنوعی",
+                containerSize = 44.dp,
+                accentColor = ManagerColors.Gold,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = insight.title, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
+                Text(
+                    text = insight.reason,
+                    style = RojanTypography.Caption,
+                    color = ManagerColors.TextSecondary,
+                    modifier = Modifier.padding(top = RojanDimens.SpaceXS),
+                )
             }
         }
     }
