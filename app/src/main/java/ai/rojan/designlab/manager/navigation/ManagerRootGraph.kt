@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.navigation
 
+import ai.rojan.designlab.manager.domain.auth.ActiveSalonUiState
 import ai.rojan.designlab.manager.domain.auth.ManagerAuthState
 import ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel
 import ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModelFactory
@@ -46,6 +47,7 @@ fun ManagerRootGraph() {
     )
 
     val authState by authViewModel.authState.collectAsStateWithLifecycle()
+    val activeSalonState by authViewModel.activeSalonState.collectAsStateWithLifecycle()
 
     // Cosmetic minimum splash duration, independent of how fast/slow the
     // real session-validation network call is - avoids an unpleasant
@@ -53,26 +55,33 @@ fun ManagerRootGraph() {
     // without ever letting it substitute for the real check below.
     var minDisplayElapsed by remember { mutableStateOf(false) }
 
-    if (!minDisplayElapsed || authState is ManagerAuthState.Checking) {
+    // Active Salon Context & Selection Flow: an authenticated session isn't
+    // enough to pick startDestination yet - which salon it applies to must
+    // also be resolved first, same "don't create the NavHost until the real
+    // result is known" reasoning as the authState check below.
+    val activeSalonPending = authState is ManagerAuthState.Authenticated && activeSalonState is ActiveSalonUiState.Loading
+
+    if (!minDisplayElapsed || authState is ManagerAuthState.Checking || activeSalonPending) {
         ManagerSplashScreen(onSplashFinished = { minDisplayElapsed = true })
         return
     }
 
     val navController = rememberNavController()
 
-    // Captured once: authState has already left Checking by this point
-    // (guaranteed by the guard above), so this is the real, validated
-    // result - not re-evaluated on a later authState change (e.g. a
-    // subsequent logout), exactly the same "capture once" reasoning
-    // RojanNavGraph.kt's own startDestination uses, for the same reason
-    // (a later change must navigate explicitly, e.g. via the OTP screen's
-    // onAuthenticated / Profile's logout callbacks in managerNavGraph, not
-    // by silently rebuilding this NavHost and resetting its back stack).
+    // Captured once: authState/activeSalonState have already left
+    // Checking/Loading by this point (guaranteed by the guard above), so
+    // this is the real, resolved result - not re-evaluated on a later
+    // change (e.g. a subsequent logout), exactly the same "capture once"
+    // reasoning RojanNavGraph.kt's own startDestination uses, for the same
+    // reason (a later change must navigate explicitly, e.g. via the OTP
+    // screen's onAuthenticated / the salon picker's onSalonSelected /
+    // Profile's logout callback in managerNavGraph, not by silently
+    // rebuilding this NavHost and resetting its back stack).
     val startDestination = remember {
-        if (authState is ManagerAuthState.Authenticated) {
-            ManagerDestinations.DASHBOARD
-        } else {
-            ManagerDestinations.OTP_AUTH
+        when {
+            authState !is ManagerAuthState.Authenticated -> ManagerDestinations.OTP_AUTH
+            activeSalonState is ActiveSalonUiState.SelectionRequired -> ManagerDestinations.SALON_SELECTION
+            else -> ManagerDestinations.DASHBOARD
         }
     }
 

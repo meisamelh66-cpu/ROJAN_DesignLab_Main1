@@ -1,5 +1,6 @@
 package ai.rojan.designlab.di
 
+import ai.rojan.designlab.data.local.activeSalonDataStore
 import ai.rojan.designlab.data.local.authSessionDataStore
 import ai.rojan.designlab.data.local.createTokenPreferences
 import ai.rojan.designlab.data.remote.AuthApi
@@ -22,6 +23,7 @@ import ai.rojan.designlab.data.remote.ServiceCategoryApi
 import ai.rojan.designlab.data.remote.SpecialistApi
 import ai.rojan.designlab.data.remote.TokenAuthenticator
 import ai.rojan.designlab.data.remote.WorkingHoursApi
+import ai.rojan.designlab.data.repository.ActiveSalonContextRepositoryImpl
 import ai.rojan.designlab.data.repository.AuthSessionRepositoryImpl
 import ai.rojan.designlab.data.repository.AvailabilityRepositoryImpl
 import ai.rojan.designlab.data.repository.BackendAuthRepositoryImpl
@@ -38,6 +40,7 @@ import ai.rojan.designlab.data.repository.TokenRepositoryImpl
 import ai.rojan.designlab.data.repository.WorkingHoursRepositoryImpl
 import ai.rojan.designlab.domain.beauty.BeautyProfileRepository
 import ai.rojan.designlab.domain.beauty.InMemoryBeautyProfileRepository
+import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.AvailabilityRepository
 import ai.rojan.designlab.domain.repository.BackendAuthRepository
@@ -93,6 +96,12 @@ class BackendApiContainer(context: Context) {
 
     val currentUserIdentityContextRepository: CurrentUserIdentityContextRepository =
         CurrentUserIdentityContextRepositoryImpl(authApi = authApi, backendAuthRepository = backendAuthRepository)
+
+    // Active Salon Context & Selection Flow: own DataStore file, separate
+    // from authSessionDataStore - same DataStore-per-Context singleton
+    // reasoning as authSessionRepository above.
+    val activeSalonContextRepository: ActiveSalonContextRepository =
+        ActiveSalonContextRepositoryImpl(context.activeSalonDataStore)
 
     val salonRepository: SalonRepository =
         SalonRepositoryImpl(

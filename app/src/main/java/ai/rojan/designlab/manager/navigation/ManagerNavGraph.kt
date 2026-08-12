@@ -14,6 +14,7 @@ import ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen
 import ai.rojan.designlab.manager.screens.customers.ManagerCustomerProfileScreen
 import ai.rojan.designlab.manager.screens.customers.ManagerCustomersListScreen
 import ai.rojan.designlab.manager.screens.auth.ManagerOtpAuthScreen
+import ai.rojan.designlab.manager.screens.auth.ManagerSalonSelectionScreen
 import ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen
 import ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen
 import androidx.compose.runtime.Composable
@@ -29,7 +30,8 @@ import androidx.navigation.navArgument
 
 /**
  * Self-contained nav graph for the isolated Manager App workspace.
- * Registers [ManagerDestinations.OTP_AUTH], [ManagerDestinations.DASHBOARD],
+ * Registers [ManagerDestinations.OTP_AUTH], [ManagerDestinations.SALON_SELECTION]
+ * (Active Salon Context & Selection Flow), [ManagerDestinations.DASHBOARD],
  * [ManagerDestinations.CALENDAR], [ManagerDestinations.CUSTOMERS],
  * [ManagerDestinations.CUSTOMER_PROFILE], [ManagerDestinations.PROFILE],
  * and the [ManagerDestinations.BOOKING_FLOW_GRAPH] nested graph
@@ -57,6 +59,17 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
             onAuthenticated = {
                 navController.navigate(ManagerDestinations.DASHBOARD) {
                     popUpTo(ManagerDestinations.OTP_AUTH) { inclusive = true }
+                }
+            },
+        )
+    }
+
+    composable(ManagerDestinations.SALON_SELECTION) {
+        ManagerSalonSelectionScreen(
+            viewModel = authViewModel,
+            onSalonSelected = {
+                navController.navigate(ManagerDestinations.DASHBOARD) {
+                    popUpTo(ManagerDestinations.SALON_SELECTION) { inclusive = true }
                 }
             },
         )

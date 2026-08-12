@@ -1,12 +1,16 @@
 package ai.rojan.designlab.manager.presentation.auth
 
+import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.AuthenticatedUser
 import ai.rojan.designlab.domain.repository.BackendAuthRepository
 import ai.rojan.designlab.domain.repository.CurrentUserIdentityContext
 import ai.rojan.designlab.domain.repository.CurrentUserIdentityContextRepository
 import ai.rojan.designlab.domain.repository.OtpIssued
+import ai.rojan.designlab.domain.repository.OwnedSalonAccess
+import ai.rojan.designlab.domain.repository.SalonMembershipAccess
 import ai.rojan.designlab.domain.repository.TokenRepository
+import ai.rojan.designlab.manager.domain.auth.ActiveSalonUiState
 import ai.rojan.designlab.manager.domain.auth.ManagerAuthState
 import ai.rojan.designlab.manager.domain.auth.ManagerOtpStep
 import ai.rojan.designlab.presentation.common.UiState
@@ -40,6 +44,11 @@ import org.junit.Test
  * successful OTP verification belonging to a non-MANAGER account), since
  * the OTP API itself has no way to assert role at signup (see
  * [ManagerAuthViewModel.onVerified]'s own doc comment).
+ *
+ * Also covers Active Salon Context & Selection Flow's resolution rules
+ * (auto-select on exactly one salon, required choice on more than one,
+ * persisted-selection-still-valid skips the prompt, zero-salon error,
+ * explicit [ManagerAuthViewModel.selectSalon], and logout clearing it).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ManagerAuthViewModelTest {
@@ -67,7 +76,7 @@ class ManagerAuthViewModelTest {
         val backendAuthRepository = FakeBackendAuthRepository()
         val tokenRepository = FakeTokenRepository()
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository())
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository(), FakeActiveSalonContextRepository())
 
         assertEquals(ManagerAuthState.Unauthenticated, viewModel.authState.value)
         assertEquals(ManagerOtpStep.EnteringPhone, viewModel.otpStep.value)
@@ -81,7 +90,7 @@ class ManagerAuthViewModelTest {
         val backendAuthRepository = FakeBackendAuthRepository(currentUserResult = Result.success(managerUser))
         val tokenRepository = FakeTokenRepository()
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository())
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository(), FakeActiveSalonContextRepository())
 
         val state = viewModel.authState.value
         assertTrue(state is ManagerAuthState.Authenticated)
@@ -94,7 +103,7 @@ class ManagerAuthViewModelTest {
         val backendAuthRepository = FakeBackendAuthRepository(currentUserResult = Result.success(customerUser))
         val tokenRepository = FakeTokenRepository()
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository())
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository(), FakeActiveSalonContextRepository())
 
         assertEquals(ManagerAuthState.Unauthenticated, viewModel.authState.value)
         assertEquals(1, authSessionRepository.clearPersonIdCallCount)
@@ -112,7 +121,7 @@ class ManagerAuthViewModelTest {
         val tokenRepository = FakeTokenRepository()
         tokenRepository.saveTokens("stale-access", "stale-refresh")
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository())
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository(), FakeActiveSalonContextRepository())
 
         assertEquals(ManagerAuthState.Unauthenticated, viewModel.authState.value)
         assertEquals(ManagerOtpStep.EnteringPhone, viewModel.otpStep.value)
@@ -132,7 +141,7 @@ class ManagerAuthViewModelTest {
         )
         val tokenRepository = FakeTokenRepository()
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository())
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository(), FakeActiveSalonContextRepository())
         assertEquals(ManagerAuthState.Unauthenticated, viewModel.authState.value)
 
         viewModel.requestOtp("+989123456789")
@@ -161,7 +170,7 @@ class ManagerAuthViewModelTest {
         )
         val tokenRepository = FakeTokenRepository()
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository())
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository(), FakeActiveSalonContextRepository())
         viewModel.requestOtp("+989123456789")
         viewModel.verifyOtp("482913")
 
@@ -179,7 +188,7 @@ class ManagerAuthViewModelTest {
         )
         val tokenRepository = FakeTokenRepository()
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository())
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository(), FakeActiveSalonContextRepository())
         viewModel.requestOtp("+989123456789")
         viewModel.verifyOtp("000000")
 
@@ -197,7 +206,7 @@ class ManagerAuthViewModelTest {
         val tokenRepository = FakeTokenRepository()
         tokenRepository.saveTokens("access", "refresh")
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository())
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository(), FakeActiveSalonContextRepository())
         assertTrue(viewModel.authState.value is ManagerAuthState.Authenticated)
 
         viewModel.logout()
@@ -232,7 +241,7 @@ class ManagerAuthViewModelTest {
         val tokenRepository = FakeTokenRepository()
         val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.success(emptyIdentityContext()))
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository)
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository, FakeActiveSalonContextRepository())
         viewModel.requestOtp("+989123456789")
         viewModel.verifyOtp("482913")
 
@@ -250,7 +259,7 @@ class ManagerAuthViewModelTest {
         val tokenRepository = FakeTokenRepository()
         val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.failure(IllegalStateException("network down")))
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository)
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository, FakeActiveSalonContextRepository())
         viewModel.requestOtp("+989123456789")
         viewModel.verifyOtp("482913")
 
@@ -265,7 +274,7 @@ class ManagerAuthViewModelTest {
         val tokenRepository = FakeTokenRepository()
         val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.success(emptyIdentityContext()))
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository)
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository, FakeActiveSalonContextRepository())
 
         assertEquals(1, identityContextRepository.callCount)
         assertTrue(viewModel.identityContext.value is UiState.Success<CurrentUserIdentityContext>)
@@ -277,12 +286,134 @@ class ManagerAuthViewModelTest {
         val backendAuthRepository = FakeBackendAuthRepository(currentUserResult = Result.success(managerUser))
         val tokenRepository = FakeTokenRepository()
         val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.success(emptyIdentityContext()))
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository)
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository, FakeActiveSalonContextRepository())
         assertTrue(viewModel.identityContext.value is UiState.Success<CurrentUserIdentityContext>)
 
         viewModel.logout()
 
         assertEquals(UiState.Loading, viewModel.identityContext.value)
+    }
+
+    // --- Active Salon Context & Selection Flow ---------------------------
+
+    @Test
+    fun `exactly one available salon is auto-selected and persisted`() = runTest {
+        val authSessionRepository = FakeAuthSessionRepository(initialPersonId = null)
+        val backendAuthRepository = FakeBackendAuthRepository(
+            requestOtpResult = Result.success(OtpIssued("+989123456789", expiresInSeconds = 120, canResendAfterSeconds = 60)),
+            verifyOtpResult = Result.success(managerUser),
+        )
+        val tokenRepository = FakeTokenRepository()
+        val owned = OwnedSalonAccess(salonId = "s1", salonName = "Salon One", active = true, permissions = setOf("MANAGE_SALON"))
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(
+            Result.success(emptyIdentityContext().copy(ownedSalons = listOf(owned))),
+        )
+        val activeSalonContextRepository = FakeActiveSalonContextRepository()
+
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository, activeSalonContextRepository)
+        viewModel.requestOtp("+989123456789")
+        viewModel.verifyOtp("482913")
+
+        val state = viewModel.activeSalonState.value
+        assertTrue(state is ActiveSalonUiState.Active)
+        assertEquals("s1", (state as ActiveSalonUiState.Active).context.salonId)
+        assertEquals(1, activeSalonContextRepository.saveCallCount)
+    }
+
+    @Test
+    fun `more than one available salon with no valid persisted selection requires a choice`() = runTest {
+        val authSessionRepository = FakeAuthSessionRepository(initialPersonId = managerUser.id)
+        val backendAuthRepository = FakeBackendAuthRepository(currentUserResult = Result.success(managerUser))
+        val tokenRepository = FakeTokenRepository()
+        val owned = OwnedSalonAccess(salonId = "s1", salonName = "Salon One", active = true, permissions = emptySet())
+        val membership = SalonMembershipAccess(membershipId = "m1", salonId = "s2", salonName = "Salon Two", active = true, role = "STAFF", permissions = emptySet())
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(
+            Result.success(emptyIdentityContext().copy(ownedSalons = listOf(owned), memberships = listOf(membership))),
+        )
+        val activeSalonContextRepository = FakeActiveSalonContextRepository()
+
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository, activeSalonContextRepository)
+
+        val state = viewModel.activeSalonState.value
+        assertTrue(state is ActiveSalonUiState.SelectionRequired)
+        assertEquals(2, (state as ActiveSalonUiState.SelectionRequired).options.size)
+        assertEquals(0, activeSalonContextRepository.saveCallCount)
+    }
+
+    @Test
+    fun `a previously persisted salon id still among the available options resolves directly without prompting`() = runTest {
+        val authSessionRepository = FakeAuthSessionRepository(initialPersonId = managerUser.id)
+        val backendAuthRepository = FakeBackendAuthRepository(currentUserResult = Result.success(managerUser))
+        val tokenRepository = FakeTokenRepository()
+        val owned = OwnedSalonAccess(salonId = "s1", salonName = "Salon One", active = true, permissions = emptySet())
+        val membership = SalonMembershipAccess(membershipId = "m1", salonId = "s2", salonName = "Salon Two", active = true, role = "STAFF", permissions = emptySet())
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(
+            Result.success(emptyIdentityContext().copy(ownedSalons = listOf(owned), memberships = listOf(membership))),
+        )
+        val activeSalonContextRepository = FakeActiveSalonContextRepository(initialSalonId = "s2")
+
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository, activeSalonContextRepository)
+
+        val state = viewModel.activeSalonState.value
+        assertTrue(state is ActiveSalonUiState.Active)
+        assertEquals("s2", (state as ActiveSalonUiState.Active).context.salonId)
+        assertEquals(0, activeSalonContextRepository.saveCallCount)
+    }
+
+    @Test
+    fun `zero available salons resolves to an error state, never a crash`() = runTest {
+        val authSessionRepository = FakeAuthSessionRepository(initialPersonId = managerUser.id)
+        val backendAuthRepository = FakeBackendAuthRepository(currentUserResult = Result.success(managerUser))
+        val tokenRepository = FakeTokenRepository()
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.success(emptyIdentityContext()))
+        val activeSalonContextRepository = FakeActiveSalonContextRepository()
+
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository, activeSalonContextRepository)
+
+        assertTrue(viewModel.activeSalonState.value is ActiveSalonUiState.Error)
+    }
+
+    @Test
+    fun `selecting a salon from a required choice persists it and resolves to Active`() = runTest {
+        val authSessionRepository = FakeAuthSessionRepository(initialPersonId = managerUser.id)
+        val backendAuthRepository = FakeBackendAuthRepository(currentUserResult = Result.success(managerUser))
+        val tokenRepository = FakeTokenRepository()
+        val owned = OwnedSalonAccess(salonId = "s1", salonName = "Salon One", active = true, permissions = emptySet())
+        val membership = SalonMembershipAccess(membershipId = "m1", salonId = "s2", salonName = "Salon Two", active = true, role = "STAFF", permissions = emptySet())
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(
+            Result.success(emptyIdentityContext().copy(ownedSalons = listOf(owned), memberships = listOf(membership))),
+        )
+        val activeSalonContextRepository = FakeActiveSalonContextRepository()
+
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository, activeSalonContextRepository)
+        val required = viewModel.activeSalonState.value as ActiveSalonUiState.SelectionRequired
+        val chosen = required.options.first { it.salonId == "s2" }
+
+        viewModel.selectSalon(chosen)
+
+        val state = viewModel.activeSalonState.value
+        assertTrue(state is ActiveSalonUiState.Active)
+        assertEquals("s2", (state as ActiveSalonUiState.Active).context.salonId)
+        assertEquals(1, activeSalonContextRepository.saveCallCount)
+    }
+
+    @Test
+    fun `logout clears the persisted active salon and resets its state to loading`() = runTest {
+        val authSessionRepository = FakeAuthSessionRepository(initialPersonId = managerUser.id)
+        val backendAuthRepository = FakeBackendAuthRepository(currentUserResult = Result.success(managerUser))
+        val tokenRepository = FakeTokenRepository()
+        val owned = OwnedSalonAccess(salonId = "s1", salonName = "Salon One", active = true, permissions = emptySet())
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(
+            Result.success(emptyIdentityContext().copy(ownedSalons = listOf(owned))),
+        )
+        val activeSalonContextRepository = FakeActiveSalonContextRepository()
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository, activeSalonContextRepository)
+        assertTrue(viewModel.activeSalonState.value is ActiveSalonUiState.Active)
+
+        viewModel.logout()
+
+        assertEquals(ActiveSalonUiState.Loading, viewModel.activeSalonState.value)
+        assertEquals(1, activeSalonContextRepository.clearCallCount)
     }
 
     // --- Fakes -----------------------------------------------------------
@@ -297,6 +428,27 @@ class ManagerAuthViewModelTest {
             callCount++
             return result
         }
+    }
+
+    private class FakeActiveSalonContextRepository(initialSalonId: String? = null) : ActiveSalonContextRepository {
+        private val salonId = MutableStateFlow(initialSalonId)
+
+        var saveCallCount = 0
+            private set
+        var clearCallCount = 0
+            private set
+
+        override suspend fun saveActiveSalonId(salonId: String) {
+            this.salonId.value = salonId
+            saveCallCount++
+        }
+
+        override suspend fun clearActiveSalonId() {
+            salonId.value = null
+            clearCallCount++
+        }
+
+        override fun observeActiveSalonId(): Flow<String?> = salonId
     }
 
     private class FakeAuthSessionRepository(initialPersonId: String?) : AuthSessionRepository {

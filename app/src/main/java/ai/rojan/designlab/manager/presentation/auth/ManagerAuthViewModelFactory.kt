@@ -35,6 +35,7 @@ class ManagerAuthViewModelFactory(
             backendAuthRepository = backendApiContainer.backendAuthRepository,
             tokenRepository = backendApiContainer.tokenRepository,
             currentUserIdentityContextRepository = backendApiContainer.currentUserIdentityContextRepository,
+            activeSalonContextRepository = backendApiContainer.activeSalonContextRepository,
         ) as T
     }
 }

@@ -1,11 +1,16 @@
 package ai.rojan.designlab.manager.presentation.auth
 
+import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.AuthenticatedUser
+import ai.rojan.designlab.domain.repository.AvailableSalon
 import ai.rojan.designlab.domain.repository.BackendAuthRepository
 import ai.rojan.designlab.domain.repository.CurrentUserIdentityContext
 import ai.rojan.designlab.domain.repository.CurrentUserIdentityContextRepository
 import ai.rojan.designlab.domain.repository.TokenRepository
+import ai.rojan.designlab.domain.repository.availableSalons
+import ai.rojan.designlab.domain.repository.toActiveSalonContext
+import ai.rojan.designlab.manager.domain.auth.ActiveSalonUiState
 import ai.rojan.designlab.manager.domain.auth.ManagerAuthState
 import ai.rojan.designlab.manager.domain.auth.ManagerOtpStep
 import ai.rojan.designlab.presentation.common.UiState
@@ -48,6 +53,7 @@ class ManagerAuthViewModel(
     private val backendAuthRepository: BackendAuthRepository,
     private val tokenRepository: TokenRepository,
     private val currentUserIdentityContextRepository: CurrentUserIdentityContextRepository,
+    private val activeSalonContextRepository: ActiveSalonContextRepository,
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<ManagerAuthState>(ManagerAuthState.Checking)
@@ -77,6 +83,16 @@ class ManagerAuthViewModel(
 
     val identityContext: StateFlow<UiState<CurrentUserIdentityContext>> =
         _identityContext.asStateFlow()
+
+    /**
+     * Active Salon Context & Selection Flow - which salon this session
+     * operates on, resolved from [identityContext] every time it refreshes
+     * (see [resolveActiveSalon]). Reset to [ActiveSalonUiState.Loading] on
+     * [logout]/[clearSession], same lifecycle as [identityContext].
+     */
+    private val _activeSalonState = MutableStateFlow<ActiveSalonUiState>(ActiveSalonUiState.Loading)
+
+    val activeSalonState: StateFlow<ActiveSalonUiState> = _activeSalonState.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -121,9 +137,57 @@ class ManagerAuthViewModel(
     /** `GET /users/me/salon-access` - see [ai.rojan.designlab.presentation.auth.AuthViewModel.refreshIdentityContext] for the identical Customer-side reasoning. A failure here never touches [authState] - the MANAGER-role check above already passed by the time this runs. */
     private suspend fun refreshIdentityContext() {
         _identityContext.value = UiState.Loading
+        _activeSalonState.value = ActiveSalonUiState.Loading
         currentUserIdentityContextRepository.getCurrentUserIdentityContext()
-            .onSuccess { context -> _identityContext.value = UiState.Success(context) }
+            .onSuccess { context ->
+                _identityContext.value = UiState.Success(context)
+                resolveActiveSalon(context)
+            }
             .onFailure { error -> _identityContext.value = UiState.Error(userMessageFor(error)) }
+    }
+
+    /**
+     * Active Salon Context & Selection Flow: runs after every real identity
+     * fetch (fresh login and cold-start restore both funnel through
+     * [refreshIdentityContext]) - the one place this decision is made, per
+     * the integration's own rule against inventing selection elsewhere.
+     *
+     * A previously-persisted salon id that's still among the available
+     * options resolves straight to [ActiveSalonUiState.Active] without
+     * prompting again - this is what "the selection may persist locally"
+     * buys: the picker only appears when there's a real, unresolved choice
+     * to make, not on every cold start. Exactly one available salon is
+     * auto-selected and persisted the same way. More than one with no
+     * valid persisted match requires [selectSalon].
+     */
+    private suspend fun resolveActiveSalon(context: CurrentUserIdentityContext) {
+        val available = context.availableSalons()
+        if (available.isEmpty()) {
+            _activeSalonState.value = ActiveSalonUiState.Error("سالنی برای این حساب یافت نشد")
+            return
+        }
+
+        val persistedSalonId = activeSalonContextRepository.observeActiveSalonId().first()
+        val resolved = available.firstOrNull { it.salonId == persistedSalonId }
+            ?: available.singleOrNull()
+
+        if (resolved == null) {
+            _activeSalonState.value = ActiveSalonUiState.SelectionRequired(available)
+            return
+        }
+
+        if (resolved.salonId != persistedSalonId) {
+            activeSalonContextRepository.saveActiveSalonId(resolved.salonId)
+        }
+        _activeSalonState.value = ActiveSalonUiState.Active(resolved.toActiveSalonContext())
+    }
+
+    /** Explicit user selection from the salon picker screen - only reachable while [activeSalonState] is [ActiveSalonUiState.SelectionRequired]. */
+    fun selectSalon(salon: AvailableSalon) {
+        viewModelScope.launch {
+            activeSalonContextRepository.saveActiveSalonId(salon.salonId)
+            _activeSalonState.value = ActiveSalonUiState.Active(salon.toActiveSalonContext())
+        }
     }
 
     /** `POST /api/v1/auth/otp/request` — issues (or, called again, re-issues) a code for [phoneNumber]. No session exists yet; nothing is persisted here. */
@@ -209,8 +273,10 @@ class ManagerAuthViewModel(
     private suspend fun clearSession() {
         tokenRepository.clearTokens()
         authSessionRepository.clearPersonId()
+        activeSalonContextRepository.clearActiveSalonId()
         _otpStep.value = ManagerOtpStep.EnteringPhone
         _identityContext.value = UiState.Loading
+        _activeSalonState.value = ActiveSalonUiState.Loading
         _authState.value = ManagerAuthState.Unauthenticated
     }
 }

@@ -15,6 +15,9 @@ package ai.rojan.designlab.manager.navigation
 object ManagerDestinations {
     /** OTP Authentication Entry Flow Integration — the gate's "not authenticated" destination. Splash is no longer a NavHost route (see `ManagerRootGraph.kt`): it's shown by the gate itself, before this NavHost is even created, so its startDestination can be chosen correctly (Dashboard vs. this) instead of always starting at a splash route. */
     const val OTP_AUTH = "manager_otp_auth"
+
+    /** Active Salon Context & Selection Flow — reached only from [ai.rojan.designlab.manager.navigation.ManagerRootGraph]'s gate when more than one salon is available and none was already validly selected, same "gate destination, not navigated to from within the authenticated app" treatment as [OTP_AUTH]. */
+    const val SALON_SELECTION = "manager_salon_selection"
     const val DASHBOARD = "manager_dashboard_root"
     const val CALENDAR = "manager_calendar"
     const val CUSTOMERS = "manager_customers"

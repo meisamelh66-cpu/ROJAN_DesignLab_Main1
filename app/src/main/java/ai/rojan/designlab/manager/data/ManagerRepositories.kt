@@ -15,6 +15,7 @@ import ai.rojan.designlab.manager.domain.repository.SpecialistRepository
 import ai.rojan.designlab.manager.domain.service.Service
 import ai.rojan.designlab.manager.domain.specialist.Specialist
 import android.content.Context
+import kotlinx.coroutines.flow.first
 
 /** Empty until [ManagerRepositories.initialize] resolves a real salon - honest "nothing loaded yet," not fake sample data. */
 private object EmptyServiceRepository : ServiceRepository {
@@ -129,12 +130,19 @@ object ManagerRepositories {
         private set
 
     /**
-     * Resolves the authenticated owner's salon (`GET /api/v1/salons/mine`,
-     * first result - multi-branch selection is out of scope) and syncs
-     * real Service/Appointment/Specialist/Customer data (in that order -
-     * [customerRepo] resolves service/specialist names for its per-
-     * customer visit history, so both must exist first), plus Dashboard
-     * Insights. Safe to call again to re-sync.
+     * Resolves the caller's *active* salon (Active Salon Context &
+     * Selection Flow -
+     * [ai.rojan.designlab.domain.repository.ActiveSalonContextRepository],
+     * already decided by
+     * [ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel]
+     * before any Manager screen is reachable) against `GET
+     * /api/v1/salons/mine`, and syncs real Service/Appointment/Specialist/
+     * Customer data (in that order - [customerRepo] resolves service/
+     * specialist names for its per-customer visit history, so both must
+     * exist first), plus Dashboard Insights. Safe to call again to
+     * re-sync. Deliberately does *not* fall back to `.firstOrNull()` - a
+     * resolved active salon that `salons/mine` doesn't contain is a real,
+     * honest failure, not something to guess past.
      *
      * Insights failing does not fail the whole call: it's fetched
      * independently of salon/service/appointment/customer/specialist
@@ -144,10 +152,12 @@ object ManagerRepositories {
      */
     suspend fun initialize(context: Context): Result<Unit> {
         val container = BackendApiContainerHolder.get(context)
+        val activeSalonId = container.activeSalonContextRepository.observeActiveSalonId().first()
+            ?: return Result.failure(IllegalStateException("No active salon selected yet"))
         val salonDto = runCatching { container.managerSalonApi.mine() }
             .getOrElse { return Result.failure(it) }
-            .firstOrNull()
-            ?: return Result.failure(IllegalStateException("No salon found for this account (GET /salons/mine returned none)"))
+            .firstOrNull { it.id == activeSalonId }
+            ?: return Result.failure(IllegalStateException("Active salon (id=$activeSalonId) not found in this account's salons"))
 
         val serviceRepo = BackendServiceRepository(
             serviceApi = container.serviceApi,
