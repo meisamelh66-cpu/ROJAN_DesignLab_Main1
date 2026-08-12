@@ -16,7 +16,7 @@ import org.junit.Test
 class CompositeManagerCrmInsightProviderTest {
 
     private fun insight(id: String, category: ManagerCrmInsightCategory) =
-        ManagerCrmInsight(id = id, category = category, title = "t-$id", reason = "r-$id")
+        ManagerCrmInsight(id = id, category = category, customerId = "customer-$id", title = "t-$id", reason = "r-$id")
 
     private class FakeProvider(private val result: List<ManagerCrmInsight>) : ManagerCrmInsightProvider {
         override fun insightsFor(context: ManagerCrmInsightContext): List<ManagerCrmInsight> = result
@@ -73,6 +73,8 @@ class CompositeManagerCrmInsightProviderTest {
 
         assertEquals(2, combined.size)
         assertEquals("inactive-customer-c1", combined[0].id)
+        assertEquals("c1", combined[0].customerId)
         assertEquals("vip-customer-c2", combined[1].id)
+        assertEquals("c2", combined[1].customerId)
     }
 }

@@ -47,6 +47,7 @@ class VipCustomerInsightProviderTest {
 
         assertEquals(2, insights.size)
         assertEquals(setOf("c1", "c4"), insights.map { it.id.removePrefix("vip-customer-") }.toSet())
+        assertEquals(setOf("c1", "c4"), insights.map { it.customerId }.toSet())
         assertTrue(insights.all { it.category == ManagerCrmInsightCategory.VIP_CUSTOMER })
     }
 
@@ -59,6 +60,8 @@ class VipCustomerInsightProviderTest {
 
         assertEquals("vip-customer-c-7", first.single().id)
         assertEquals(first.single().id, second.single().id)
+        assertEquals("c-7", first.single().customerId)
+        assertEquals(first.single().customerId, second.single().customerId)
         assertEquals("Reza", first.single().title)
     }
 

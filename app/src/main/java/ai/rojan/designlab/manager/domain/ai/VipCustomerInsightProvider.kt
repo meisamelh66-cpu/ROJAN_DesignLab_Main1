@@ -36,6 +36,7 @@ class VipCustomerInsightProvider : ManagerCrmInsightProvider {
                 ManagerCrmInsight(
                     id = "vip-customer-${customer.id}",
                     category = ManagerCrmInsightCategory.VIP_CUSTOMER,
+                    customerId = customer.id,
                     title = customer.name,
                     reason = "این مشتری VIP است.",
                 )

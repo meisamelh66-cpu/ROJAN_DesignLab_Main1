@@ -21,12 +21,20 @@ enum class ManagerCrmInsightCategory {
  * [ai.rojan.designlab.domain.ai.AiRecommendation] (the Customer-side
  * equivalent this mirrors), not expanded with score/confidence/priority
  * fields no real implementation exists to populate yet. [category]
- * (Phase 7 Step 5) is the one addition — a classification tag, not a
- * score.
+ * (Phase 7 Step 5) is a classification tag, not a score.
+ *
+ * [customerId] (Phase 7 Step 6, Insight Customer Reference Foundation) is
+ * the structured source-customer reference every current rule already
+ * has in scope when building [id] - previously only reachable by parsing
+ * [id]'s string convention (`"inactive-customer-{customerId}"`/
+ * `"vip-customer-{customerId}"`), a fragile, implicit coupling this field
+ * replaces with an explicit one. Model-only this step: nothing reads
+ * [customerId] yet - no navigation, no UI decision made or assumed here.
  */
 data class ManagerCrmInsight(
     val id: String,
     val category: ManagerCrmInsightCategory,
+    val customerId: String,
     val title: String,
     val reason: String,
 )

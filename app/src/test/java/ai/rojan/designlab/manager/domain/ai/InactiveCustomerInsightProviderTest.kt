@@ -60,6 +60,7 @@ class InactiveCustomerInsightProviderTest {
 
         assertEquals(2, insights.size)
         assertEquals(setOf("c2", "c4"), insights.map { it.id.removePrefix("inactive-customer-") }.toSet())
+        assertEquals(setOf("c2", "c4"), insights.map { it.customerId }.toSet())
         assertTrue(insights.all { it.category == ManagerCrmInsightCategory.INACTIVE_CUSTOMER })
     }
 
@@ -85,6 +86,8 @@ class InactiveCustomerInsightProviderTest {
 
         assertEquals("inactive-customer-c-42", first.single().id)
         assertEquals(first.single().id, second.single().id)
+        assertEquals("c-42", first.single().customerId)
+        assertEquals(first.single().customerId, second.single().customerId)
         assertEquals("Sara", first.single().title)
     }
 

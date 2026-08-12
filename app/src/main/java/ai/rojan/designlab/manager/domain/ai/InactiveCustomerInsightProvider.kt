@@ -35,6 +35,7 @@ class InactiveCustomerInsightProvider : ManagerCrmInsightProvider {
                 ManagerCrmInsight(
                     id = "inactive-customer-${customer.id}",
                     category = ManagerCrmInsightCategory.INACTIVE_CUSTOMER,
+                    customerId = customer.id,
                     title = customer.name,
                     reason = "این مشتری غیرفعال است.",
                 )
