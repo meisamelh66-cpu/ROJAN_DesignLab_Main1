@@ -1,7 +1,26 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+}
+
+// Release signing: credentials + keystore path live in `keystore.properties`
+// (repo root, gitignored — never commit) rather than here, so this file
+// stays safe to commit with no secrets in it. The keystore itself
+// (keystore/rojan-manager-release.jks) is also gitignored (*.jks, see
+// .gitignore). Both are absent on a fresh checkout that hasn't been given
+// the real signing material, which is why every read below is guarded by
+// `keystorePropertiesFile.exists()` — a release build still succeeds
+// (unsigned, same as before this setup existed) rather than hard-failing
+// for anyone who doesn't have the production keystore.
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        FileInputStream(keystorePropertiesFile).use { load(it) }
+    }
 }
 
 android {
@@ -18,7 +37,7 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -81,10 +100,24 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            if (keystorePropertiesFile.exists()) {
+                storeFile = rootProject.file(keystoreProperties.getProperty("RELEASE_STORE_FILE"))
+                storePassword = keystoreProperties.getProperty("RELEASE_STORE_PASSWORD")
+                keyAlias = keystoreProperties.getProperty("RELEASE_KEY_ALIAS")
+                keyPassword = keystoreProperties.getProperty("RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             optimization {
                 enable = false
+            }
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
             }
         }
     }
@@ -133,6 +166,16 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging.interceptor)
     implementation(libs.kotlinx.serialization.json)
+
+    // Salon Discovery: first real remote-image rendering in this app
+    // (salon logos, specialist photos) - every other avatar/logo slot
+    // deliberately stayed a color-tinted icon placeholder specifically
+    // because no image-loading library existed yet (see RojanRemoteImage.kt's
+    // own doc comment). Coil chosen as the standard, lightweight,
+    // Compose-native option - approved explicitly before adding, since
+    // this app's design system treats "add a new rendering mechanic" as
+    // a frozen-baseline-level decision, not a routine dependency bump.
+    implementation(libs.coil.compose)
 
 
     // Tests

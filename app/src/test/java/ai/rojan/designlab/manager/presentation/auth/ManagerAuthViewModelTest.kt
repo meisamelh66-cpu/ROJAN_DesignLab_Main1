@@ -3,10 +3,13 @@ package ai.rojan.designlab.manager.presentation.auth
 import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.AuthenticatedUser
 import ai.rojan.designlab.domain.repository.BackendAuthRepository
+import ai.rojan.designlab.domain.repository.CurrentUserIdentityContext
+import ai.rojan.designlab.domain.repository.CurrentUserIdentityContextRepository
 import ai.rojan.designlab.domain.repository.OtpIssued
 import ai.rojan.designlab.domain.repository.TokenRepository
 import ai.rojan.designlab.manager.domain.auth.ManagerAuthState
 import ai.rojan.designlab.manager.domain.auth.ManagerOtpStep
+import ai.rojan.designlab.presentation.common.UiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -64,7 +67,7 @@ class ManagerAuthViewModelTest {
         val backendAuthRepository = FakeBackendAuthRepository()
         val tokenRepository = FakeTokenRepository()
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository)
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository())
 
         assertEquals(ManagerAuthState.Unauthenticated, viewModel.authState.value)
         assertEquals(ManagerOtpStep.EnteringPhone, viewModel.otpStep.value)
@@ -78,7 +81,7 @@ class ManagerAuthViewModelTest {
         val backendAuthRepository = FakeBackendAuthRepository(currentUserResult = Result.success(managerUser))
         val tokenRepository = FakeTokenRepository()
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository)
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository())
 
         val state = viewModel.authState.value
         assertTrue(state is ManagerAuthState.Authenticated)
@@ -91,7 +94,7 @@ class ManagerAuthViewModelTest {
         val backendAuthRepository = FakeBackendAuthRepository(currentUserResult = Result.success(customerUser))
         val tokenRepository = FakeTokenRepository()
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository)
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository())
 
         assertEquals(ManagerAuthState.Unauthenticated, viewModel.authState.value)
         assertEquals(1, authSessionRepository.clearPersonIdCallCount)
@@ -109,7 +112,7 @@ class ManagerAuthViewModelTest {
         val tokenRepository = FakeTokenRepository()
         tokenRepository.saveTokens("stale-access", "stale-refresh")
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository)
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository())
 
         assertEquals(ManagerAuthState.Unauthenticated, viewModel.authState.value)
         assertEquals(ManagerOtpStep.EnteringPhone, viewModel.otpStep.value)
@@ -129,7 +132,7 @@ class ManagerAuthViewModelTest {
         )
         val tokenRepository = FakeTokenRepository()
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository)
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository())
         assertEquals(ManagerAuthState.Unauthenticated, viewModel.authState.value)
 
         viewModel.requestOtp("+989123456789")
@@ -147,7 +150,6 @@ class ManagerAuthViewModelTest {
         assertTrue(finalState is ManagerAuthState.Authenticated)
         assertEquals(managerUser.id, (finalState as ManagerAuthState.Authenticated).userId)
         assertEquals(managerUser.id, authSessionRepository.savedPersonId)
-        assertTrue(authSessionRepository.savedRememberMe == true)
     }
 
     @Test
@@ -159,7 +161,7 @@ class ManagerAuthViewModelTest {
         )
         val tokenRepository = FakeTokenRepository()
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository)
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository())
         viewModel.requestOtp("+989123456789")
         viewModel.verifyOtp("482913")
 
@@ -177,7 +179,7 @@ class ManagerAuthViewModelTest {
         )
         val tokenRepository = FakeTokenRepository()
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository)
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository())
         viewModel.requestOtp("+989123456789")
         viewModel.verifyOtp("000000")
 
@@ -195,7 +197,7 @@ class ManagerAuthViewModelTest {
         val tokenRepository = FakeTokenRepository()
         tokenRepository.saveTokens("access", "refresh")
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository)
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository())
         assertTrue(viewModel.authState.value is ManagerAuthState.Authenticated)
 
         viewModel.logout()
@@ -207,15 +209,100 @@ class ManagerAuthViewModelTest {
         assertEquals(1, authSessionRepository.clearPersonIdCallCount)
     }
 
+    // --- Identity & Session Architecture, Android Integration -----------
+
+    private fun emptyIdentityContext() = CurrentUserIdentityContext(
+        userId = managerUser.id,
+        phoneNumber = managerUser.phoneNumber,
+        email = managerUser.email,
+        fullName = managerUser.fullName,
+        globalRole = managerUser.role,
+        ownedSalons = emptyList(),
+        memberships = emptyList(),
+        specialistLinks = emptyList(),
+    )
+
+    @Test
+    fun `salon-access is fetched after a successful manager OTP verification`() = runTest {
+        val authSessionRepository = FakeAuthSessionRepository(initialPersonId = null)
+        val backendAuthRepository = FakeBackendAuthRepository(
+            requestOtpResult = Result.success(OtpIssued("+989123456789", expiresInSeconds = 120, canResendAfterSeconds = 60)),
+            verifyOtpResult = Result.success(managerUser),
+        )
+        val tokenRepository = FakeTokenRepository()
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.success(emptyIdentityContext()))
+
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository)
+        viewModel.requestOtp("+989123456789")
+        viewModel.verifyOtp("482913")
+
+        assertEquals(1, identityContextRepository.callCount)
+        assertTrue(viewModel.identityContext.value is UiState.Success<CurrentUserIdentityContext>)
+    }
+
+    @Test
+    fun `a salon-access failure does not roll back an already-authenticated manager session`() = runTest {
+        val authSessionRepository = FakeAuthSessionRepository(initialPersonId = null)
+        val backendAuthRepository = FakeBackendAuthRepository(
+            requestOtpResult = Result.success(OtpIssued("+989123456789", expiresInSeconds = 120, canResendAfterSeconds = 60)),
+            verifyOtpResult = Result.success(managerUser),
+        )
+        val tokenRepository = FakeTokenRepository()
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.failure(IllegalStateException("network down")))
+
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository)
+        viewModel.requestOtp("+989123456789")
+        viewModel.verifyOtp("482913")
+
+        assertTrue(viewModel.identityContext.value is UiState.Error)
+        assertTrue(viewModel.authState.value is ManagerAuthState.Authenticated)
+    }
+
+    @Test
+    fun `session restore re-fetches a fresh salon-access context for a manager`() = runTest {
+        val authSessionRepository = FakeAuthSessionRepository(initialPersonId = managerUser.id)
+        val backendAuthRepository = FakeBackendAuthRepository(currentUserResult = Result.success(managerUser))
+        val tokenRepository = FakeTokenRepository()
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.success(emptyIdentityContext()))
+
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository)
+
+        assertEquals(1, identityContextRepository.callCount)
+        assertTrue(viewModel.identityContext.value is UiState.Success<CurrentUserIdentityContext>)
+    }
+
+    @Test
+    fun `logout resets the manager identity context back to loading`() = runTest {
+        val authSessionRepository = FakeAuthSessionRepository(initialPersonId = managerUser.id)
+        val backendAuthRepository = FakeBackendAuthRepository(currentUserResult = Result.success(managerUser))
+        val tokenRepository = FakeTokenRepository()
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.success(emptyIdentityContext()))
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository)
+        assertTrue(viewModel.identityContext.value is UiState.Success<CurrentUserIdentityContext>)
+
+        viewModel.logout()
+
+        assertEquals(UiState.Loading, viewModel.identityContext.value)
+    }
+
     // --- Fakes -----------------------------------------------------------
+
+    private class FakeCurrentUserIdentityContextRepository(
+        private val result: Result<CurrentUserIdentityContext> = Result.failure(IllegalStateException("not stubbed")),
+    ) : CurrentUserIdentityContextRepository {
+        var callCount = 0
+            private set
+
+        override suspend fun getCurrentUserIdentityContext(): Result<CurrentUserIdentityContext> {
+            callCount++
+            return result
+        }
+    }
 
     private class FakeAuthSessionRepository(initialPersonId: String?) : AuthSessionRepository {
         private val personId = MutableStateFlow(initialPersonId)
-        private val rememberMe = MutableStateFlow(true)
 
         var savedPersonId: String? = null
-            private set
-        var savedRememberMe: Boolean? = null
             private set
         var clearPersonIdCallCount = 0
             private set
@@ -232,13 +319,6 @@ class ManagerAuthViewModelTest {
         }
 
         override fun observePersonId(): Flow<String?> = personId
-
-        override suspend fun saveRememberMe(remember: Boolean) {
-            rememberMe.value = remember
-            savedRememberMe = remember
-        }
-
-        override fun observeRememberMe(): Flow<Boolean> = rememberMe
     }
 
     private class FakeTokenRepository : TokenRepository {
@@ -281,7 +361,7 @@ class ManagerAuthViewModelTest {
 
         override suspend fun requestOtp(phoneNumber: String): Result<OtpIssued> = requestOtpResult
 
-        override suspend fun verifyOtp(phoneNumber: String, code: String): Result<AuthenticatedUser> {
+        override suspend fun verifyOtp(phoneNumber: String, code: String, fullName: String?): Result<AuthenticatedUser> {
             verifyOtpCall?.invoke(phoneNumber, code)
             return verifyOtpResult
         }

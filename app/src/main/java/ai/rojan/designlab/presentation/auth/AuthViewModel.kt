@@ -9,7 +9,10 @@ import ai.rojan.designlab.domain.identity.rolesForPersonAcrossAllSalons
 import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.AuthenticatedUser
 import ai.rojan.designlab.domain.repository.BackendAuthRepository
+import ai.rojan.designlab.domain.repository.CurrentUserIdentityContext
+import ai.rojan.designlab.domain.repository.CurrentUserIdentityContextRepository
 import ai.rojan.designlab.domain.repository.TokenRepository
+import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.presentation.common.userMessageFor
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -19,23 +22,28 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Android <-> Backend Full Integration milestone: the phone/OTP flow this
- * class used to drive ([DemoSessionProvider]'s mock OTP mechanism) is
- * retired in favor of the real backend's email/password auth
- * ([BackendAuthRepository]) — the backend has no phone/OTP concept at all.
- * [sessionProvider]/[identityProvider] are kept only for their still-live
- * [MutableSessionProvider.setSession]/[SessionProvider.logout] mechanics
- * (a real backend user id flows through the exact same session-state
- * machinery a demo person id used to) and for [currentPersonRoles] /
- * [denyAccessAndLogout], which back the business-login/staff-routing
- * entry point — a separate, still-demo-only feature this milestone
- * intentionally does not touch (its entry point is disabled elsewhere,
- * in `RojanNavGraph.kt`, rather than this class being reworked around it).
+ * Customer Authentication Migration: Customer's only authentication method
+ * is now phone number -> OTP -> session, via [BackendAuthRepository.requestOtp]/
+ * [BackendAuthRepository.verifyOtp] — the same real, already-backend-integrated
+ * OTP infrastructure [ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel]
+ * already uses for Manager. The email/password flow this class drove before
+ * ([BackendAuthRepository.login]/[BackendAuthRepository.register]) is
+ * retired from the Customer App entirely — those repository methods remain
+ * (the backend explicitly keeps them live, and nothing else in this app
+ * depends on them being removed), simply unused by this ViewModel now.
  *
- * [authSessionRepository] persists which backend user id is logged in
- * (now a real UUID, not a demo person id) and the "Remember Me" choice,
- * so [restoreSession] can survive a cold start — see that method's own
- * doc comment for how the two interact.
+ * [sessionProvider]/[identityProvider] are kept only for their still-live
+ * [MutableSessionProvider.setSession]/[SessionProvider.logout] mechanics (a
+ * real backend user id flows through the exact same session-state machinery
+ * a demo person id used to) and for [currentPersonRoles]/[denyAccessAndLogout],
+ * which back the business-login/staff-routing entry point — a separate,
+ * still-demo-only, already-disabled feature this migration does not touch
+ * (its entry point stays disabled in `RojanNavGraph.kt`).
+ *
+ * [authSessionRepository] persists which backend user id is logged in, so
+ * [restoreSession] can survive a cold start. Session persistence is now
+ * unconditional (no "Remember Me" concept) — see
+ * [AuthSessionRepository]'s own doc comment.
  */
 class AuthViewModel(
     private val sessionProvider: SessionProvider,
@@ -43,6 +51,7 @@ class AuthViewModel(
     private val authSessionRepository: AuthSessionRepository,
     private val backendAuthRepository: BackendAuthRepository,
     private val tokenRepository: TokenRepository,
+    private val currentUserIdentityContextRepository: CurrentUserIdentityContextRepository,
 ) : ViewModel() {
 
     private val _sessionState =
@@ -50,6 +59,11 @@ class AuthViewModel(
 
     val sessionState: StateFlow<SessionState> =
         _sessionState.asStateFlow()
+
+
+    /** The OTP entry screen's own step (phone entry vs. awaiting code) — separate from [sessionState], which only cares about the end result. */
+    private val _otpStep = MutableStateFlow<CustomerOtpStep>(CustomerOtpStep.EnteringPhone)
+    val otpStep: StateFlow<CustomerOtpStep> = _otpStep.asStateFlow()
 
 
     private val _errorMessage =
@@ -66,12 +80,30 @@ class AuthViewModel(
         _isSubmitting.asStateFlow()
 
 
-    /** The real backend account behind the current [SessionState.LoggedIn], if any — populated by [login]/[register]/[restoreSession]. */
+    /** The real backend account behind the current [SessionState.LoggedIn], if any — populated by [verifyOtp]/[restoreSession]. */
     private val _currentUser =
         MutableStateFlow<AuthenticatedUser?>(null)
 
     val currentUser: StateFlow<AuthenticatedUser?> =
         _currentUser.asStateFlow()
+
+
+    /**
+     * Identity & Session Architecture, Android Integration: the real
+     * backend salon-access context, fetched fresh (never persisted to
+     * disk) every time [onAuthenticated] runs - after a real OTP verify
+     * and on every cold-start [restoreSession]. Additive to [sessionState]/
+     * [currentUser], not a replacement - a failure here never touches
+     * either of those. Starts (and resets on [logout]/[denyAccessAndLogout])
+     * at [UiState.Loading], never a silently-granted empty success, so a
+     * future guard built on this can safely treat "not yet [UiState.Success]"
+     * as "no access" rather than needing its own separate not-loaded check.
+     */
+    private val _identityContext =
+        MutableStateFlow<UiState<CurrentUserIdentityContext>>(UiState.Loading)
+
+    val identityContext: StateFlow<UiState<CurrentUserIdentityContext>> =
+        _identityContext.asStateFlow()
 
 
     val currentDisplayName: String?
@@ -139,19 +171,19 @@ class AuthViewModel(
         }
 
         _errorMessage.value = message
+        _otpStep.value = CustomerOtpStep.EnteringPhone
+        _identityContext.value = UiState.Loading
 
         _sessionState.value =
             sessionProvider.currentSession()
     }
 
 
-    /** Real `POST /api/v1/auth/login` — persists the returned tokens (via [BackendAuthRepository]/[TokenRepository]) and flips [sessionState] to [SessionState.LoggedIn]. */
-    fun login(email: String, password: String, rememberMe: Boolean) {
-
-        val trimmedEmail = email.trim()
-
-        if (trimmedEmail.isBlank() || password.isBlank()) {
-            _errorMessage.value = "ایمیل و رمز عبور را وارد کنید"
+    /** `POST /api/v1/auth/otp/request` — issues (or, called again, re-issues) a code for [phoneNumber]. No session exists yet; nothing is persisted here. */
+    fun requestOtp(phoneNumber: String) {
+        val trimmed = phoneNumber.trim()
+        if (trimmed.isBlank()) {
+            _errorMessage.value = "شماره موبایل را وارد کنید"
             return
         }
 
@@ -159,42 +191,63 @@ class AuthViewModel(
         _isSubmitting.value = true
 
         viewModelScope.launch {
-            backendAuthRepository.login(trimmedEmail, password)
-                .onSuccess { user -> onAuthenticated(user, rememberMe) }
-                .onFailure { error -> _errorMessage.value = userMessageFor(error) }
-            _isSubmitting.value = false
-        }
-    }
-
-
-    /** Real `POST /api/v1/auth/register` — registration alone returns no tokens (see [BackendAuthRepository.register]), so a successful register immediately chains into [login] rather than leaving the user stranded on a "registered but not logged in" state. */
-    fun register(email: String, password: String, fullName: String, rememberMe: Boolean) {
-
-        val trimmedEmail = email.trim()
-        val trimmedName = fullName.trim()
-
-        if (trimmedEmail.isBlank() || password.isBlank() || trimmedName.isBlank()) {
-            _errorMessage.value = "همه فیلدها را تکمیل کنید"
-            return
-        }
-
-        _errorMessage.value = null
-        _isSubmitting.value = true
-
-        viewModelScope.launch {
-            backendAuthRepository.register(trimmedEmail, password, trimmedName)
-                .onSuccess {
-                    backendAuthRepository.login(trimmedEmail, password)
-                        .onSuccess { user -> onAuthenticated(user, rememberMe) }
-                        .onFailure { error -> _errorMessage.value = userMessageFor(error) }
+            backendAuthRepository.requestOtp(trimmed)
+                .onSuccess { issued ->
+                    _otpStep.value = CustomerOtpStep.AwaitingCode(issued.phoneNumber, issued.canResendAfterSeconds)
                 }
                 .onFailure { error -> _errorMessage.value = userMessageFor(error) }
             _isSubmitting.value = false
         }
     }
 
+    /**
+     * `POST /api/v1/auth/otp/verify` — verifies [code] for the phone number
+     * captured in [CustomerOtpStep.AwaitingCode]. Only reachable from that
+     * step. [fullName], if provided, is used by the backend only the first
+     * time this phone number completes verification (new-account creation)
+     * and silently ignored for an existing account — see
+     * `OtpVerifyRequestDto`'s own doc comment. This is the real,
+     * backend-compatible replacement for the old (demo-only, unreachable,
+     * now-deleted) `FirstTimeNameScreen`-driven name capture: there is no
+     * server-side
+     * "is this a new account" signal to gate a separate post-verify screen
+     * on, and no profile-rename endpoint to fix a name after the fact, so
+     * the name is collected inline, once, alongside the code — harmless to
+     * leave blank for a returning user.
+     */
+    fun verifyOtp(code: String, fullName: String? = null) {
+        val step = _otpStep.value as? CustomerOtpStep.AwaitingCode ?: return
+        val trimmedCode = code.trim()
+        if (trimmedCode.isBlank()) {
+            _errorMessage.value = "کد تایید را وارد کنید"
+            return
+        }
 
-    private suspend fun onAuthenticated(user: AuthenticatedUser, rememberMe: Boolean) {
+        _errorMessage.value = null
+        _isSubmitting.value = true
+
+        viewModelScope.launch {
+            backendAuthRepository.verifyOtp(step.phoneNumber, trimmedCode, fullName?.trim()?.takeIf { it.isNotBlank() })
+                .onSuccess { user -> onAuthenticated(user) }
+                .onFailure { error -> _errorMessage.value = userMessageFor(error) }
+            _isSubmitting.value = false
+        }
+    }
+
+    /** Requests a fresh code for the same phone number, same rate limits as [requestOtp] (backend-enforced, not duplicated here) — a resend is just another `otp/request` call. */
+    fun resendOtp() {
+        val step = _otpStep.value as? CustomerOtpStep.AwaitingCode ?: return
+        requestOtp(step.phoneNumber)
+    }
+
+    /** Returns to the phone-entry step (e.g. "wrong number" back action) without touching any persisted session. */
+    fun editPhoneNumber() {
+        _errorMessage.value = null
+        _otpStep.value = CustomerOtpStep.EnteringPhone
+    }
+
+
+    private suspend fun onAuthenticated(user: AuthenticatedUser) {
         _currentUser.value = user
 
         (sessionProvider as? MutableSessionProvider)?.setSession(
@@ -206,77 +259,40 @@ class AuthViewModel(
         _sessionState.value = sessionProvider.currentSession()
 
         authSessionRepository.savePersonId(user.id)
-        authSessionRepository.saveRememberMe(rememberMe)
+
+        refreshIdentityContext()
+    }
+
+    /**
+     * `GET /users/me/salon-access`, combined with the [user] identity
+     * [onAuthenticated] already has - real OTP verify and every cold-start
+     * [restoreSession] both funnel through here, matching "re-fetch context
+     * during session restoration." A failure here is captured as
+     * [UiState.Error] only - it never rolls back [sessionState]/[currentUser],
+     * since `/users/me` (the real session check) already succeeded by the
+     * time this runs.
+     */
+    private suspend fun refreshIdentityContext() {
+        _identityContext.value = UiState.Loading
+        currentUserIdentityContextRepository.getCurrentUserIdentityContext()
+            .onSuccess { context -> _identityContext.value = UiState.Success(context) }
+            .onFailure { error -> _identityContext.value = UiState.Error(userMessageFor(error)) }
     }
 
 
-    /**
-     * Discards the real backend session (tokens + persisted identity) and
-     * reverts to [SessionState.LoggedOut]. Security Review fix: also resets
-     * the persisted "Remember Me" flag — previously left at its prior
-     * value, which was harmless only because [authSessionRepository]'s
-     * `observePersonId()` already returns `null` whenever `personId` itself
-     * is cleared (as it is here) regardless of this flag, but a future
-     * caller reading "Remember Me" independently of `personId` should not
-     * see a stale `true` surviving an explicit logout — "no cached previous
-     * account data" applies to this flag too, not just the identity itself.
-     */
+    /** Discards the real backend session (tokens + persisted identity) and reverts to [SessionState.LoggedOut] / [CustomerOtpStep.EnteringPhone]. */
     fun logout() {
 
         sessionProvider.logout()
         tokenRepository.clearTokens()
         _currentUser.value = null
         _errorMessage.value = null
-
-        viewModelScope.launch {
-            authSessionRepository.clearPersonId()
-            authSessionRepository.saveRememberMe(false)
-        }
-
-        _sessionState.value =
-            sessionProvider.currentSession()
-    }
-
-
-    /**
-     * Retained for [ai.rojan.designlab.screens.auth.FirstTimeNameScreen] —
-     * that screen only ever composes for a demo-only, phone-verified
-     * [SessionState.AwaitingFirstName], which nothing in the real
-     * email/password flow produces any more (see this class's own doc
-     * comment). Left in place, unreachable, rather than ripped out, to
-     * keep this milestone's change surgical.
-     */
-    fun submitFirstName(rawFirstName: String) {
-
-        val firstName = rawFirstName.trim()
-
-        if (firstName.isBlank()) {
-            _errorMessage.value = "نام را وارد کنید"
-            return
-        }
-
-        _errorMessage.value = null
-
-        val createdPerson = sessionProvider.createFirstTimeUser(firstName)
-
-        viewModelScope.launch {
-            authSessionRepository.savePersonId(createdPerson.id)
-        }
-
-        _sessionState.value = sessionProvider.currentSession()
-    }
-
-
-    /** Retained for [ai.rojan.designlab.screens.auth.FirstTimeNameScreen]'s back button — see [submitFirstName]'s doc comment. */
-    fun editPhoneNumber() {
-
-        sessionProvider.logout()
+        _otpStep.value = CustomerOtpStep.EnteringPhone
+        _identityContext.value = UiState.Loading
 
         viewModelScope.launch {
             authSessionRepository.clearPersonId()
         }
-
-        _errorMessage.value = null
 
         _sessionState.value =
             sessionProvider.currentSession()
@@ -291,11 +307,7 @@ class AuthViewModel(
      * (transparently refreshing it first if expired, via
      * `data/remote/TokenAuthenticator.kt`), so a revoked/expired refresh
      * token correctly fails restoration instead of trusting a stale local
-     * id. "Remember Me" is enforced upstream, inside
-     * [ai.rojan.designlab.data.repository.AuthSessionRepositoryImpl.observePersonId] —
-     * it never emits a [personId] at all when the last session wasn't
-     * marked to be remembered, so this method is simply never called in
-     * that case.
+     * id.
      *
      * Authentication Session Persistence fix: `suspend`, not fire-and-forget
      * `viewModelScope.launch` — the sole caller (`RojanNavGraph`'s cold-start
@@ -307,10 +319,11 @@ class AuthViewModel(
      */
     suspend fun restoreSession(personId: String) {
         backendAuthRepository.currentUser()
-            .onSuccess { user -> onAuthenticated(user, rememberMe = true) }
+            .onSuccess { user -> onAuthenticated(user) }
             .onFailure {
                 tokenRepository.clearTokens()
                 authSessionRepository.clearPersonId()
+                _identityContext.value = UiState.Loading
             }
     }
 }

@@ -3,9 +3,12 @@ package ai.rojan.designlab.manager.presentation.auth
 import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.AuthenticatedUser
 import ai.rojan.designlab.domain.repository.BackendAuthRepository
+import ai.rojan.designlab.domain.repository.CurrentUserIdentityContext
+import ai.rojan.designlab.domain.repository.CurrentUserIdentityContextRepository
 import ai.rojan.designlab.domain.repository.TokenRepository
 import ai.rojan.designlab.manager.domain.auth.ManagerAuthState
 import ai.rojan.designlab.manager.domain.auth.ManagerOtpStep
+import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.presentation.common.userMessageFor
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -44,6 +47,7 @@ class ManagerAuthViewModel(
     private val authSessionRepository: AuthSessionRepository,
     private val backendAuthRepository: BackendAuthRepository,
     private val tokenRepository: TokenRepository,
+    private val currentUserIdentityContextRepository: CurrentUserIdentityContextRepository,
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<ManagerAuthState>(ManagerAuthState.Checking)
@@ -57,6 +61,22 @@ class ManagerAuthViewModel(
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    /**
+     * Identity & Session Architecture, Android Integration: the real
+     * backend salon-access context - additive only this phase (Phase 6:
+     * "do not immediately remove the existing Manager global-role check").
+     * [authState]'s MANAGER-role gate is untouched; nothing reads this yet
+     * to decide access. Fetched fresh on every real authentication
+     * ([onVerified]) and every cold-start restore ([restoreSession]),
+     * reset to [UiState.Loading] on [logout]/[clearSession] - never
+     * persisted, never silently defaulted to a granted-looking state.
+     */
+    private val _identityContext =
+        MutableStateFlow<UiState<CurrentUserIdentityContext>>(UiState.Loading)
+
+    val identityContext: StateFlow<UiState<CurrentUserIdentityContext>> =
+        _identityContext.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -87,6 +107,7 @@ class ManagerAuthViewModel(
             .onSuccess { user ->
                 if (user.role == MANAGER_ROLE) {
                     _authState.value = ManagerAuthState.Authenticated(user.id, user.fullName)
+                    refreshIdentityContext()
                 } else {
                     // A real, valid session, but not a manager account — never
                     // grant Manager Dashboard access on session restore, same
@@ -95,6 +116,14 @@ class ManagerAuthViewModel(
                 }
             }
             .onFailure { clearSession() }
+    }
+
+    /** `GET /users/me/salon-access` - see [ai.rojan.designlab.presentation.auth.AuthViewModel.refreshIdentityContext] for the identical Customer-side reasoning. A failure here never touches [authState] - the MANAGER-role check above already passed by the time this runs. */
+    private suspend fun refreshIdentityContext() {
+        _identityContext.value = UiState.Loading
+        currentUserIdentityContextRepository.getCurrentUserIdentityContext()
+            .onSuccess { context -> _identityContext.value = UiState.Success(context) }
+            .onFailure { error -> _identityContext.value = UiState.Error(userMessageFor(error)) }
     }
 
     /** `POST /api/v1/auth/otp/request` — issues (or, called again, re-issues) a code for [phoneNumber]. No session exists yet; nothing is persisted here. */
@@ -154,8 +183,8 @@ class ManagerAuthViewModel(
         }
 
         authSessionRepository.savePersonId(user.id)
-        authSessionRepository.saveRememberMe(true)
         _authState.value = ManagerAuthState.Authenticated(user.id, user.fullName)
+        refreshIdentityContext()
     }
 
     /** Requests a fresh code for the same phone number, same rate limits as [requestOtp] (backend-enforced, not duplicated here) — a resend is just another `otp/request` call, mirroring the backend's own `/otp/request`/`/otp/resend` equivalence. */
@@ -181,6 +210,7 @@ class ManagerAuthViewModel(
         tokenRepository.clearTokens()
         authSessionRepository.clearPersonId()
         _otpStep.value = ManagerOtpStep.EnteringPhone
+        _identityContext.value = UiState.Loading
         _authState.value = ManagerAuthState.Unauthenticated
     }
 }

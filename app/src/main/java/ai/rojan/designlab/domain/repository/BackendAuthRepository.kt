@@ -55,7 +55,10 @@ interface BackendAuthRepository {
      * Verifies a previously-requested OTP [code] for [phoneNumber] via the
      * backend's already-existing `POST /api/v1/auth/otp/verify`, and
      * persists the returned access/refresh token pair via [TokenRepository]
-     * on success — same side-effect shape as [login].
+     * on success — same side-effect shape as [login]. [fullName] is used by
+     * the backend only the first time this phone number completes
+     * verification (new-account creation) and silently ignored for an
+     * existing account.
      */
-    suspend fun verifyOtp(phoneNumber: String, code: String): Result<AuthenticatedUser>
+    suspend fun verifyOtp(phoneNumber: String, code: String, fullName: String? = null): Result<AuthenticatedUser>
 }

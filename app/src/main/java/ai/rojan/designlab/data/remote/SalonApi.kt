@@ -14,6 +14,7 @@ interface SalonApi {
         @Query("page") page: Int,
         @Query("size") size: Int,
         @Query("name") name: String?,
+        @Query("sortDirection") sortDirection: String,
     ): PagedResponseDto<SalonResponseDto>
 
     @GET("api/v1/salons/{salonId}")

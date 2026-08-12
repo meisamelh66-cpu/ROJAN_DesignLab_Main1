@@ -27,6 +27,7 @@ import ai.rojan.designlab.data.repository.AvailabilityRepositoryImpl
 import ai.rojan.designlab.data.repository.BackendAuthRepositoryImpl
 import ai.rojan.designlab.data.repository.BookingHistoryRepositoryImpl
 import ai.rojan.designlab.data.repository.BookingRepositoryImpl
+import ai.rojan.designlab.data.repository.CurrentUserIdentityContextRepositoryImpl
 import ai.rojan.designlab.data.repository.CustomerRelationshipRepositoryImpl
 import ai.rojan.designlab.data.repository.PublicSalonRepositoryImpl
 import ai.rojan.designlab.data.repository.SalonRepositoryImpl
@@ -42,6 +43,7 @@ import ai.rojan.designlab.domain.repository.AvailabilityRepository
 import ai.rojan.designlab.domain.repository.BackendAuthRepository
 import ai.rojan.designlab.domain.repository.BookingHistoryRepository
 import ai.rojan.designlab.domain.repository.BookingRepository
+import ai.rojan.designlab.domain.repository.CurrentUserIdentityContextRepository
 import ai.rojan.designlab.domain.repository.CustomerRelationshipRepository
 import ai.rojan.designlab.domain.repository.PublicSalonRepository
 import ai.rojan.designlab.domain.repository.SalonRepository
@@ -84,11 +86,13 @@ class BackendApiContainer(context: Context) {
 
     private val retrofit: Retrofit = buildAuthenticatedRetrofit(tokenRepository, authSessionRepository)
 
+    private val authApi: AuthApi = retrofit.create(AuthApi::class.java)
+
     val backendAuthRepository: BackendAuthRepository =
-        BackendAuthRepositoryImpl(
-            authApi = retrofit.create(AuthApi::class.java),
-            tokenRepository = tokenRepository
-        )
+        BackendAuthRepositoryImpl(authApi = authApi, tokenRepository = tokenRepository)
+
+    val currentUserIdentityContextRepository: CurrentUserIdentityContextRepository =
+        CurrentUserIdentityContextRepositoryImpl(authApi = authApi, backendAuthRepository = backendAuthRepository)
 
     val salonRepository: SalonRepository =
         SalonRepositoryImpl(

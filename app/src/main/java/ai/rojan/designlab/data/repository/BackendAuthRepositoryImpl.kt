@@ -44,9 +44,9 @@ class BackendAuthRepositoryImpl(
     override suspend fun requestOtp(phoneNumber: String): Result<OtpIssued> =
         safeApiCall { authApi.requestOtp(OtpRequestDto(phoneNumber)).toDomain() }
 
-    override suspend fun verifyOtp(phoneNumber: String, code: String): Result<AuthenticatedUser> =
+    override suspend fun verifyOtp(phoneNumber: String, code: String, fullName: String?): Result<AuthenticatedUser> =
         safeApiCall {
-            val response = authApi.verifyOtp(OtpVerifyRequestDto(phoneNumber = phoneNumber, code = code))
+            val response = authApi.verifyOtp(OtpVerifyRequestDto(phoneNumber = phoneNumber, code = code, fullName = fullName))
             tokenRepository.saveTokens(response.accessToken, response.refreshToken)
             response.user.toDomain()
         }

@@ -61,8 +61,6 @@ class BackendAuthFlowVerificationTest {
         override suspend fun savePersonId(personId: String) {}
         override suspend fun clearPersonId() {}
         override fun observePersonId(): Flow<String?> = flowOf(null)
-        override suspend fun saveRememberMe(remember: Boolean) {}
-        override fun observeRememberMe(): Flow<Boolean> = flowOf(true)
     }
 
     private val baseUrl = "http://localhost:8080/"

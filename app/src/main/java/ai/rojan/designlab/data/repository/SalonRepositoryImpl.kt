@@ -11,8 +11,15 @@ class SalonRepositoryImpl(
     private val salonApi: SalonApi,
 ) : SalonRepository {
 
-    override suspend fun browseSalons(page: Int, size: Int, nameFilter: String?): Result<PagedResult<Salon>> =
-        safeApiCall { salonApi.browseSalons(page = page, size = size, name = nameFilter?.takeIf { it.isNotBlank() }) }
+    override suspend fun browseSalons(page: Int, size: Int, nameFilter: String?, sortDirection: String): Result<PagedResult<Salon>> =
+        safeApiCall {
+            salonApi.browseSalons(
+                page = page,
+                size = size,
+                name = nameFilter?.takeIf { it.isNotBlank() },
+                sortDirection = sortDirection,
+            )
+        }
             .map { dto ->
                 PagedResult(
                     content = dto.content.map { it.toDomain() },
@@ -33,5 +40,8 @@ class SalonRepositoryImpl(
         phone = phone,
         email = email,
         address = address,
+        logoUrl = logoUrl,
+        latitude = latitude,
+        longitude = longitude,
     )
 }

@@ -35,3 +35,5 @@ local.properties
 
 # macOS
 .DS_Store
+# Signing credentials - never commit
+keystore.properties

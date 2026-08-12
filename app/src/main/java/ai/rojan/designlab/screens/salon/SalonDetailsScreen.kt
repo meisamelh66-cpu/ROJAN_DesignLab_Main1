@@ -47,6 +47,7 @@ import android.net.Uri
 
 import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.domain.repository.Salon
+import ai.rojan.designlab.domain.repository.SalonWorkingHours
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.presentation.relationship.SalonRelationshipViewModel
 import ai.rojan.designlab.presentation.relationship.SalonRelationshipViewModelFactory
@@ -71,10 +72,12 @@ import ai.rojan.designlab.ui.theme.RojanSoftLavender
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
+import ai.rojan.designlab.ui.components.image.RojanRemoteImage
 import ai.rojan.designlab.ui.components.image.SpecialistAvatar
 import ai.rojan.designlab.ui.components.rtl.RtlInfoRow
 import ai.rojan.designlab.ui.components.rtl.RtlListRow
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
+import java.util.Calendar
 
 /** Hero rebuild: circular salon logo size — 64dp increased ~35%. */
 private val LOGO_SIZE = 86.dp
@@ -113,6 +116,36 @@ private fun String.toPersianDayLabel(): String = when (this) {
     else -> this
 }
 
+private fun currentBackendDayOfWeek(): String = when (Calendar.getInstance().get(Calendar.DAY_OF_WEEK)) {
+    Calendar.SATURDAY -> "SATURDAY"
+    Calendar.SUNDAY -> "SUNDAY"
+    Calendar.MONDAY -> "MONDAY"
+    Calendar.TUESDAY -> "TUESDAY"
+    Calendar.WEDNESDAY -> "WEDNESDAY"
+    Calendar.THURSDAY -> "THURSDAY"
+    else -> "FRIDAY"
+}
+
+/** "HH:mm:ss", zero-padded to line up with the backend's own "09:00:00"-shaped interval strings so a plain lexical compare works. */
+private fun currentTimeOfDayString(): String {
+    val calendar = Calendar.getInstance()
+    return "%02d:%02d:00".format(calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE))
+}
+
+/**
+ * Client-side "open now" computed from data this screen already fetched -
+ * no new API call, no server-side open-now field exists on the backend.
+ * `null` means today has no working-hours entry at all (unknown, not
+ * "closed"); `false` means today has hours but the current time falls
+ * outside every interval.
+ */
+private fun isOpenNow(workingHours: List<SalonWorkingHours>): Boolean? {
+    val today = workingHours.find { it.dayOfWeek == currentBackendDayOfWeek() } ?: return null
+    if (today.intervals.isEmpty()) return false
+    val now = currentTimeOfDayString()
+    return today.intervals.any { now >= it.start && now <= it.end }
+}
+
 /**
  * Journey 1, Screen 2: Salon Details.
  *
@@ -123,17 +156,23 @@ private fun String.toPersianDayLabel(): String = when (this) {
  * `GET .../specialists`. Several sections that relied on
  * `ai.rojan.designlab.data.demo.DemoSalon`-only fields are gone rather than
  * faked:
- * - Rating/review count, working hours, phone-book-style facilities list,
- *   and the photo gallery all depended on data the backend `Salon` doesn't
- *   have (no reviews system, no facilities/hours modeling, no image URLs
- *   yet) — their sections are removed, not rendered empty or fabricated.
+ * - Rating/review count, phone-book-style facilities list, and a real photo
+ *   gallery all depended on data the backend `Salon` doesn't have (no
+ *   reviews system, no facilities modeling, no multi-photo gallery
+ *   concept) — their sections are removed, not rendered empty or fabricated.
  * - The tagline row now shows the backend `Salon.description` (nullable —
  *   omitted when absent) instead of the demo's always-present tagline.
- * - Specialist/salon photos: the backend's `Specialist.photoUrl` is a
- *   remote URL, and this app has no URL image-loading dependency (Coil et
- *   al.) — every avatar/hero renders through the existing icon-fallback
- *   path ([SpecialistAvatar]/[RojanIconContainer]) that already exists for
- *   "no local asset" rather than adding a new library mid-milestone.
+ * - Salon Discovery milestone: `Salon.logoUrl`/`Specialist.photoUrl` now
+ *   render as real remote images via [RojanRemoteImage] (Coil, added that
+ *   milestone) — the hero banner/circular logo and specialist avatars fall
+ *   back to the existing tinted [RojanIconContainer]/[SpecialistAvatar] icon
+ *   path only when the URL is null, blank, or fails to load.
+ * - Salon Discovery milestone: an "باز / تعطیل" (open/closed) badge is
+ *   computed client-side from the already-fetched [SalonWorkingHours] list
+ *   (no extra API call — see [isOpenNow]) and shown next to the working
+ *   hours section. Deliberately NOT shown on the salon list cards — that
+ *   would require one working-hours fetch per card (N+1), whereas this
+ *   screen already fetches hours for its one salon.
  * - "نظرات" (reviews) is removed entirely — no reviews API exists on the
  *   backend.
  *
@@ -356,6 +395,26 @@ fun SalonDetailsScreen(
                                         .padding(horizontal = RojanDimens.SpaceLG, vertical = RojanDimens.SpaceMD),
                                     verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
                                 ) {
+                                    val openNow = remember(data.workingHours) { isOpenNow(data.workingHours) }
+                                    if (openNow != null) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.End,
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .background(if (openNow) HomeColors.Glow else HomeColors.TextSecondary, CircleShape),
+                                            )
+                                            Spacer(modifier = Modifier.width(RojanDimens.SpaceXS))
+                                            Text(
+                                                if (openNow) "اکنون باز است" else "اکنون تعطیل است",
+                                                style = RojanTypography.Caption,
+                                                color = if (openNow) HomeColors.Glow else HomeColors.TextSecondary,
+                                            )
+                                        }
+                                    }
                                     data.workingHours.forEach { hours ->
                                         RtlListRow(
                                             title = hours.dayOfWeek.toPersianDayLabel(),
@@ -402,6 +461,7 @@ fun SalonDetailsScreen(
                                                     assetRes = null,
                                                     contentDescription = specialist.displayName,
                                                     modifier = Modifier.fillMaxSize(),
+                                                    photoUrl = specialist.photoUrl,
                                                 )
                                             }
                                             Spacer(modifier = Modifier.height(RojanDimens.SpaceXS))
@@ -484,10 +544,10 @@ private fun SalonDetailsScaffoldState(onBackClick: () -> Unit, content: @Composa
 /**
  * Hero rebuild: a single Hero component owning the edge-to-edge banner, the
  * back button floating on top of it, the bottom gradient, and the circular
- * logo overlapping its bottom edge. No photo path exists this milestone
- * (see [SalonDetailsScreen]'s doc comment) — both the banner and the logo
- * always render through [RojanIconContainer]'s icon fallback, tinted via
- * [accentFor] instead of a per-salon image.
+ * logo overlapping its bottom edge. Salon Discovery milestone: both the
+ * banner and the circular logo render [salon.logoUrl] via [RojanRemoteImage]
+ * when present, falling back to [RojanIconContainer]'s icon (tinted via
+ * [accentFor]) when it's null or fails to load.
  */
 @Composable
 private fun SalonHeroSection(
@@ -504,11 +564,19 @@ private fun SalonHeroSection(
                 .background(tint.copy(alpha = 0.5f), HERO_SHAPE),
             contentAlignment = Alignment.Center,
         ) {
-            RojanIconContainer(
-                imageVector = Icons.Filled.Storefront,
+            RojanRemoteImage(
+                url = salon.logoUrl,
                 contentDescription = null,
-                tint = HomeColors.TextPrimary,
-                size = RojanIconSize.XLarge,
+                shape = HERO_SHAPE,
+                modifier = Modifier.fillMaxSize(),
+                fallback = {
+                    RojanIconContainer(
+                        imageVector = Icons.Filled.Storefront,
+                        contentDescription = null,
+                        tint = HomeColors.TextPrimary,
+                        size = RojanIconSize.XLarge,
+                    )
+                },
             )
 
             Box(
@@ -539,7 +607,13 @@ private fun SalonHeroSection(
                 .background(tint.copy(alpha = 0.6f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary)
+            RojanRemoteImage(
+                url = salon.logoUrl,
+                contentDescription = salon.name,
+                shape = CircleShape,
+                modifier = Modifier.fillMaxSize(),
+                fallback = { Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary) },
+            )
         }
     }
 }

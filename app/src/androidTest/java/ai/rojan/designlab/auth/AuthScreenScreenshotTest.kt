@@ -5,6 +5,9 @@ import ai.rojan.designlab.data.identity.DemoSessionProvider
 import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.AuthenticatedUser
 import ai.rojan.designlab.domain.repository.BackendAuthRepository
+import ai.rojan.designlab.domain.repository.CurrentUserIdentityContext
+import ai.rojan.designlab.domain.repository.CurrentUserIdentityContextRepository
+import ai.rojan.designlab.domain.repository.OtpIssued
 import ai.rojan.designlab.domain.repository.TokenRepository
 import ai.rojan.designlab.presentation.auth.AuthViewModel
 import ai.rojan.designlab.screens.auth.AuthScreen
@@ -40,8 +43,6 @@ class AuthScreenScreenshotTest {
         override suspend fun savePersonId(personId: String) = Unit
         override suspend fun clearPersonId() = Unit
         override fun observePersonId(): Flow<String?> = flowOf(null)
-        override suspend fun saveRememberMe(remember: Boolean) = Unit
-        override fun observeRememberMe(): Flow<Boolean> = flowOf(true)
     }
 
     private class NoOpBackendAuthRepository : BackendAuthRepository {
@@ -53,6 +54,12 @@ class AuthScreenScreenshotTest {
 
         override suspend fun currentUser(): Result<AuthenticatedUser> =
             Result.failure(UnsupportedOperationException("not used by this screenshot test"))
+
+        override suspend fun requestOtp(phoneNumber: String): Result<OtpIssued> =
+            Result.failure(UnsupportedOperationException("not used by this screenshot test"))
+
+        override suspend fun verifyOtp(phoneNumber: String, code: String, fullName: String?): Result<AuthenticatedUser> =
+            Result.failure(UnsupportedOperationException("not used by this screenshot test"))
     }
 
     private class NoOpTokenRepository : TokenRepository {
@@ -60,6 +67,11 @@ class AuthScreenScreenshotTest {
         override fun clearTokens() = Unit
         override fun accessToken(): String? = null
         override fun refreshToken(): String? = null
+    }
+
+    private class NoOpCurrentUserIdentityContextRepository : CurrentUserIdentityContextRepository {
+        override suspend fun getCurrentUserIdentityContext(): Result<CurrentUserIdentityContext> =
+            Result.failure(UnsupportedOperationException("not used by this screenshot test"))
     }
 
     @Test
@@ -73,6 +85,7 @@ class AuthScreenScreenshotTest {
                 authSessionRepository = NoOpAuthSessionRepository(),
                 backendAuthRepository = NoOpBackendAuthRepository(),
                 tokenRepository = NoOpTokenRepository(),
+                currentUserIdentityContextRepository = NoOpCurrentUserIdentityContextRepository(),
             )
 
             AuthScreen(

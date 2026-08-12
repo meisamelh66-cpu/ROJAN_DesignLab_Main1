@@ -17,7 +17,6 @@ import ai.rojan.designlab.presentation.session.SessionRestoreState
 import ai.rojan.designlab.presentation.session.SessionViewModel
 import ai.rojan.designlab.presentation.session.SessionViewModelFactory
 import ai.rojan.designlab.screens.auth.AuthScreen
-import ai.rojan.designlab.screens.auth.FirstTimeNameScreen
 import ai.rojan.designlab.screens.booking.SalonListScreen
 import ai.rojan.designlab.screens.booking.SpecialistSelectionScreen
 import ai.rojan.designlab.screens.bookingflow.BookingConfirmationScreen
@@ -27,8 +26,6 @@ import ai.rojan.designlab.screens.bookingflow.BookingTimeScreen
 import ai.rojan.designlab.screens.customer.CustomerDashboardScreen
 import ai.rojan.designlab.screens.customer.CustomerHomeScreen
 import ai.rojan.designlab.screens.customer.CustomerHomeTab
-import ai.rojan.designlab.screens.dashboard.ManagerDashboardScreen
-import ai.rojan.designlab.screens.dashboard.StylistDashboardScreen
 import ai.rojan.designlab.screens.profile.AppointmentDetailsScreen
 import ai.rojan.designlab.screens.profile.AppointmentsScreen
 import ai.rojan.designlab.screens.profile.RescheduleAppointmentScreen
@@ -119,29 +116,17 @@ private fun bookingViewModelFor(
 }
 
 /**
- * UX Refactor Phase 1: tells [RojanDestinations.AUTH]/[RojanDestinations.FIRST_TIME_NAME]
- * whether they were reached as the new mid-booking-flow "log in only when
- * booking" gate (from [RojanDestinations.BOOKING_TIME]) versus the older
- * pre-booking entry point (from [RojanDestinations.CUSTOMER_HOME]'s hero
- * card). [RojanDestinations.BOOKING_FLOW_GRAPH]'s own back-stack entry is
- * only present once that nested graph has actually been entered, and
+ * UX Refactor Phase 1: tells [RojanDestinations.AUTH] whether it was
+ * reached as the mid-booking-flow "log in only when booking" gate (from
+ * [RojanDestinations.BOOKING_TIME]) versus the older pre-booking entry
+ * point (from [RojanDestinations.CUSTOMER_HOME]'s hero card).
+ * [RojanDestinations.BOOKING_FLOW_GRAPH]'s own back-stack entry is only
+ * present once that nested graph has actually been entered, and
  * navigating from BOOKING_TIME to AUTH doesn't pop it — so its presence
  * is a reliable, already-existing signal, not new state to track.
  */
 private fun NavController.hasBookingFlowInProgress(): Boolean =
     runCatching { getBackStackEntry(RojanDestinations.BOOKING_FLOW_GRAPH) }.isSuccess
-
-/**
- * UX Refactor Phase 3: the same back-stack-presence signal as
- * [hasBookingFlowInProgress], for the business-login entry point instead.
- * Deliberately checks for [RojanDestinations.WELCOME]'s presence anywhere
- * in the back stack, not just [NavController.previousBackStackEntry] —
- * [RojanDestinations.FIRST_TIME_NAME]'s immediate previous entry is
- * always [RojanDestinations.AUTH] regardless of which flow led there, so
- * an immediate-parent check would silently misdetect that screen.
- */
-private fun NavController.hasBusinessLoginInProgress(): Boolean =
-    runCatching { getBackStackEntry(RojanDestinations.WELCOME) }.isSuccess
 
 /**
  * Production Readiness Audit (V1.0 Module 6): real navigation guard for
@@ -178,32 +163,6 @@ private fun CustomerAccessGuard(
         LaunchedEffect(Unit) { onAccessDenied() }
     }
 }
-
-/**
- * UX Refactor Phase 3: defense-in-depth guard for the staff dashboards —
- * mirrors [CustomerAccessGuard]'s exact shape. [MANAGER_DASHBOARD]/
- * [STYLIST_DASHBOARD] are now a real access boundary (real [PersonRole]
- * assignments, not a tap-a-card destination), so they get the same kind
- * of guard the customer-only screens already have, not just correct
- * routing from the business-login flow.
- */
-@Composable
-private fun StaffAccessGuard(
-    authViewModel: AuthViewModel,
-    allowedRoles: Set<PersonRole>,
-    onAccessDenied: () -> Unit,
-    content: @Composable () -> Unit,
-) {
-    val sessionState by authViewModel.sessionState.collectAsStateWithLifecycle()
-    val hasAccess = sessionState is SessionState.LoggedIn &&
-        authViewModel.currentPersonRoles().any { it in allowedRoles }
-    if (hasAccess) {
-        content()
-    } else {
-        LaunchedEffect(Unit) { onAccessDenied() }
-    }
-}
-
 
 @Composable
 fun RojanNavGraph() {
@@ -355,23 +314,6 @@ fun RojanNavGraph() {
 
 
 
-                composable(
-                    route = RojanDestinations.WELCOME,
-                    enterTransition = {
-                        motionEnter
-                    },
-                    exitTransition = {
-                        motionExit
-                    }
-                ) {
-
-                    WelcomeRoute(
-                        navController = navController
-                    )
-
-                }
-
-
 
 
                 composable(
@@ -405,20 +347,12 @@ fun RojanNavGraph() {
                         authViewModel = authViewModel,
                         onBackClick = { navController.popBackStack() },
                         onExistingUserAuthenticated = {
-                            // UX Refactor Phase 2: personId persistence now
-                            // happens inside AuthViewModel.submitOtp itself —
-                            // no bridge call needed here any more.
-                            // "Login/OTP only when booking" — resumes exactly
-                            // where the booking flow left off.
-                            //
-                            // UX Refactor Phase 3: business-login branch —
-                            // real PersonRole (not which card was tapped)
-                            // decides Manager vs Specialist vs denial. Denial
-                            // stays on this same screen: denyAccessAndLogout
-                            // reverts sessionState to LoggedOut, which
-                            // AuthScreen already reflects by re-enabling the
-                            // phone field and showing the error message — no
-                            // navigation needed for that case.
+                            // Customer Authentication Migration: personId
+                            // persistence now happens inside
+                            // AuthViewModel.verifyOtp itself — no bridge call
+                            // needed here any more. "Login/OTP only when
+                            // booking" — resumes exactly where the booking
+                            // flow left off.
                             when {
                                 inProgressBookingViewModel != null -> {
                                     val targetStep = inProgressBookingViewModel.nextStep()
@@ -444,16 +378,6 @@ fun RojanNavGraph() {
                                         popUpTo(RojanDestinations.BOOKING_TIME) { inclusive = false }
                                     }
                                 }
-                                navController.hasBusinessLoginInProgress() -> {
-                                    val staffRoute = RojanDestinations.routeForPersonRoles(authViewModel.currentPersonRoles())
-                                    if (staffRoute != null) {
-                                        navController.navigate(staffRoute) {
-                                            popUpTo(RojanDestinations.WELCOME) { inclusive = true }
-                                        }
-                                    } else {
-                                        authViewModel.denyAccessAndLogout("این شماره دسترسی کسب‌وکار ندارد")
-                                    }
-                                }
                                 // Protected Route Handling fix: every
                                 // CustomerAccessGuard-gated screen (Appointments,
                                 // Waitlist, Reschedule, Favorites, Followed Salons)
@@ -472,91 +396,6 @@ fun RojanNavGraph() {
                                     // Defensive fallback only — reachable if AUTH
                                     // somehow has no prior back-stack entry, which
                                     // no current call site produces.
-                                    navController.navigate(RojanDestinations.MEMBER_SALONS_LIST) {
-                                        popUpTo(RojanDestinations.AUTH) { inclusive = true }
-                                    }
-                                }
-                            }
-                        },
-                    )
-                }
-
-                composable(
-                    route = RojanDestinations.FIRST_TIME_NAME,
-                    enterTransition = { motionEnter },
-                    exitTransition = { motionExit },
-                ) { backStackEntry ->
-                    // Bug fix: DemoSessionProvider's SessionState.AwaitingFirstName
-                    // is in-memory only, not persisted — a process death while on
-                    // this screen (e.g. a customer switching away to read their
-                    // OTP SMS) restores this *route* via Navigation's own
-                    // back-stack persistence, but the fresh AuthViewModel/
-                    // SessionProvider restarts at LoggedOut. Submitting the name
-                    // then crashed with IllegalStateException from
-                    // DemoSessionProvider.createFirstTimeUser (it requires
-                    // AwaitingFirstName). Guard this the same way
-                    // CustomerAccessGuard/StaffAccessGuard above guard their
-                    // screens: if the real session state doesn't match what this
-                    // screen requires, bounce back to AUTH (phone entry) — a safe,
-                    // recoverable screen — instead of rendering a screen whose
-                    // only action would crash.
-                    val sessionState by authViewModel.sessionState.collectAsStateWithLifecycle()
-                    if (sessionState !is SessionState.AwaitingFirstName) {
-                        LaunchedEffect(Unit) {
-                            navController.navigate(RojanDestinations.AUTH) {
-                                popUpTo(RojanDestinations.FIRST_TIME_NAME) { inclusive = true }
-                            }
-                        }
-                        return@composable
-                    }
-                    val bookingFlowInProgress = navController.hasBookingFlowInProgress()
-                    val inProgressBookingViewModel = if (bookingFlowInProgress) {
-                        bookingViewModelFor(navController, backStackEntry)
-                    } else {
-                        null
-                    }
-                    FirstTimeNameScreen(
-                        authViewModel = authViewModel,
-                        onBackClick = { navController.popBackStack() },
-                        onNameSubmitted = {
-                            // UX Refactor Phase 2: personId persistence now
-                            // happens inside AuthViewModel.submitFirstName
-                            // itself — no bridge call needed here any more.
-                            // Same three-way branch as AUTH above. Unlike
-                            // AuthScreen, this screen has no phone field to
-                            // fall back to on denial — a first-time signup
-                            // through the business-login entry point is
-                            // always denied (registerPerson only ever grants
-                            // PersonRole.CUSTOMER), so send the user back to
-                            // AUTH to see the denial on the phone-entry screen.
-                            when {
-                                inProgressBookingViewModel != null -> {
-                                    val targetStep = inProgressBookingViewModel.nextStep()
-                                    val targetRoute = routeForBookingStep(targetStep, inProgressBookingViewModel.state.salonId)
-                                    // Booking Flow Fix (P0) — see identical comment on
-                                    // AUTH's own onExistingUserAuthenticated above: popping
-                                    // up to BOOKING_TIME (inside the graph), not AUTH
-                                    // (outside it), is what prevents Navigation-Compose
-                                    // from creating a second, empty BOOKING_FLOW_GRAPH
-                                    // instance for Confirmation to read from.
-                                    navController.navigate(targetRoute) {
-                                        popUpTo(RojanDestinations.BOOKING_TIME) { inclusive = false }
-                                    }
-                                }
-                                navController.hasBusinessLoginInProgress() -> {
-                                    val staffRoute = RojanDestinations.routeForPersonRoles(authViewModel.currentPersonRoles())
-                                    if (staffRoute != null) {
-                                        navController.navigate(staffRoute) {
-                                            popUpTo(RojanDestinations.WELCOME) { inclusive = true }
-                                        }
-                                    } else {
-                                        authViewModel.denyAccessAndLogout("این شماره دسترسی کسب‌وکار ندارد")
-                                        navController.navigate(RojanDestinations.AUTH) {
-                                            popUpTo(RojanDestinations.AUTH) { inclusive = true }
-                                        }
-                                    }
-                                }
-                                else -> {
                                     navController.navigate(RojanDestinations.MEMBER_SALONS_LIST) {
                                         popUpTo(RojanDestinations.AUTH) { inclusive = true }
                                     }
@@ -1258,53 +1097,6 @@ fun RojanNavGraph() {
 
 
 
-                composable(
-                    route = RojanDestinations.MANAGER_DASHBOARD,
-                    enterTransition = {
-                        motionEnter
-                    },
-                    exitTransition = {
-                        motionExit
-                    }
-                ) {
-
-                    StaffAccessGuard(
-                        authViewModel = authViewModel,
-                        allowedRoles = RojanDestinations.MANAGER_ROLES,
-                        onAccessDenied = { navController.popBackStack() },
-                    ) {
-                        ManagerDashboardScreen(
-                            onBackClick = { navController.navigate(RojanDestinations.WELCOME) }
-                        )
-                    }
-
-                }
-
-
-
-
-
-                composable(
-                    route = RojanDestinations.STYLIST_DASHBOARD,
-                    enterTransition = {
-                        motionEnter
-                    },
-                    exitTransition = {
-                        motionExit
-                    }
-                ) {
-
-                    StaffAccessGuard(
-                        authViewModel = authViewModel,
-                        allowedRoles = RojanDestinations.STYLIST_ROLES,
-                        onAccessDenied = { navController.popBackStack() },
-                    ) {
-                        StylistDashboardScreen(
-                            onBackClick = { navController.navigate(RojanDestinations.WELCOME) }
-                        )
-                    }
-
-                }
 
             }
 

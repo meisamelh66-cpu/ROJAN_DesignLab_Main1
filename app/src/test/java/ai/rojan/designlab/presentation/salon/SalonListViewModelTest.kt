@@ -18,7 +18,7 @@ import org.junit.Before
 import org.junit.Test
 
 private class FakeSalonRepository(private val failure: Throwable? = null) : SalonRepository {
-    override suspend fun browseSalons(page: Int, size: Int, nameFilter: String?): Result<PagedResult<Salon>> =
+    override suspend fun browseSalons(page: Int, size: Int, nameFilter: String?, sortDirection: String): Result<PagedResult<Salon>> =
         failure?.let { Result.failure(it) } ?: Result.success(PagedResult(emptyList(), page, size, 0L, 0))
 
     override suspend fun getSalon(salonId: String): Result<Salon> = error("not used")

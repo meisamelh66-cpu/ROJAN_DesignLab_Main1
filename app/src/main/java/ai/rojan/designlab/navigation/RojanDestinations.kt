@@ -45,7 +45,6 @@ object RojanDestinations {
     // (SERVICE_CATEGORIES/SERVICE_SELECTION) were removed — both target
     // flows pick the salon first, then narrow services within it.
     const val AUTH = "auth"
-    const val FIRST_TIME_NAME = "first_time_name"
     const val SALON_LIST = "salon_list/{selectedServiceIds}"
     fun salonList(selectedServiceIds: List<String>) = "salon_list/${selectedServiceIds.joinToString(",")}"
     const val SPECIALIST_SELECTION = "specialist_selection/{salonId}"

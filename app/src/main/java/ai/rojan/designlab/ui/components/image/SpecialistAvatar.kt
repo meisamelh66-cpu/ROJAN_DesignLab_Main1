@@ -51,9 +51,38 @@ fun SpecialistAvatar(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     fallbackIconSize: Dp = 24.dp,
+    photoUrl: String? = null,
 ) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        if (assetRes != null) {
+        if (!photoUrl.isNullOrBlank()) {
+            // Salon Discovery: the real seam this class's own doc comment
+            // anticipated - a real per-specialist backend photo (`Specialist.photoUrl`)
+            // now renders via Coil, still falling back to the same
+            // assetRes/icon path below on a null/blank/failed url.
+            ai.rojan.designlab.ui.components.image.RojanRemoteImage(
+                url = photoUrl,
+                contentDescription = contentDescription,
+                shape = CircleShape,
+                modifier = Modifier.fillMaxSize(),
+                fallback = {
+                    if (assetRes != null) {
+                        RojanSampleImage(
+                            resId = assetRes,
+                            contentDescription = contentDescription,
+                            shape = CircleShape,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.Person,
+                            contentDescription = contentDescription,
+                            tint = RojanTextPrimary,
+                            modifier = Modifier.size(fallbackIconSize),
+                        )
+                    }
+                },
+            )
+        } else if (assetRes != null) {
             var loaded by remember(assetRes) { mutableStateOf(false) }
             LaunchedEffect(assetRes) { loaded = true }
             val alpha by animateFloatAsState(

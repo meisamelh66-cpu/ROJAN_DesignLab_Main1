@@ -25,13 +25,10 @@ import ai.rojan.designlab.domain.identity.SalonIdentity
  * satisfies the *shape* of that contract so the rest of the
  * architecture can be built and later swapped over without changes.
  *
- * Booking Experience Refactor — Authentication (Mock): [persons] is now
- * mutable (was an immutable `listOf`) — first-time signup via
- * [registerPerson] genuinely grows this list at runtime, in-memory,
- * for the current app run only. Seed person #6 (رها احمدی,
- * 09120000006) is the deliberate "existing returning customer" case
- * for testing the mock login flow's other branch — any *other* phone
- * number will correctly be treated as first-time.
+ * Identity & Session Architecture Cleanup: [persons] is back to an
+ * immutable `listOf` — the mock first-time-signup path that used to grow
+ * it at runtime (`registerPerson`) is removed, confirmed zero real
+ * callers remained once real backend OTP replaced the mock login flow.
  */
 class DemoIdentityProvider : IdentityProvider {
 
@@ -45,13 +42,7 @@ class DemoIdentityProvider : IdentityProvider {
         SalonIdentity(IdentityIdFormat.salonId(2), "استودیو luxe", organization.id),
     )
 
-    // UX Refactor Phase 3: these must be plain digits, matching what
-    // AuthViewModel.isValidPhoneNumber's regex (^09\d{9}$) actually
-    // accepts — the previous dashed format ("0912-000-0001") could never
-    // equal any regex-valid typed input, so personByPhone() could never
-    // match a seeded account through the real UI. No seeded phone number
-    // was reachable at all until this fix.
-    private val persons = mutableListOf(
+    private val persons = listOf(
         PersonIdentity(IdentityIdFormat.personId(1), "رضا کریمی", "09120000001"),
         PersonIdentity(IdentityIdFormat.personId(2), "مریم صادقی", "09120000002"),
         PersonIdentity(IdentityIdFormat.personId(3), "سارا نجفی", "09120000003"),
@@ -60,8 +51,6 @@ class DemoIdentityProvider : IdentityProvider {
         PersonIdentity(IdentityIdFormat.personId(6), "رها احمدی", "09120000006"),
         PersonIdentity(IdentityIdFormat.personId(7), "نگین رضایی", "09120000007"),
     )
-
-    private var nextPersonSequence = 8
 
     private val roleAssignments = mutableListOf(
         // Owner + Finance at once - the multi-role case, genuinely exercised.
@@ -77,28 +66,6 @@ class DemoIdentityProvider : IdentityProvider {
     )
 
     override fun personById(personId: String): PersonIdentity? = persons.find { it.id == personId }
-
-    override fun personByPhone(phoneNumber: String): PersonIdentity? = persons.find { it.verifiedMobile == phoneNumber }
-
-    override fun allPersons(): List<PersonIdentity> = persons
-
-    override fun registerPerson(displayName: String, verifiedMobile: String): PersonIdentity {
-        val newPerson = PersonIdentity(
-            id = IdentityIdFormat.personId(nextPersonSequence++),
-            displayName = displayName,
-            verifiedMobile = verifiedMobile,
-        )
-        persons.add(newPerson)
-        // Production Readiness Audit (V1.0 Module 6): a signed-up customer
-        // previously got zero role assignment - rolesFor() would return an
-        // empty set, meaning a genuinely legitimate new customer would have
-        // been incorrectly blocked by any real role guard. Every newly
-        // registered person is granted PersonRole.CUSTOMER at the app's
-        // fixed reference salon (matching DemoSessionProvider.currentSalonId()
-        // and seed person #6's existing CUSTOMER assignment pattern).
-        roleAssignments.add(PersonRoleAssignment(newPerson.id, salons[0].id, PersonRole.CUSTOMER))
-        return newPerson
-    }
 
     override fun salonById(salonId: String): SalonIdentity? = salons.find { it.id == salonId }
 

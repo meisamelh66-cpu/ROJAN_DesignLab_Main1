@@ -7,6 +7,7 @@ import ai.rojan.designlab.data.remote.dto.OtpRequestDto
 import ai.rojan.designlab.data.remote.dto.OtpVerifyRequestDto
 import ai.rojan.designlab.data.remote.dto.RefreshRequestDto
 import ai.rojan.designlab.data.remote.dto.RegisterRequestDto
+import ai.rojan.designlab.data.remote.dto.SalonAccessResponseDto
 import ai.rojan.designlab.data.remote.dto.UserResponseDto
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -26,6 +27,10 @@ interface AuthApi {
 
     @GET("api/v1/users/me")
     suspend fun me(): UserResponseDto
+
+    /** Identity & Session Architecture, Android Integration: the caller's real salon access - owned salons, staff memberships, own specialist link - with server-resolved permissions per entry. */
+    @GET("api/v1/users/me/salon-access")
+    suspend fun getSalonAccess(): SalonAccessResponseDto
 
     /** OTP Authentication Entry Flow Integration — already-existing backend endpoint, not previously bound on the mobile side. */
     @POST("api/v1/auth/otp/request")

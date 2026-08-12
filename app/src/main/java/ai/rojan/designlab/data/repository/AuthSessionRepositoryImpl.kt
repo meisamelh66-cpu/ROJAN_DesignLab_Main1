@@ -35,15 +35,7 @@ class AuthSessionRepositoryImpl(
         }
     }
 
-    /**
-     * "Remember Me" enforcement lives here, not in any caller: when the
-     * last session wasn't marked to be remembered, this emits `null`
-     * regardless of what's still stored under [AuthSessionPreferencesKeys.LOGGED_IN_PERSON_ID] —
-     * an unremembered session simply never resurfaces on the next cold
-     * start, without [ai.rojan.designlab.presentation.session.SessionViewModel]
-     * or [ai.rojan.designlab.presentation.auth.AuthViewModel] needing to
-     * know "Remember Me" exists at all.
-     */
+    /** Session persistence is unconditional — every successful login survives a cold start, until an explicit [clearPersonId] (logout, expired/revoked refresh token). */
     override fun observePersonId(): Flow<String?> =
         dataStore.data
             .catch { throwable ->
@@ -52,24 +44,5 @@ class AuthSessionRepositoryImpl(
                 }
                 emit(emptyPreferences())
             }
-            .map { preferences ->
-                val rememberMe = preferences[AuthSessionPreferencesKeys.REMEMBER_ME] ?: true
-                if (rememberMe) preferences[AuthSessionPreferencesKeys.LOGGED_IN_PERSON_ID] else null
-            }
-
-    override suspend fun saveRememberMe(remember: Boolean) {
-        dataStore.edit { preferences ->
-            preferences[AuthSessionPreferencesKeys.REMEMBER_ME] = remember
-        }
-    }
-
-    override fun observeRememberMe(): Flow<Boolean> =
-        dataStore.data
-            .catch { throwable ->
-                if (throwable is CancellationException) {
-                    throw throwable
-                }
-                emit(emptyPreferences())
-            }
-            .map { preferences -> preferences[AuthSessionPreferencesKeys.REMEMBER_ME] ?: true }
+            .map { preferences -> preferences[AuthSessionPreferencesKeys.LOGGED_IN_PERSON_ID] }
 }
