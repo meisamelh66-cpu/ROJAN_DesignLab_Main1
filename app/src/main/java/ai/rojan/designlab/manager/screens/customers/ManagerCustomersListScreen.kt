@@ -64,18 +64,25 @@ import androidx.compose.ui.unit.dp
  * comment); it's shown on the profile screen instead, where a single
  * extra call for one customer is the normal case.
  *
- * CRM Foundation, Phase 6 Step 5: [selectedTag] adds a [CustomerTag]
+ * CRM Foundation, Phase 6 Step 5: `selectedTag` adds a [CustomerTag]
  * filter on top of [query] — both local, over the same already-synced
  * cache `search()` already reads, no extra network call.
+ *
+ * AI Insight Presentation Layer, Phase 7 Step 4: [initialTagFilter] seeds
+ * that same filter state from the caller (e.g. the Dashboard's inactive-
+ * customer summary linking straight to the pre-filtered list) — a manager
+ * can still change or clear it afterward exactly as before, since it's
+ * only the initial value, not a locked/controlled one.
  */
 @Composable
 fun ManagerCustomersListScreen(
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
     onCustomerClick: (String) -> Unit = {},
+    initialTagFilter: CustomerTag? = null,
 ) {
     var query by remember { mutableStateOf("") }
-    var selectedTag by remember { mutableStateOf<CustomerTag?>(null) }
+    var selectedTag by remember { mutableStateOf(initialTagFilter) }
     val filteredCustomers = remember(query, selectedTag) {
         ManagerRepositories.customers.search(query).filter { customer ->
             selectedTag == null || customer.tag == selectedTag

@@ -57,6 +57,16 @@ import androidx.compose.ui.tooling.preview.Preview
  * ([ManagerRepositories.salon]/[ManagerRepositories.dashboardInsights]/
  * [computeTodaysUpcomingSlots]) — see those components for the exact
  * shape.
+ *
+ * AI Insight Presentation Layer, Phase 7 Step 4: [onViewInactiveCustomersClick]
+ * is [AIInsightCard]'s new inactive-customer-count line, routing to
+ * [ai.rojan.designlab.manager.screens.customers.ManagerCustomersListScreen]
+ * pre-filtered to [ai.rojan.designlab.manager.domain.customer.CustomerTag.INACTIVE] -
+ * distinct from [onViewCustomersClick] (unfiltered), since they land on
+ * different filter states of the same screen. Frozen Dashboard baseline
+ * untouched otherwise: section order/count and [AIInsightCard]'s existing
+ * layout are unchanged - see that component's own doc comment for what
+ * was added inside it.
  */
 @Composable
 fun ManagerDashboardScreen(
@@ -65,6 +75,7 @@ fun ManagerDashboardScreen(
     onViewCalendarClick: () -> Unit = {},
     onCreateAppointmentClick: () -> Unit = {},
     onViewCustomersClick: () -> Unit = {},
+    onViewInactiveCustomersClick: () -> Unit = {},
     onViewServicesClick: () -> Unit = {},
     onViewStaffClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
@@ -112,7 +123,13 @@ fun ManagerDashboardScreen(
                     },
                 )
             }
-            item { AIInsightCard(message = ManagerRepositories.dashboardInsights?.topRecommendationMessage) }
+            item {
+                AIInsightCard(
+                    message = ManagerRepositories.dashboardInsights?.topRecommendationMessage,
+                    inactiveCustomerCount = ManagerRepositories.crmInsights.size,
+                    onInactiveCustomersClick = onViewInactiveCustomersClick,
+                )
+            }
             item {
                 val slots = remember(refreshKey) { computeTodaysUpcomingSlots() }
                 CalendarPreviewSection(slots = slots, onViewCalendarClick = onViewCalendarClick)

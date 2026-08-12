@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.navigation
 
+import ai.rojan.designlab.manager.domain.customer.CustomerTag
 import ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModelFactory
@@ -38,7 +39,9 @@ import androidx.navigation.navArgument
  * Registers [ManagerDestinations.OTP_AUTH], [ManagerDestinations.SALON_SELECTION]
  * (Active Salon Context & Selection Flow), [ManagerDestinations.DASHBOARD],
  * [ManagerDestinations.CALENDAR]/[ManagerDestinations.APPOINTMENT_DETAIL]
- * (Phase 6 Step 4), [ManagerDestinations.CUSTOMERS],
+ * (Phase 6 Step 4), [ManagerDestinations.CUSTOMERS] (optional `tag` query
+ * arg since AI Insight Presentation Layer, Phase 7 Step 4 — always via
+ * [ManagerDestinations.customers]),
  * [ManagerDestinations.CUSTOMER_PROFILE], [ManagerDestinations.SERVICES]/
  * [ManagerDestinations.SERVICE_EDIT] (Manager Operational Foundation, Phase
  * 6 Steps 1 and 3), [ManagerDestinations.STAFF]/[ManagerDestinations.STAFF_EDIT]
@@ -88,7 +91,8 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
         ManagerDashboardScreen(
             onViewCalendarClick = { navController.navigate(ManagerDestinations.CALENDAR) },
             onCreateAppointmentClick = { navController.navigate(ManagerDestinations.CREATE_APPOINTMENT) },
-            onViewCustomersClick = { navController.navigate(ManagerDestinations.CUSTOMERS) },
+            onViewCustomersClick = { navController.navigate(ManagerDestinations.customers()) },
+            onViewInactiveCustomersClick = { navController.navigate(ManagerDestinations.customers(CustomerTag.INACTIVE)) },
             onViewServicesClick = { navController.navigate(ManagerDestinations.SERVICES) },
             onViewStaffClick = { navController.navigate(ManagerDestinations.STAFF) },
             onProfileClick = { navController.navigate(ManagerDestinations.PROFILE) },
@@ -153,12 +157,18 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
         )
     }
 
-    composable(ManagerDestinations.CUSTOMERS) {
+    composable(
+        route = ManagerDestinations.CUSTOMERS,
+        arguments = listOf(navArgument("tag") { type = NavType.StringType; nullable = true; defaultValue = null }),
+    ) { backStackEntry ->
+        val initialTagFilter = backStackEntry.arguments?.getString("tag")
+            ?.let { runCatching { CustomerTag.valueOf(it) }.getOrNull() }
         ManagerCustomersListScreen(
             onBackClick = { navController.popBackStack() },
             onCustomerClick = { customerId ->
                 navController.navigate(ManagerDestinations.customerProfile(customerId))
             },
+            initialTagFilter = initialTagFilter,
         )
     }
 

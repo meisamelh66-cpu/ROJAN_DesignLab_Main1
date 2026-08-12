@@ -1,5 +1,7 @@
 package ai.rojan.designlab.manager.navigation
 
+import ai.rojan.designlab.manager.domain.customer.CustomerTag
+
 /**
  * Route constants for the isolated Manager App workspace. Deliberately
  * separate from [ai.rojan.designlab.navigation.RojanDestinations] (which
@@ -24,7 +26,10 @@ object ManagerDestinations {
     /** Manager Operational Foundation, Phase 6 Step 4 — read-only detail, reached from [ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen]'s existing `onAppointmentClick`. No create/new sentinel — every appointment already exists by the time this route is reached. */
     const val APPOINTMENT_DETAIL = "manager_appointment_detail/{appointmentId}"
     fun appointmentDetail(appointmentId: String) = "manager_appointment_detail/$appointmentId"
-    const val CUSTOMERS = "manager_customers"
+    /** AI Insight Presentation Layer, Phase 7 Step 4 — `tag` is an optional query arg (falls back to `null`/no filter when omitted entirely, e.g. a bare navigate to [customers]()), so this stays the same destination rather than a second route. Always navigate via [customers], never this raw template. */
+    const val CUSTOMERS = "manager_customers?tag={tag}"
+    fun customers(tag: CustomerTag? = null): String =
+        if (tag != null) "manager_customers?tag=${tag.name}" else "manager_customers"
     const val CUSTOMER_PROFILE = "manager_customer_profile/{customerId}"
     fun customerProfile(customerId: String) = "manager_customer_profile/$customerId"
     const val SERVICES = "manager_services"
