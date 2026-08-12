@@ -1,6 +1,8 @@
 package ai.rojan.designlab.manager.domain.ai
 
+import ai.rojan.designlab.manager.domain.appointment.Appointment
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
+import ai.rojan.designlab.manager.domain.service.Service
 
 /**
  * What kind of real, already-classified fact a [ManagerCrmInsight]
@@ -53,10 +55,25 @@ data class ManagerCrmInsight(
  * implementation is a pure function over already-fetched data and never
  * triggers a network call of its own (consistent with [insightsFor]
  * staying non-`suspend`).
+ *
+ * [services]/[appointments] (Phase 8 Step 1, CRM Insight Context
+ * Expansion) are the same already-synced, salon-wide bulk lists
+ * [ManagerRepositories.initialize] already builds for
+ * [ai.rojan.designlab.manager.data.ManagerRepositories.services]/[ai.rojan.designlab.manager.data.ManagerRepositories.appointments] -
+ * passed straight through the same way [customers] is, no second fetch.
+ * Default to `emptyList()` so this stays purely additive: no existing
+ * provider or test that only cares about [customers] needs to change.
+ * No provider reads them yet - this step is context plumbing only, not a
+ * new rule. [appointments] specifically still carries the reliability
+ * caveats disclosed since Phase 7 Step 3 (unverified sort order, capped
+ * pagination, display-formatted `date`/`time`) - a future rule reading it
+ * must account for that itself, this context makes no claim otherwise.
  */
 data class ManagerCrmInsightContext(
     val salonId: String,
     val customers: List<ManagerCustomer>,
+    val services: List<Service> = emptyList(),
+    val appointments: List<Appointment> = emptyList(),
 )
 
 /**

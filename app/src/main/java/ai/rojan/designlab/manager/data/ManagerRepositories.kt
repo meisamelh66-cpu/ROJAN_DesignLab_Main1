@@ -142,14 +142,17 @@ object ManagerRepositories {
     /**
      * Manager CRM AI Consumption Layer, Phase 7 Step 2 — the registered
      * [ai.rojan.designlab.di.BackendApiContainer.managerCrmInsightProvider]'s
-     * output for this salon, refreshed every [initialize]. As of Phase 7
-     * Step 3, real: [ai.rojan.designlab.manager.domain.ai.InactiveCustomerInsightProvider]
-     * surfaces every [ManagerCustomer] with
-     * [ai.rojan.designlab.manager.domain.customer.CustomerTag.INACTIVE]
-     * (see its own doc comment on why that's the extent of the rule). No
-     * network call of its own - the already-synced [customers] list is
-     * passed straight into the provider. Still not read by any screen -
-     * populated so the plumbing exists ahead of that UI decision.
+     * output for this salon, refreshed every [initialize]. Real since
+     * Phase 7 Step 3/5: [ai.rojan.designlab.manager.domain.ai.InactiveCustomerInsightProvider]/
+     * [ai.rojan.designlab.manager.domain.ai.VipCustomerInsightProvider]
+     * (via [ai.rojan.designlab.manager.domain.ai.CompositeManagerCrmInsightProvider])
+     * surface every [ManagerCustomer] with a matching
+     * [ai.rojan.designlab.manager.domain.customer.CustomerTag] (see each
+     * provider's own doc comment). Read by the Dashboard's inactive-count
+     * summary and the Customer Profile's insight section (Phase 7 Steps
+     * 4/7). No network call of its own - [customers]/[services]/
+     * [appointments] (the last two added Phase 8 Step 1) are already-
+     * synced lists passed straight into the provider.
      */
     var crmInsights: List<ManagerCrmInsight> = emptyList()
         private set
@@ -224,7 +227,12 @@ object ManagerRepositories {
         salonId = salonDto.id
         availabilityRepository = container.availabilityRepository
         crmInsights = container.managerCrmInsightProvider.insightsFor(
-            ManagerCrmInsightContext(salonId = salonDto.id, customers = customerRepo.getAll()),
+            ManagerCrmInsightContext(
+                salonId = salonDto.id,
+                customers = customerRepo.getAll(),
+                services = serviceRepo.getAll(),
+                appointments = appointmentRepo.getAll(),
+            ),
         )
 
         return serviceSync
