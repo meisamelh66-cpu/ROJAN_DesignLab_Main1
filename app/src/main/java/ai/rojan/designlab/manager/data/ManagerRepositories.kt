@@ -142,12 +142,14 @@ object ManagerRepositories {
     /**
      * Manager CRM AI Consumption Layer, Phase 7 Step 2 — the registered
      * [ai.rojan.designlab.di.BackendApiContainer.managerCrmInsightProvider]'s
-     * output for this salon, refreshed every [initialize]. Always
-     * `emptyList()` today: that provider is
-     * [ai.rojan.designlab.manager.domain.ai.NoOpManagerCrmInsightProvider]
-     * (see its own doc comment) - no rule/scoring logic exists yet. Not
-     * read by any screen this step; populated so the plumbing exists
-     * ahead of that decision.
+     * output for this salon, refreshed every [initialize]. As of Phase 7
+     * Step 3, real: [ai.rojan.designlab.manager.domain.ai.InactiveCustomerInsightProvider]
+     * surfaces every [ManagerCustomer] with
+     * [ai.rojan.designlab.manager.domain.customer.CustomerTag.INACTIVE]
+     * (see its own doc comment on why that's the extent of the rule). No
+     * network call of its own - the already-synced [customers] list is
+     * passed straight into the provider. Still not read by any screen -
+     * populated so the plumbing exists ahead of that UI decision.
      */
     var crmInsights: List<ManagerCrmInsight> = emptyList()
         private set
@@ -221,7 +223,9 @@ object ManagerRepositories {
         salon = ManagerSalonSummary(name = salonDto.name, description = salonDto.description, active = salonDto.active)
         salonId = salonDto.id
         availabilityRepository = container.availabilityRepository
-        crmInsights = container.managerCrmInsightProvider.insightsFor(ManagerCrmInsightContext(salonId = salonDto.id))
+        crmInsights = container.managerCrmInsightProvider.insightsFor(
+            ManagerCrmInsightContext(salonId = salonDto.id, customers = customerRepo.getAll()),
+        )
 
         return serviceSync
             .fold(onSuccess = { appointmentSync }, onFailure = { Result.failure(it) })
