@@ -10,6 +10,7 @@ import ai.rojan.designlab.manager.screens.booking.ManagerBookingServiceScreen
 import ai.rojan.designlab.manager.screens.booking.ManagerBookingSpecialistScreen
 import ai.rojan.designlab.manager.screens.booking.ManagerBookingStartScreen
 import ai.rojan.designlab.manager.screens.booking.ManagerBookingSuccessScreen
+import ai.rojan.designlab.manager.screens.calendar.ManagerAppointmentDetailScreen
 import ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen
 import ai.rojan.designlab.manager.screens.customers.ManagerCustomerProfileScreen
 import ai.rojan.designlab.manager.screens.customers.ManagerCustomersListScreen
@@ -36,7 +37,8 @@ import androidx.navigation.navArgument
  * Self-contained nav graph for the isolated Manager App workspace.
  * Registers [ManagerDestinations.OTP_AUTH], [ManagerDestinations.SALON_SELECTION]
  * (Active Salon Context & Selection Flow), [ManagerDestinations.DASHBOARD],
- * [ManagerDestinations.CALENDAR], [ManagerDestinations.CUSTOMERS],
+ * [ManagerDestinations.CALENDAR]/[ManagerDestinations.APPOINTMENT_DETAIL]
+ * (Phase 6 Step 4), [ManagerDestinations.CUSTOMERS],
  * [ManagerDestinations.CUSTOMER_PROFILE], [ManagerDestinations.SERVICES]/
  * [ManagerDestinations.SERVICE_EDIT] (Manager Operational Foundation, Phase
  * 6 Steps 1 and 3), [ManagerDestinations.STAFF]/[ManagerDestinations.STAFF_EDIT]
@@ -135,6 +137,18 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
 
     composable(ManagerDestinations.CALENDAR) {
         ManagerCalendarScreen(
+            onBackClick = { navController.popBackStack() },
+            onAppointmentClick = { appointmentId -> navController.navigate(ManagerDestinations.appointmentDetail(appointmentId)) },
+        )
+    }
+
+    composable(
+        route = ManagerDestinations.APPOINTMENT_DETAIL,
+        arguments = listOf(navArgument("appointmentId") { type = NavType.StringType }),
+    ) { backStackEntry ->
+        val appointmentId = backStackEntry.arguments?.getString("appointmentId").orEmpty()
+        ManagerAppointmentDetailScreen(
+            appointmentId = appointmentId,
             onBackClick = { navController.popBackStack() },
         )
     }

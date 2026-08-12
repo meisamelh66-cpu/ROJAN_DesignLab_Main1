@@ -20,6 +20,10 @@ object ManagerDestinations {
     const val SALON_SELECTION = "manager_salon_selection"
     const val DASHBOARD = "manager_dashboard_root"
     const val CALENDAR = "manager_calendar"
+
+    /** Manager Operational Foundation, Phase 6 Step 4 — read-only detail, reached from [ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen]'s existing `onAppointmentClick`. No create/new sentinel — every appointment already exists by the time this route is reached. */
+    const val APPOINTMENT_DETAIL = "manager_appointment_detail/{appointmentId}"
+    fun appointmentDetail(appointmentId: String) = "manager_appointment_detail/$appointmentId"
     const val CUSTOMERS = "manager_customers"
     const val CUSTOMER_PROFILE = "manager_customer_profile/{customerId}"
     fun customerProfile(customerId: String) = "manager_customer_profile/$customerId"

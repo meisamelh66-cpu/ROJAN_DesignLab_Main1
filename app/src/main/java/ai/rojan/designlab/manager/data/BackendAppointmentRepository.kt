@@ -132,7 +132,7 @@ class BackendAppointmentRepository(
         }
 
     private fun BookingResponseDto.toDomain(): Appointment {
-        // startTime is an ISO-8601 *local* date-time with no offset (see CreateBookingRequestDto's
+        // startTime/endTime are ISO-8601 *local* date-times with no offset (see CreateBookingRequestDto's
         // own doc comment, e.g. "2026-09-01T10:00:00") - LocalDateTime.parse, not OffsetDateTime.
         val start = LocalDateTime.parse(startTime)
         return Appointment(
@@ -143,6 +143,8 @@ class BackendAppointmentRepository(
             date = start.format(DateTimeFormatter.ofPattern("yyyy/MM/dd")),
             time = start.format(DateTimeFormatter.ofPattern("HH:mm")),
             status = status.toDomain(),
+            endTime = LocalDateTime.parse(endTime).format(DateTimeFormatter.ofPattern("HH:mm")),
+            notes = notes,
         )
     }
 
