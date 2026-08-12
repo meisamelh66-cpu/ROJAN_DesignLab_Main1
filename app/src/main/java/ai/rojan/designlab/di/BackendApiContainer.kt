@@ -56,6 +56,8 @@ import ai.rojan.designlab.domain.repository.SpecialistRepository
 import ai.rojan.designlab.domain.repository.TokenRepository
 import ai.rojan.designlab.domain.repository.WorkingHoursRepository
 import ai.rojan.designlab.manager.data.BackendSalonMembershipRepository
+import ai.rojan.designlab.manager.domain.ai.ManagerCrmInsightProvider
+import ai.rojan.designlab.manager.domain.ai.NoOpManagerCrmInsightProvider
 import ai.rojan.designlab.manager.domain.repository.SalonMembershipRepository
 import android.content.Context
 import kotlinx.serialization.json.Json
@@ -203,6 +205,13 @@ class BackendApiContainer(context: Context) {
     val salonMembershipRepository: SalonMembershipRepository =
         BackendSalonMembershipRepository(retrofit.create(SalonMembershipApi::class.java))
 
+    // Manager CRM AI Foundation, Phase 7 Step 1 - interface + no-op only,
+    // same "provider interface + empty implementation is acceptable, fake
+    // AI is not" reasoning as beautyProfileRepository above and the
+    // Customer-side AiRecommendationProvider it mirrors. No rule/scoring
+    // logic exists to build a real implementation on; not wired into any
+    // screen or ManagerRepositories yet - DI registration only.
+    val managerCrmInsightProvider: ManagerCrmInsightProvider = NoOpManagerCrmInsightProvider()
 
     /** No AuthInterceptor/authenticator - a plain, no-token client, for endpoints that need none. */
     private fun buildPlainRetrofit(): Retrofit =
