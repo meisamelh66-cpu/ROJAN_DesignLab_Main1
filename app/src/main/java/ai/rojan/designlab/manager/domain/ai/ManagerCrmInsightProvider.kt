@@ -15,6 +15,9 @@ import ai.rojan.designlab.manager.domain.service.Service
 enum class ManagerCrmInsightCategory {
     INACTIVE_CUSTOMER,
     VIP_CUSTOMER,
+
+    /** Phase 8 Step 2 — a distinct, compound fact from [VIP_CUSTOMER] alone ("this customer is VIP" vs. "this VIP customer has zero synced appointments"); kept as its own category rather than reusing [VIP_CUSTOMER] so a consumer can tell the two apart. See [VipWithoutAppointmentsInsightProvider]'s own doc comment. */
+    VIP_WITHOUT_APPOINTMENTS,
 }
 
 /**
