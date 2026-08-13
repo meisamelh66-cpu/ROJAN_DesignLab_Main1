@@ -19,6 +19,8 @@ import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTheme
 import ai.rojan.designlab.ui.theme.RojanTypography
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
@@ -86,6 +89,18 @@ import androidx.compose.ui.unit.dp
  * [ai.rojan.designlab.manager.screens.customers.ManagerCustomerEditScreen] -
  * the only change to this screen for that flow; everything else here
  * (insight section, service history, notes) is unchanged.
+ *
+ * Customer Contact Action, Phase 9 Step 3: the phone row is now tappable
+ * (when [ManagerCustomer.phone] is non-blank) and launches
+ * `Intent.ACTION_DIAL` - the exact same pattern already used by
+ * [ai.rojan.designlab.screens.salon.SalonDetailsScreen] for a salon's
+ * phone number, not a new one. `ACTION_DIAL` only opens the dialer
+ * pre-filled - it never places the call itself, so no `CALL_PHONE`
+ * runtime permission is needed. The launch is wrapped in `runCatching`
+ * the same way that existing call site already is, in case no dialer app
+ * is available on the device; a failure is silently swallowed rather
+ * than shown as an error, matching that same precedent exactly. Display
+ * text/layout is otherwise unchanged.
  */
 @Composable
 fun ManagerCustomerProfileScreen(
@@ -130,9 +145,11 @@ fun ManagerCustomerProfileScreen(
     }
 }
 
-/** [onEditClick] (Customer Edit Flow, Phase 9 Step 1) routes to [ManagerCustomerEditScreen] — the only new element added here; name/phone/visit-count/[TagChip] are unchanged. */
+/** [onEditClick] (Customer Edit Flow, Phase 9 Step 1) routes to [ManagerCustomerEditScreen]; the phone row (Customer Contact Action, Phase 9 Step 3) launches the dialer when tapped. Name/phone text/visit-count/[TagChip] display is otherwise unchanged. */
 @Composable
 private fun CustomerIdentityHeader(customer: ManagerCustomer, onEditClick: () -> Unit) {
+    val context = LocalContext.current
+
     ManagerGlassSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RojanShapes.GlassCard,
@@ -162,7 +179,24 @@ private fun CustomerIdentityHeader(customer: ManagerCustomer, onEditClick: () ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
-                    modifier = Modifier.padding(top = RojanDimens.SpaceXS),
+                    modifier = Modifier
+                        .padding(top = RojanDimens.SpaceXS)
+                        .let { rowModifier ->
+                            if (customer.phone.isNotBlank()) {
+                                rowModifier.rojanPressable(
+                                    onClick = {
+                                        // ACTION_DIAL (not ACTION_CALL): opens the dialer
+                                        // pre-filled, doesn't place the call itself - needs no
+                                        // CALL_PHONE runtime permission. Same pattern as
+                                        // SalonDetailsScreen's salon-phone row.
+                                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${customer.phone}"))
+                                        runCatching { context.startActivity(intent) }
+                                    },
+                                )
+                            } else {
+                                rowModifier
+                            }
+                        },
                 ) {
                     RojanIconContainer(
                         imageVector = Icons.Filled.Phone,
