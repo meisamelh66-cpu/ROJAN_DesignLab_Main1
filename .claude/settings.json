@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git ls-tree*)",
+      "Bash(./gradlew assemble*)",
+      "Bash(./gradlew compile*)",
+      "Bash(./gradlew test*)",
+      "Bash(./gradlew lint*)",
+      "Bash(./gradlew clean*)",
+      "Bash(./gradlew tasks*)",
+      "PowerShell(git status*)",
+      "PowerShell(git diff*)",
+      "PowerShell(git log*)",
+      "PowerShell(git show*)"
+    ],
+    "ask": [
+      "Bash(git commit*)",
+      "Bash(git push*)",
+      "Bash(rm *)",
+      "PowerShell(git commit*)",
+      "PowerShell(git push*)",
+      "PowerShell(Remove-Item*)"
+    ]
+  }
+}

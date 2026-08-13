@@ -13,24 +13,53 @@ glass components, backgrounds, buttons, interaction).
 - Do not remove existing features without approval.
 - Before major architectural changes, ask for confirmation.
 
+## System 1 / System 2 boundary
+
+ROJAN is developed across two coordinating teams. This repo (Android) is
+System 2's domain.
+
+- **System 1** controls: Backend, Security/RBAC, database schema, API
+  contracts, cross-app architecture decisions.
+- **System 2** (this repo) controls: Android implementation within scope
+  already approved by System 1.
+
+Any change that would cross into System 1's domain requires confirmation,
+even if it could be implemented entirely from Android-side files (e.g. adding
+a role check, or changing what a DTO field means).
+
 ## Automatic Actions
 
 Proceed without asking:
-- Build project
-- Run tests
+- Formatting
+- File organization (moving/renaming files within the existing package
+  structure)
+- Test creation and updates
+- Documentation updates (code comments, this file, report docs explicitly
+  requested by the task)
+- Standard refactoring inside the current task's approved scope
+- Build project / run tests / build verification
 - Inspect code
 - Run emulator checks
 - Capture screenshots
+- Code cleanup (dead code, unused imports, lint fixes)
 - Fix UI issues described in the task
 
 ## Confirmation Required
 
-Ask only for:
-- Delete files
+Ask before:
+- Backend changes (anything under `ROJAN_Backend`)
+- API contract changes (DTO shapes, endpoint paths/methods, request/response
+  fields)
+- RBAC/security changes (roles, permissions, auth logic, token handling)
 - Database migrations
-- Architecture changes
-- Breaking API changes
-- Large refactors
+- Architecture changes (crossing module boundaries, merging or extracting
+  shared layers across apps, changing how flavors relate to each other)
+- Deleting files
+- Changing project structure (new modules, new flavors, build config
+  restructuring)
+- Committing or pushing git (`git commit`, `git push`) — always ask first,
+  regardless of what the current task's other instructions imply about
+  scope being pre-approved
 
 When a fix is found mid-task that's outside the current request's scope
 (e.g. a regression in an unrelated file), surface it and propose a minimal,
