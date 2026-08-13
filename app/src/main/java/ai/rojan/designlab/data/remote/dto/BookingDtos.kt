@@ -44,6 +44,24 @@ data class RescheduleBookingRequestDto(
 )
 
 @Serializable
+data class ServiceSummaryDto(val id: String, val name: String)
+
+@Serializable
+data class SpecialistSummaryDto(val id: String, val name: String)
+
+@Serializable
+data class CustomerSummaryDto(val id: String, val name: String, val phone: String? = null)
+
+/**
+ * [service]/[specialist]/[customer] are `ROJAN_System1_Backend_Decision_v2.md`
+ * §3's approved enrichment — additive, alongside the unchanged flat
+ * [serviceId]/[specialistId]/[customerId]. All three default to `null`
+ * because the backend has not shipped this enrichment yet (verified
+ * against `origin/feature/auth-rate-limit-finalization`); every real
+ * response today omits them, and deserialization must not fail on their
+ * absence. Do not synthesize a value client-side when these are `null`.
+ */
+@Serializable
 data class BookingResponseDto(
     val id: String,
     val salonId: String,
@@ -56,4 +74,7 @@ data class BookingResponseDto(
     val notes: String? = null,
     val createdAt: String,
     val updatedAt: String,
+    val service: ServiceSummaryDto? = null,
+    val specialist: SpecialistSummaryDto? = null,
+    val customer: CustomerSummaryDto? = null,
 )

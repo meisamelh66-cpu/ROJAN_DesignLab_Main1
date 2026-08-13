@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Reception flavor override of the shared app_name resource (defined in src/main/res/values/strings.xml for Customer) -->
+    <string name="app_name">ROJAN Reception</string>
+</resources>

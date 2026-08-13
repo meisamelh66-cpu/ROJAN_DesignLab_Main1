@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+        ROJAN Reception flavor manifest (ROJAN_Reception_Implementation_Plan_v1.md,
+        Phase 0) — merged with src/main/AndroidManifest.xml (unchanged, still
+        Customer's manifest), same shape as src/manager/AndroidManifest.xml.
+        Only what differs for the Reception app lives here: its own entry
+        Activity. android:label stays "@string/app_name" (inherited from
+        main) — the string VALUE is overridden per-flavor instead, via
+        src/reception/res/values/strings.xml.
+
+        No bespoke Reception launcher art exists yet — android:icon/roundIcon
+        are left unset here, so this flavor inherits main's
+        @mipmap/ic_launcher (the generic ROJAN mark) rather than fabricating
+        "Reception" branding or confusingly borrowing Manager's teal/gold
+        logo. Swap in real art once approved, the same way Manager later
+        added its own rojan_manager_logo_launcher.
+    -->
+
+    <application>
+
+        <!--
+            This flavor doesn't use Customer's MainActivity/RojanNavGraph at
+            all — removed entirely (not just its launcher intent-filter) so
+            the Reception APK has exactly one launcher entry point,
+            ReceptionActivity below. This removal only applies when building
+            the `reception` flavor; Customer's own manifest/activity are
+            untouched.
+        -->
+        <activity
+            android:name=".MainActivity"
+            tools:node="remove" />
+
+        <activity
+            android:name=".ReceptionActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.ROJAN_DesignLab"
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="portrait">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+    </application>
+
+</manifest>

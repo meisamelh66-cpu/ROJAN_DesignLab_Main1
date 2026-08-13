@@ -42,7 +42,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // Manager App split (see CLAUDE.md "App ID Separation" audit): two
+    // Manager App split (see CLAUDE.md "App ID Separation" audit): separate
     // installable apps from one codebase, no code duplicated/moved.
     // `customer` has zero overrides — it inherits defaultConfig exactly
     // as-is, so the existing Customer app's applicationId/manifest/
@@ -52,15 +52,29 @@ android {
     // same src/main Manager package (screens/navigation/components) and
     // the existing rojan_manager_logo asset — nothing duplicated.
     //
+    // `reception` (ROJAN_Reception_Implementation_Plan_v1.md, Phase 0):
+    // same shape as `manager` — own applicationId suffix + flavor-only
+    // source set (src/reception/...) adding ReceptionActivity + manifest +
+    // app_name override, reusing a shared src/main `reception` package.
+    // No bespoke launcher art exists yet, so this flavor points at the
+    // existing generic `@mipmap/ic_launcher` as a placeholder rather than
+    // fabricating "Reception" branding — swap this out once real art is
+    // approved.
+    //
     // Manager App Phase 2 (Environment Configuration): a second,
     // independent flavor dimension replaces the single hardcoded
     // API_BASE_URL with three real, separately-buildable environments.
-    // `dev` keeps the previous emulator-local value unchanged - no
-    // regression for existing local development. `staging`/`production`
-    // deliberately do NOT hardcode a guessed real URL (there is no
-    // confirmed staging/production deployment to point at yet, and
-    // inventing one would fabricate infrastructure that doesn't exist) -
-    // each reads its URL from a Gradle property
+    // `dev` defaults to the previous emulator-local value unchanged - no
+    // regression for existing emulator-based local development - but is
+    // now overridable via `-PDEV_API_BASE_URL=...` (or `gradle.properties`)
+    // for physical-device testing, where the emulator-only `10.0.2.2`
+    // alias isn't reachable (e.g. `http://<device-accessible-host>:8080/`,
+    // matching the `localhost`/`127.0.0.1` cleartext exceptions already in
+    // `network_security_config.xml` for the `adb reverse` case).
+    // `staging`/`production` deliberately do NOT hardcode a guessed real
+    // URL (there is no confirmed staging/production deployment to point at
+    // yet, and inventing one would fabricate infrastructure that doesn't
+    // exist) - each reads its URL from a Gradle property
     // (`-PSTAGING_API_BASE_URL=...` / `-PPRODUCTION_API_BASE_URL=...`, or
     // set in `gradle.properties`, which is gitignored for real values).
     // NetworkConfig.kt fails loudly at first use if that property was left
@@ -76,10 +90,18 @@ android {
             dimension = "target"
             applicationId = "ai.rojan.designlab.manager"
         }
+        create("reception") {
+            dimension = "target"
+            applicationId = "ai.rojan.designlab.reception"
+        }
 
         create("dev") {
             dimension = "environment"
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/\"")
+            buildConfigField(
+                "String",
+                "API_BASE_URL",
+                "\"${project.findProperty("DEV_API_BASE_URL") ?: "http://10.0.2.2:8080/"}\"",
+            )
         }
         create("staging") {
             dimension = "environment"
