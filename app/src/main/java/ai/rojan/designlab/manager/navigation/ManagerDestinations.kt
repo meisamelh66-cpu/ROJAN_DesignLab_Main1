@@ -32,6 +32,10 @@ object ManagerDestinations {
         if (tag != null) "manager_customers?tag=${tag.name}" else "manager_customers"
     const val CUSTOMER_PROFILE = "manager_customer_profile/{customerId}"
     fun customerProfile(customerId: String) = "manager_customer_profile/$customerId"
+
+    /** Customer Edit Flow, Phase 9 Step 1 — edit-only, reached from [ai.rojan.designlab.manager.screens.customers.ManagerCustomerProfileScreen]'s edit entry point. No create/new sentinel, unlike [STAFF_EDIT]/[SERVICE_EDIT] — a customer always already exists by the time this route is reached. */
+    const val CUSTOMER_EDIT = "manager_customer_edit/{customerId}"
+    fun customerEdit(customerId: String) = "manager_customer_edit/$customerId"
     const val SERVICES = "manager_services"
 
     /** Manager Operational Foundation, Phase 6 Step 3 — one screen for both create and edit, same [NEW_SPECIALIST_ID]-style sentinel shape as [STAFF_EDIT]; [NEW_SERVICE_ID] as [serviceId] means create. */

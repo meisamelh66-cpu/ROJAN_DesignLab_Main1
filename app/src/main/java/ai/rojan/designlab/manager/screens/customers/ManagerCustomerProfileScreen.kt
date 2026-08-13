@@ -12,6 +12,7 @@ import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
 import ai.rojan.designlab.manager.domain.customer.displayLabel
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
@@ -32,6 +33,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.runtime.Composable
@@ -78,12 +80,19 @@ import androidx.compose.ui.unit.dp
  * states the customer's raw status; this section states which real CRM
  * rule fired and why (see [AiInsightRow]) - reached only via the
  * unchanged, already-existing navigation into this screen, no new route.
+ *
+ * Customer Edit Flow, Phase 9 Step 1: [onEditClick] is
+ * [CustomerIdentityHeader]'s new edit icon, routing to
+ * [ai.rojan.designlab.manager.screens.customers.ManagerCustomerEditScreen] -
+ * the only change to this screen for that flow; everything else here
+ * (insight section, service history, notes) is unchanged.
  */
 @Composable
 fun ManagerCustomerProfileScreen(
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
     customerId: String = "c1",
+    onEditClick: () -> Unit = {},
 ) {
     var isLoadingDetail by remember(customerId) { mutableStateOf(true) }
 
@@ -109,7 +118,7 @@ fun ManagerCustomerProfileScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceLG),
         ) {
-            item { CustomerIdentityHeader(customer) }
+            item { CustomerIdentityHeader(customer, onEditClick = onEditClick) }
             if (customerInsights.isNotEmpty()) {
                 item { AiInsightSection(customerInsights) }
             }
@@ -121,8 +130,9 @@ fun ManagerCustomerProfileScreen(
     }
 }
 
+/** [onEditClick] (Customer Edit Flow, Phase 9 Step 1) routes to [ManagerCustomerEditScreen] — the only new element added here; name/phone/visit-count/[TagChip] are unchanged. */
 @Composable
-private fun CustomerIdentityHeader(customer: ManagerCustomer) {
+private fun CustomerIdentityHeader(customer: ManagerCustomer, onEditClick: () -> Unit) {
     ManagerGlassSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RojanShapes.GlassCard,
@@ -170,6 +180,14 @@ private fun CustomerIdentityHeader(customer: ManagerCustomer) {
                 )
                 TagChip(text = customer.tag.displayLabel, modifier = Modifier.padding(top = RojanDimens.SpaceSM))
             }
+
+            RojanIconContainer(
+                imageVector = Icons.Filled.Edit,
+                contentDescription = "ویرایش مشتری",
+                size = RojanIconSize.Medium,
+                tint = ManagerColors.Turquoise,
+                modifier = Modifier.rojanPressable(onClick = onEditClick),
+            )
         }
     }
 }

@@ -13,6 +13,7 @@ import ai.rojan.designlab.manager.screens.booking.ManagerBookingStartScreen
 import ai.rojan.designlab.manager.screens.booking.ManagerBookingSuccessScreen
 import ai.rojan.designlab.manager.screens.calendar.ManagerAppointmentDetailScreen
 import ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen
+import ai.rojan.designlab.manager.screens.customers.ManagerCustomerEditScreen
 import ai.rojan.designlab.manager.screens.customers.ManagerCustomerProfileScreen
 import ai.rojan.designlab.manager.screens.customers.ManagerCustomersListScreen
 import ai.rojan.designlab.manager.screens.auth.ManagerOtpAuthScreen
@@ -42,7 +43,8 @@ import androidx.navigation.navArgument
  * (Phase 6 Step 4), [ManagerDestinations.CUSTOMERS] (optional `tag` query
  * arg since AI Insight Presentation Layer, Phase 7 Step 4 — always via
  * [ManagerDestinations.customers]),
- * [ManagerDestinations.CUSTOMER_PROFILE], [ManagerDestinations.SERVICES]/
+ * [ManagerDestinations.CUSTOMER_PROFILE]/[ManagerDestinations.CUSTOMER_EDIT]
+ * (Customer Edit Flow, Phase 9 Step 1), [ManagerDestinations.SERVICES]/
  * [ManagerDestinations.SERVICE_EDIT] (Manager Operational Foundation, Phase
  * 6 Steps 1 and 3), [ManagerDestinations.STAFF]/[ManagerDestinations.STAFF_EDIT]
  * (Phase 6 Step 2), [ManagerDestinations.PROFILE],
@@ -180,6 +182,19 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
         ManagerCustomerProfileScreen(
             onBackClick = { navController.popBackStack() },
             customerId = customerId,
+            onEditClick = { navController.navigate(ManagerDestinations.customerEdit(customerId)) },
+        )
+    }
+
+    composable(
+        route = ManagerDestinations.CUSTOMER_EDIT,
+        arguments = listOf(navArgument("customerId") { type = NavType.StringType }),
+    ) { backStackEntry ->
+        val customerId = backStackEntry.arguments?.getString("customerId") ?: "c1"
+        ManagerCustomerEditScreen(
+            customerId = customerId,
+            onBackClick = { navController.popBackStack() },
+            onSaved = { navController.popBackStack() },
         )
     }
 
