@@ -20,6 +20,9 @@ object ManagerDestinations {
 
     /** Active Salon Context & Selection Flow — reached only from [ai.rojan.designlab.manager.navigation.ManagerRootGraph]'s gate when more than one salon is available and none was already validly selected, same "gate destination, not navigated to from within the authenticated app" treatment as [OTP_AUTH]. */
     const val SALON_SELECTION = "manager_salon_selection"
+
+    /** System2 Android Parallel Work, Phase A item 3 — the resolved terminal state for a `/salon-access` failure (previously unreachable, see [ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel.refreshIdentityContext]'s own doc comment), mirroring [ai.rojan.designlab.reception.navigation.ReceptionDestinations.ACCESS_ERROR]. */
+    const val ACCESS_ERROR = "manager_access_error"
     const val DASHBOARD = "manager_dashboard_root"
     const val CALENDAR = "manager_calendar"
 

@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.presentation.auth
 
+import ai.rojan.designlab.domain.phone.normalizeIranianPhoneNumber
 import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.AuthenticatedUser
@@ -134,7 +135,22 @@ class ManagerAuthViewModel(
             .onFailure { clearSession() }
     }
 
-    /** `GET /users/me/salon-access` - see [ai.rojan.designlab.presentation.auth.AuthViewModel.refreshIdentityContext] for the identical Customer-side reasoning. A failure here never touches [authState] - the MANAGER-role check above already passed by the time this runs. */
+    /**
+     * `GET /users/me/salon-access` - see [ai.rojan.designlab.presentation.auth.AuthViewModel.refreshIdentityContext]
+     * for the identical Customer-side reasoning. A failure here never
+     * touches [authState] - the MANAGER-role check above already passed by
+     * the time this runs.
+     *
+     * System2 Android Parallel Work, Phase A item 3: the failure branch
+     * also resolves [_activeSalonState] to [ActiveSalonUiState.Error] —
+     * previously left it stuck at [ActiveSalonUiState.Loading] forever,
+     * identical to the bug found and fixed in
+     * [ai.rojan.designlab.reception.presentation.auth.ReceptionAuthViewModel.refreshIdentityContext]
+     * (see that class's own doc comment). `ManagerRootGraph.kt`'s
+     * `activeSalonPending` gate waits specifically for `Loading` to end, so
+     * a real `/salon-access` failure previously produced an infinite
+     * splash screen with no error and no way out short of force-quitting.
+     */
     private suspend fun refreshIdentityContext() {
         _identityContext.value = UiState.Loading
         _activeSalonState.value = ActiveSalonUiState.Loading
@@ -143,7 +159,18 @@ class ManagerAuthViewModel(
                 _identityContext.value = UiState.Success(context)
                 resolveActiveSalon(context)
             }
-            .onFailure { error -> _identityContext.value = UiState.Error(userMessageFor(error)) }
+            .onFailure { error ->
+                val message = userMessageFor(error)
+                _identityContext.value = UiState.Error(message)
+                _activeSalonState.value = ActiveSalonUiState.Error(message)
+            }
+    }
+
+    /** Re-attempts salon-access resolution from an access-error retry action — same shape as [ai.rojan.designlab.reception.presentation.auth.ReceptionAuthViewModel.retryIdentityResolution]. */
+    fun retryIdentityResolution() {
+        viewModelScope.launch {
+            refreshIdentityContext()
+        }
     }
 
     /**
@@ -190,9 +217,18 @@ class ManagerAuthViewModel(
         }
     }
 
-    /** `POST /api/v1/auth/otp/request` — issues (or, called again, re-issues) a code for [phoneNumber]. No session exists yet; nothing is persisted here. */
+    /**
+     * `POST /api/v1/auth/otp/request` — issues (or, called again, re-issues)
+     * a code for [phoneNumber]. No session exists yet; nothing is
+     * persisted here.
+     *
+     * [phoneNumber] is normalized to E.164 ([normalizeIranianPhoneNumber])
+     * before being sent — see [ai.rojan.designlab.presentation.auth.AuthViewModel.requestOtp]'s
+     * identical doc comment for why (System2 Android Parallel Work, Phase
+     * A item 1 — applied identically across Customer/Manager/Reception).
+     */
     fun requestOtp(phoneNumber: String) {
-        val trimmed = phoneNumber.trim()
+        val trimmed = normalizeIranianPhoneNumber(phoneNumber)
         if (trimmed.isBlank()) {
             _errorMessage.value = "شماره موبایل را وارد کنید"
             return

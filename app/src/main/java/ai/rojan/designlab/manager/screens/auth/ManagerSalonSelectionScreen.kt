@@ -4,6 +4,7 @@ import ai.rojan.designlab.domain.repository.AvailableSalon
 import ai.rojan.designlab.domain.repository.SalonAccessType
 import ai.rojan.designlab.manager.components.ManagerColors
 import ai.rojan.designlab.manager.components.ManagerGlassSurface
+import ai.rojan.designlab.manager.components.ManagerPrimaryButton
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.domain.auth.ActiveSalonUiState
 import ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel
@@ -77,7 +78,16 @@ fun ManagerSalonSelectionScreen(
                     }
                 }
                 is ActiveSalonUiState.Error -> {
-                    item { SalonSelectionNotice(text = state.message) }
+                    // System2 Android Parallel Work, Phase A item 3 — a
+                    // retry affordance for this branch, mirroring the
+                    // identical addition already made to
+                    // ReceptionSalonSelectionScreen.kt.
+                    item {
+                        SalonSelectionNotice(
+                            text = state.message,
+                            onRetryClick = viewModel::retryIdentityResolution,
+                        )
+                    }
                 }
                 ActiveSalonUiState.Loading, is ActiveSalonUiState.Active -> {
                     item { SalonSelectionNotice(text = "در حال بارگذاری…") }
@@ -118,19 +128,29 @@ private val SalonAccessType.displayLabel: String
     }
 
 @Composable
-private fun SalonSelectionNotice(text: String) {
-    ManagerGlassSurface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RojanShapes.Small,
-    ) {
-        Text(
-            text = text,
-            style = RojanTypography.Body,
-            color = ManagerColors.TextSecondary,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(RojanDimens.SpaceLG),
-            textAlign = TextAlign.Center,
-        )
+private fun SalonSelectionNotice(text: String, onRetryClick: (() -> Unit)? = null) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        ManagerGlassSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RojanShapes.Small,
+        ) {
+            Text(
+                text = text,
+                style = RojanTypography.Body,
+                color = ManagerColors.TextSecondary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(RojanDimens.SpaceLG),
+                textAlign = TextAlign.Center,
+            )
+        }
+
+        if (onRetryClick != null) {
+            ManagerPrimaryButton(
+                text = "تلاش مجدد",
+                onClick = onRetryClick,
+                modifier = Modifier.padding(top = RojanDimens.SpaceMD),
+            )
+        }
     }
 }

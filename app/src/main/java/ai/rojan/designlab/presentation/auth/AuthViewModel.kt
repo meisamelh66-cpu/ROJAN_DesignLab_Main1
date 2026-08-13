@@ -11,6 +11,7 @@ import ai.rojan.designlab.domain.repository.AuthenticatedUser
 import ai.rojan.designlab.domain.repository.BackendAuthRepository
 import ai.rojan.designlab.domain.repository.CurrentUserIdentityContext
 import ai.rojan.designlab.domain.repository.CurrentUserIdentityContextRepository
+import ai.rojan.designlab.domain.phone.normalizeIranianPhoneNumber
 import ai.rojan.designlab.domain.repository.TokenRepository
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.presentation.common.userMessageFor
@@ -179,9 +180,19 @@ class AuthViewModel(
     }
 
 
-    /** `POST /api/v1/auth/otp/request` — issues (or, called again, re-issues) a code for [phoneNumber]. No session exists yet; nothing is persisted here. */
+    /**
+     * `POST /api/v1/auth/otp/request` — issues (or, called again, re-issues)
+     * a code for [phoneNumber]. No session exists yet; nothing is
+     * persisted here.
+     *
+     * [phoneNumber] is normalized to E.164 ([normalizeIranianPhoneNumber])
+     * before being sent — the backend rejects a local-format number
+     * (`0912xxxxxxx`) outright with `400 INVALID_PHONE_NUMBER`, and a user
+     * typing their number the way they naturally would (with the leading
+     * `0`) is the common case, not an edge case.
+     */
     fun requestOtp(phoneNumber: String) {
-        val trimmed = phoneNumber.trim()
+        val trimmed = normalizeIranianPhoneNumber(phoneNumber)
         if (trimmed.isBlank()) {
             _errorMessage.value = "شماره موبایل را وارد کنید"
             return

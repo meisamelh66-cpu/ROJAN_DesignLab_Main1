@@ -416,10 +416,91 @@ class ManagerAuthViewModelTest {
         assertEquals(1, activeSalonContextRepository.clearCallCount)
     }
 
+    // --- System2 Android Parallel Work, Phase A item 3: the stuck-at-Loading fix ---
+
+    @Test
+    fun `a salon-access failure resolves activeSalonState to Error, not stuck at Loading`() = runTest {
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(
+            Result.failure(IllegalStateException("404 - /users/me/salon-access not found")),
+        )
+
+        val viewModel = ManagerAuthViewModel(
+            FakeAuthSessionRepository(initialPersonId = managerUser.id),
+            FakeBackendAuthRepository(currentUserResult = Result.success(managerUser)),
+            FakeTokenRepository(),
+            identityContextRepository,
+            FakeActiveSalonContextRepository(),
+        )
+
+        assertTrue(viewModel.identityContext.value is UiState.Error)
+        assertTrue(
+            "activeSalonState must not stay Loading forever on a fetch failure",
+            viewModel.activeSalonState.value is ActiveSalonUiState.Error,
+        )
+    }
+
+    @Test
+    fun `retryIdentityResolution re-attempts and can resolve to Active after a prior failure`() = runTest {
+        val owned = OwnedSalonAccess(salonId = "s1", salonName = "Salon One", active = true, permissions = setOf("MANAGE_SALON"))
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.failure(IllegalStateException("404")))
+
+        val viewModel = ManagerAuthViewModel(
+            FakeAuthSessionRepository(initialPersonId = managerUser.id),
+            FakeBackendAuthRepository(currentUserResult = Result.success(managerUser)),
+            FakeTokenRepository(),
+            identityContextRepository,
+            FakeActiveSalonContextRepository(),
+        )
+        assertTrue(viewModel.activeSalonState.value is ActiveSalonUiState.Error)
+
+        identityContextRepository.result = Result.success(emptyIdentityContext().copy(ownedSalons = listOf(owned)))
+        viewModel.retryIdentityResolution()
+
+        val state = viewModel.activeSalonState.value
+        assertTrue(state is ActiveSalonUiState.Active)
+        assertEquals("s1", (state as ActiveSalonUiState.Active).context.salonId)
+    }
+
+    @Test
+    fun `retryIdentityResolution that fails again stays at Error, still not stuck at Loading`() = runTest {
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.failure(IllegalStateException("still down")))
+
+        val viewModel = ManagerAuthViewModel(
+            FakeAuthSessionRepository(initialPersonId = managerUser.id),
+            FakeBackendAuthRepository(currentUserResult = Result.success(managerUser)),
+            FakeTokenRepository(),
+            identityContextRepository,
+            FakeActiveSalonContextRepository(),
+        )
+
+        viewModel.retryIdentityResolution()
+
+        assertTrue(viewModel.activeSalonState.value is ActiveSalonUiState.Error)
+        assertEquals(2, identityContextRepository.callCount)
+    }
+
+    @Test
+    fun `logout resets activeSalonState back to Loading, clearing a prior Error`() = runTest {
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.failure(IllegalStateException("404")))
+        val viewModel = ManagerAuthViewModel(
+            FakeAuthSessionRepository(initialPersonId = managerUser.id),
+            FakeBackendAuthRepository(currentUserResult = Result.success(managerUser)),
+            FakeTokenRepository(),
+            identityContextRepository,
+            FakeActiveSalonContextRepository(),
+        )
+        assertTrue(viewModel.activeSalonState.value is ActiveSalonUiState.Error)
+
+        viewModel.logout()
+
+        assertEquals(ActiveSalonUiState.Loading, viewModel.activeSalonState.value)
+        assertEquals(ManagerAuthState.Unauthenticated, viewModel.authState.value)
+    }
+
     // --- Fakes -----------------------------------------------------------
 
     private class FakeCurrentUserIdentityContextRepository(
-        private val result: Result<CurrentUserIdentityContext> = Result.failure(IllegalStateException("not stubbed")),
+        var result: Result<CurrentUserIdentityContext> = Result.failure(IllegalStateException("not stubbed")),
     ) : CurrentUserIdentityContextRepository {
         var callCount = 0
             private set

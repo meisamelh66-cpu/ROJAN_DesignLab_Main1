@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.navigation
 
+import ai.rojan.designlab.manager.domain.auth.ActiveSalonUiState
 import ai.rojan.designlab.manager.domain.customer.CustomerTag
 import ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel
@@ -16,6 +17,7 @@ import ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen
 import ai.rojan.designlab.manager.screens.customers.ManagerCustomerEditScreen
 import ai.rojan.designlab.manager.screens.customers.ManagerCustomerProfileScreen
 import ai.rojan.designlab.manager.screens.customers.ManagerCustomersListScreen
+import ai.rojan.designlab.manager.screens.auth.ManagerAccessErrorScreen
 import ai.rojan.designlab.manager.screens.auth.ManagerOtpAuthScreen
 import ai.rojan.designlab.manager.screens.auth.ManagerSalonSelectionScreen
 import ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen
@@ -71,7 +73,18 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
         ManagerOtpAuthScreen(
             viewModel = authViewModel,
             onAuthenticated = {
-                navController.navigate(ManagerDestinations.DASHBOARD) {
+                // System2 Android Parallel Work, Phase A item 3:
+                // activeSalonState has already settled (ManagerOtpAuthScreen
+                // now waits for it to leave Loading before calling this) -
+                // inspect its real value instead of always assuming
+                // Dashboard, same "route on the resolved state" logic
+                // ManagerRootGraph.kt already uses for cold-start restore.
+                val destination = when (authViewModel.activeSalonState.value) {
+                    is ActiveSalonUiState.SelectionRequired -> ManagerDestinations.SALON_SELECTION
+                    is ActiveSalonUiState.Error -> ManagerDestinations.ACCESS_ERROR
+                    else -> ManagerDestinations.DASHBOARD
+                }
+                navController.navigate(destination) {
                     popUpTo(ManagerDestinations.OTP_AUTH) { inclusive = true }
                 }
             },
@@ -84,6 +97,30 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
             onSalonSelected = {
                 navController.navigate(ManagerDestinations.DASHBOARD) {
                     popUpTo(ManagerDestinations.SALON_SELECTION) { inclusive = true }
+                }
+            },
+        )
+    }
+
+    // System2 Android Parallel Work, Phase A item 3 — see
+    // ManagerAuthViewModel.refreshIdentityContext's own doc comment for
+    // why this destination previously could never be reached.
+    composable(ManagerDestinations.ACCESS_ERROR) {
+        ManagerAccessErrorScreen(
+            viewModel = authViewModel,
+            onResolved = {
+                val destination = when (authViewModel.activeSalonState.value) {
+                    is ActiveSalonUiState.SelectionRequired -> ManagerDestinations.SALON_SELECTION
+                    else -> ManagerDestinations.DASHBOARD
+                }
+                navController.navigate(destination) {
+                    popUpTo(ManagerDestinations.ACCESS_ERROR) { inclusive = true }
+                }
+            },
+            onLogoutClick = {
+                authViewModel.logout()
+                navController.navigate(ManagerDestinations.OTP_AUTH) {
+                    popUpTo(ManagerDestinations.ACCESS_ERROR) { inclusive = true }
                 }
             },
         )

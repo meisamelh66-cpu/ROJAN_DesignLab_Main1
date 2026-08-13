@@ -1,5 +1,6 @@
 package ai.rojan.designlab.reception.presentation.auth
 
+import ai.rojan.designlab.domain.phone.normalizeIranianPhoneNumber
 import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.AuthenticatedUser
@@ -175,9 +176,15 @@ class ReceptionAuthViewModel(
         }
     }
 
-    /** `POST /api/v1/auth/otp/request`. */
+    /**
+     * `POST /api/v1/auth/otp/request`. [phoneNumber] is normalized to
+     * E.164 ([normalizeIranianPhoneNumber]) before being sent — see
+     * [ai.rojan.designlab.presentation.auth.AuthViewModel.requestOtp]'s
+     * identical doc comment for why (System2 Android Parallel Work, Phase
+     * A item 1).
+     */
     fun requestOtp(phoneNumber: String) {
-        val trimmed = phoneNumber.trim()
+        val trimmed = normalizeIranianPhoneNumber(phoneNumber)
         if (trimmed.isBlank()) {
             _errorMessage.value = "شماره موبایل را وارد کنید"
             return

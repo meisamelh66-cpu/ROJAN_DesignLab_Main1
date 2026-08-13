@@ -4,6 +4,7 @@ import ai.rojan.designlab.manager.components.ManagerColors
 import ai.rojan.designlab.manager.components.ManagerGlassSurface
 import ai.rojan.designlab.manager.components.ManagerPrimaryButton
 import ai.rojan.designlab.manager.components.ManagerScaffold
+import ai.rojan.designlab.manager.domain.auth.ActiveSalonUiState
 import ai.rojan.designlab.manager.domain.auth.ManagerAuthState
 import ai.rojan.designlab.manager.domain.auth.ManagerOtpStep
 import ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel
@@ -43,6 +44,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
  * All OTP/JWT logic lives in [viewModel] — this composable only reads
  * [ManagerAuthViewModel.otpStep]/`isSubmitting`/`errorMessage` and forwards
  * user input to `requestOtp`/`verifyOtp`/`resendOtp`/`editPhoneNumber`.
+ *
+ * System2 Android Parallel Work, Phase A item 3: [onAuthenticated] no
+ * longer fires the instant [authState] becomes [ManagerAuthState.Authenticated]
+ * — that happens synchronously, before salon-access resolution (an async
+ * network call) has any chance to finish, which previously meant the nav
+ * graph unconditionally sent every fresh login to Dashboard regardless of
+ * whether Salon Selection or the access-error screen was the real next
+ * destination (identical fix already applied to
+ * [ai.rojan.designlab.reception.screens.auth.ReceptionOtpAuthScreen]).
  */
 @Composable
 fun ManagerOtpAuthScreen(
@@ -50,12 +60,15 @@ fun ManagerOtpAuthScreen(
     onAuthenticated: () -> Unit,
 ) {
     val authState by viewModel.authState.collectAsStateWithLifecycle()
+    val activeSalonState by viewModel.activeSalonState.collectAsStateWithLifecycle()
     val otpStep by viewModel.otpStep.collectAsStateWithLifecycle()
     val isSubmitting by viewModel.isSubmitting.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
-    LaunchedEffect(authState) {
-        if (authState is ManagerAuthState.Authenticated) onAuthenticated()
+    LaunchedEffect(authState, activeSalonState) {
+        if (authState is ManagerAuthState.Authenticated && activeSalonState !is ActiveSalonUiState.Loading) {
+            onAuthenticated()
+        }
     }
 
     ManagerScaffold {

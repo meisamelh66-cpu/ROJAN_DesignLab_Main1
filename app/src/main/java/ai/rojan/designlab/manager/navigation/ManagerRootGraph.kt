@@ -81,6 +81,9 @@ fun ManagerRootGraph() {
         when {
             authState !is ManagerAuthState.Authenticated -> ManagerDestinations.OTP_AUTH
             activeSalonState is ActiveSalonUiState.SelectionRequired -> ManagerDestinations.SALON_SELECTION
+            // System2 Android Parallel Work, Phase A item 3 — see
+            // ManagerDestinations.ACCESS_ERROR's own doc comment.
+            activeSalonState is ActiveSalonUiState.Error -> ManagerDestinations.ACCESS_ERROR
             else -> ManagerDestinations.DASHBOARD
         }
     }
