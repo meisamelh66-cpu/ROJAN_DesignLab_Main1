@@ -102,4 +102,70 @@ class CompositeManagerCrmInsightProviderTest {
         assertEquals(listOf("inactive-customer-c1", "vip-customer-c2", "vip-customer-c4", "vip-without-appointments-c4"), combined.map { it.id })
         assertTrue(combined.any { it.category == ManagerCrmInsightCategory.VIP_WITHOUT_APPOINTMENTS && it.customerId == "c4" })
     }
+
+    // --- CRM Insight Engine Hardening, Phase 8 Step 5 --------------------
+    // Explicit, dedicated coverage of properties the tests above already
+    // demonstrated incidentally but never asserted as their own guarantee:
+    // a customer matching more than one rule keeps every insight, no
+    // cross-provider de-duplication happens (even adversarially, by id),
+    // and combining order stays stable. No production code changed for
+    // this hardening pass - insightsFor()'s plain `flatMap` already
+    // guarantees all of this by construction; these tests make that
+    // guarantee explicit and regression-proof rather than incidental.
+
+    @Test
+    fun `a customer matching multiple real providers keeps every insight, none dropped`() {
+        val vipWithoutAppointments = ManagerCustomer(
+            id = "c1", name = "Sara", phone = "1", tag = CustomerTag.VIP,
+            loyaltyScore = 0, notes = null, lastVisit = "—", totalVisits = 0,
+        )
+        val composite = CompositeManagerCrmInsightProvider(
+            listOf(VipCustomerInsightProvider(), VipWithoutAppointmentsInsightProvider()),
+        )
+
+        val combined = composite.insightsFor(
+            ManagerCrmInsightContext(salonId = "s1", customers = listOf(vipWithoutAppointments), appointments = emptyList()),
+        )
+
+        // Same customerId, two distinct categories, both present - not collapsed into one.
+        assertEquals(2, combined.size)
+        assertTrue(combined.all { it.customerId == "c1" })
+        assertEquals(
+            setOf(ManagerCrmInsightCategory.VIP_CUSTOMER, ManagerCrmInsightCategory.VIP_WITHOUT_APPOINTMENTS),
+            combined.map { it.category }.toSet(),
+        )
+    }
+
+    @Test
+    fun `two providers emitting the identical insight id are both preserved, not overwritten`() {
+        // Adversarial by construction: real providers never collide (distinct
+        // id prefixes per rule), but nothing in the composite enforces that -
+        // this proves the guarantee holds even if a future provider did collide.
+        val fromFirst = insight("dup-id", ManagerCrmInsightCategory.INACTIVE_CUSTOMER)
+        val fromSecond = insight("dup-id", ManagerCrmInsightCategory.VIP_CUSTOMER)
+        val composite = CompositeManagerCrmInsightProvider(listOf(FakeProvider(listOf(fromFirst)), FakeProvider(listOf(fromSecond))))
+
+        val combined = composite.insightsFor(context)
+
+        assertEquals(2, combined.size)
+        assertEquals(listOf(fromFirst, fromSecond), combined)
+    }
+
+    @Test
+    fun `combining order is stable across repeated calls with the same providers and context`() {
+        val customers = listOf(
+            ManagerCustomer(id = "c1", name = "A", phone = "1", tag = CustomerTag.VIP, loyaltyScore = 0, notes = null, lastVisit = "—", totalVisits = 0),
+            ManagerCustomer(id = "c2", name = "B", phone = "2", tag = CustomerTag.VIP, loyaltyScore = 0, notes = null, lastVisit = "—", totalVisits = 0),
+        )
+        val composite = CompositeManagerCrmInsightProvider(
+            listOf(VipCustomerInsightProvider(), VipWithoutAppointmentsInsightProvider()),
+        )
+        val callContext = ManagerCrmInsightContext(salonId = "s1", customers = customers, appointments = emptyList())
+
+        val first = composite.insightsFor(callContext).map { it.id }
+        val second = composite.insightsFor(callContext).map { it.id }
+
+        assertEquals(first, second)
+        assertEquals(listOf("vip-customer-c1", "vip-customer-c2", "vip-without-appointments-c1", "vip-without-appointments-c2"), first)
+    }
 }

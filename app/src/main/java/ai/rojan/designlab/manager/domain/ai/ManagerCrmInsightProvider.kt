@@ -66,11 +66,20 @@ data class ManagerCrmInsight(
  * passed straight through the same way [customers] is, no second fetch.
  * Default to `emptyList()` so this stays purely additive: no existing
  * provider or test that only cares about [customers] needs to change.
- * No provider reads them yet - this step is context plumbing only, not a
- * new rule. [appointments] specifically still carries the reliability
- * caveats disclosed since Phase 7 Step 3 (unverified sort order, capped
- * pagination, display-formatted `date`/`time`) - a future rule reading it
- * must account for that itself, this context makes no claim otherwise.
+ * [appointments] is now read by [VipWithoutAppointmentsInsightProvider]
+ * (Phase 8 Step 2) and still carries the reliability caveats disclosed
+ * since Phase 7 Step 3 (unverified sort order, capped pagination,
+ * display-formatted `date`/`time`) - a rule reading it must account for
+ * that itself, this context makes no claim otherwise.
+ *
+ * **Real, currently-benign limitation (Phase 8 Step 5 audit)**: the
+ * `emptyList()` default means any caller that constructs this context
+ * *without* populating [appointments] silently makes
+ * [VipWithoutAppointmentsInsightProvider] report every VIP customer as
+ * appointment-less, since "empty" and "genuinely has none" are
+ * indistinguishable to that rule. [ManagerRepositories.initialize] is the
+ * only real caller today and does populate it correctly - this is a risk
+ * for a future caller, not a current bug.
  */
 data class ManagerCrmInsightContext(
     val salonId: String,
