@@ -1,3 +1,4 @@
+import java.io.File
 import java.io.FileInputStream
 import java.util.Properties
 
@@ -133,6 +134,48 @@ android {
     }
 }
 
+// Signing enforcement: a release-type APK build must fail if
+// keystore.properties is missing, rather than silently succeeding
+// unsigned (which the signingConfigs/buildTypes guards above allow, by
+// design, for contributors without the production keystore). This hook
+// only touches release-variant `assemble*` tasks — debug variants are
+// untouched, and nothing here runs at configuration time, so a plain
+// `assembleDebug` (or any debug build) is unaffected even when
+// keystore.properties is absent.
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        // Captured as a plain String, not `variant` itself — the doFirst
+        // action below must stay configuration-cache-serializable, and an
+        // AGP Variant object is not a safe value to hold across that
+        // boundary.
+        val variantName = variant.name
+        val variantTaskName = "assemble" + variantName.replaceFirstChar(Char::uppercase)
+        // Captured as a plain String path, not the top-level script `val`
+        // itself — referencing `keystorePropertiesFile` directly from
+        // inside doFirst would capture the enclosing build script object,
+        // which the configuration cache refuses to serialize.
+        val keystorePropertiesPath = keystorePropertiesFile.absolutePath
+        // AGP registers its own `assemble<Variant>` aggregation task later in
+        // configuration than `onVariants` fires — `afterEvaluate` defers this
+        // lookup until that task is guaranteed to exist, instead of failing
+        // configuration outright (which would break every build, debug
+        // included, the exact regression this change must not introduce).
+        project.afterEvaluate {
+            tasks.named(variantTaskName).configure {
+                doFirst {
+                    if (!File(keystorePropertiesPath).exists()) {
+                        throw GradleException(
+                            "Release build '$variantName' requires keystore.properties " +
+                                "(repo root; RELEASE_STORE_FILE/RELEASE_STORE_PASSWORD/" +
+                                "RELEASE_KEY_ALIAS/RELEASE_KEY_PASSWORD — see app/build.gradle.kts) " +
+                                "— refusing to produce an unsigned release APK."
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
 dependencies {
 
