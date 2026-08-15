@@ -223,7 +223,15 @@ object ManagerRepositories {
         appointments = appointmentRepo
         specialists = specialistRepo
         customers = customerRepo
-        salon = ManagerSalonSummary(name = salonDto.name, description = salonDto.description, active = salonDto.active)
+        salon = ManagerSalonSummary(
+            id = salonDto.id,
+            name = salonDto.name,
+            description = salonDto.description,
+            phone = salonDto.phone,
+            email = salonDto.email,
+            address = salonDto.address,
+            active = salonDto.active,
+        )
         salonId = salonDto.id
         availabilityRepository = container.availabilityRepository
         crmInsights = container.managerCrmInsightProvider.insightsFor(

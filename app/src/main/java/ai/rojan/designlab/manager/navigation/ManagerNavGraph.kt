@@ -5,6 +5,8 @@ import ai.rojan.designlab.manager.domain.customer.CustomerTag
 import ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModelFactory
+import ai.rojan.designlab.manager.presentation.settings.ManagerSalonSetupViewModel
+import ai.rojan.designlab.manager.presentation.settings.ManagerSalonSetupViewModelFactory
 import ai.rojan.designlab.manager.screens.booking.ManagerBookingCustomerScreen
 import ai.rojan.designlab.manager.screens.booking.ManagerBookingDateTimeScreen
 import ai.rojan.designlab.manager.screens.booking.ManagerBookingReviewScreen
@@ -24,6 +26,7 @@ import ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen
 import ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen
 import ai.rojan.designlab.manager.screens.services.ManagerServiceEditScreen
 import ai.rojan.designlab.manager.screens.services.ManagerServicesScreen
+import ai.rojan.designlab.manager.screens.settings.ManagerSalonSetupScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerStaffEditScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerStaffScreen
 import androidx.compose.runtime.Composable
@@ -33,6 +36,7 @@ import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
@@ -135,6 +139,26 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
             onViewServicesClick = { navController.navigate(ManagerDestinations.SERVICES) },
             onViewStaffClick = { navController.navigate(ManagerDestinations.STAFF) },
             onProfileClick = { navController.navigate(ManagerDestinations.PROFILE) },
+            onSettingsClick = { navController.navigate(ManagerDestinations.SETTINGS) },
+        )
+    }
+
+    // First Salon Pilot, Phase A — Owner Salon Identity setup/edit. Not
+    // scoped to the [ManagerDestinations.BOOKING_FLOW_GRAPH]-style nested
+    // graph: this is a single standalone screen, so its ViewModel is
+    // scoped to this one back-stack entry via the default `viewModel()`
+    // factory-only overload, same as every other non-shared-flow screen
+    // in this graph.
+    composable(ManagerDestinations.SETTINGS) { backStackEntry ->
+        val context = LocalContext.current
+        val viewModel: ManagerSalonSetupViewModel = viewModel(
+            viewModelStoreOwner = backStackEntry,
+            factory = ManagerSalonSetupViewModelFactory(context),
+        )
+        ManagerSalonSetupScreen(
+            viewModel = viewModel,
+            onBackClick = { navController.popBackStack() },
+            onSaved = { navController.popBackStack() },
         )
     }
 

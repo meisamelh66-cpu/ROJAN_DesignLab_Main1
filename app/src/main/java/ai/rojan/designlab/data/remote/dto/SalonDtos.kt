@@ -19,3 +19,23 @@ data class SalonResponseDto(
     val createdAt: String,
     val updatedAt: String,
 )
+
+/** `CreateSalonRequest` (backend, `SalonController.create`) — owner-authenticated, caller becomes `ownerId`. Field set mirrors the backend request exactly — no `logoUrl`/`latitude`/`longitude`/`city`, none exist on the backend contract yet (Phase A readiness report §1). */
+@Serializable
+data class CreateSalonRequestDto(
+    val name: String,
+    val description: String? = null,
+    val phone: String,
+    val email: String? = null,
+    val address: String,
+)
+
+/** `UpdateSalonRequest` (backend, `SalonController.update`) — owner-only, full replace (not a PATCH merge). Same field set as [CreateSalonRequestDto]. */
+@Serializable
+data class UpdateSalonRequestDto(
+    val name: String,
+    val description: String? = null,
+    val phone: String,
+    val email: String? = null,
+    val address: String,
+)

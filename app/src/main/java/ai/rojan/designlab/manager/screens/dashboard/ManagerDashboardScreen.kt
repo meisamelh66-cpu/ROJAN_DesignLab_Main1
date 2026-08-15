@@ -46,13 +46,16 @@ import androidx.compose.ui.tooling.preview.Preview
  * Manager Operational Foundation, Phase 6 Step 1), [onViewStaffClick]
  * (Quick Actions' "کارکنان", routes to
  * [ai.rojan.designlab.manager.screens.staff.ManagerStaffScreen] — Phase 6
- * Step 2), and [onProfileClick] (header greeting, routes to
- * [ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen]).
+ * Step 2), [onProfileClick] (header greeting, routes to
+ * [ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen]), and
+ * [onSettingsClick] (Quick Actions' "تنظیمات", routes to
+ * [ai.rojan.designlab.manager.screens.settings.ManagerSalonSetupScreen] —
+ * First Salon Pilot, Phase A). Previously this chip had no handler wired
+ * (see [QuickActionsSection]'s own doc comment, now stale for this one
+ * case); the `when` below is exhaustive over all five [ManagerQuickAction]
+ * values now, so no `else` branch remains.
  * All default to no-op so this screen stays navigation-agnostic
- * standalone/in `@Preview`. The remaining "تنظیمات" Quick Action has no
- * implemented screen yet, so [QuickActionsSection] renders it like every
- * other chip with no handler wired for that case — not disabled, not a
- * placeholder (see that component's own doc comment).
+ * standalone/in `@Preview`.
  * Phase 2, M6: [SalonIdentityCard]/[AIInsightCard]/
  * [CalendarPreviewSection] are now wired to real backend data too
  * ([ManagerRepositories.salon]/[ManagerRepositories.dashboardInsights]/
@@ -88,6 +91,7 @@ fun ManagerDashboardScreen(
     onViewServicesClick: () -> Unit = {},
     onViewStaffClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var refreshKey by remember { mutableIntStateOf(0) }
@@ -127,7 +131,7 @@ fun ManagerDashboardScreen(
                             ManagerQuickAction.NEW_CUSTOMER -> onViewCustomersClick()
                             ManagerQuickAction.SERVICES -> onViewServicesClick()
                             ManagerQuickAction.STAFF -> onViewStaffClick()
-                            else -> Unit
+                            ManagerQuickAction.SETTINGS -> onSettingsClick()
                         }
                     },
                 )

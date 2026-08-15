@@ -56,12 +56,14 @@ import ai.rojan.designlab.domain.repository.ServiceRepository
 import ai.rojan.designlab.domain.repository.SpecialistRepository
 import ai.rojan.designlab.domain.repository.TokenRepository
 import ai.rojan.designlab.domain.repository.WorkingHoursRepository
+import ai.rojan.designlab.manager.data.BackendManagerSalonRepository
 import ai.rojan.designlab.manager.data.BackendSalonMembershipRepository
 import ai.rojan.designlab.manager.domain.ai.CompositeManagerCrmInsightProvider
 import ai.rojan.designlab.manager.domain.ai.InactiveCustomerInsightProvider
 import ai.rojan.designlab.manager.domain.ai.ManagerCrmInsightProvider
 import ai.rojan.designlab.manager.domain.ai.VipCustomerInsightProvider
 import ai.rojan.designlab.manager.domain.ai.VipWithoutAppointmentsInsightProvider
+import ai.rojan.designlab.manager.domain.repository.ManagerSalonRepository
 import ai.rojan.designlab.manager.domain.repository.SalonMembershipRepository
 import android.content.Context
 import kotlinx.serialization.json.Json
@@ -146,6 +148,13 @@ class BackendApiContainer(context: Context) {
 
     val managerSalonApi: ManagerSalonApi =
         retrofit.create(ManagerSalonApi::class.java)
+
+    // Phase A — Owner Salon Identity: fully wrapped here (same treatment as
+    // salonMembershipRepository below), not left as a raw API — this is the
+    // real create/update path a screen consumes directly, not internal
+    // sync plumbing like the raw *Api members further down.
+    val managerSalonRepository: ManagerSalonRepository =
+        BackendManagerSalonRepository(managerSalonApi)
 
     val managerServiceApi: ManagerServiceApi =
         retrofit.create(ManagerServiceApi::class.java)
