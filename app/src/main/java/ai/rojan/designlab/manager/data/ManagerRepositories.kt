@@ -230,6 +230,8 @@ object ManagerRepositories {
             phone = salonDto.phone,
             email = salonDto.email,
             address = salonDto.address,
+            latitude = salonDto.latitude,
+            longitude = salonDto.longitude,
             active = salonDto.active,
         )
         salonId = salonDto.id

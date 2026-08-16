@@ -45,6 +45,8 @@ class ManagerSalonSetupViewModelTest {
         phone = "+989120000000",
         email = "salon@example.com",
         address = "تهران، خیابان اصلی",
+        latitude = 35.6892,
+        longitude = 51.3890,
         active = true,
     )
 
@@ -68,9 +70,21 @@ class ManagerSalonSetupViewModelTest {
                 phone = existingSalon.phone,
                 email = existingSalon.email.orEmpty(),
                 address = existingSalon.address,
+                latitude = "35.6892",
+                longitude = "51.389",
             ),
             viewModel.formState.value,
         )
+    }
+
+    @Test
+    fun `existing salon with no coordinates on load resolves to a blank latitude and longitude`() = runTest {
+        val viewModel = ManagerSalonSetupViewModel(
+            FakeManagerSalonRepository(getMySalonResult = Result.success(existingSalon.copy(latitude = null, longitude = null))),
+        )
+
+        assertEquals("", viewModel.formState.value.latitude)
+        assertEquals("", viewModel.formState.value.longitude)
     }
 
     @Test
@@ -125,6 +139,81 @@ class ManagerSalonSetupViewModelTest {
     }
 
     @Test
+    fun `save in edit mode parses the coordinate fields and passes them to updateSalon`() = runTest {
+        val repository = FakeManagerSalonRepository(
+            getMySalonResult = Result.success(existingSalon),
+            updateSalonResult = Result.success(existingSalon),
+        )
+        val viewModel = ManagerSalonSetupViewModel(repository)
+
+        viewModel.onLatitudeChange("40.7128")
+        viewModel.onLongitudeChange("-74.0060")
+        viewModel.save(onSaved = {})
+
+        assertEquals(40.7128, repository.lastUpdateLatitude)
+        assertEquals(-74.0060, repository.lastUpdateLongitude)
+    }
+
+    @Test
+    fun `save in edit mode treats blank coordinate fields as null, leaving them unchanged`() = runTest {
+        val repository = FakeManagerSalonRepository(
+            getMySalonResult = Result.success(existingSalon),
+            updateSalonResult = Result.success(existingSalon),
+        )
+        val viewModel = ManagerSalonSetupViewModel(repository)
+
+        viewModel.onLatitudeChange("")
+        viewModel.onLongitudeChange("")
+        viewModel.save(onSaved = {})
+
+        assertEquals(1, repository.updateSalonCallCount)
+        assertNull(repository.lastUpdateLatitude)
+        assertNull(repository.lastUpdateLongitude)
+    }
+
+    @Test
+    fun `save does not call the repository when latitude is out of range`() = runTest {
+        val repository = FakeManagerSalonRepository(getMySalonResult = Result.success(existingSalon))
+        val viewModel = ManagerSalonSetupViewModel(repository)
+
+        viewModel.onLatitudeChange("120")
+        viewModel.save(onSaved = {})
+
+        assertEquals(0, repository.updateSalonCallCount)
+    }
+
+    @Test
+    fun `save does not call the repository when longitude is not a number`() = runTest {
+        val repository = FakeManagerSalonRepository(getMySalonResult = Result.success(existingSalon))
+        val viewModel = ManagerSalonSetupViewModel(repository)
+
+        viewModel.onLongitudeChange("not-a-number")
+        viewModel.save(onSaved = {})
+
+        assertEquals(0, repository.updateSalonCallCount)
+    }
+
+    @Test
+    fun `save in create mode never sends coordinates since createSalon has no such parameters`() = runTest {
+        val created = existingSalon.copy(id = "salon-new")
+        val repository = FakeManagerSalonRepository(
+            getMySalonResult = Result.success(null),
+            createSalonResult = Result.success(created),
+        )
+        val viewModel = ManagerSalonSetupViewModel(repository)
+
+        viewModel.onNameChange("سالن جدید")
+        viewModel.onPhoneChange("+989121111111")
+        viewModel.onAddressChange("اصفهان")
+        viewModel.onLatitudeChange("35.6892")
+        viewModel.onLongitudeChange("51.389")
+        viewModel.save(onSaved = {})
+
+        assertEquals(1, repository.createSalonCallCount)
+        assertEquals(0, repository.updateSalonCallCount)
+    }
+
+    @Test
     fun `save does not call the repository when a required field is blank`() = runTest {
         val repository = FakeManagerSalonRepository(getMySalonResult = Result.success(null))
         val viewModel = ManagerSalonSetupViewModel(repository)
@@ -169,6 +258,10 @@ class ManagerSalonSetupViewModelTest {
             private set
         var lastUpdateSalonId: String? = null
             private set
+        var lastUpdateLatitude: Double? = null
+            private set
+        var lastUpdateLongitude: Double? = null
+            private set
 
         override suspend fun getMySalon(): Result<ManagerSalonSummary?> = getMySalonResult
 
@@ -190,9 +283,13 @@ class ManagerSalonSetupViewModelTest {
             phone: String,
             email: String?,
             address: String,
+            latitude: Double?,
+            longitude: Double?,
         ): Result<ManagerSalonSummary> {
             updateSalonCallCount++
             lastUpdateSalonId = salonId
+            lastUpdateLatitude = latitude
+            lastUpdateLongitude = longitude
             return updateSalonResult ?: error("updateSalonResult not stubbed")
         }
     }

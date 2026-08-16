@@ -11,13 +11,23 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** The five backend-ready Salon Identity fields (Phase A) — `city`/logo/cover excluded, no backend field exists for them yet. */
+/**
+ * The backend-ready Salon Identity fields. `city`/logo/cover stay
+ * excluded — `city` has no backend field at all, and logo/cover have a
+ * backend field but no upload endpoint to produce a real URL yet.
+ * [latitude]/[longitude] (Phase A Correction) are real, writable fields
+ * kept as raw text here (not `Double`) since they're user-edited input
+ * that may be blank or momentarily invalid while typing — [save] parses
+ * and range-validates them before submission.
+ */
 data class SalonSetupFormState(
     val name: String = "",
     val description: String = "",
     val phone: String = "",
     val email: String = "",
     val address: String = "",
+    val latitude: String = "",
+    val longitude: String = "",
 )
 
 /**
@@ -75,6 +85,8 @@ class ManagerSalonSetupViewModel(
                             phone = salon.phone,
                             email = salon.email.orEmpty(),
                             address = salon.address,
+                            latitude = salon.latitude?.toString().orEmpty(),
+                            longitude = salon.longitude?.toString().orEmpty(),
                         )
                         _loadState.value = UiState.Success(salon)
                     }
@@ -103,14 +115,35 @@ class ManagerSalonSetupViewModel(
         _formState.value = _formState.value.copy(address = value)
     }
 
+    fun onLatitudeChange(value: String) {
+        _formState.value = _formState.value.copy(latitude = value)
+    }
+
+    fun onLongitudeChange(value: String) {
+        _formState.value = _formState.value.copy(longitude = value)
+    }
+
     /**
      * Creates the owner's salon if none was loaded, otherwise updates the
      * existing one — [existingSalonId] is the real mode sentinel, resolved
      * from an actual backend read in [load], never assumed.
+     *
+     * [latitude]/[longitude] only ever reach [ManagerSalonRepository.updateSalon] -
+     * the backend's `CreateSalonRequest` has no such fields, so a
+     * brand-new salon's coordinates can only be set on a later edit, once
+     * [existingSalonId] is real. A non-blank value that doesn't parse as a
+     * valid coordinate blocks the whole submission (same fail-closed shape
+     * as the existing blank-required-field guard below) rather than being
+     * silently dropped.
      */
     fun save(onSaved: () -> Unit) {
         val form = _formState.value
         if (form.name.isBlank() || form.phone.isBlank() || form.address.isBlank()) return
+
+        val latitude = form.latitude.trim().ifBlank { null }?.toDoubleOrNull()
+        if (form.latitude.isNotBlank() && (latitude == null || latitude !in -90.0..90.0)) return
+        val longitude = form.longitude.trim().ifBlank { null }?.toDoubleOrNull()
+        if (form.longitude.isNotBlank() && (longitude == null || longitude !in -180.0..180.0)) return
 
         _submitError.value = null
         _isSubmitting.value = true
@@ -126,6 +159,8 @@ class ManagerSalonSetupViewModel(
                     phone = form.phone.trim(),
                     email = email,
                     address = form.address.trim(),
+                    latitude = latitude,
+                    longitude = longitude,
                 )
             } ?: salonRepository.createSalon(
                 name = form.name.trim(),

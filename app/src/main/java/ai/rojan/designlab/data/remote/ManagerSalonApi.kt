@@ -19,11 +19,15 @@ import retrofit2.http.Path
  *
  * Phase A — Owner Salon Identity: [create]/[update] added, mirroring
  * `SalonController.create`/`.update` exactly (verified directly against
- * backend source in `ROJAN_PhaseA_Salon_Identity_Readiness_Report_v1.md`
- * §1-2). Both reuse [SalonResponseDto] as the response shape, same as
- * [mine] already did — that DTO's `logoUrl`/`latitude`/`longitude` fields
- * still have no backend field behind them yet and simply deserialize to
- * `null` here too, same as everywhere else they're already used.
+ * `ROJAN_Backend` source — `SalonController.kt`/`SalonDtos.kt`). Both
+ * reuse [SalonResponseDto] as the response shape, same as [mine] already
+ * did. `logoUrl`/`latitude`/`longitude` are real backend fields today:
+ * [update] writes `latitude`/`longitude` via [UpdateSalonRequestDto],
+ * and the response deserializes whatever the backend actually has
+ * stored for all three — `null` only when a salon genuinely has none
+ * set yet, not because the fields are unsupported. `logoUrl` has no
+ * write path here still, since no upload endpoint exists yet to produce
+ * a real URL for it.
  */
 interface ManagerSalonApi {
 

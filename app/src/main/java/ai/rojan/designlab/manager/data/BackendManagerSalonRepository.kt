@@ -50,6 +50,8 @@ class BackendManagerSalonRepository(
         phone: String,
         email: String?,
         address: String,
+        latitude: Double?,
+        longitude: Double?,
     ): Result<ManagerSalonSummary> =
         safeApiCall {
             managerSalonApi.update(
@@ -60,6 +62,8 @@ class BackendManagerSalonRepository(
                     phone = phone,
                     email = email,
                     address = address,
+                    latitude = latitude,
+                    longitude = longitude,
                 ),
             )
         }.map { it.toDomain() }
@@ -71,6 +75,8 @@ class BackendManagerSalonRepository(
         phone = phone,
         email = email,
         address = address,
+        latitude = latitude,
+        longitude = longitude,
         active = active,
     )
 }

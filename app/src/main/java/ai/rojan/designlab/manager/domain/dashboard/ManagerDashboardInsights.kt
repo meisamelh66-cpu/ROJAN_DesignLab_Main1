@@ -28,6 +28,11 @@ data class ManagerDashboardInsights(
  * can reuse this one salon-identity type instead of introducing a second,
  * overlapping one. [SalonIdentityCard]'s existing call site is unaffected
  * - it already destructures individual fields, not this whole object.
+ *
+ * Phase A Correction: [latitude]/[longitude] added - real backend fields
+ * (`Salon.latitude`/`Salon.longitude`, writable via `PUT /api/v1/salons/{id}`
+ * and `Salon.updateProfile()`, verified directly against
+ * `ROJAN_Backend` source), not placeholders.
  */
 data class ManagerSalonSummary(
     val id: String,
@@ -36,5 +41,7 @@ data class ManagerSalonSummary(
     val phone: String,
     val email: String?,
     val address: String,
+    val latitude: Double?,
+    val longitude: Double?,
     val active: Boolean,
 )

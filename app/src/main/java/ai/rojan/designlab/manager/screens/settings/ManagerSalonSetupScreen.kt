@@ -41,12 +41,21 @@ import androidx.compose.ui.unit.dp
  * [ManagerSalonSetupViewModel]) rather than a route-param sentinel, since
  * there is no list screen to navigate from with an id already known.
  *
- * Covers exactly the backend-ready fields today — name/description/phone/
- * email/address, via the real `POST`/`PUT /api/v1/salons` endpoints. `city`
- * and the logo/cover media references are NOT sent to the backend: per
- * `ROJAN_PhaseA_Salon_Identity_Readiness_Report_v1.md` §1/§7-8, none of the
- * three has a backend field to write to yet. [SalonMediaReferenceSection]
- * below is a reserved, honestly-labeled placeholder — Manager-themed
+ * Covers name/description/phone/email/address via the real `POST`/
+ * `PUT /api/v1/salons` endpoints, plus latitude/longitude (Phase A
+ * Correction) via the same `PUT` once a salon exists — real, live
+ * backend fields (`Salon.updateProfile()`, verified directly against
+ * `ROJAN_Backend` source), entered as plain coordinate text fields, not
+ * a map or location picker. Latitude/longitude only appear in edit mode:
+ * the backend's `CreateSalonRequest` has no such fields, so a brand-new
+ * salon's coordinates can't be set until the owner edits it once it
+ * exists - [SalonSetupForm] shows an explanatory caption in create mode
+ * instead of a dead field that would silently drop what the owner typed.
+ * `city` and the logo/cover media references are still NOT sent to the
+ * backend: `city` has no backend field at all, and logo/cover have a
+ * backend field but no upload endpoint to produce a real URL for it yet.
+ * [SalonMediaReferenceSection] below is a reserved, honestly-labeled
+ * placeholder — Manager-themed
  * ([ManagerGlassSurface]/[ManagerColors]/[ManagerIconContainer]), not the
  * Customer-facing `RojanComingSoonState` (this module never reuses that
  * component — see [ai.rojan.designlab.manager.components.SalonIdentityCard]'s
@@ -80,6 +89,8 @@ fun ManagerSalonSetupScreen(
                     onPhoneChange = viewModel::onPhoneChange,
                     onEmailChange = viewModel::onEmailChange,
                     onAddressChange = viewModel::onAddressChange,
+                    onLatitudeChange = viewModel::onLatitudeChange,
+                    onLongitudeChange = viewModel::onLongitudeChange,
                     onSaveClick = { viewModel.save(onSaved = onSaved) },
                 )
             }
@@ -124,6 +135,8 @@ private fun SalonSetupForm(
     onPhoneChange: (String) -> Unit,
     onEmailChange: (String) -> Unit,
     onAddressChange: (String) -> Unit,
+    onLatitudeChange: (String) -> Unit,
+    onLongitudeChange: (String) -> Unit,
     onSaveClick: () -> Unit,
 ) {
     Column(
@@ -153,6 +166,15 @@ private fun SalonSetupForm(
             }
         }
 
+        SalonCoordinatesSection(
+            isCreateMode = isCreateMode,
+            latitude = form.latitude,
+            longitude = form.longitude,
+            onLatitudeChange = onLatitudeChange,
+            onLongitudeChange = onLongitudeChange,
+            enabled = !isSubmitting,
+        )
+
         SalonMediaReferenceSection()
 
         if (submitError != null) {
@@ -168,11 +190,54 @@ private fun SalonSetupForm(
 }
 
 /**
- * Media reference placeholder (logo/cover) — Phase A scope note: no
- * backend field, no upload endpoint, no storage decision made yet (see
- * `ROJAN_PhaseA_Salon_Identity_Readiness_Report_v1.md` §7-8). Static and
- * honest, not a fake picker — nothing here is sent to the backend or
- * persisted locally.
+ * Latitude/longitude editing (Phase A Correction) — real, live backend
+ * fields (`Salon.updateProfile()`, verified directly against
+ * `ROJAN_Backend` source), sent through
+ * [ai.rojan.designlab.manager.domain.repository.ManagerSalonRepository.updateSalon]
+ * exactly as typed. Plain coordinate text fields only — no map, no
+ * location picker, per this correction's own scope. Only shown once a
+ * salon exists ([isCreateMode] `false`): the backend's `CreateSalonRequest`
+ * has no coordinate fields, so a brand-new salon's coordinates can't be
+ * set until the owner edits it - a caption explains this in create mode
+ * instead of silently dropping a value typed into a field that could
+ * never actually be submitted yet.
+ */
+@Composable
+private fun SalonCoordinatesSection(
+    isCreateMode: Boolean,
+    latitude: String,
+    longitude: String,
+    onLatitudeChange: (String) -> Unit,
+    onLongitudeChange: (String) -> Unit,
+    enabled: Boolean,
+) {
+    ManagerGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(RojanDimens.SpaceMD),
+            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+        ) {
+            Text(text = "موقعیت جغرافیایی", style = RojanTypography.CardTitle, color = ManagerColors.TextPrimary)
+            if (isCreateMode) {
+                Text(
+                    text = "مختصات جغرافیایی پس از ثبت سالن قابل ویرایش است",
+                    style = RojanTypography.Caption,
+                    color = ManagerColors.TextSecondary,
+                )
+            } else {
+                SalonTextField(label = "عرض جغرافیایی", value = latitude, onValueChange = onLatitudeChange, enabled = enabled)
+                SalonTextField(label = "طول جغرافیایی", value = longitude, onValueChange = onLongitudeChange, enabled = enabled)
+            }
+        }
+    }
+}
+
+/**
+ * Media reference placeholder (logo/cover) — Phase A scope note: the
+ * backend field exists (`Salon.logoUrl`), but no upload endpoint exists
+ * yet to produce a real URL for it. Static and honest, not a fake picker
+ * — nothing here is sent to the backend or persisted locally.
  */
 @Composable
 private fun SalonMediaReferenceSection() {
