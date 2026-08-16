@@ -7,6 +7,8 @@ import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModelFactory
 import ai.rojan.designlab.manager.presentation.settings.ManagerSalonSetupViewModel
 import ai.rojan.designlab.manager.presentation.settings.ManagerSalonSetupViewModelFactory
+import ai.rojan.designlab.manager.presentation.settings.ManagerWorkingHoursViewModel
+import ai.rojan.designlab.manager.presentation.settings.ManagerWorkingHoursViewModelFactory
 import ai.rojan.designlab.manager.screens.booking.ManagerBookingCustomerScreen
 import ai.rojan.designlab.manager.screens.booking.ManagerBookingDateTimeScreen
 import ai.rojan.designlab.manager.screens.booking.ManagerBookingReviewScreen
@@ -27,6 +29,7 @@ import ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen
 import ai.rojan.designlab.manager.screens.services.ManagerServiceEditScreen
 import ai.rojan.designlab.manager.screens.services.ManagerServicesScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerSalonSetupScreen
+import ai.rojan.designlab.manager.screens.settings.ManagerWorkingHoursScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerStaffEditScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerStaffScreen
 import androidx.compose.runtime.Composable
@@ -159,6 +162,21 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
             viewModel = viewModel,
             onBackClick = { navController.popBackStack() },
             onSaved = { navController.popBackStack() },
+            onWorkingHoursClick = { navController.navigate(ManagerDestinations.WORKING_HOURS) },
+        )
+    }
+
+    // Owner Salon Profile Completion (Android-only) — same standalone,
+    // per-back-stack-entry ViewModel scoping as [ManagerDestinations.SETTINGS] above.
+    composable(ManagerDestinations.WORKING_HOURS) { backStackEntry ->
+        val context = LocalContext.current
+        val viewModel: ManagerWorkingHoursViewModel = viewModel(
+            viewModelStoreOwner = backStackEntry,
+            factory = ManagerWorkingHoursViewModelFactory(context),
+        )
+        ManagerWorkingHoursScreen(
+            viewModel = viewModel,
+            onBackClick = { navController.popBackStack() },
         )
     }
 

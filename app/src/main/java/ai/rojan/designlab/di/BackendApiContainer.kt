@@ -57,6 +57,7 @@ import ai.rojan.designlab.domain.repository.SpecialistRepository
 import ai.rojan.designlab.domain.repository.TokenRepository
 import ai.rojan.designlab.domain.repository.WorkingHoursRepository
 import ai.rojan.designlab.manager.data.BackendManagerSalonRepository
+import ai.rojan.designlab.manager.data.BackendManagerWorkingHoursRepository
 import ai.rojan.designlab.manager.data.BackendSalonMembershipRepository
 import ai.rojan.designlab.manager.domain.ai.CompositeManagerCrmInsightProvider
 import ai.rojan.designlab.manager.domain.ai.InactiveCustomerInsightProvider
@@ -64,6 +65,7 @@ import ai.rojan.designlab.manager.domain.ai.ManagerCrmInsightProvider
 import ai.rojan.designlab.manager.domain.ai.VipCustomerInsightProvider
 import ai.rojan.designlab.manager.domain.ai.VipWithoutAppointmentsInsightProvider
 import ai.rojan.designlab.manager.domain.repository.ManagerSalonRepository
+import ai.rojan.designlab.manager.domain.repository.ManagerWorkingHoursRepository
 import ai.rojan.designlab.manager.domain.repository.SalonMembershipRepository
 import android.content.Context
 import kotlinx.serialization.json.Json
@@ -185,8 +187,21 @@ class BackendApiContainer(context: Context) {
     val bookingHistoryRepository: BookingHistoryRepository =
         BookingHistoryRepositoryImpl(bookingRepository, salonRepository, specialistRepository)
 
+    private val workingHoursApi: WorkingHoursApi =
+        retrofit.create(WorkingHoursApi::class.java)
+
     val workingHoursRepository: WorkingHoursRepository =
-        WorkingHoursRepositoryImpl(retrofit.create(WorkingHoursApi::class.java))
+        WorkingHoursRepositoryImpl(workingHoursApi)
+
+    // Owner Salon Profile Completion (Android-only) — same underlying API
+    // as [workingHoursRepository] above (its `GET` is already public/
+    // shared), wrapped a second time with the owner-only PUT/DELETE calls
+    // [WorkingHoursRepository] deliberately excludes (see that interface's
+    // own "Read-only from the Customer app's perspective" doc comment) —
+    // same "manager gets its own write-capable repository over a shared
+    // endpoint" shape [managerSalonRepository] already establishes.
+    val managerWorkingHoursRepository: ManagerWorkingHoursRepository =
+        BackendManagerWorkingHoursRepository(workingHoursApi)
 
     val customerRelationshipRepository: CustomerRelationshipRepository =
         CustomerRelationshipRepositoryImpl(retrofit.create(SalonRelationshipApi::class.java))
