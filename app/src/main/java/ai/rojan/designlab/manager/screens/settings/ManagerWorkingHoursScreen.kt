@@ -154,7 +154,17 @@ private fun WorkingDayCard(
                 )
             }
 
-            if (day.isOpen) {
+            if (day.isOpen && day.hasMultipleIntervals) {
+                // Data-safety guard (Phase B Working Hours Correction): this
+                // editor only reads/writes one interval - showing it here
+                // would invite a save that silently discards the backend's
+                // other interval(s). No editor, no destructive Save below.
+                Text(
+                    text = "این روز چند بازه کاری در سرور ثبت شده و امکان ویرایش از این صفحه وجود ندارد.",
+                    style = RojanTypography.Caption,
+                    color = ManagerColors.TextSecondary,
+                )
+            } else if (day.isOpen) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
@@ -182,11 +192,13 @@ private fun WorkingDayCard(
                 Text(text = day.error, style = RojanTypography.Caption, color = RojanErrorText)
             }
 
-            ManagerPrimaryButton(
-                text = if (day.isSaving) "در حال ذخیره..." else "ذخیره",
-                enabled = !day.isSaving && (!day.isOpen || (day.start.isNotBlank() && day.end.isNotBlank())),
-                onClick = onSaveClick,
-            )
+            if (!(day.isOpen && day.hasMultipleIntervals)) {
+                ManagerPrimaryButton(
+                    text = if (day.isSaving) "در حال ذخیره..." else "ذخیره",
+                    enabled = !day.isSaving && (!day.isOpen || (day.start.isNotBlank() && day.end.isNotBlank())),
+                    onClick = onSaveClick,
+                )
+            }
         }
     }
 }

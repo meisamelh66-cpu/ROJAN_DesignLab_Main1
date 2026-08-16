@@ -19,9 +19,16 @@ import kotlinx.coroutines.launch
  * `List<TimeInterval>` shape — the common pilot case (one open/close range
  * per day) — same kind of disclosed, documented simplification
  * [ai.rojan.designlab.manager.domain.repository.ManagerSalonRepository]
- * already applies to `.firstOrNull()` on the owner's salon list, not a
- * silent one. [hasExistingRecord] tracks whether the backend currently has
- * a `WorkingHours` row for this day at all, so [ManagerWorkingHoursViewModel.saveDay]
+ * already applies to `.firstOrNull()` on the owner's salon list. Data-safety
+ * correction (Phase B Working Hours Correction): that simplification is
+ * only safe to *save* when the backend day already has 0 or 1 interval —
+ * [hasMultipleIntervals] flags a day the backend already holds 2+ intervals
+ * for, so [ManagerWorkingHoursViewModel.saveDay] can refuse to `PUT` a
+ * single interval over it (`SetWorkingHoursUseCase.execute` on the backend
+ * is a full replace, not a merge — `ROJAN_Backend/application/.../schedule/WorkingHoursUseCases.kt`
+ * — so that `PUT` would silently discard every interval past the first).
+ * [hasExistingRecord] tracks whether the backend currently has a
+ * `WorkingHours` row for this day at all, so [ManagerWorkingHoursViewModel.saveDay]
  * knows whether turning a day off needs a real `DELETE` call or is already
  * a no-op.
  */
@@ -31,6 +38,7 @@ data class WorkingDayFormState(
     val start: String = "",
     val end: String = "",
     val hasExistingRecord: Boolean = false,
+    val hasMultipleIntervals: Boolean = false,
     val isSaving: Boolean = false,
     val error: String? = null,
 )
@@ -94,11 +102,20 @@ class ManagerWorkingHoursViewModel(
      * no-op when closed with nothing to remove — mirrors
      * [WorkingHoursController]'s real per-day contract, never a bulk save
      * across all seven days.
+     *
+     * Data-safety guard (Phase B Working Hours Correction): refuses to save
+     * an *open* day flagged [WorkingDayFormState.hasMultipleIntervals] —
+     * this single-interval editor has no way to represent interval 2+, so a
+     * `PUT` here would silently replace the backend's full list with just
+     * one interval. Closing the day (`DELETE`) is still allowed even when
+     * multiple intervals exist — that's the owner explicitly removing the
+     * whole day's record, not a silent partial collapse.
      */
     fun saveDay(dayOfWeek: String) {
         val id = salonId ?: return
         val day = currentDays()?.find { it.dayOfWeek == dayOfWeek } ?: return
         if (day.isOpen && (day.start.isBlank() || day.end.isBlank())) return
+        if (day.isOpen && day.hasMultipleIntervals) return
 
         updateDay(dayOfWeek) { it.copy(isSaving = true, error = null) }
         viewModelScope.launch {
@@ -135,13 +152,15 @@ class ManagerWorkingHoursViewModel(
      * check would have misread as still having one.
      */
     private fun SalonWorkingHours?.toFormState(dayOfWeek: String): WorkingDayFormState {
-        val firstInterval = this?.intervals?.firstOrNull()
+        val intervals = this?.intervals.orEmpty()
+        val firstInterval = intervals.firstOrNull()
         return WorkingDayFormState(
             dayOfWeek = dayOfWeek,
             isOpen = firstInterval != null,
             start = firstInterval?.start.orEmpty(),
             end = firstInterval?.end.orEmpty(),
             hasExistingRecord = firstInterval != null,
+            hasMultipleIntervals = intervals.size > 1,
         )
     }
 

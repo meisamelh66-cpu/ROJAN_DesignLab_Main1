@@ -61,6 +61,89 @@ class ManagerWorkingHoursViewModelTest {
     }
 
     @Test
+    fun `load flags a day with multiple backend intervals`() = runTest {
+        val repository = FakeManagerWorkingHoursRepository(
+            getWorkingHoursResult = Result.success(
+                listOf(
+                    SalonWorkingHours(
+                        dayOfWeek = "SATURDAY",
+                        intervals = listOf(TimeInterval("09:00:00", "13:00:00"), TimeInterval("16:00:00", "20:00:00")),
+                    ),
+                ),
+            ),
+        )
+        val viewModel = ManagerWorkingHoursViewModel(salonId = "salon-1", repository = repository)
+
+        val saturday = days(viewModel.loadState.value).first { it.dayOfWeek == "SATURDAY" }
+        assertTrue(saturday.hasMultipleIntervals)
+        assertTrue(saturday.isOpen)
+        // First interval still surfaced for display, even though it can't be safely saved from here.
+        assertEquals("09:00:00", saturday.start)
+    }
+
+    @Test
+    fun `saving an open day with multiple intervals does not call setWorkingHours - data safety`() = runTest {
+        val repository = FakeManagerWorkingHoursRepository(
+            getWorkingHoursResult = Result.success(
+                listOf(
+                    SalonWorkingHours(
+                        dayOfWeek = "SATURDAY",
+                        intervals = listOf(TimeInterval("09:00:00", "13:00:00"), TimeInterval("16:00:00", "20:00:00")),
+                    ),
+                ),
+            ),
+        )
+        val viewModel = ManagerWorkingHoursViewModel(salonId = "salon-1", repository = repository)
+
+        viewModel.saveDay("SATURDAY")
+
+        assertEquals(0, repository.setWorkingHoursCallCount)
+        assertEquals(0, repository.removeWorkingHoursCallCount)
+    }
+
+    @Test
+    fun `blocked save leaves the multi-interval day's state untouched - no data loss`() = runTest {
+        val original = SalonWorkingHours(
+            dayOfWeek = "SATURDAY",
+            intervals = listOf(TimeInterval("09:00:00", "13:00:00"), TimeInterval("16:00:00", "20:00:00")),
+        )
+        val repository = FakeManagerWorkingHoursRepository(getWorkingHoursResult = Result.success(listOf(original)))
+        val viewModel = ManagerWorkingHoursViewModel(salonId = "salon-1", repository = repository)
+
+        viewModel.saveDay("SATURDAY")
+
+        val saturday = days(viewModel.loadState.value).first { it.dayOfWeek == "SATURDAY" }
+        assertTrue(saturday.hasMultipleIntervals)
+        assertTrue(saturday.hasExistingRecord)
+        assertEquals("09:00:00", saturday.start)
+        assertEquals("13:00:00", saturday.end)
+        assertFalse(saturday.isSaving)
+        assertNull(saturday.error)
+    }
+
+    @Test
+    fun `closing a multi-interval day is still an allowed explicit delete`() = runTest {
+        val repository = FakeManagerWorkingHoursRepository(
+            getWorkingHoursResult = Result.success(
+                listOf(
+                    SalonWorkingHours(
+                        dayOfWeek = "SATURDAY",
+                        intervals = listOf(TimeInterval("09:00:00", "13:00:00"), TimeInterval("16:00:00", "20:00:00")),
+                    ),
+                ),
+            ),
+            removeWorkingHoursResult = Result.success(Unit),
+        )
+        val viewModel = ManagerWorkingHoursViewModel(salonId = "salon-1", repository = repository)
+
+        viewModel.onToggleOpen("SATURDAY", false)
+        viewModel.saveDay("SATURDAY")
+
+        assertEquals(1, repository.removeWorkingHoursCallCount)
+        assertEquals(0, repository.setWorkingHoursCallCount)
+    }
+
+    @Test
     fun `load failure resolves to Error`() = runTest {
         val viewModel = ManagerWorkingHoursViewModel(
             salonId = "salon-1",
