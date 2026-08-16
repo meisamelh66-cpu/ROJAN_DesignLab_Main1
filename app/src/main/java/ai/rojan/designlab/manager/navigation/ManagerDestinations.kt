@@ -52,6 +52,9 @@ object ManagerDestinations {
     fun staffEdit(specialistId: String) = "manager_staff_edit/$specialistId"
     const val NEW_SPECIALIST_ID = "new"
     const val SETTINGS = "manager_settings"
+
+    /** Owner Salon Profile Completion (Android-only) — reached from [SETTINGS]'s new "ساعات کاری" entry point. */
+    const val WORKING_HOURS = "manager_working_hours"
     const val PROFILE = "manager_profile"
 
     // Booking Journey Phase 2 — "نوبت جدید" quick action's flow. Nested

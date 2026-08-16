@@ -8,6 +8,7 @@ import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.presentation.settings.ManagerSalonSetupViewModel
 import ai.rojan.designlab.manager.presentation.settings.SalonSetupFormState
 import ai.rojan.designlab.presentation.common.UiState
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanErrorText
@@ -15,12 +16,16 @@ import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -68,6 +73,7 @@ fun ManagerSalonSetupScreen(
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
     onSaved: () -> Unit = {},
+    onWorkingHoursClick: (() -> Unit)? = null,
 ) {
     val loadState by viewModel.loadState.collectAsState()
     val form by viewModel.formState.collectAsState()
@@ -92,6 +98,11 @@ fun ManagerSalonSetupScreen(
                     onLatitudeChange = viewModel::onLatitudeChange,
                     onLongitudeChange = viewModel::onLongitudeChange,
                     onSaveClick = { viewModel.save(onSaved = onSaved) },
+                    // Owner Salon Profile Completion (Android-only) - only a
+                    // real navigation entry point once a salon exists
+                    // (edit mode); working hours are salon-scoped, so there's
+                    // nothing to edit yet in create mode.
+                    onWorkingHoursClick = if (state is UiState.Success) onWorkingHoursClick else null,
                 )
             }
         }
@@ -138,6 +149,7 @@ private fun SalonSetupForm(
     onLatitudeChange: (String) -> Unit,
     onLongitudeChange: (String) -> Unit,
     onSaveClick: () -> Unit,
+    onWorkingHoursClick: (() -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier
@@ -174,6 +186,10 @@ private fun SalonSetupForm(
             onLongitudeChange = onLongitudeChange,
             enabled = !isSubmitting,
         )
+
+        if (onWorkingHoursClick != null) {
+            WorkingHoursEntryRow(onClick = onWorkingHoursClick)
+        }
 
         SalonMediaReferenceSection()
 
@@ -229,6 +245,37 @@ private fun SalonCoordinatesSection(
                 SalonTextField(label = "عرض جغرافیایی", value = latitude, onValueChange = onLatitudeChange, enabled = enabled)
                 SalonTextField(label = "طول جغرافیایی", value = longitude, onValueChange = onLongitudeChange, enabled = enabled)
             }
+        }
+    }
+}
+
+/**
+ * Owner Salon Profile Completion (Android-only) navigation entry point to
+ * [ai.rojan.designlab.manager.screens.settings.ManagerWorkingHoursScreen] —
+ * real backend contract already exists (`GET`/`PUT`/`DELETE
+ * .../working-hours/{dayOfWeek}`), unlike [SalonMediaReferenceSection]
+ * below it.
+ */
+@Composable
+private fun WorkingHoursEntryRow(onClick: () -> Unit) {
+    ManagerGlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .rojanPressable(onClick = onClick),
+        shape = RojanShapes.GlassCard,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(RojanDimens.SpaceMD),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
+                ManagerIconContainer(imageVector = Icons.Filled.AccessTime, contentDescription = "ساعات کاری", containerSize = 32.dp)
+                Text(text = "ساعات کاری", style = RojanTypography.CardTitle, color = ManagerColors.TextPrimary)
+            }
+            Icon(imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = null, tint = ManagerColors.TextSecondary)
         }
     }
 }

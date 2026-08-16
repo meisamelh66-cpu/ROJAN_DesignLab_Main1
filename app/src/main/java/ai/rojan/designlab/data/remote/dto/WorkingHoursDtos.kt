@@ -17,3 +17,16 @@ data class WorkingHoursResponseDto(
     val dayOfWeek: String,
     val intervals: List<TimeIntervalResponseDto>,
 )
+
+/** Request-side mirror of [TimeIntervalResponseDto] — same opaque-string treatment, matching backend's `TimeIntervalDto` (`WorkingHoursDtos.kt`, `ROJAN_Backend`). */
+@Serializable
+data class TimeIntervalRequestDto(
+    val start: String,
+    val end: String,
+)
+
+/** Wire body for `PUT /api/v1/salons/{salonId}/working-hours/{dayOfWeek}` (owner-only), matching backend's `SetWorkingHoursRequest` field-for-field. */
+@Serializable
+data class SetWorkingHoursRequestDto(
+    val intervals: List<TimeIntervalRequestDto>,
+)
