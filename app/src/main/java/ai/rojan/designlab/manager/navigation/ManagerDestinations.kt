@@ -55,6 +55,9 @@ object ManagerDestinations {
 
     /** Owner Salon Profile Completion (Android-only) — reached from [SETTINGS]'s new "ساعات کاری" entry point. */
     const val WORKING_HOURS = "manager_working_hours"
+
+    /** Central Salon Management — Salon Media UI — reached from [SETTINGS]'s "لوگو و تصویر کاور" entry point, same standalone-screen shape as [WORKING_HOURS]. */
+    const val SALON_MEDIA = "manager_salon_media"
     const val PROFILE = "manager_profile"
 
     // Booking Journey Phase 2 — "نوبت جدید" quick action's flow. Nested

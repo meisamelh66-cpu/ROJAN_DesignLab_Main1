@@ -1,5 +1,6 @@
 package ai.rojan.designlab.data.remote
 
+import ai.rojan.designlab.data.remote.dto.AssignIdentityMediaRequestDto
 import ai.rojan.designlab.data.remote.dto.CreateSalonRequestDto
 import ai.rojan.designlab.data.remote.dto.SalonResponseDto
 import ai.rojan.designlab.data.remote.dto.UpdateSalonRequestDto
@@ -41,5 +42,12 @@ interface ManagerSalonApi {
     suspend fun update(
         @Path("salonId") salonId: String,
         @Body request: UpdateSalonRequestDto,
+    ): SalonResponseDto
+
+    /** Central Salon Management — Salon Media UI. Mirrors `SalonController.assignIdentityMedia` exactly — see [AssignIdentityMediaRequestDto]'s own doc comment. */
+    @PUT("api/v1/salons/{salonId}/identity-media")
+    suspend fun assignIdentityMedia(
+        @Path("salonId") salonId: String,
+        @Body request: AssignIdentityMediaRequestDto,
     ): SalonResponseDto
 }

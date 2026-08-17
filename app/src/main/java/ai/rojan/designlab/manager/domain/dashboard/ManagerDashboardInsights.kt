@@ -33,6 +33,12 @@ data class ManagerDashboardInsights(
  * (`Salon.latitude`/`Salon.longitude`, writable via `PUT /api/v1/salons/{id}`
  * and `Salon.updateProfile()`, verified directly against
  * `ROJAN_Backend` source), not placeholders.
+ *
+ * Central Salon Management — Salon Media UI: [logoUrl]/[coverImageUrl]
+ * added — the salon's currently-assigned identity media, resolved by the
+ * backend from whichever `MediaAsset` is assigned to each slot. Written
+ * only via [ai.rojan.designlab.manager.domain.repository.ManagerMediaRepository.assignIdentity],
+ * never directly.
  */
 data class ManagerSalonSummary(
     val id: String,
@@ -44,4 +50,6 @@ data class ManagerSalonSummary(
     val latitude: Double?,
     val longitude: Double?,
     val active: Boolean,
+    val logoUrl: String? = null,
+    val coverImageUrl: String? = null,
 )

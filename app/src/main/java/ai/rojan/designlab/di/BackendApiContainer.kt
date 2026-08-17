@@ -11,6 +11,7 @@ import ai.rojan.designlab.data.remote.BookingApi
 import ai.rojan.designlab.data.remote.ManagerBookingApi
 import ai.rojan.designlab.data.remote.ManagerCustomerApi
 import ai.rojan.designlab.data.remote.ManagerDashboardApi
+import ai.rojan.designlab.data.remote.ManagerMediaApi
 import ai.rojan.designlab.data.remote.ManagerSalonApi
 import ai.rojan.designlab.data.remote.ManagerServiceApi
 import ai.rojan.designlab.data.remote.ManagerSpecialistApi
@@ -56,6 +57,7 @@ import ai.rojan.designlab.domain.repository.ServiceRepository
 import ai.rojan.designlab.domain.repository.SpecialistRepository
 import ai.rojan.designlab.domain.repository.TokenRepository
 import ai.rojan.designlab.domain.repository.WorkingHoursRepository
+import ai.rojan.designlab.manager.data.BackendManagerMediaRepository
 import ai.rojan.designlab.manager.data.BackendManagerSalonRepository
 import ai.rojan.designlab.manager.data.BackendManagerWorkingHoursRepository
 import ai.rojan.designlab.manager.data.BackendSalonMembershipRepository
@@ -64,6 +66,7 @@ import ai.rojan.designlab.manager.domain.ai.InactiveCustomerInsightProvider
 import ai.rojan.designlab.manager.domain.ai.ManagerCrmInsightProvider
 import ai.rojan.designlab.manager.domain.ai.VipCustomerInsightProvider
 import ai.rojan.designlab.manager.domain.ai.VipWithoutAppointmentsInsightProvider
+import ai.rojan.designlab.manager.domain.repository.ManagerMediaRepository
 import ai.rojan.designlab.manager.domain.repository.ManagerSalonRepository
 import ai.rojan.designlab.manager.domain.repository.ManagerWorkingHoursRepository
 import ai.rojan.designlab.manager.domain.repository.SalonMembershipRepository
@@ -172,6 +175,16 @@ class BackendApiContainer(context: Context) {
 
     val managerSpecialistApi: ManagerSpecialistApi =
         retrofit.create(ManagerSpecialistApi::class.java)
+
+    // Central Salon Management — Salon Media UI: fully wrapped here, same
+    // treatment as managerSalonRepository above - the real screen-facing
+    // repository, not a raw API. Built over the existing Media Foundation
+    // contract, not a Manager-only media structure.
+    val managerMediaApi: ManagerMediaApi =
+        retrofit.create(ManagerMediaApi::class.java)
+
+    val managerMediaRepository: ManagerMediaRepository =
+        BackendManagerMediaRepository(managerMediaApi, managerSalonApi)
 
 
     // Raw APIs exposed for manager repositories

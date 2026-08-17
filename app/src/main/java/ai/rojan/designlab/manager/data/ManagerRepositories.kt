@@ -140,6 +140,20 @@ object ManagerRepositories {
         private set
 
     /**
+     * Central Salon Management — Salon Media UI: lets
+     * [ai.rojan.designlab.manager.presentation.settings.ManagerSalonMediaViewModel]
+     * push the fresh [ManagerSalonSummary] a successful
+     * `assignIdentity` call already returned back into this shared
+     * singleton, so the Dashboard's own salon identity card reflects a
+     * newly-assigned logo/cover immediately, without a full [initialize]
+     * re-sync. No network call of its own - purely an in-memory update of
+     * data the caller already has.
+     */
+    fun updateSalon(updated: ManagerSalonSummary) {
+        salon = updated
+    }
+
+    /**
      * Manager CRM AI Consumption Layer, Phase 7 Step 2 — the registered
      * [ai.rojan.designlab.di.BackendApiContainer.managerCrmInsightProvider]'s
      * output for this salon, refreshed every [initialize]. Real since
@@ -233,6 +247,8 @@ object ManagerRepositories {
             latitude = salonDto.latitude,
             longitude = salonDto.longitude,
             active = salonDto.active,
+            logoUrl = salonDto.logoUrl,
+            coverImageUrl = salonDto.coverImageUrl,
         )
         salonId = salonDto.id
         availabilityRepository = container.availabilityRepository

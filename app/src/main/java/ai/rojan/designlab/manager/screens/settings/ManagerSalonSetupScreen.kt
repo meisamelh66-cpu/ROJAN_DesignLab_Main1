@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -32,6 +33,8 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -56,16 +59,13 @@ import androidx.compose.ui.unit.dp
  * salon's coordinates can't be set until the owner edits it once it
  * exists - [SalonSetupForm] shows an explanatory caption in create mode
  * instead of a dead field that would silently drop what the owner typed.
- * `city` and the logo/cover media references are still NOT sent to the
- * backend: `city` has no backend field at all, and logo/cover have a
- * backend field but no upload endpoint to produce a real URL for it yet.
- * [SalonMediaReferenceSection] below is a reserved, honestly-labeled
- * placeholder — Manager-themed
- * ([ManagerGlassSurface]/[ManagerColors]/[ManagerIconContainer]), not the
- * Customer-facing `RojanComingSoonState` (this module never reuses that
- * component — see [ai.rojan.designlab.manager.components.SalonIdentityCard]'s
- * own doc comment). No picker, no upload call, no local state persisted
- * for it — there is nothing real yet for it to do.
+ * `city` is still NOT sent to the backend - it has no backend field at
+ * all. Logo/cover/gallery media (Central Salon Management — Salon Media
+ * UI) now has a real navigation entry point,
+ * [SalonMediaReferenceSection] below, reached the same way
+ * [WorkingHoursEntryRow] already was — the backend upload infrastructure
+ * it was previously waiting on has existed since Media Foundation Phase
+ * 1; this only closes the Android-side gap.
  */
 @Composable
 fun ManagerSalonSetupScreen(
@@ -74,6 +74,7 @@ fun ManagerSalonSetupScreen(
     onBackClick: (() -> Unit)? = null,
     onSaved: () -> Unit = {},
     onWorkingHoursClick: (() -> Unit)? = null,
+    onSalonMediaClick: (() -> Unit)? = null,
 ) {
     val loadState by viewModel.loadState.collectAsState()
     val form by viewModel.formState.collectAsState()
@@ -103,6 +104,11 @@ fun ManagerSalonSetupScreen(
                     // (edit mode); working hours are salon-scoped, so there's
                     // nothing to edit yet in create mode.
                     onWorkingHoursClick = if (state is UiState.Success) onWorkingHoursClick else null,
+                    // Central Salon Management — Salon Media UI: same
+                    // edit-mode-only gating as onWorkingHoursClick above -
+                    // media is salon-scoped, so there's nothing to upload
+                    // against until the salon exists.
+                    onSalonMediaClick = if (state is UiState.Success) onSalonMediaClick else null,
                 )
             }
         }
@@ -150,10 +156,12 @@ private fun SalonSetupForm(
     onLongitudeChange: (String) -> Unit,
     onSaveClick: () -> Unit,
     onWorkingHoursClick: (() -> Unit)? = null,
+    onSalonMediaClick: (() -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(RojanDimens.SpaceMD),
         verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
     ) {
@@ -191,7 +199,9 @@ private fun SalonSetupForm(
             WorkingHoursEntryRow(onClick = onWorkingHoursClick)
         }
 
-        SalonMediaReferenceSection()
+        if (onSalonMediaClick != null) {
+            SalonMediaEntryRow(onClick = onSalonMediaClick)
+        }
 
         if (submitError != null) {
             Text(text = submitError, style = RojanTypography.Caption, color = RojanErrorText)
@@ -253,8 +263,7 @@ private fun SalonCoordinatesSection(
  * Owner Salon Profile Completion (Android-only) navigation entry point to
  * [ai.rojan.designlab.manager.screens.settings.ManagerWorkingHoursScreen] —
  * real backend contract already exists (`GET`/`PUT`/`DELETE
- * .../working-hours/{dayOfWeek}`), unlike [SalonMediaReferenceSection]
- * below it.
+ * .../working-hours/{dayOfWeek}`).
  */
 @Composable
 private fun WorkingHoursEntryRow(onClick: () -> Unit) {
@@ -281,32 +290,33 @@ private fun WorkingHoursEntryRow(onClick: () -> Unit) {
 }
 
 /**
- * Media reference placeholder (logo/cover) — Phase A scope note: the
- * backend field exists (`Salon.logoUrl`), but no upload endpoint exists
- * yet to produce a real URL for it. Static and honest, not a fake picker
- * — nothing here is sent to the backend or persisted locally.
+ * Central Salon Management — Salon Media UI navigation entry point, same
+ * shape as [WorkingHoursEntryRow] just above. Routes to
+ * [ai.rojan.designlab.manager.screens.settings.ManagerSalonMediaScreen].
  */
 @Composable
-private fun SalonMediaReferenceSection() {
-    ManagerGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(RojanDimens.SpaceMD),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
+private fun SalonMediaEntryRow(onClick: () -> Unit) {
+    ManagerGlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .rojanPressable(onClick = onClick),
+        shape = RojanShapes.Small,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            ManagerIconContainer(
-                imageVector = Icons.Filled.Image,
-                contentDescription = "لوگو و تصویر کاور",
-                containerSize = 40.dp,
-            )
-            Text(text = "لوگو و تصویر کاور", style = RojanTypography.CardTitle, color = ManagerColors.TextPrimary)
-            Text(
-                text = "این بخش پس از آماده‌شدن زیرساخت آپلود رسانه در سرور فعال می‌شود",
-                style = RojanTypography.Caption,
-                color = ManagerColors.TextSecondary,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
+                ManagerIconContainer(imageVector = Icons.Filled.Image, contentDescription = "لوگو و تصویر کاور", containerSize = 32.dp)
+                Text(
+                    text = "لوگو، کاور و گالری تصاویر",
+                    style = RojanTypography.CardTitle,
+                    color = ManagerColors.TextPrimary,
+                )
+            }
+            Icon(imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = null, tint = ManagerColors.TextSecondary)
         }
     }
 }

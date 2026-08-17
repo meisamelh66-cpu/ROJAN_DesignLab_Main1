@@ -78,5 +78,7 @@ class BackendManagerSalonRepository(
         latitude = latitude,
         longitude = longitude,
         active = active,
+        logoUrl = logoUrl,
+        coverImageUrl = coverImageUrl,
     )
 }

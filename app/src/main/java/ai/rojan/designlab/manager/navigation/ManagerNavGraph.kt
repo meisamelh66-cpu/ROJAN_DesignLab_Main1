@@ -5,6 +5,8 @@ import ai.rojan.designlab.manager.domain.customer.CustomerTag
 import ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModelFactory
+import ai.rojan.designlab.manager.presentation.settings.ManagerSalonMediaViewModel
+import ai.rojan.designlab.manager.presentation.settings.ManagerSalonMediaViewModelFactory
 import ai.rojan.designlab.manager.presentation.settings.ManagerSalonSetupViewModel
 import ai.rojan.designlab.manager.presentation.settings.ManagerSalonSetupViewModelFactory
 import ai.rojan.designlab.manager.presentation.settings.ManagerWorkingHoursViewModel
@@ -28,6 +30,7 @@ import ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen
 import ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen
 import ai.rojan.designlab.manager.screens.services.ManagerServiceEditScreen
 import ai.rojan.designlab.manager.screens.services.ManagerServicesScreen
+import ai.rojan.designlab.manager.screens.settings.ManagerSalonMediaScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerSalonSetupScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerWorkingHoursScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerStaffEditScreen
@@ -163,6 +166,7 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
             onBackClick = { navController.popBackStack() },
             onSaved = { navController.popBackStack() },
             onWorkingHoursClick = { navController.navigate(ManagerDestinations.WORKING_HOURS) },
+            onSalonMediaClick = { navController.navigate(ManagerDestinations.SALON_MEDIA) },
         )
     }
 
@@ -175,6 +179,20 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
             factory = ManagerWorkingHoursViewModelFactory(context),
         )
         ManagerWorkingHoursScreen(
+            viewModel = viewModel,
+            onBackClick = { navController.popBackStack() },
+        )
+    }
+
+    // Central Salon Management — Salon Media UI — same standalone,
+    // per-back-stack-entry ViewModel scoping as [ManagerDestinations.WORKING_HOURS] above.
+    composable(ManagerDestinations.SALON_MEDIA) { backStackEntry ->
+        val context = LocalContext.current
+        val viewModel: ManagerSalonMediaViewModel = viewModel(
+            viewModelStoreOwner = backStackEntry,
+            factory = ManagerSalonMediaViewModelFactory(context),
+        )
+        ManagerSalonMediaScreen(
             viewModel = viewModel,
             onBackClick = { navController.popBackStack() },
         )
