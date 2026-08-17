@@ -45,12 +45,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Central Salon Management — Salon Media UI. A management layer over the
@@ -118,15 +122,36 @@ private fun SalonMediaContent(
     onGalleryImageDelete: (String) -> Unit,
 ) {
     val context = LocalContext.current
+    // ANR fix: readImageBytes() reads the full file into memory - previously
+    // called directly inside the ActivityResultCallback, which always runs
+    // on the main thread, blocking it for the duration of the read (a real
+    // ANR risk for large/cloud-backed picker URIs). Dispatched to
+    // Dispatchers.IO here instead - readImageBytes() itself is unchanged.
+    val coroutineScope = rememberCoroutineScope()
 
     val logoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        uri?.let { readImageBytes(it, context) }?.let { (bytes, name, mime) -> onLogoPicked(bytes, name, mime) }
+        uri?.let { picked ->
+            coroutineScope.launch {
+                withContext(Dispatchers.IO) { readImageBytes(picked, context) }
+                    ?.let { (bytes, name, mime) -> onLogoPicked(bytes, name, mime) }
+            }
+        }
     }
     val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        uri?.let { readImageBytes(it, context) }?.let { (bytes, name, mime) -> onCoverPicked(bytes, name, mime) }
+        uri?.let { picked ->
+            coroutineScope.launch {
+                withContext(Dispatchers.IO) { readImageBytes(picked, context) }
+                    ?.let { (bytes, name, mime) -> onCoverPicked(bytes, name, mime) }
+            }
+        }
     }
     val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        uri?.let { readImageBytes(it, context) }?.let { (bytes, name, mime) -> onGalleryImagePicked(bytes, name, mime) }
+        uri?.let { picked ->
+            coroutineScope.launch {
+                withContext(Dispatchers.IO) { readImageBytes(picked, context) }
+                    ?.let { (bytes, name, mime) -> onGalleryImagePicked(bytes, name, mime) }
+            }
+        }
     }
     val imageOnlyRequest = remember { PickVisualMediaImageOnlyRequest }
 
