@@ -39,11 +39,13 @@ import org.junit.Test
  *
  * Covers the five scenarios required by this integration's own report:
  * fresh install, existing valid JWT, expired JWT, successful OTP
- * verification, and logout — plus two additional cases this
- * implementation specifically guards against (a valid session or a
- * successful OTP verification belonging to a non-MANAGER account), since
- * the OTP API itself has no way to assert role at signup (see
- * [ManagerAuthViewModel.onVerified]'s own doc comment).
+ * verification, and logout — plus the real authorization boundary this
+ * gate actually enforces: a valid session or a successful OTP
+ * verification belonging to an account with **no salon access**
+ * (owner/membership/specialist) authenticates the session but resolves
+ * to [ActiveSalonUiState.Error], never a client-side rejection based on
+ * the account's global role (see [ManagerAuthViewModel.onVerified]'s own
+ * doc comment for why role is not checked here).
  *
  * Also covers Active Salon Context & Selection Flow's resolution rules
  * (auto-select on exactly one salon, required choice on more than one,
@@ -98,16 +100,20 @@ class ManagerAuthViewModelTest {
     }
 
     @Test
-    fun `existing valid session for a non-manager account is treated as unauthenticated and cleared`() = runTest {
+    fun `existing valid session for a customer-role account with no salon access still authenticates, but resolves to an access error`() = runTest {
         val authSessionRepository = FakeAuthSessionRepository(initialPersonId = customerUser.id)
         val backendAuthRepository = FakeBackendAuthRepository(currentUserResult = Result.success(customerUser))
         val tokenRepository = FakeTokenRepository()
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.success(emptyIdentityContext()))
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository(), FakeActiveSalonContextRepository())
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository, FakeActiveSalonContextRepository())
 
-        assertEquals(ManagerAuthState.Unauthenticated, viewModel.authState.value)
-        assertEquals(1, authSessionRepository.clearPersonIdCallCount)
-        assertEquals(1, tokenRepository.clearTokensCallCount)
+        val state = viewModel.authState.value
+        assertTrue(state is ManagerAuthState.Authenticated)
+        assertEquals(customerUser.id, (state as ManagerAuthState.Authenticated).userId)
+        assertTrue(viewModel.activeSalonState.value is ActiveSalonUiState.Error)
+        assertEquals(0, authSessionRepository.clearPersonIdCallCount)
+        assertEquals(0, tokenRepository.clearTokensCallCount)
     }
 
     // --- Scenario 3: Expired JWT ---------------------------------------
@@ -162,21 +168,46 @@ class ManagerAuthViewModelTest {
     }
 
     @Test
-    fun `verifying an OTP for a non-manager account is rejected without authenticating`() = runTest {
+    fun `verifying an OTP for a customer-role account with no salon access still authenticates, but resolves to an access error`() = runTest {
         val authSessionRepository = FakeAuthSessionRepository(initialPersonId = null)
         val backendAuthRepository = FakeBackendAuthRepository(
             requestOtpResult = Result.success(OtpIssued("+989123456789", expiresInSeconds = 120, canResendAfterSeconds = 60)),
             verifyOtpResult = Result.success(customerUser),
         )
         val tokenRepository = FakeTokenRepository()
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.success(emptyIdentityContext()))
 
-        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, FakeCurrentUserIdentityContextRepository(), FakeActiveSalonContextRepository())
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository, FakeActiveSalonContextRepository())
         viewModel.requestOtp("+989123456789")
         viewModel.verifyOtp("482913")
 
-        assertEquals(ManagerAuthState.Unauthenticated, viewModel.authState.value)
-        assertNull(authSessionRepository.savedPersonId)
-        assertTrue(viewModel.errorMessage.value != null)
+        val state = viewModel.authState.value
+        assertTrue(state is ManagerAuthState.Authenticated)
+        assertEquals(customerUser.id, authSessionRepository.savedPersonId)
+        assertTrue(viewModel.activeSalonState.value is ActiveSalonUiState.Error)
+    }
+
+    @Test
+    fun `verifying an OTP for a customer-role account with a real owned salon reaches Authenticated and Active`() = runTest {
+        val authSessionRepository = FakeAuthSessionRepository(initialPersonId = null)
+        val backendAuthRepository = FakeBackendAuthRepository(
+            requestOtpResult = Result.success(OtpIssued("+989123456789", expiresInSeconds = 120, canResendAfterSeconds = 60)),
+            verifyOtpResult = Result.success(customerUser),
+        )
+        val tokenRepository = FakeTokenRepository()
+        val owned = OwnedSalonAccess(salonId = "s1", salonName = "Salon One", active = true, permissions = setOf("MANAGE_SALON"))
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(
+            Result.success(emptyIdentityContext().copy(ownedSalons = listOf(owned))),
+        )
+
+        val viewModel = ManagerAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository, FakeActiveSalonContextRepository())
+        viewModel.requestOtp("+989123456789")
+        viewModel.verifyOtp("482913")
+
+        assertTrue(viewModel.authState.value is ManagerAuthState.Authenticated)
+        val state = viewModel.activeSalonState.value
+        assertTrue(state is ActiveSalonUiState.Active)
+        assertEquals("s1", (state as ActiveSalonUiState.Active).context.salonId)
     }
 
     @Test

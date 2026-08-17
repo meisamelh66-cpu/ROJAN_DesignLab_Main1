@@ -24,8 +24,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-private const val MANAGER_ROLE = "MANAGER"
-
 /**
  * OTP Authentication Entry Flow Integration: owns the Manager App's entire
  * authentication lifecycle — cold-start session validation (the gate),
@@ -39,8 +37,12 @@ private const val MANAGER_ROLE = "MANAGER"
  * encrypted JWT storage every other backend-integrated repository already
  * shares via `AuthInterceptor`/`TokenAuthenticator`). No new storage, no
  * new networking stack, no new authentication mechanism — only new
- * orchestration of what already exists, scoped to the Manager App and its
- * MANAGER-role requirement.
+ * orchestration of what already exists, scoped to the Manager App.
+ * Access itself is decided by real salon ownership/membership/specialist
+ * links (`GET /users/me/salon-access`, see [refreshIdentityContext]/
+ * [activeSalonState]) — the global account [AuthenticatedUser.role] the
+ * backend returns is not authoritative for this and is never checked
+ * here (see [ManagerAuthState]'s own doc comment for why).
  *
  * Deliberately does **not** depend on
  * [ai.rojan.designlab.domain.identity.SessionProvider]/[ai.rojan.designlab.domain.identity.IdentityProvider]
@@ -71,13 +73,14 @@ class ManagerAuthViewModel(
 
     /**
      * Identity & Session Architecture, Android Integration: the real
-     * backend salon-access context - additive only this phase (Phase 6:
-     * "do not immediately remove the existing Manager global-role check").
-     * [authState]'s MANAGER-role gate is untouched; nothing reads this yet
-     * to decide access. Fetched fresh on every real authentication
-     * ([onVerified]) and every cold-start restore ([restoreSession]),
-     * reset to [UiState.Loading] on [logout]/[clearSession] - never
-     * persisted, never silently defaulted to a granted-looking state.
+     * backend salon-access context - this, not [AuthenticatedUser.role],
+     * is what [authState]/[activeSalonState] gate access on (the former
+     * Phase-6-deferred global-role check has been removed; see
+     * [restoreSession]/[onVerified]). Fetched fresh on every real
+     * authentication ([onVerified]) and every cold-start restore
+     * ([restoreSession]), reset to [UiState.Loading] on
+     * [logout]/[clearSession] - never persisted, never silently defaulted
+     * to a granted-looking state.
      */
     private val _identityContext =
         MutableStateFlow<UiState<CurrentUserIdentityContext>>(UiState.Loading)
@@ -108,10 +111,12 @@ class ManagerAuthViewModel(
      * token (transparently refreshed first if expired, via
      * `TokenAuthenticator`, exactly like
      * [ai.rojan.designlab.presentation.auth.AuthViewModel.restoreSession]
-     * already does for Customer). A revoked/expired refresh token, a
-     * network failure, or an account that isn't MANAGER-role all fail this
-     * check the same way — back to [ManagerAuthState.Unauthenticated],
-     * never a silent Dashboard entry.
+     * already does for Customer). A revoked/expired refresh token or a
+     * network failure fails this check — back to
+     * [ManagerAuthState.Unauthenticated], never a silent Dashboard entry.
+     * Whether the account actually has any salon access is a separate,
+     * later question — [refreshIdentityContext]/[activeSalonState] decide
+     * that, not this method (no [AuthenticatedUser.role] check here).
      */
     private suspend fun restoreSession() {
         val personId = authSessionRepository.observePersonId().first()
@@ -122,15 +127,8 @@ class ManagerAuthViewModel(
 
         backendAuthRepository.currentUser()
             .onSuccess { user ->
-                if (user.role == MANAGER_ROLE) {
-                    _authState.value = ManagerAuthState.Authenticated(user.id, user.fullName)
-                    refreshIdentityContext()
-                } else {
-                    // A real, valid session, but not a manager account — never
-                    // grant Manager Dashboard access on session restore, same
-                    // rule enforced fresh in verifyOtp() below.
-                    clearSession()
-                }
+                _authState.value = ManagerAuthState.Authenticated(user.id, user.fullName)
+                refreshIdentityContext()
             }
             .onFailure { clearSession() }
     }
@@ -138,8 +136,9 @@ class ManagerAuthViewModel(
     /**
      * `GET /users/me/salon-access` - see [ai.rojan.designlab.presentation.auth.AuthViewModel.refreshIdentityContext]
      * for the identical Customer-side reasoning. A failure here never
-     * touches [authState] - the MANAGER-role check above already passed by
-     * the time this runs.
+     * touches [authState] - a real backend session already exists by the
+     * time this runs; this only decides which salon (if any) it applies
+     * to, via [activeSalonState].
      *
      * System2 Android Parallel Work, Phase A item 3: the failure branch
      * also resolves [_activeSalonState] to [ActiveSalonUiState.Error] —
@@ -267,21 +266,19 @@ class ManagerAuthViewModel(
         }
     }
 
+    /**
+     * A successful OTP verify always authenticates the session — the
+     * backend auto-registers a brand-new phone number as CUSTOMER
+     * (`VerifyOtpUseCase`'s documented default) and never assigns
+     * `MANAGER`, so gating here on [AuthenticatedUser.role] would reject
+     * every account unconditionally, real owners included. Real
+     * authorization is salon ownership/membership/specialist access,
+     * resolved next by [refreshIdentityContext] into [activeSalonState] -
+     * an account with none of those correctly lands on the access-error
+     * state (see `ManagerAccessErrorScreen`), not on a client-side
+     * rejection here.
+     */
     private suspend fun onVerified(user: AuthenticatedUser) {
-        if (user.role != MANAGER_ROLE) {
-            // The backend auto-registers a brand-new phone number as
-            // CUSTOMER (VerifyOtpUseCase's documented default) — the OTP
-            // API itself has no way to request MANAGER at signup, and this
-            // integration must not touch the backend to add one. A
-            // successfully-verified but non-manager account is therefore a
-            // real, expected outcome for an unrecognized number, not a bug
-            // - reject it client-side rather than granting Dashboard
-            // access to whatever role came back.
-            tokenRepository.clearTokens()
-            _errorMessage.value = "این شماره به عنوان مدیر ثبت نشده است"
-            return
-        }
-
         authSessionRepository.savePersonId(user.id)
         _authState.value = ManagerAuthState.Authenticated(user.id, user.fullName)
         refreshIdentityContext()

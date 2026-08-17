@@ -17,10 +17,16 @@ sealed interface ManagerAuthState {
     /** Session restore in progress — the stored session (if any) is being validated against the backend. Splash stays visible for this state; nothing below the gate may render yet. */
     data object Checking : ManagerAuthState
 
-    /** A real backend session exists, was validated, and belongs to a MANAGER-role account. */
+    /**
+     * A real backend session exists and was validated. Whether the
+     * account actually has salon access (owner/membership/specialist) is
+     * a separate question, tracked by
+     * [ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel.activeSalonState] —
+     * not this state, and not the account's global role.
+     */
     data class Authenticated(val userId: String, val fullName: String) : ManagerAuthState
 
-    /** No valid session — either never logged in, the stored session failed validation, or the authenticated account is not a manager. */
+    /** No valid session — either never logged in or the stored session failed validation. */
     data object Unauthenticated : ManagerAuthState
 }
 
