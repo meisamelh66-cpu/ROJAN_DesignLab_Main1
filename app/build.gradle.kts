@@ -23,6 +23,20 @@ val keystoreProperties = Properties().apply {
     }
 }
 
+// Environment Configuration (ADR-003): DEV_API_BASE_URL is read from
+// `local.properties` (repo root, gitignored — see .gitignore) rather than
+// a Gradle project property, so each developer's own value (emulator vs.
+// physical-device LAN IP — see local.properties.sample) never leaves
+// their machine. Gradle does not auto-expose local.properties keys the
+// way it does gradle.properties, so this is parsed the same way
+// keystoreProperties above already is.
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        FileInputStream(localPropertiesFile).use { load(it) }
+    }
+}
+
 android {
     namespace = "ai.rojan.designlab"
 
@@ -61,25 +75,23 @@ android {
     // fabricating "Reception" branding — swap this out once real art is
     // approved.
     //
-    // Manager App Phase 2 (Environment Configuration): a second,
-    // independent flavor dimension replaces the single hardcoded
-    // API_BASE_URL with three real, separately-buildable environments.
-    // `dev` defaults to the previous emulator-local value unchanged - no
-    // regression for existing emulator-based local development - but is
-    // now overridable via `-PDEV_API_BASE_URL=...` (or `gradle.properties`)
-    // for physical-device testing, where the emulator-only `10.0.2.2`
-    // alias isn't reachable (e.g. `http://<device-accessible-host>:8080/`,
-    // matching the `localhost`/`127.0.0.1` cleartext exceptions already in
-    // `network_security_config.xml` for the `adb reverse` case).
-    // `staging`/`production` deliberately do NOT hardcode a guessed real
-    // URL (there is no confirmed staging/production deployment to point at
-    // yet, and inventing one would fabricate infrastructure that doesn't
-    // exist) - each reads its URL from a Gradle property
+    // Environment Configuration (ADR-003,
+    // docs/architecture/10_ARCHITECTURE_DECISIONS_ADR/ADR-003_ENVIRONMENT_CONFIGURATION_STRATEGY.md):
+    // no `environment` flavor ships a compiled default that only resolves
+    // in one runtime context. `dev` reads `DEV_API_BASE_URL` from
+    // `local.properties` (see `localProperties` above and
+    // `local.properties.sample` for the emulator/physical-device recipes)
+    // - never a hardcoded `10.0.2.2` fallback. `staging`/`production`
+    // deliberately do NOT hardcode a guessed real URL either (there is no
+    // confirmed staging/production deployment to point at yet, and
+    // inventing one would fabricate infrastructure that doesn't exist) -
+    // each reads its URL from a Gradle property
     // (`-PSTAGING_API_BASE_URL=...` / `-PPRODUCTION_API_BASE_URL=...`, or
-    // set in `gradle.properties`, which is gitignored for real values).
-    // NetworkConfig.kt fails loudly at first use if that property was left
-    // unset for the environment actually being built, rather than silently
-    // falling back to a fake-looking default.
+    // the per-user `~/.gradle/gradle.properties` - never the repo's own
+    // tracked `gradle.properties`, which is committed, not gitignored).
+    // NetworkConfig.kt fails loudly at first use if a flavor's URL was
+    // left unset, rather than silently falling back to a fake-looking
+    // default - true for all three environments now, dev included.
     flavorDimensions += "target"
     flavorDimensions += "environment"
     productFlavors {
@@ -100,7 +112,7 @@ android {
             buildConfigField(
                 "String",
                 "API_BASE_URL",
-                "\"${project.findProperty("DEV_API_BASE_URL") ?: "http://10.0.2.2:8080/"}\"",
+                "\"${localProperties.getProperty("DEV_API_BASE_URL") ?: ""}\"",
             )
         }
         create("staging") {

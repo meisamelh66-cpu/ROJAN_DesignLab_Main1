@@ -1,0 +1,8 @@
+# Copy the relevant line(s) into your own local.properties (git-ignored, never commit).
+# See ADR-003: docs/architecture/10_ARCHITECTURE_DECISIONS_ADR/ADR-003_ENVIRONMENT_CONFIGURATION_STRATEGY.md
+
+# Emulator:
+DEV_API_BASE_URL=http://10.0.2.2:8080/
+
+# Physical device (must be on the same Wi-Fi network as the backend host):
+# DEV_API_BASE_URL=http://<developer-lan-ip>:8080/
