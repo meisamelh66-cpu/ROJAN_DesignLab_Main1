@@ -34,7 +34,7 @@ device during the original investigation:
 ```
 08-19 08:03:25.448 I/okhttp.OkHttpClient( 4933): --> POST http://10.0.2.2:8080/api/v1/auth/otp/request (31-byte body)
 08-19 08:03:35.470 I/okhttp.OkHttpClient( 4933): <-- HTTP FAILED: java.net.SocketTimeoutException:
-    failed to connect to /10.0.2.2 (port 8080) from /25.113.58.65 (port 36378) after 10000ms
+    failed to connect to /10.0.2.2 (port 8080) from /203.0.113.10 (port 36378) after 10000ms
 ```
 The socket connect attempt sat until OkHttp's default 10-second connect
 timeout expired — the app never reached the backend at all. This was
@@ -57,7 +57,7 @@ by `staging`/`production` — now applies identically to `dev`.
 
 **`local.properties` `DEV_API_BASE_URL` (this validation):**
 ```
-DEV_API_BASE_URL=http://192.168.179.199:8080/
+DEV_API_BASE_URL=http://192.168.1.50:8080/
 ```
 — the dev machine's own Wi-Fi LAN IP at the time of testing, not a
 guessed or compiled-in value. `local.properties.sample` documents both
@@ -66,8 +66,8 @@ own LAN IP) for future onboarding.
 
 **Physical-device LAN configuration requirement.** Reaching a LAN IP
 requires the device and the backend host to be on the same Wi-Fi network
-(the device's outbound source IP, `192.168.179.246`, was verified on the
-same `/24` subnet as the backend host's `192.168.179.199` earlier in this
+(the device's outbound source IP, `192.168.1.75`, was verified on the
+same `/24` subnet as the backend host's `192.168.1.50` earlier in this
 validation). Same-network LAN configuration enabled successful
 Android-to-backend communication during validation — this same subnet
 condition held during an earlier attempt in this same validation that
@@ -116,11 +116,11 @@ STAGING_API_BASE_URL/PRODUCTION_API_BASE_URL (gradle.properties or -P) for stagi
 **Login E2E — full positive path**, backend running (PostgreSQL + Redis
 + Spring Boot on port 8080), device on the same Wi-Fi network:
 
-- Request: `POST http://192.168.179.199:8080/api/v1/auth/otp/request`
+- Request: `POST http://192.168.1.50:8080/api/v1/auth/otp/request`
 - Android (`OkHttpClient`), device-side:
   ```
-  10:58:05.051 I/okhttp.OkHttpClient(15994): --> POST http://192.168.179.199:8080/api/v1/auth/otp/request (31-byte body)
-  10:58:09.978 I/okhttp.OkHttpClient(15994): <-- 200 http://192.168.179.199:8080/api/v1/auth/otp/request (4926ms, unknown-length body)
+  10:58:05.051 I/okhttp.OkHttpClient(15994): --> POST http://192.168.1.50:8080/api/v1/auth/otp/request (31-byte body)
+  10:58:09.978 I/okhttp.OkHttpClient(15994): <-- 200 http://192.168.1.50:8080/api/v1/auth/otp/request (4926ms, unknown-length body)
   ```
 - Backend, server-side (same request, correlated by recipient/timing):
   ```
@@ -136,7 +136,7 @@ STAGING_API_BASE_URL/PRODUCTION_API_BASE_URL (gradle.properties or -P) for stagi
 
 | | Original incident | This validation |
 |---|---|---|
-| Target | `http://10.0.2.2:8080/` (Emulator-only) | `http://192.168.179.199:8080/` (configured LAN IP) |
+| Target | `http://10.0.2.2:8080/` (Emulator-only) | `http://192.168.1.50:8080/` (configured LAN IP) |
 | Backend contacted? | Never — TCP connect never completed | Yes — full request/response cycle |
 | Result | `SocketTimeoutException` after 10000ms | `200 OK` after 4926ms |
 | User-visible outcome | "Connection timed out. Please try again." | Advanced to OTP code-entry screen |

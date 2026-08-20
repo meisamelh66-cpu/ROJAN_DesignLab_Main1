@@ -350,17 +350,19 @@ section in this file.
 
 ## Environment notes
 
-- Android SDK: `C:\Users\Rojan\AppData\Local\Android\Sdk`
-- JDK: bundled with Android Studio (`Program Files\Android\Android
-  Studio\jbr`) — set `JAVA_HOME` per-command, it's not in the environment by
-  default.
+- Android SDK: path is per-machine — read `sdk.dir` from `local.properties`
+  (gitignored) or run `sdkmanager --list_installed` rather than assuming a
+  fixed path.
+- JDK: bundled with Android Studio (`<Android Studio install dir>\jbr`) —
+  set `JAVA_HOME` per-command, it's not in the environment by default.
 - `sdkmanager` cannot reach the network in this environment (fails to
   download source lists/manifests) — only already-installed SDK packages are
   usable; don't attempt to download new system images, build-tools, etc.
-- Available AVD: `Pixel_4` (`android-37.1 google_apis_playstore_ps16k`,
-  x86_64) — the only system image installed. This is a heavy Play Store
-  image and has been unreliable on this machine: repeated cold-boot attempts
-  died silently right after WHPX init with no logged error. Give a boot
-  attempt a real window (5+ min) before concluding it's stuck; if it dies
-  repeatedly, don't keep retrying blindly — report it and prefer a connected
-  physical device for verification when one is available.
+- Available AVD(s): run `avdmanager list avd` to see what's installed
+  locally rather than assuming a fixed name/config. Heavy Play Store system
+  images have been observed unreliable in this environment: repeated
+  cold-boot attempts died silently right after WHPX init with no logged
+  error. Give a boot attempt a real window (5+ min) before concluding it's
+  stuck; if it dies repeatedly, don't keep retrying blindly — report it and
+  prefer a connected physical device for verification when one is
+  available.

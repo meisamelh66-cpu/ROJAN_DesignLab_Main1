@@ -46,7 +46,7 @@ the exact failing call:
 ```
 08-19 08:03:25.448 I/okhttp.OkHttpClient( 4933): --> POST http://10.0.2.2:8080/api/v1/auth/otp/request (31-byte body)
 08-19 08:03:35.470 I/okhttp.OkHttpClient( 4933): <-- HTTP FAILED: java.net.SocketTimeoutException:
-    failed to connect to /10.0.2.2 (port 8080) from /25.113.58.65 (port 36378) after 10000ms
+    failed to connect to /10.0.2.2 (port 8080) from /203.0.113.10 (port 36378) after 10000ms
 ```
 
 The app never reached the backend at all — the socket connect attempt to
