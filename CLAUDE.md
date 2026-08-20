@@ -295,11 +295,12 @@ applicationId changes, no Customer App edits, no Manager Dashboard
 redesign.
 
 **App architecture (frozen):**
-- Two product flavors on the single `:app` module (`app/build.gradle.kts`,
-  `flavorDimensions("target")`): `customer` and `manager`. No separate
-  Gradle module, no shared library extraction — this was the audited,
-  chosen approach (see "App ID Separation" history) specifically because
-  it requires zero Customer file changes.
+- Three product flavors on the single `:app` module (`app/build.gradle.kts`,
+  `flavorDimensions("target")`): `customer`, `manager`, and `reception`
+  (see "ROJAN RECEPTION APP" section below). No separate Gradle module, no
+  shared library extraction — this was the audited, chosen approach (see
+  "App ID Separation" history) specifically because it requires zero
+  Customer file changes.
 - `customer` flavor: zero overrides, inherits `defaultConfig` exactly —
   `applicationId = "ai.rojan.designlab"`, unchanged.
 - `manager` flavor: `applicationId = "ai.rojan.designlab.manager"`,
@@ -341,12 +342,66 @@ the existing RTL foundation, and the `RojanDimens` spacing rhythm.
   `managerNavGraph`)
 - Manager Logo integration (Header, Splash, Profile)
 
-**After this freeze:** new Manager screens (`customers/`, `services/`,
-`staff/`, `settings/` — still foundation-only folders) and bug fixes
-are in scope. Changing the architecture, either applicationId, any
+**After this freeze:** `customers/`, `services/`, `staff/`, `settings/`
+are implemented frozen scope with live backend integration
+(`ManagerCustomerApi`, `ManagerServiceApi`, `ManagerSpecialistApi`,
+`ManagerSalonApi`/`ManagerMediaApi`/`WorkingHoursApi` respectively) — no
+longer foundation-only. They're frozen the same way Dashboard/Calendar
+are: further changes to them are bug fixes or additive features, not
+first builds. Changing the architecture, either applicationId, any
 Customer file, or the Manager Dashboard's frozen visual baseline is
-not — that requires explicit approval, same as every other frozen
-section in this file.
+not in scope — that requires explicit approval, same as every other
+frozen section in this file.
+
+## ROJAN RECEPTION APP — Phase 1 (System 1 approved, Controlled Implementation)
+
+Third `target` flavor (`ai.rojan.designlab.reception`, `app/build.gradle.kts`
+line ~105), approved per `ROJAN_System1_Backend_Decision_v2.md` and
+`ROJAN_Reception_Phase1_Updated_Plan_v2.md`. Full approval/status trail is
+in the repo root: `ROJAN_Reception_Implementation_Plan_v1.md`,
+`ROJAN_Reception_Phase0_Completion_Report_v1.md`,
+`ROJAN_Reception_Phase1_Auth_Block_State_Report_v1.md`,
+`ROJAN_Reception_Phase1_Readiness_Report_v1.md`,
+`ROJAN_Reception_Phase1_Review_Report_v1.md`,
+`ROJAN_Reception_Phase1_Review_Fixes_Report_v1.md`,
+`ROJAN_Reception_Phase1_Final_Acceptance_Report_v1.md`,
+`ROJAN_Reception_Backend_Dependency_Checklist_v1.md`,
+`ROJAN_System2_Reception_Phase1_Status_Report_v1.md`.
+
+**Architecture isolation:** own isolated workspace under
+`app/src/main/java/ai/rojan/designlab/reception/` (`domain/`, `data/`,
+`presentation/`, `screens/`, `navigation/` — same layering discipline and
+"own destinations object per flavor" shape as Customer/Manager, deliberately
+separate from `RojanDestinations`/`ManagerDestinations`, both untouched).
+Own manifest under `app/src/reception/`.
+
+**Approved scope (Phase 1, "Controlled Implementation"):** OTP auth, salon
+selection, access-error/retry, profile, dashboard, a full booking wizard
+(customer → service → specialist → date/time → review → success), and a
+customer list — all built against real backend endpoints, zero mock data
+(re-verified in `ROJAN_Reception_Phase1_Final_Acceptance_Report_v1.md`).
+**No Calendar screens, no Invite UI** — never approved, correctly absent;
+`ReceptionInviteRepository` exists only as an unwired integration-interface
+placeholder pending a backend `InviteController`. Changes beyond this
+approved allowed-scope list require the same System 1 confirmation as any
+other cross-boundary change.
+
+**Backend contract usage:** reuses existing authenticated APIs where
+appropriate (`ManagerBookingApi`, `ManagerCustomerApi`, plus Reception-owned
+repository wrappers) rather than duplicating contracts — no placeholder
+URLs, no fake response objects. RBAC is entirely backend-decided: zero
+role/permission branching exists client-side in Reception code.
+
+**Known limitations (backend-side, not Android gaps):**
+- Non-owner Dashboard reachability is blocked on backend work
+  (`SalonMembership` persistence, `/users/me/salon-access` endpoint not yet
+  live) — this is the root blocker for a non-owner account reaching any
+  Reception screen past auth.
+- Invite-acceptance flow is blocked on a not-yet-built `InviteController`
+  and an unresolved OTP-auto-registers-as-CUSTOMER gap.
+- Booking confirm/complete has repository-layer support
+  (`BookingApi.completeBooking` etc.) but no UI trigger yet — a deliberate
+  "not built this session" scope choice, not a defect.
 
 ## Environment notes
 
