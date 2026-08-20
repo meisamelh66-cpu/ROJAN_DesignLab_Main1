@@ -83,6 +83,13 @@ object RojanDestinations {
     const val BEAUTY_TIMELINE = "beauty_timeline"
     const val BEAUTY_DNA = "beauty_dna"
 
+    // ── Public Salon (QR-scan/deep-link foundation) ──
+    // Activation Phase 1: in-app route only, no deep link yet. Keyed by
+    // slug (not salonId) - PublicSalonRepository/PublicSalonViewModel are
+    // already slug-based, matching the backend's PublicSalonController.
+    const val PUBLIC_SALON = "public_salon/{slug}"
+    fun publicSalon(slug: String) = "public_salon/$slug"
+
     /**
      * Maps a pure business [ai.rojan.designlab.domain.booking.BookingStep]
      * to an actual route — Navigation's job, per the "BookingContext must

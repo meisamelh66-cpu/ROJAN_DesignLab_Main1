@@ -270,8 +270,12 @@ private fun WorkingHoursEntryRow(onClick: () -> Unit) {
     ManagerGlassSurface(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 64.dp)
             .rojanPressable(onClick = onClick),
-        shape = RojanShapes.GlassCard,
+        // RojanShapes.Small (16dp corners), matching
+        // [ai.rojan.designlab.manager.components.QuickActionsSection]'s
+        // already-working `QuickActionChip` for this same short-row shape.
+        shape = RojanShapes.Small,
     ) {
         Row(
             modifier = Modifier

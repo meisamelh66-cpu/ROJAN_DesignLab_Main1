@@ -40,6 +40,7 @@ import ai.rojan.designlab.screens.profile.MembershipScreen
 import ai.rojan.designlab.screens.profile.MyReviewsScreen
 import ai.rojan.designlab.screens.profile.ProfileScreen
 import ai.rojan.designlab.screens.profile.WalletScreen
+import ai.rojan.designlab.screens.salon.PublicSalonScreen
 import ai.rojan.designlab.screens.salon.SalonDetailsScreen
 import ai.rojan.designlab.screens.search.SearchScreen
 import ai.rojan.designlab.screens.service.ServiceDetailsScreen
@@ -836,6 +837,27 @@ fun RojanNavGraph() {
 
 
 
+
+                // Public Salon Activation Phase 1: in-app route only (no deep
+                // link registered yet, per approved scope) - top-level, no
+                // CustomerAccessGuard, since this is the one deliberately
+                // unauthenticated screen in the app (see PublicSalonScreen's
+                // own doc comment). Does not touch BOOKING_FLOW_GRAPH/
+                // BookingViewModel - the screen is read-only, its only
+                // action is the login CTA below.
+                composable(
+                    route = RojanDestinations.PUBLIC_SALON,
+                    arguments = listOf(navArgument("slug") { type = NavType.StringType }),
+                    enterTransition = { motionEnter },
+                    exitTransition = { motionExit },
+                ) { backStackEntry ->
+                    val slug = backStackEntry.arguments?.getString("slug") ?: ""
+                    PublicSalonScreen(
+                        slug = slug,
+                        onBackClick = { navController.popBackStack() },
+                        onLoginClick = { navController.navigate(RojanDestinations.AUTH) },
+                    )
+                }
 
                 navigation(
                     route = RojanDestinations.PROFILE_GRAPH,
