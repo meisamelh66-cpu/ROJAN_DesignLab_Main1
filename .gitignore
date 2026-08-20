@@ -37,3 +37,15 @@ local.properties
 .DS_Store
 # Signing credentials - never commit
 keystore.properties
+
+# Manual QA artifacts (screenshots, UI dumps, test images) - repo root only
+/*.png
+/*.jpg
+/*.jpeg
+/*_dump*.xml
+/dump*.xml
+/dump.rdb
+/crash_search*.txt
+
+# Root UI automation dumps
+/*.xml
