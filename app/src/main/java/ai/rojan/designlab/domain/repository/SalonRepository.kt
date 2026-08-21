@@ -28,7 +28,10 @@ data class SalonLocation(
  * those stay screen-level/demo-only rather than being fabricated here.
  * [logoUrl]/[latitude]/[longitude] were added for Salon Discovery - the
  * backend `Salon` entity already had them, this domain model just didn't
- * carry them through yet.
+ * carry them through yet. [coverImageUrl] (Media Sprint P0) is the same
+ * story - real on the wire (`SalonResponseDto.coverImageUrl`) since Central
+ * Salon Management shipped, just never carried through to this domain
+ * model or rendered anywhere until now.
  */
 data class Salon(
     val id: String,
@@ -38,6 +41,7 @@ data class Salon(
     val email: String?,
     val address: String,
     val logoUrl: String? = null,
+    val coverImageUrl: String? = null,
     val latitude: Double? = null,
     val longitude: Double? = null,
 ) {
@@ -63,4 +67,15 @@ interface SalonRepository {
     ): Result<PagedResult<Salon>>
 
     suspend fun getSalon(salonId: String): Result<Salon>
+
+    /**
+     * Media Sprint P0: this salon's public gallery images, as plain URLs -
+     * `GET /api/v1/salons/{salonId}/media?mediaType=GALLERY`. Authenticated
+     * (like every non-public-prefixed endpoint) but not permission-gated
+     * beyond that (`ListMediaUseCase`'s own doc comment: "intentionally
+     * open to any authenticated caller"), so any logged-in customer viewing
+     * a salon's details can read it. Ordering is whatever the backend
+     * returns - no display-order concept exists yet.
+     */
+    suspend fun getGallery(salonId: String): Result<List<String>>
 }

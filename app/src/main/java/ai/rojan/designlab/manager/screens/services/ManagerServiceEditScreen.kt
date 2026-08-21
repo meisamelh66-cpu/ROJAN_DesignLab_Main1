@@ -1,11 +1,14 @@
 package ai.rojan.designlab.manager.screens.services
 
+import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.manager.components.ManagerColors
 import ai.rojan.designlab.manager.components.ManagerGlassSurface
 import ai.rojan.designlab.manager.components.ManagerGlassTheme
 import ai.rojan.designlab.manager.components.ManagerPrimaryButton
 import ai.rojan.designlab.manager.components.ManagerScaffold
+import ai.rojan.designlab.manager.components.ManagerTargetedMediaGallery
 import ai.rojan.designlab.manager.data.ManagerRepositories
+import ai.rojan.designlab.manager.domain.media.ManagerMediaType
 import ai.rojan.designlab.manager.domain.service.Service
 import ai.rojan.designlab.manager.navigation.ManagerDestinations
 import ai.rojan.designlab.presentation.common.userMessageFor
@@ -35,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import kotlinx.coroutines.launch
@@ -85,6 +89,7 @@ fun ManagerServiceEditScreen(
     var isSubmitting by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     val price = priceText.toLongOrNull()
     val duration = durationText.toIntOrNull()
@@ -146,6 +151,25 @@ fun ManagerServiceEditScreen(
                     } else {
                         Text(text = selectedCategory, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
                     }
+                }
+            }
+
+            if (isNew) {
+                Text(
+                    text = "پس از ایجاد خدمت، می‌توانید تصاویر آن را اضافه کنید.",
+                    style = RojanTypography.Caption,
+                    color = ManagerColors.TextSecondary,
+                )
+            } else {
+                ManagerGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
+                    ManagerTargetedMediaGallery(
+                        title = "تصاویر خدمت",
+                        salonId = ManagerRepositories.salonId ?: "",
+                        mediaType = ManagerMediaType.SERVICE_IMAGE,
+                        targetId = serviceId,
+                        repository = BackendApiContainerHolder.get(context).managerMediaRepository,
+                        modifier = Modifier.padding(RojanDimens.SpaceMD),
+                    )
                 }
             }
 

@@ -12,6 +12,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 
+data class ServiceDetailsData(
+    val service: Service,
+    /** Media System Evolution v2: this service's images. Enrichment, not a hard gate - a fetch failure degrades to empty rather than losing the whole detail screen. */
+    val images: List<String> = emptyList(),
+)
+
 /**
  * Loads a single [Service] for [ai.rojan.designlab.screens.service.ServiceDetailsScreen].
  * There is no salon-wide "all services" endpoint, and no "get service by id
@@ -32,7 +38,7 @@ class ServiceDetailsViewModel(
     private val serviceRepository: ServiceRepository,
 ) : ViewModel() {
 
-    var state by mutableStateOf<UiState<Service>>(UiState.Loading)
+    var state by mutableStateOf<UiState<ServiceDetailsData>>(UiState.Loading)
         private set
 
     init {
@@ -63,7 +69,12 @@ class ServiceDetailsViewModel(
             }
 
             val match = services.firstOrNull { it.id == serviceId }
-            state = if (match != null) UiState.Success(match) else UiState.Error("این خدمت یافت نشد.")
+            if (match == null) {
+                state = UiState.Error("این خدمت یافت نشد.")
+                return@launch
+            }
+            val images = serviceRepository.getImages(resolvedSalonId, match.id).getOrDefault(emptyList())
+            state = UiState.Success(ServiceDetailsData(match, images))
         }
     }
 

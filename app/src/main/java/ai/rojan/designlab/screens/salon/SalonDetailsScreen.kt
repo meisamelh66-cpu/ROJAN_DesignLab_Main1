@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsNone
@@ -32,7 +33,10 @@ import androidx.compose.material3.Icon
 import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,6 +76,7 @@ import ai.rojan.designlab.ui.theme.RojanSoftLavender
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
+import ai.rojan.designlab.ui.components.image.MediaPreviewDialog
 import ai.rojan.designlab.ui.components.image.RojanRemoteImage
 import ai.rojan.designlab.ui.components.image.SpecialistAvatar
 import ai.rojan.designlab.ui.components.rtl.RtlInfoRow
@@ -156,10 +161,10 @@ private fun isOpenNow(workingHours: List<SalonWorkingHours>): Boolean? {
  * `GET .../specialists`. Several sections that relied on
  * `ai.rojan.designlab.data.demo.DemoSalon`-only fields are gone rather than
  * faked:
- * - Rating/review count, phone-book-style facilities list, and a real photo
- *   gallery all depended on data the backend `Salon` doesn't have (no
- *   reviews system, no facilities modeling, no multi-photo gallery
- *   concept) — their sections are removed, not rendered empty or fabricated.
+ * - Rating/review count and a phone-book-style facilities list still depend
+ *   on data the backend `Salon` doesn't have (no reviews system, no
+ *   facilities modeling) — those sections stay removed, not rendered empty
+ *   or fabricated.
  * - The tagline row now shows the backend `Salon.description` (nullable —
  *   omitted when absent) instead of the demo's always-present tagline.
  * - Salon Discovery milestone: `Salon.logoUrl`/`Specialist.photoUrl` now
@@ -167,6 +172,14 @@ private fun isOpenNow(workingHours: List<SalonWorkingHours>): Boolean? {
  *   milestone) — the hero banner/circular logo and specialist avatars fall
  *   back to the existing tinted [RojanIconContainer]/[SpecialistAvatar] icon
  *   path only when the URL is null, blank, or fails to load.
+ * - Media Sprint P0: the photo gallery is back, for real this time - the
+ *   backend gained a genuine `salon_media` concept (`MediaAsset`/
+ *   `MediaType.GALLERY`) since the note above was first written. The hero
+ *   banner now prefers `salon.coverImageUrl` (falling back to `logoUrl`,
+ *   then the tinted icon) instead of always showing the logo twice, and a
+ *   "گالری تصاویر" section renders `SalonDetailsData.gallery`
+ *   (`GET /salons/{id}/media?mediaType=GALLERY`) when non-empty — omitted
+ *   entirely, not shown empty, when the salon has no gallery images yet.
  * - Salon Discovery milestone: an "باز / تعطیل" (open/closed) badge is
  *   computed client-side from the already-fetched [SalonWorkingHours] list
  *   (no extra API call — see [isOpenNow]) and shown next to the working
@@ -257,6 +270,7 @@ fun SalonDetailsScreen(
                 val data = loadState.data
                 val salon = data.salon
                 val specialists = data.specialists
+                var galleryPreviewIndex by remember { mutableStateOf<Int?>(null) }
                 val services = if (selectedServiceIds != null) {
                     data.services.filter { it.id in selectedServiceIds }
                 } else {
@@ -375,6 +389,16 @@ fun SalonDetailsScreen(
                                     ),
                                 )
                             }
+                        }
+                    }
+
+                    if (data.gallery.isNotEmpty()) {
+                        item { RtlSectionHeader("گالری تصاویر", color = HomeColors.TextPrimary) }
+                        item {
+                            SalonGallerySection(
+                                images = data.gallery,
+                                onImageClick = { index -> galleryPreviewIndex = index },
+                            )
                         }
                     }
 
@@ -518,6 +542,10 @@ fun SalonDetailsScreen(
                         }
                     }
                 }
+
+                galleryPreviewIndex?.let { index ->
+                    MediaPreviewDialog(urls = data.gallery, initialIndex = index, onDismiss = { galleryPreviewIndex = null })
+                }
             }
         }
     }
@@ -544,10 +572,13 @@ private fun SalonDetailsScaffoldState(onBackClick: () -> Unit, content: @Composa
 /**
  * Hero rebuild: a single Hero component owning the edge-to-edge banner, the
  * back button floating on top of it, the bottom gradient, and the circular
- * logo overlapping its bottom edge. Salon Discovery milestone: both the
- * banner and the circular logo render [salon.logoUrl] via [RojanRemoteImage]
- * when present, falling back to [RojanIconContainer]'s icon (tinted via
- * [accentFor]) when it's null or fails to load.
+ * logo overlapping its bottom edge. Salon Discovery milestone: the circular
+ * logo renders [salon.logoUrl] via [RojanRemoteImage] when present, falling
+ * back to [RojanIconContainer]'s icon (tinted via [accentFor]) when it's
+ * null or fails to load. Media Sprint P0: the banner itself now prefers
+ * [salon.coverImageUrl] - a real, wider-aspect brand image distinct from
+ * the logo - falling back to the logo (the old behavior) when no cover is
+ * set, and only then to the tinted icon.
  */
 @Composable
 private fun SalonHeroSection(
@@ -555,6 +586,7 @@ private fun SalonHeroSection(
     onBackClick: () -> Unit,
 ) {
     val tint = remember(salon.id) { accentFor(salon.id) }
+    val bannerUrl = salon.coverImageUrl ?: salon.logoUrl
 
     Box(modifier = Modifier.fillMaxWidth()) {
         Box(
@@ -565,7 +597,7 @@ private fun SalonHeroSection(
             contentAlignment = Alignment.Center,
         ) {
             RojanRemoteImage(
-                url = salon.logoUrl,
+                url = bannerUrl,
                 contentDescription = null,
                 shape = HERO_SHAPE,
                 modifier = Modifier.fillMaxSize(),
@@ -614,6 +646,43 @@ private fun SalonHeroSection(
                 modifier = Modifier.fillMaxSize(),
                 fallback = { Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary) },
             )
+        }
+    }
+}
+
+/**
+ * Media Sprint P0: read-only horizontal gallery grid, same
+ * [HomeGlassSurface]/[LazyRow] visual language as the specialists row
+ * above. No add/delete here — this is the Customer-facing read side of the
+ * same `MediaAsset` rows Manager's [ai.rojan.designlab.manager.screens.settings.ManagerSalonMediaScreen]
+ * writes; only called when [images] is non-empty (the caller gates on
+ * that), so there's no empty-state to design for. Complete Salon Gallery UX
+ * (Media System Evolution v2): tapping a thumbnail opens [MediaPreviewDialog]
+ * via [onImageClick] - the same full-screen preview every gallery in this
+ * app now uses.
+ */
+@Composable
+private fun SalonGallerySection(images: List<String>, onImageClick: (Int) -> Unit) {
+    LazyRow(
+        modifier = Modifier.padding(horizontal = RojanDimens.SpaceMD),
+        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+    ) {
+        itemsIndexed(images) { index, imageUrl ->
+            Box(
+                modifier = Modifier
+                    .rojanEnterAnimation(delayMillis = index * 60)
+                    .size(120.dp)
+                    .background(HomeColors.TextSecondary.copy(alpha = 0.15f), RojanShapes.Small)
+                    .rojanPressable(onClick = { onImageClick(index) }),
+            ) {
+                RojanRemoteImage(
+                    url = imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    shape = RojanShapes.Small,
+                    fallback = { Icon(Icons.Filled.Image, contentDescription = null, tint = HomeColors.TextSecondary) },
+                )
+            }
         }
     }
 }

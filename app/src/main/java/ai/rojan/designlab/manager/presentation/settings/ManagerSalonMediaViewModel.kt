@@ -2,7 +2,6 @@ package ai.rojan.designlab.manager.presentation.settings
 
 import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.domain.media.ManagerIdentitySlot
-import ai.rojan.designlab.manager.domain.media.ManagerMediaAsset
 import ai.rojan.designlab.manager.domain.media.ManagerMediaType
 import ai.rojan.designlab.manager.domain.repository.ManagerMediaRepository
 import ai.rojan.designlab.presentation.common.UiState
@@ -15,26 +14,27 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Central Salon Management — Salon Media UI: current logo/cover
- * (whichever `MediaAsset` is presently assigned to each identity slot,
- * resolved from [ai.rojan.designlab.manager.domain.dashboard.ManagerSalonSummary])
- * plus the gallery list (a plain `List<ManagerMediaAsset>`, no slot
- * concept). [isUploadingLogo]/[isUploadingCover]/[uploadingGalleryCount]
- * are separate so one section's in-flight upload never disables the
- * others.
+ * Central Salon Management — Salon Media UI: current logo/cover (whichever
+ * `MediaAsset` is presently assigned to each identity slot, resolved from
+ * [ai.rojan.designlab.manager.domain.dashboard.ManagerSalonSummary]).
+ * [isUploadingLogo]/[isUploadingCover] are separate so one section's
+ * in-flight upload never disables the other. The gallery section (Media
+ * System Evolution v2) is no longer owned by this ViewModel - it's a
+ * self-contained [ai.rojan.designlab.manager.components.ManagerTargetedMediaGallery]
+ * mounted directly by the screen, the same reusable component the
+ * specialist-portfolio/service-images screens use, so gallery upload/list/
+ * delete/reorder logic lives in exactly one place, not duplicated here.
  */
 data class SalonMediaState(
     val logoUrl: String?,
     val coverUrl: String?,
-    val gallery: List<ManagerMediaAsset>,
     val isUploadingLogo: Boolean = false,
     val isUploadingCover: Boolean = false,
-    val uploadingGalleryCount: Int = 0,
     val errorMessage: String? = null,
 )
 
 /**
- * Owns loading + logo/cover/gallery upload state for
+ * Owns loading + logo/cover upload state for
  * [ai.rojan.designlab.manager.screens.settings.ManagerSalonMediaScreen] —
  * same ViewModel+Factory shape [ManagerSalonSetupViewModel]/
  * [ManagerWorkingHoursViewModel] already establish for this Settings
@@ -47,8 +47,7 @@ data class SalonMediaState(
  * two-step design (see that repository's own doc comment). A successful
  * assign also pushes the fresh salon summary back into
  * [ManagerRepositories] so the Dashboard's identity card updates without
- * a full re-sync. Gallery images only ever call [ManagerMediaRepository.upload]/
- * [ManagerMediaRepository.delete] — no identity slot involved.
+ * a full re-sync.
  */
 class ManagerSalonMediaViewModel(
     private val salonId: String?,
@@ -63,22 +62,12 @@ class ManagerSalonMediaViewModel(
     }
 
     fun load() {
-        val id = salonId
-        if (id == null) {
+        if (salonId == null) {
             _loadState.value = UiState.Error("سالن فعال یافت نشد")
             return
         }
-        _loadState.value = UiState.Loading
-        viewModelScope.launch {
-            repository.list(id, ManagerMediaType.GALLERY)
-                .onSuccess { gallery ->
-                    val salon = ManagerRepositories.salon
-                    _loadState.value = UiState.Success(
-                        SalonMediaState(logoUrl = salon?.logoUrl, coverUrl = salon?.coverImageUrl, gallery = gallery),
-                    )
-                }
-                .onFailure { _loadState.value = UiState.Error(userMessageFor(it)) }
-        }
+        val salon = ManagerRepositories.salon
+        _loadState.value = UiState.Success(SalonMediaState(logoUrl = salon?.logoUrl, coverUrl = salon?.coverImageUrl))
     }
 
     fun uploadLogo(fileBytes: ByteArray, fileName: String, mimeType: String) =
@@ -111,34 +100,6 @@ class ManagerSalonMediaViewModel(
                 }
                 .onFailure { error ->
                     updateState { it.copy(errorMessage = userMessageFor(error)).markUploading(slot, false) }
-                }
-        }
-    }
-
-    fun addGalleryImage(fileBytes: ByteArray, fileName: String, mimeType: String) {
-        val id = salonId ?: return
-        updateState { it.copy(errorMessage = null, uploadingGalleryCount = it.uploadingGalleryCount + 1) }
-        viewModelScope.launch {
-            repository.upload(id, ManagerMediaType.GALLERY, fileBytes, fileName, mimeType)
-                .onSuccess { asset ->
-                    updateState { it.copy(gallery = it.gallery + asset, uploadingGalleryCount = it.uploadingGalleryCount - 1) }
-                }
-                .onFailure { error ->
-                    updateState {
-                        it.copy(errorMessage = userMessageFor(error), uploadingGalleryCount = it.uploadingGalleryCount - 1)
-                    }
-                }
-        }
-    }
-
-    fun deleteGalleryImage(mediaId: String) {
-        val id = salonId ?: return
-        val previous = currentState()?.gallery ?: return
-        updateState { it.copy(errorMessage = null, gallery = it.gallery.filterNot { asset -> asset.id == mediaId }) }
-        viewModelScope.launch {
-            repository.delete(id, mediaId)
-                .onFailure { error ->
-                    updateState { it.copy(errorMessage = userMessageFor(error), gallery = previous) }
                 }
         }
     }

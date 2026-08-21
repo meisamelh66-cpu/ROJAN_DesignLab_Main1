@@ -22,6 +22,7 @@ private class FakeSalonRepository(private val failure: Throwable? = null) : Salo
         failure?.let { Result.failure(it) } ?: Result.success(PagedResult(emptyList(), page, size, 0L, 0))
 
     override suspend fun getSalon(salonId: String): Result<Salon> = error("not used")
+    override suspend fun getGallery(salonId: String): Result<List<String>> = error("not used")
 }
 
 /** Browse Experience fix: GET /api/v1/salons requires auth on the real backend - isUnauthorized lets SalonListScreen/SearchScreen show a real login action instead of a retry button that would fail identically forever. */

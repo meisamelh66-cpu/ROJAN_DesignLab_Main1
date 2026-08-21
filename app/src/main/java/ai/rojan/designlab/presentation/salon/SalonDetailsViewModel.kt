@@ -25,6 +25,7 @@ data class SalonDetailsData(
     val services: List<Service>,
     val specialists: List<Specialist>,
     val workingHours: List<SalonWorkingHours>,
+    val gallery: List<String> = emptyList(),
 )
 
 /**
@@ -65,7 +66,10 @@ class SalonDetailsViewModel(
                 // applies to Salon): a working-hours fetch failure shouldn't take down the
                 // whole salon page, so it degrades to an empty list instead of getOrThrow().
                 val workingHours = workingHoursRepository.getWorkingHours(salonId).getOrDefault(emptyList())
-                SalonDetailsData(salon, categories, services, specialists, workingHours)
+                // Media Sprint P0: same enrichment treatment as working hours - a gallery
+                // fetch failure is not worth losing the whole salon page over.
+                val gallery = salonRepository.getGallery(salonId).getOrDefault(emptyList())
+                SalonDetailsData(salon, categories, services, specialists, workingHours, gallery)
             }
             state = result.fold(
                 onSuccess = { UiState.Success(it) },

@@ -11,12 +11,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material3.Icon
 import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -31,7 +37,11 @@ import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
+import ai.rojan.designlab.ui.components.image.MediaPreviewDialog
+import ai.rojan.designlab.ui.components.image.RojanRemoteImage
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
+import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.components.state.RojanErrorState
 import ai.rojan.designlab.ui.components.state.RojanLoadingState
 import ai.rojan.designlab.ui.theme.RojanAquaMint
@@ -94,7 +104,9 @@ fun ServiceDetailsScreen(
                 RojanErrorState(description = loadState.message, actionLabel = "تلاش مجدد", onAction = viewModel::retry)
             }
             is UiState.Success -> {
-                val service = loadState.data
+                val service = loadState.data.service
+                val images = loadState.data.images
+                var previewIndex by remember { mutableStateOf<Int?>(null) }
 
                 Column(modifier = Modifier.fillMaxSize()) {
                     LazyColumn(
@@ -152,6 +164,30 @@ fun ServiceDetailsScreen(
                                 }
                             }
                         }
+
+                        if (images.isNotEmpty()) {
+                            item { RtlSectionHeader("تصاویر", horizontalPadding = 0.dp, color = HomeColors.TextPrimary) }
+                            item {
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
+                                    itemsIndexed(images) { index, imageUrl ->
+                                        Box(
+                                            modifier = Modifier
+                                                .size(120.dp)
+                                                .background(HomeColors.TextSecondary.copy(alpha = 0.15f), RojanShapes.Small)
+                                                .rojanPressable(onClick = { previewIndex = index }),
+                                        ) {
+                                            RojanRemoteImage(
+                                                url = imageUrl,
+                                                contentDescription = null,
+                                                modifier = Modifier.fillMaxWidth().height(120.dp),
+                                                shape = RojanShapes.Small,
+                                                fallback = {},
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     Box(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
@@ -160,6 +196,10 @@ fun ServiceDetailsScreen(
                             onClick = { onBookClick(service.id) },
                         )
                     }
+                }
+
+                previewIndex?.let { index ->
+                    MediaPreviewDialog(urls = images, initialIndex = index, onDismiss = { previewIndex = null })
                 }
             }
         }

@@ -18,6 +18,8 @@ data class SpecialistProfileData(
     val specialist: Specialist,
     /** Every active service at the specialist's salon — the backend has no capability-to-service mapping, same disclosed simplification as before this milestone. */
     val services: List<Service>,
+    /** Media System Evolution v2: this specialist's portfolio images. Enrichment, not a hard gate - a fetch failure degrades to empty rather than losing the whole profile. */
+    val portfolio: List<String> = emptyList(),
 )
 
 /**
@@ -70,7 +72,9 @@ class SpecialistProfileViewModel(
                 services += categoryServices
             }
 
-            state = UiState.Success(SpecialistProfileData(specialist, services))
+            val portfolio = specialistRepository.getPortfolio(resolvedSalonId, specialistId).getOrDefault(emptyList())
+
+            state = UiState.Success(SpecialistProfileData(specialist, services, portfolio))
         }
     }
 

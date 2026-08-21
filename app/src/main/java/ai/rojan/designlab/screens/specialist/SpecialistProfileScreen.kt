@@ -11,10 +11,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -28,6 +33,8 @@ import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.animation.rojanEnterAnimation
+import ai.rojan.designlab.ui.components.image.MediaPreviewDialog
+import ai.rojan.designlab.ui.components.image.RojanRemoteImage
 import ai.rojan.designlab.ui.components.image.SpecialistAvatar
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
@@ -60,9 +67,18 @@ private fun accentFor(id: String) = accentPalette[Math.floorMod(id.hashCode(), a
  * The backend `Specialist` has no experience-years/rating/completed-
  * appointments, skills list, or reviews concept — those sections are
  * removed rather than faked, same treatment as
- * [ai.rojan.designlab.screens.salon.SalonDetailsScreen]. `photoUrl` is a
- * remote URL this app has no image-loading dependency for, so the avatar
- * always renders through [SpecialistAvatar]'s existing icon-fallback path.
+ * [ai.rojan.designlab.screens.salon.SalonDetailsScreen]. `photoUrl` now
+ * renders as a real remote image via [SpecialistAvatar]'s `photoUrl`
+ * parameter (Coil, same seam [ai.rojan.designlab.screens.salon.SalonDetailsScreen]'s
+ * specialists row already uses) — this screen previously called
+ * [SpecialistAvatar] without it, always showing the icon fallback even
+ * when a real photo existed; that was the actual gap, not a real backend
+ * limitation.
+ *
+ * Media System Evolution v2: a "نمونه‌کارها" (portfolio) section renders
+ * [SpecialistProfileData.portfolio] when non-empty, with the same
+ * tap-to-preview [MediaPreviewDialog] the salon gallery and service images
+ * sections use.
  */
 @Composable
 fun SpecialistProfileScreen(
@@ -97,6 +113,8 @@ fun SpecialistProfileScreen(
             is UiState.Success -> {
                 val specialist = loadState.data.specialist
                 val services = loadState.data.services
+                val portfolio = loadState.data.portfolio
+                var previewIndex by remember { mutableStateOf<Int?>(null) }
 
                 LazyColumn(
                     modifier = Modifier
@@ -119,6 +137,7 @@ fun SpecialistProfileScreen(
                                     contentDescription = specialist.displayName,
                                     fallbackIconSize = 48.dp,
                                     modifier = Modifier.fillMaxSize(),
+                                    photoUrl = specialist.photoUrl,
                                 )
                             }
                             Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
@@ -135,6 +154,30 @@ fun SpecialistProfileScreen(
                                     color = HomeColors.TextPrimary,
                                     modifier = Modifier.padding(RojanDimens.SpaceMD),
                                 )
+                            }
+                        }
+                    }
+
+                    if (portfolio.isNotEmpty()) {
+                        item { RtlSectionHeader("نمونه‌کارها", horizontalPadding = 0.dp, color = HomeColors.TextPrimary) }
+                        item {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
+                                itemsIndexed(portfolio) { index, imageUrl ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(120.dp)
+                                            .background(HomeColors.TextSecondary.copy(alpha = 0.15f), RojanShapes.Small)
+                                            .rojanPressable(onClick = { previewIndex = index }),
+                                    ) {
+                                        RojanRemoteImage(
+                                            url = imageUrl,
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxWidth().height(120.dp),
+                                            shape = RojanShapes.Small,
+                                            fallback = {},
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -160,6 +203,10 @@ fun SpecialistProfileScreen(
                             }
                         }
                     }
+                }
+
+                previewIndex?.let { index ->
+                    MediaPreviewDialog(urls = portfolio, initialIndex = index, onDismiss = { previewIndex = null })
                 }
             }
         }

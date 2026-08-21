@@ -13,6 +13,10 @@ class ServiceRepositoryImpl(
     override suspend fun getServices(salonId: String, categoryId: String): Result<List<Service>> =
         safeApiCall { serviceApi.getServices(salonId, categoryId) }.map { list -> list.map { it.toDomain() } }
 
+    override suspend fun getImages(salonId: String, serviceId: String): Result<List<String>> =
+        safeApiCall { serviceApi.getMedia(salonId, mediaType = "SERVICE_IMAGE", targetId = serviceId) }
+            .map { assets -> assets.map { it.url } }
+
     private fun ServiceResponseDto.toDomain() = Service(
         id = id,
         salonId = salonId,

@@ -36,6 +36,11 @@ import ai.rojan.designlab.manager.domain.specialist.Specialist
  * `workingHours` stays `"—"` (matching the same honest-placeholder
  * convention [BackendCustomerRepository] uses) and `commissionRate` stays
  * `0.0` (never rendered anywhere in this codebase).
+ *
+ * [Specialist.photoUrl] (Media Sprint P0) is real and round-trips: read
+ * from [SpecialistResponseDto.photoUrl], written back through
+ * [CreateSpecialistRequestDto.photoUrl]/[UpdateSpecialistRequestDto.photoUrl] —
+ * both already existed on these DTOs, unused until now.
  */
 class BackendSpecialistRepository(
     private val specialistApi: SpecialistApi,
@@ -60,7 +65,7 @@ class BackendSpecialistRepository(
         safeApiCall {
             managerSpecialistApi.create(
                 salonId = salonId,
-                request = CreateSpecialistRequestDto(displayName = specialist.name),
+                request = CreateSpecialistRequestDto(displayName = specialist.name, photoUrl = specialist.photoUrl),
             )
         }.map { dto ->
             dto.toDomain().also { created -> cache = cache + created }
@@ -71,7 +76,7 @@ class BackendSpecialistRepository(
             managerSpecialistApi.update(
                 salonId = salonId,
                 specialistId = specialist.id,
-                request = UpdateSpecialistRequestDto(displayName = specialist.name),
+                request = UpdateSpecialistRequestDto(displayName = specialist.name, photoUrl = specialist.photoUrl),
             )
         }.map { dto ->
             dto.toDomain().also { updated ->
@@ -94,5 +99,6 @@ class BackendSpecialistRepository(
         workingHours = "—",
         commissionRate = 0.0,
         active = active,
+        photoUrl = photoUrl,
     )
 }

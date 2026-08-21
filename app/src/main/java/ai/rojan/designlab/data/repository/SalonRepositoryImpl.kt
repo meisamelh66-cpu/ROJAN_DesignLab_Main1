@@ -33,6 +33,9 @@ class SalonRepositoryImpl(
     override suspend fun getSalon(salonId: String): Result<Salon> =
         safeApiCall { salonApi.getSalon(salonId) }.map { it.toDomain() }
 
+    override suspend fun getGallery(salonId: String): Result<List<String>> =
+        safeApiCall { salonApi.getMedia(salonId, mediaType = "GALLERY") }.map { assets -> assets.map { it.url } }
+
     private fun SalonResponseDto.toDomain() = Salon(
         id = id,
         name = name,
@@ -41,6 +44,7 @@ class SalonRepositoryImpl(
         email = email,
         address = address,
         logoUrl = logoUrl,
+        coverImageUrl = coverImageUrl,
         latitude = latitude,
         longitude = longitude,
     )

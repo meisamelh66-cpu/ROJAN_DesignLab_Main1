@@ -42,6 +42,7 @@ private class FakeSalonRepository(private val salonsById: Map<String, Salon>) : 
     override suspend fun browseSalons(page: Int, size: Int, nameFilter: String?, sortDirection: String): Result<PagedResult<Salon>> = error("not used")
     override suspend fun getSalon(salonId: String): Result<Salon> =
         salonsById[salonId]?.let { Result.success(it) } ?: Result.failure(RuntimeException("not found"))
+    override suspend fun getGallery(salonId: String): Result<List<String>> = error("not used")
 }
 
 private fun salon(id: String, name: String) = Salon(id = id, name = name, description = null, phone = "0912", email = null, address = "Addr $id")
