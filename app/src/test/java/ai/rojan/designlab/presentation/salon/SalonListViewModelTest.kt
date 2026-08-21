@@ -73,6 +73,7 @@ class SalonListViewModelTest {
 
         override suspend fun getSalon(salonId: String): Result<Salon> = error("not used")
         override suspend fun myOwnedSalons(): Result<List<Salon>> = error("not used")
+        override suspend fun getGallery(salonId: String): Result<List<String>> = error("not used")
     }
 
     /** Records browse calls; the by-slug methods are unused by these tests. */

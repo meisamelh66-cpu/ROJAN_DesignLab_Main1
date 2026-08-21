@@ -19,4 +19,7 @@ data class Specialist(
 interface SpecialistRepository {
     suspend fun getSpecialists(salonId: String): Result<List<Specialist>>
     suspend fun getSpecialist(salonId: String, specialistId: String): Result<Specialist>
+
+    /** Media System Evolution v2: this specialist's portfolio images, as plain URLs, pre-sorted by the backend's own display order. */
+    suspend fun getPortfolio(salonId: String, specialistId: String): Result<List<String>>
 }

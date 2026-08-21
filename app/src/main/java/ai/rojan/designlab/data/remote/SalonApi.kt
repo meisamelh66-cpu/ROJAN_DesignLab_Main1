@@ -1,5 +1,6 @@
 package ai.rojan.designlab.data.remote
 
+import ai.rojan.designlab.data.remote.dto.MediaAssetResponseDto
 import ai.rojan.designlab.data.remote.dto.PagedResponseDto
 import ai.rojan.designlab.data.remote.dto.SalonResponseDto
 import retrofit2.http.GET
@@ -23,4 +24,17 @@ interface SalonApi {
     /** TEAM2-002: salons owned by the authenticated caller — not paginated on the backend either. */
     @GET("api/v1/salons/mine")
     suspend fun mySalons(): List<SalonResponseDto>
+
+    /**
+     * Media Sprint P0: reuses the exact same, already-shipped
+     * `GET /api/v1/salons/{salonId}/media` contract
+     * [ai.rojan.designlab.data.remote.ManagerMediaApi] calls for Manager -
+     * not a new backend endpoint, just a second Retrofit client for the
+     * same authenticated (non-owner-gated) read.
+     */
+    @GET("api/v1/salons/{salonId}/media")
+    suspend fun getMedia(
+        @Path("salonId") salonId: String,
+        @Query("mediaType") mediaType: String? = null,
+    ): List<MediaAssetResponseDto>
 }
