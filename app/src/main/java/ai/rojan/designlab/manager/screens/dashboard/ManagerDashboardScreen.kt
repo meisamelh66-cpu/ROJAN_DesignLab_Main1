@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * Manager App workspace — Dashboard v1.0 UI. Isolated from Customer App
@@ -95,6 +96,7 @@ fun ManagerDashboardScreen(
 ) {
     val context = LocalContext.current
     var refreshKey by remember { mutableIntStateOf(0) }
+    val salon by ManagerRepositories.salon.collectAsStateWithLifecycle()
 
     // Manager App Phase 2: resolves the owner's real salon and syncs real Service/Appointment
     // data (see ManagerRepositories.initialize's own doc comment). Runs once per screen entry;
@@ -115,11 +117,15 @@ fun ManagerDashboardScreen(
         ) {
             item { ManagerHeader(onProfileClick = onProfileClick) }
             item {
-                val salon = ManagerRepositories.salon
-                if (salon != null) {
-                    SalonIdentityCard(salonName = salon.name, salonCategory = salon.description, isActive = salon.active)
+                val currentSalon = salon
+                if (currentSalon != null) {
+                    SalonIdentityCard(
+                        salonName = currentSalon.name,
+                        salonCategory = currentSalon.description,
+                        isActive = currentSalon.active,
+                    )
                 } else {
-                    SalonIdentityCard()
+                    SalonIdentityCard(isLoading = true)
                 }
             }
             item { TodayOverviewSection(refreshKey = refreshKey) }

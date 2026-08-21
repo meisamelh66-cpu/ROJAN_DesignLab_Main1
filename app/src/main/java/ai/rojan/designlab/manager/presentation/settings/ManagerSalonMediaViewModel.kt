@@ -72,7 +72,7 @@ class ManagerSalonMediaViewModel(
         viewModelScope.launch {
             repository.list(id, ManagerMediaType.GALLERY)
                 .onSuccess { gallery ->
-                    val salon = ManagerRepositories.salon
+                    val salon = ManagerRepositories.salon.value
                     _loadState.value = UiState.Success(
                         SalonMediaState(logoUrl = salon?.logoUrl, coverUrl = salon?.coverImageUrl, gallery = gallery),
                     )

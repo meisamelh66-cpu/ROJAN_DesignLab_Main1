@@ -18,6 +18,9 @@ import ai.rojan.designlab.manager.domain.repository.SpecialistRepository
 import ai.rojan.designlab.manager.domain.service.Service
 import ai.rojan.designlab.manager.domain.specialist.Specialist
 import android.content.Context
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 
 /** Empty until [ManagerRepositories.initialize] resolves a real salon - honest "nothing loaded yet," not fake sample data. */
@@ -134,8 +137,17 @@ object ManagerRepositories {
         private set
     var specialists: SpecialistRepository = EmptySpecialistRepository
         private set
-    var salon: ManagerSalonSummary? = null
-        private set
+    private val _salon = MutableStateFlow<ManagerSalonSummary?>(null)
+
+    /**
+     * Active Salon Context & Selection Flow — Manager Dashboard Active
+     * Salon Fix: observable so [ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen]'s
+     * salon-identity card actually recomposes once [initialize] resolves
+     * it, instead of reading a plain `var` once and never again (the
+     * root cause identified in `ROJAN_Active_Salon_Context_Root_Cause_Report_v1.md`).
+     */
+    val salon: StateFlow<ManagerSalonSummary?> = _salon.asStateFlow()
+
     var dashboardInsights: ManagerDashboardInsights? = null
         private set
     var salonId: String? = null
@@ -154,7 +166,21 @@ object ManagerRepositories {
      * data the caller already has.
      */
     fun updateSalon(updated: ManagerSalonSummary) {
-        salon = updated
+        _salon.value = updated
+    }
+
+    /**
+     * Manager Dashboard Active Salon Fix: clears the cached active-salon
+     * snapshot on logout ([ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel.clearSession])
+     * so a later [initialize] for a different account/salon is never
+     * preceded by a visible frame of the previous session's stale salon
+     * identity. Scoped to salon/salonId only, per this fix's approved
+     * scope — services/appointments/customers/specialists/etc. are
+     * re-synced wholesale by the next [initialize] call regardless.
+     */
+    fun clearActiveSalon() {
+        _salon.value = null
+        salonId = null
     }
 
     /**
@@ -253,7 +279,7 @@ object ManagerRepositories {
         appointments = appointmentRepo
         specialists = specialistRepo
         customers = customerRepo
-        salon = ManagerSalonSummary(
+        _salon.value = ManagerSalonSummary(
             id = salonDto.id,
             name = salonDto.name,
             description = salonDto.description,
