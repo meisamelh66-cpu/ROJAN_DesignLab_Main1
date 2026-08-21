@@ -5,35 +5,37 @@ import ai.rojan.designlab.data.remote.dto.CreateBookingForCustomerRequestDto
 import ai.rojan.designlab.data.remote.dto.PagedResponseDto
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
- * Owner-only read/create of a salon's bookings (`ROJAN_Backend/API_CONTRACT.md`,
- * `SalonBookingController`). [createForCustomer] is the owner-authorized
+ * Owner/manager read/create/status-mutation of a salon's bookings
+ * (`ROJAN_Backend/API_CONTRACT.md`, `SalonBookingController`/
+ * `BookingController`). [createForCustomer] is the owner-authorized
  * counterpart to the customer-self-service `POST /api/v1/bookings` (which
  * derives `customerId` from the caller's own JWT, and stays exactly as-is
  * for Customer) — it takes an explicit Customer CRM id instead, so it's
- * safe for the Manager app to call on a customer's behalf. There is still
- * no owner-side update/cancel-booking endpoint; see
- * [ai.rojan.designlab.manager.data.BackendAppointmentRepository] for how
- * those stay local-cache-only.
+ * safe for the Manager app to call on a customer's behalf.
  *
- * **Future landing point (Phase 11 Step 2 backend specification, not yet
- * implemented backend-side — confirmed absent as of that audit, not
- * inferred from naming convention):** once real, this interface is where
- * the following would be added, matching [list]/[createForCustomer]'s
- * existing shape —
- * `GET api/v1/salons/{salonId}/bookings/{bookingId}` (detail),
- * `PATCH api/v1/salons/{salonId}/bookings/{bookingId}/cancel` (no body,
- * returns [BookingResponseDto]), and
- * `PUT api/v1/salons/{salonId}/bookings/{bookingId}/reschedule` (reusing
- * the existing `RescheduleBookingRequestDto` from `BookingDtos.kt` as-is —
- * no new DTO needed). None of these are added here now: the backend
- * contract doesn't exist yet, and adding the method signatures ahead of a
- * real endpoint would let the app compile against a call that 404s at
- * runtime.
+ * [confirm]/[complete] (RBAC compatibility fix — Manager Android Pilot):
+ * confirmed real and already RBAC-correct on the backend
+ * (`ai.rojan.backend.api.booking.BookingController.confirm`/`complete`,
+ * `PATCH /api/v1/bookings/{bookingId}/confirm`|`/complete` — note: the
+ * top-level `/bookings/{id}/...` path, not nested under
+ * `/salons/{salonId}/...` like [list]/[createForCustomer]; the backend's
+ * `ConfirmBookingUseCase`/`CompleteBookingUseCase` each already gate on
+ * `SalonPermissionResolver.require(booking.salonId, callerId,
+ * Permission.MANAGE_BOOKINGS)`, which `SalonRole.MANAGER` already holds —
+ * their OpenAPI summaries still say "salon owner only", which is stale
+ * wording, not the real enforcement). This correction supersedes this
+ * interface's own previous doc comment, which had confirmed these absent
+ * as of an earlier audit — reconfirmed present by direct backend source
+ * inspection this pass. `cancel`/`reschedule` are still not added here:
+ * unlike confirm/complete, those were not part of this fix's approved
+ * scope, so their absence (and [ai.rojan.designlab.manager.data.BackendAppointmentRepository]'s
+ * pre-existing local-cache-only handling of them) is left exactly as-is.
  */
 interface ManagerBookingApi {
 
@@ -50,4 +52,10 @@ interface ManagerBookingApi {
         @Path("salonId") salonId: String,
         @Body request: CreateBookingForCustomerRequestDto,
     ): BookingResponseDto
+
+    @PATCH("api/v1/bookings/{bookingId}/confirm")
+    suspend fun confirm(@Path("bookingId") bookingId: String): BookingResponseDto
+
+    @PATCH("api/v1/bookings/{bookingId}/complete")
+    suspend fun complete(@Path("bookingId") bookingId: String): BookingResponseDto
 }

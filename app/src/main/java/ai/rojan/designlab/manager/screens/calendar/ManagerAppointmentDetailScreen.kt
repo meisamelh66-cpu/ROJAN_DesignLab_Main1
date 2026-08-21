@@ -3,12 +3,15 @@ package ai.rojan.designlab.manager.screens.calendar
 import ai.rojan.designlab.manager.components.ManagerColors
 import ai.rojan.designlab.manager.components.ManagerGlassSurface
 import ai.rojan.designlab.manager.components.ManagerIconContainer
+import ai.rojan.designlab.manager.components.ManagerPrimaryButton
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.data.formatDurationMinutes
 import ai.rojan.designlab.manager.data.formatTomanPrice
 import ai.rojan.designlab.manager.domain.appointment.Appointment
 import ai.rojan.designlab.manager.domain.appointment.AppointmentStatus
+import ai.rojan.designlab.manager.presentation.calendar.ManagerAppointmentDetailViewModel
+import ai.rojan.designlab.manager.presentation.calendar.ManagerAppointmentDetailViewModelFactory
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
@@ -34,11 +37,14 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 /**
  * Manager App workspace — Appointment Detail (Manager Operational
@@ -49,37 +55,16 @@ import androidx.compose.ui.unit.dp
  * `ManagerNavGraph.kt`; this screen and Calendar itself are otherwise
  * untouched).
  *
- * Deliberately has no status-change, cancel, or reschedule action: the
- * backend has no owner-side booking-mutation endpoint at all today
- * (`ManagerBookingApi` only has `list`/`createForCustomer` — confirmed by
- * direct inspection, not assumed). [ai.rojan.designlab.manager.data.BackendAppointmentRepository.update]/
- * `updateStatus`/`cancel` exist but are local-cache-only; wiring a button
- * to them here would look like it works while silently doing nothing real
- * on the backend, which is exactly what this screen avoids.
- *
- * **Future integration points (Phase 11 Step 2 backend specification —
- * not yet implemented backend-side, so none of this is built yet):**
- * - A cancel action belongs in [AppointmentIdentityHeader] or as a
- *   trailing action alongside the status chip there, since status is
- *   what it changes — not a separate section.
- * - A reschedule action belongs in [DateTimeSection], next to the
- *   date/time it would change.
- * - Both are destructive/impactful enough to need a confirmation dialog
- *   before firing (this app has no existing confirmation-dialog pattern
- *   to reuse yet — Customer's cancel flow in `AppointmentsScreen.kt` also
- *   has none, so this would be a first, not a retrofit).
- * - Both need real loading (in-flight) and error states once wired to
- *   `Result`-returning repository calls — mirroring
- *   [ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel]'s
- *   existing `isSubmitting`/`submitError` shape and its
- *   `confirmErrorMessage()` code-to-Persian-message mapping pattern,
- *   applied to the new `BOOKING_NOT_FOUND`/`UNAUTHORIZED_SALON_ACCESS`/
- *   `INVALID_STATUS_TRANSITION`/`BOOKING_CONFLICT`/`INVALID_TIME_SLOT`
- *   codes that specification defines - none of which exist on the
- *   backend yet either.
- * - This screen currently has no ViewModel at all (reads
- *   [ManagerRepositories] directly); real mutation would need one, since
- *   `isSubmitting`/error state can't live in a stateless `@Composable`.
+ * Confirm/Complete (RBAC compatibility fix — Manager Android Pilot): now
+ * real, backend-persistent actions via
+ * [ai.rojan.designlab.manager.presentation.calendar.ManagerAppointmentDetailViewModel] —
+ * `ManagerBookingApi.confirm`/`complete` (`PATCH /api/v1/bookings/{id}/confirm`|`/complete`,
+ * already RBAC-correct on the backend, see that interface's own doc
+ * comment). Still deliberately **no cancel or reschedule action**: the
+ * backend still has no owner/manager-side cancel or reschedule endpoint,
+ * and those two were not part of this fix's approved scope either -
+ * [ai.rojan.designlab.manager.data.BackendAppointmentRepository.update]/
+ * `updateStatus`/`cancel` stay local-cache-only, unchanged.
  *
  * Resolves [Appointment.customerId]/[serviceId]/[specialistId] to display
  * data via [ManagerRepositories], the identical resolution
@@ -95,22 +80,25 @@ fun ManagerAppointmentDetailScreen(
     appointmentId: String,
     onBackClick: (() -> Unit)? = null,
 ) {
-    val appointment = ManagerRepositories.appointments.getById(appointmentId)
+    val viewModel: ManagerAppointmentDetailViewModel = viewModel(
+        factory = ManagerAppointmentDetailViewModelFactory(appointmentId),
+    )
+    val appointment by viewModel.appointment.collectAsStateWithLifecycle()
+    val isSubmitting by viewModel.isSubmitting.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
-        if (appointment == null) {
-            return@ManagerScaffold
-        }
+        val current = appointment ?: return@ManagerScaffold
 
-        val customer = ManagerRepositories.customers.getById(appointment.customerId)
-        val service = ManagerRepositories.services.getById(appointment.serviceId)
-        val specialist = ManagerRepositories.specialists.getById(appointment.specialistId)
+        val customer = ManagerRepositories.customers.getById(current.customerId)
+        val service = ManagerRepositories.services.getById(current.serviceId)
+        val specialist = ManagerRepositories.specialists.getById(current.specialistId)
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceLG),
         ) {
-            item { AppointmentIdentityHeader(appointment, customerName = customer?.name ?: "—") }
+            item { AppointmentIdentityHeader(current, customerName = customer?.name ?: "—") }
             item {
                 ServiceSpecialistSection(
                     serviceName = service?.name ?: "—",
@@ -118,9 +106,35 @@ fun ManagerAppointmentDetailScreen(
                     specialistName = specialist?.name ?: "—",
                 )
             }
-            item { DateTimeSection(appointment) }
-            if (!appointment.notes.isNullOrBlank()) {
-                item { NotesSection(appointment.notes) }
+            item { DateTimeSection(current) }
+            if (!current.notes.isNullOrBlank()) {
+                item { NotesSection(current.notes) }
+            }
+            if (errorMessage != null) {
+                item {
+                    Text(
+                        text = errorMessage.orEmpty(),
+                        style = RojanTypography.Caption,
+                        color = RojanErrorText,
+                    )
+                }
+            }
+            when (current.status) {
+                AppointmentStatus.PENDING -> item {
+                    ManagerPrimaryButton(
+                        text = "تایید نوبت",
+                        onClick = viewModel::confirmBooking,
+                        enabled = !isSubmitting,
+                    )
+                }
+                AppointmentStatus.CONFIRMED -> item {
+                    ManagerPrimaryButton(
+                        text = "انجام‌شده علامت بزن",
+                        onClick = viewModel::completeBooking,
+                        enabled = !isSubmitting,
+                    )
+                }
+                else -> Unit
             }
         }
     }

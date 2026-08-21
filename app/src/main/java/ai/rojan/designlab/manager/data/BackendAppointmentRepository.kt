@@ -46,10 +46,14 @@ import java.time.format.DateTimeFormatter
  * so the wizard can show it instead of claiming a booking that didn't
  * happen.
  *
+ * [confirm]/[complete] (RBAC compatibility fix — Manager Android Pilot)
+ * are real too, via `PATCH /api/v1/bookings/{id}/confirm`|`/complete` -
+ * see [ai.rojan.designlab.data.remote.ManagerBookingApi]'s own doc comment.
+ *
  * `update`/`updateStatus`/`cancel` stay **local-cache only**, matching
  * the previous in-memory implementation's behavior, on purpose: the
- * backend still has no owner-side update/cancel-booking endpoint - only
- * [create] closed, this phase. Confirmed still true and still unreferenced
+ * backend still has no owner-side cancel-booking endpoint - only
+ * [create]/[confirm]/[complete] are real. Confirmed still true and still unreferenced
  * by any call site as of Phase 11 Step 3 - see
  * [ai.rojan.designlab.manager.domain.repository.AppointmentRepository.cancel]'s
  * doc comment for the real `PATCH .../cancel` contract (Phase 11 Step 2's
@@ -139,6 +143,14 @@ class BackendAppointmentRepository(
         }.map { dto ->
             dto.toDomain().also { created -> cache = cache + created }
         }
+
+    override suspend fun confirm(id: String): Result<Appointment> =
+        safeApiCall { managerBookingApi.confirm(id) }
+            .map { dto -> dto.toDomain().also { updated -> cache = cache.map { if (it.id == id) updated else it } } }
+
+    override suspend fun complete(id: String): Result<Appointment> =
+        safeApiCall { managerBookingApi.complete(id) }
+            .map { dto -> dto.toDomain().also { updated -> cache = cache.map { if (it.id == id) updated else it } } }
 
     private fun BookingResponseDto.toDomain(): Appointment {
         // startTime/endTime are ISO-8601 *local* date-times with no offset (see CreateBookingRequestDto's

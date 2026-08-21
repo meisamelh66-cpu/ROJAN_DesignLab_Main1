@@ -51,6 +51,10 @@ private object EmptyAppointmentRepository : AppointmentRepository {
         notes: String?,
     ): Result<Appointment> =
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
+    override suspend fun confirm(id: String): Result<Appointment> =
+        Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
+    override suspend fun complete(id: String): Result<Appointment> =
+        Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
 }
 
 /** Empty until [ManagerRepositories.initialize] resolves a real salon - honest "nothing loaded yet," not fake sample data. */
@@ -177,14 +181,28 @@ object ManagerRepositories {
      * [ai.rojan.designlab.domain.repository.ActiveSalonContextRepository],
      * already decided by
      * [ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel]
-     * before any Manager screen is reachable) against `GET
-     * /api/v1/salons/mine`, and syncs real Service/Appointment/Specialist/
-     * Customer data (in that order - [customerRepo] resolves service/
-     * specialist names for its per-customer visit history, so both must
-     * exist first), plus Dashboard Insights. Safe to call again to
-     * re-sync. Deliberately does *not* fall back to `.firstOrNull()` - a
-     * resolved active salon that `salons/mine` doesn't contain is a real,
-     * honest failure, not something to guess past.
+     * before any Manager screen is reachable) via `GET
+     * /api/v1/salons/{salonId}` ([ai.rojan.designlab.data.remote.SalonApi.getSalon]),
+     * and syncs real Service/Appointment/Specialist/Customer data (in that
+     * order - [customerRepo] resolves service/specialist names for its
+     * per-customer visit history, so both must exist first), plus
+     * Dashboard Insights. Safe to call again to re-sync.
+     *
+     * Deliberately **not** `GET /api/v1/salons/mine` (RBAC compatibility
+     * fix - that endpoint is owner-only, `salonRepository.findByOwnerId`
+     * server-side, so it returns empty for a genuine `SalonMembership`-based
+     * MANAGER and this whole composition root would fail to initialize for
+     * every real manager, independent of any per-endpoint permission fix).
+     * `GET /salons/{salonId}` only requires the salon to exist - not
+     * ownership - which is correct here because [activeSalonId] was
+     * already resolved from real, authorized salon access (owner,
+     * membership, or specialist link) one layer up; this call is just
+     * fetching that already-authorized salon's display details, not
+     * re-deciding access. Reuses [ai.rojan.designlab.data.remote.SalonApi]
+     * directly (the same Retrofit contract Customer's own
+     * [ai.rojan.designlab.domain.repository.SalonRepository] wraps) rather
+     * than the leaner domain `Salon` model, since that model doesn't carry
+     * `active`/`coverImageUrl` and this call site needs the full DTO.
      *
      * Insights failing does not fail the whole call: it's fetched
      * independently of salon/service/appointment/customer/specialist
@@ -196,10 +214,8 @@ object ManagerRepositories {
         val container = BackendApiContainerHolder.get(context)
         val activeSalonId = container.activeSalonContextRepository.observeActiveSalonId().first()
             ?: return Result.failure(IllegalStateException("No active salon selected yet"))
-        val salonDto = runCatching { container.managerSalonApi.mine() }
+        val salonDto = runCatching { container.salonApi.getSalon(activeSalonId) }
             .getOrElse { return Result.failure(it) }
-            .firstOrNull { it.id == activeSalonId }
-            ?: return Result.failure(IllegalStateException("Active salon (id=$activeSalonId) not found in this account's salons"))
 
         val serviceRepo = BackendServiceRepository(
             serviceApi = container.serviceApi,

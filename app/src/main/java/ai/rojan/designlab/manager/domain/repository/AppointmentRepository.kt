@@ -72,4 +72,18 @@ interface AppointmentRepository {
         startTime: String,
         notes: String?,
     ): Result<Appointment>
+
+    /**
+     * Real, backend-persistent (RBAC compatibility fix — Manager Android
+     * Pilot): `PATCH /api/v1/bookings/{id}/confirm`, moving a `PENDING`
+     * booking to `CONFIRMED`. Distinct from [updateStatus], which stays
+     * local-cache-only for the transitions that still have no real backend
+     * endpoint wired up. See [ai.rojan.designlab.data.remote.ManagerBookingApi]'s
+     * own doc comment for why this is real despite this interface's other
+     * status-mutation methods not being.
+     */
+    suspend fun confirm(id: String): Result<Appointment>
+
+    /** Real, backend-persistent — same shape as [confirm]: `PATCH /api/v1/bookings/{id}/complete`, moving a `CONFIRMED` booking to `COMPLETED`. */
+    suspend fun complete(id: String): Result<Appointment>
 }
