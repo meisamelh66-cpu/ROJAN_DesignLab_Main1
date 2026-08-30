@@ -1,0 +1,31 @@
+# ROJAN Ecosystem Governance — drift check (ENFORCING, PASS G7).
+#
+# Copy this file to <repo>/.github/workflows/governance-drift-check.yml
+#
+# On every push and PR it verifies the vendored governance/ copy is byte-identical
+# to the version this repo adopted. A mismatch (missing folder, missing pin,
+# edited document) FAILS the job. It is an independent job — it does not run or
+# affect any language build, test, or release pipeline.
+name: governance-drift-check
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  governance-drift-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify vendored governance is byte-identical to the adopted version
+        shell: bash
+        run: |
+          if [ ! -f governance/check-governance-drift.sh ]; then
+            echo "::error::governance/check-governance-drift.sh not found — repo has not adopted ROJAN Ecosystem Governance" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          sh governance/check-governance-drift.sh governance | tee -a "$GITHUB_STEP_SUMMARY"
+          exit "${PIPESTATUS[0]}"

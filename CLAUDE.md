@@ -1,5 +1,38 @@
 # ROJAN AI DesignLab — Claude Instructions
 
+## ROJAN Ecosystem Governance (Tier 0 — mandatory)
+
+This repository has adopted **ROJAN Ecosystem Governance v2.0**
+(`GOVERNANCE-v2.0.0`), vendored at [`governance/`](governance/). Read
+[`governance/00_INDEX_AND_PRECEDENCE.md`](governance/00_INDEX_AND_PRECEDENCE.md)
+and the rest of `governance/` before implementing anything, then the Tier-1
+rules in the rest of this file. On any conflict — between tiers, between a
+request and a rule, or between two rules — **STOP and report**
+(`governance/11_AI_AGENT_GOVERNANCE.md`).
+
+Everything below in this file is **Tier-1** (Android-specific): it may add
+constraints on top of the Root rules, never weaken a Root rule tagged
+`[NON-NEGOTIABLE]`. The canonical backend for the ecosystem is `ROJAN_Backend`
+(`governance/02_BACKEND_AUTHORITY_RULES.md`); this app is a client
+(`governance/06_CLIENT_RESPONSIBILITY_BOUNDARY.md`).
+
+`governance/` is a **vendored copy** — do not edit those files here; upgrade by
+re-running `ROJAN_Governance`'s `vendor-governance.sh` against a newer tag in a
+reviewed PR. Adopted version: [`governance/ADOPTED_VERSION`](governance/ADOPTED_VERSION).
+
+The Persian `docs/architecture/` set (ROJAN Architecture Governance V1.0) is
+**superseded** by ROJAN Ecosystem Governance v2.0 for anything normative; it is
+retained as a historical Persian reference. The unmerged
+`feature/architecture-constitution-v2` branch's content is fully promoted into
+`governance/` and that branch should be archived (tag) and closed, not merged.
+
+> EXCEPTION to governance/09_GIT_DISCIPLINE.md §9.5 (trunk-based default).
+> Approved by: repository owner   Date: 2026-08-30
+> Reason: `feature/android-first-salon-pilot` is the active development line and
+>         is far ahead of a deliberately-frozen `origin/main`; the pilot line is
+>         the working trunk until it is merged/reset.
+> Review trigger: revisit once the pilot line lands on `main`.
+
 Android app (Kotlin, Jetpack Compose). Clean Architecture: `domain/` (no Android
 imports), `data/`, `navigation/`, `screens/`, `ui/` (design system: tokens,
 glass components, backgrounds, buttons, interaction).

@@ -1,0 +1,6 @@
+GOVERNANCE-v2.0.0
+canonical-sha: bb9083074a81de8861efc999fa0192afda2e12ba
+adopted: 2026-08-30
+source: github.com/meisamelh66-cpu/ROJAN_Governance (governance/)
+note: vendored copy. Do not edit these files here. Upgrade by re-running
+      vendor-governance.sh against a newer tag and opening a reviewed PR.
