@@ -17,6 +17,12 @@ retrofit = "2.11.0"
 okhttp = "4.12.0"
 kotlinxSerializationJson = "1.11.0"
 coilCompose = "2.7.0"
+exifinterface = "1.3.7"
+
+# Core library desugaring — makes java.time (and other API 26+ java.* APIs)
+# available down to minSdk 24. Required by the manager calendar/booking and
+# reception booking code that uses java.time.* (see NewApi lint triage).
+desugarJdkLibs = "2.1.5"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -47,6 +53,13 @@ okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhtt
 okhttp-logging-interceptor = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coilCompose" }
+
+# Hardened EXIF reader — replaces android.media.ExifInterface (known parsing
+# vulnerabilities on older Android) in the salon-media upload flow.
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
+
+# Core library desugaring runtime (see [versions].desugarJdkLibs).
+desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugarJdkLibs" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

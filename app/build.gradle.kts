@@ -49,7 +49,7 @@ android {
     defaultConfig {
         applicationId = "ai.rojan.designlab"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0.0"
 
@@ -159,11 +159,28 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        // Makes java.time.* (and other API 26+ java.* APIs) available on
+        // minSdk 24 devices. The manager calendar/booking and reception
+        // booking code uses java.time.* directly; without this those call
+        // sites are a runtime crash on API 24-25 (NewApi lint triage).
+        isCoreLibraryDesugaringEnabled = true
     }
 
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    // Explicit lint gate (Sprint 5A). No baseline file — findings are
+    // triaged and fixed, not snapshotted. `NewerVersionAvailable` is
+    // disabled because it hits the network on every run and makes lint
+    // output non-deterministic offline; `GradleDependency` still reports
+    // offline-known stale versions.
+    lint {
+        abortOnError = true
+        checkDependencies = true
+        warningsAsErrors = false
+        disable += "NewerVersionAvailable"
     }
 }
 
@@ -245,6 +262,14 @@ dependencies {
     // this app's design system treats "add a new rendering mechanic" as
     // a frozen-baseline-level decision, not a routine dependency bump.
     implementation(libs.coil.compose)
+
+    // Hardened EXIF reader for the salon-media upload flow (replaces
+    // android.media.ExifInterface).
+    implementation(libs.androidx.exifinterface)
+
+    // Core library desugaring runtime — pairs with
+    // android.compileOptions.isCoreLibraryDesugaringEnabled above.
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
 
 
     // Tests

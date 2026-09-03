@@ -17,7 +17,6 @@ import ai.rojan.designlab.ui.theme.RojanTypography
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
-import android.media.ExifInterface
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -55,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.exifinterface.media.ExifInterface
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

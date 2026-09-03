@@ -76,18 +76,22 @@ class AuthScreenScreenshotTest {
 
     @Test
     fun captureAuthScreenLoggedOut() {
-        composeTestRule.setContent {
-            val identityProvider = DemoIdentityProvider()
-            val sessionProvider = DemoSessionProvider(identityProvider)
-            val authViewModel = AuthViewModel(
-                sessionProvider = sessionProvider,
-                identityProvider = identityProvider,
-                authSessionRepository = NoOpAuthSessionRepository(),
-                backendAuthRepository = NoOpBackendAuthRepository(),
-                tokenRepository = NoOpTokenRepository(),
-                currentUserIdentityContextRepository = NoOpCurrentUserIdentityContextRepository(),
-            )
+        // Constructed outside the composable (not inside setContent) — a
+        // ViewModel must never be built in composition. Same instance and
+        // same in-memory/no-op dependencies as before; the screenshot the
+        // test produces is unchanged.
+        val identityProvider = DemoIdentityProvider()
+        val sessionProvider = DemoSessionProvider(identityProvider)
+        val authViewModel = AuthViewModel(
+            sessionProvider = sessionProvider,
+            identityProvider = identityProvider,
+            authSessionRepository = NoOpAuthSessionRepository(),
+            backendAuthRepository = NoOpBackendAuthRepository(),
+            tokenRepository = NoOpTokenRepository(),
+            currentUserIdentityContextRepository = NoOpCurrentUserIdentityContextRepository(),
+        )
 
+        composeTestRule.setContent {
             AuthScreen(
                 authViewModel = authViewModel,
                 onBackClick = {},
