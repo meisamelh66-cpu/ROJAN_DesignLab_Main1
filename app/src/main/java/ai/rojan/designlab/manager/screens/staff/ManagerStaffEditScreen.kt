@@ -84,6 +84,12 @@ import kotlinx.coroutines.withContext
  *
  * [onSaved] fires after a successful create, update, or deactivate — in
  * every case the caller returns to the roster list.
+ *
+ * [onManageServicesClick] (P1-5, Manager Specialist <-> Service Assignment):
+ * routes to [ai.rojan.designlab.manager.screens.staff.ManagerSpecialistServicesScreen] —
+ * only offered once the specialist already exists (`!isNew`), same
+ * precondition the portfolio gallery section below already applies, since
+ * assigning services needs a real specialist id.
  */
 @Composable
 fun ManagerStaffEditScreen(
@@ -91,6 +97,7 @@ fun ManagerStaffEditScreen(
     specialistId: String = ManagerDestinations.NEW_SPECIALIST_ID,
     onBackClick: (() -> Unit)? = null,
     onSaved: () -> Unit = {},
+    onManageServicesClick: (String) -> Unit = {},
 ) {
     val isNew = specialistId == ManagerDestinations.NEW_SPECIALIST_ID
     val existing = remember(specialistId) {
@@ -181,6 +188,10 @@ fun ManagerStaffEditScreen(
                         repository = BackendApiContainerHolder.get(context).managerMediaRepository,
                         modifier = Modifier.padding(RojanDimens.SpaceMD),
                     )
+                }
+
+                TextButton(onClick = { onManageServicesClick(specialistId) }) {
+                    Text("مدیریت خدمات", color = ManagerColors.Turquoise)
                 }
             }
 

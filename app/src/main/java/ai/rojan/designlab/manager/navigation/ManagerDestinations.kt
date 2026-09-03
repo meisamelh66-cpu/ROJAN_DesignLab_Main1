@@ -51,6 +51,10 @@ object ManagerDestinations {
     const val STAFF_EDIT = "manager_staff_edit/{specialistId}"
     fun staffEdit(specialistId: String) = "manager_staff_edit/$specialistId"
     const val NEW_SPECIALIST_ID = "new"
+
+    /** P1-5, Manager Specialist <-> Service Assignment — reached only from [ai.rojan.designlab.manager.screens.staff.ManagerStaffEditScreen]'s "مدیریت خدمات" entry point, only for an existing specialist (no create-time sentinel, unlike [STAFF_EDIT] itself — a specialist must already exist to have assignable services). */
+    const val SPECIALIST_SERVICES = "manager_specialist_services/{specialistId}"
+    fun specialistServices(specialistId: String) = "manager_specialist_services/$specialistId"
     const val SETTINGS = "manager_settings"
 
     /** Owner Salon Profile Completion (Android-only) — reached from [SETTINGS]'s new "ساعات کاری" entry point. */

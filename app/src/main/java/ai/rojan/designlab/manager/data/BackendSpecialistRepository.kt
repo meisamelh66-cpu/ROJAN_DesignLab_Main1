@@ -25,12 +25,19 @@ import ai.rojan.designlab.manager.domain.specialist.Specialist
  * eligibility mechanism is per-specialist
  * (`ManagerSpecialistApi.eligibleServiceIds`), which would mean one
  * extra call per roster member just to populate a filter, not a bulk
- * field this sync can fetch for free. Not wired in this step to keep it
- * scoped; [ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel.specialistsFor]'s
+ * field this sync can fetch for free. Still not folded into [sync]/[Specialist]
+ * itself as of P1-5 (Manager Specialist <-> Service Assignment) — that
+ * remains a deliberate, disclosed simplification, but the eligibility
+ * relationship itself is no longer entirely unreachable from Manager:
+ * [getAssignedServiceIds]/[assignService]/[unassignService] below call
+ * [ManagerSpecialistApi.eligibleServiceIds]/`assignService`/`removeService`
+ * directly, on demand, for
+ * [ai.rojan.designlab.manager.presentation.staff.ManagerSpecialistServicesViewModel]'s
+ * one real caller — not a bulk roster-wide field.
+ * [ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel.specialistsFor]'s
  * existing "fall back to the full active roster when nothing matches"
- * behavior already degrades to exactly that with an empty skill set, so
- * nothing dead-ends - the wizard just always shows every active
- * specialist for now, a disclosed simplification, not a silent one.
+ * behavior still degrades to exactly that with an empty skill set, so
+ * nothing dead-ends there either.
  * [Specialist.workingHours]/[Specialist.commissionRate] have no backend
  * equivalent either (business-internal figures the API doesn't expose);
  * `workingHours` stays `"—"` (matching the same honest-placeholder
@@ -91,6 +98,15 @@ class BackendSpecialistRepository(
             cache = cache.filterNot { it.id == id }
             true
         }
+
+    override suspend fun getAssignedServiceIds(specialistId: String): Result<List<String>> =
+        safeApiCall { managerSpecialistApi.eligibleServiceIds(salonId, specialistId) }
+
+    override suspend fun assignService(specialistId: String, serviceId: String): Result<Unit> =
+        safeApiCall { managerSpecialistApi.assignService(salonId, specialistId, serviceId) }
+
+    override suspend fun unassignService(specialistId: String, serviceId: String): Result<Unit> =
+        safeApiCall { managerSpecialistApi.removeService(salonId, specialistId, serviceId) }
 
     private fun SpecialistResponseDto.toDomain() = Specialist(
         id = id,

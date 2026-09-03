@@ -33,6 +33,7 @@ import ai.rojan.designlab.manager.screens.services.ManagerServicesScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerSalonMediaScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerSalonSetupScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerWorkingHoursScreen
+import ai.rojan.designlab.manager.screens.staff.ManagerSpecialistServicesScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerStaffEditScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerStaffScreen
 import androidx.compose.runtime.Composable
@@ -235,6 +236,18 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
             specialistId = specialistId,
             onBackClick = { navController.popBackStack() },
             onSaved = { navController.popBackStack() },
+            onManageServicesClick = { navController.navigate(ManagerDestinations.specialistServices(specialistId)) },
+        )
+    }
+
+    composable(
+        route = ManagerDestinations.SPECIALIST_SERVICES,
+        arguments = listOf(navArgument("specialistId") { type = NavType.StringType }),
+    ) { backStackEntry ->
+        val specialistId = backStackEntry.arguments?.getString("specialistId").orEmpty()
+        ManagerSpecialistServicesScreen(
+            specialistId = specialistId,
+            onBackClick = { navController.popBackStack() },
         )
     }
 
