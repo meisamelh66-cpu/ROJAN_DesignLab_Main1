@@ -77,6 +77,37 @@ class ManagerAppointmentDetailViewModelTest {
     }
 
     @Test
+    fun `a real backend rejection on complete surfaces a Persian error message and leaves the appointment unchanged`() = runTest {
+        val appointment = pendingAppointment().copy(status = AppointmentStatus.CONFIRMED)
+        val repository = FakeAppointmentRepository(
+            initial = appointment,
+            completeResult = {
+                Result.failure(
+                    BackendApiException(
+                        statusCode = 409,
+                        apiError = ApiErrorDto(
+                            timestamp = "2026-08-20T00:00:00Z",
+                            status = 409,
+                            error = "Conflict",
+                            errorCode = "INVALID_BOOKING_STATE",
+                            message = "Only a confirmed booking can be completed",
+                            path = "/api/v1/bookings/${appointment.id}/complete",
+                        ),
+                    ),
+                )
+            },
+        )
+        val viewModel = ManagerAppointmentDetailViewModel(repository, appointment.id)
+
+        viewModel.completeBooking()
+
+        assertEquals(AppointmentStatus.CONFIRMED, viewModel.appointment.value?.status)
+        assertEquals(false, viewModel.isSubmitting.value)
+        assertTrue(viewModel.errorMessage.value != null)
+        assertEquals(1, repository.completeCallCount)
+    }
+
+    @Test
     fun `cancelBooking replaces the appointment with the real backend response on success`() = runTest {
         val appointment = pendingAppointment()
         val repository = FakeAppointmentRepository(initial = appointment)

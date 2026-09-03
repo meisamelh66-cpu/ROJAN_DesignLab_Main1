@@ -113,6 +113,7 @@ class RescheduleViewModel(
 
     fun confirm(onRescheduled: () -> Unit) {
         val current = state as? RescheduleUiState.Ready ?: return
+        if (current.isSubmitting) return
         val time = current.selectedTime ?: return
         state = current.copy(isSubmitting = true, submitError = null)
         viewModelScope.launch {
