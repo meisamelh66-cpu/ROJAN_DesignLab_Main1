@@ -13,10 +13,12 @@ import ai.rojan.designlab.ui.theme.RojanVividPurple
 import ai.rojan.designlab.ui.theme.RojanWarmWhite
 
 /**
- * Customer Home dark-luxury theme — Home Visual Language Unification.
+ * Customer app dark-luxury theme — Home Visual Language Unification,
+ * since rolled out app-wide.
  *
- * Scoped to `CustomerHomeScreen` and the sections it composes only, per
- * the approved reference (`design/reference/ROJAN_Manager_Reference (2).png`).
+ * Originally scoped to `CustomerHomeScreen`; as of 2026-09-02 this is the
+ * Customer app's dark-surface palette across every screen, per the
+ * approved reference (`design/reference/ROJAN_Manager_Reference (2).png`).
  * Every value here aliases an existing [ai.rojan.designlab.ui.theme]
  * token rather than inventing new hex — [RojanNavy]/[RojanDeepPurple]
  * (already-defined dark-canvas tokens), [RojanAIGlow]/[RojanVividPurple]/

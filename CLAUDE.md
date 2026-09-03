@@ -119,6 +119,21 @@ actually was before proposing a fix.
 
 ## Design Baseline v1.0 (Frozen — Customer Home)
 
+> ⚠️ **PARTIALLY SUPERSEDED — 2026-09-02** (UI Polish Sprint 1, documentation alignment).
+> The Customer app has migrated to a **dark navy / deep-purple** canvas —
+> `screens/customer/hometheme/HomeBackgroundTheme.kt` + `HomeColors.kt` —
+> applied **app-wide** (Home, Search, Auth, Splash, salon, booking, and all
+> profile screens), not just Customer Home. `ui/background/WarmBackground.kt`,
+> the light `RojanColorScheme` in `ui/theme/Theme.kt`, and the light
+> `RojanLuxury*` / `RojanTextOnDarkSurface` tokens are now **legacy** with
+> few or no live call sites. The bullets below describe the *original*
+> warm-white baseline and are kept for history — but the **glass mechanic,
+> shadow scale, typography approach, spacing rhythm, animation rules, and
+> RTL rules in them remain authoritative**; only the background/canvas
+> colour changed. See `docs/uiux/BASELINE_CHANGELOG.md`,
+> `docs/uiux/ROJAN_UIUX_PRO_MAX_AUDIT_v1.md` and
+> `docs/uiux/ROJAN_PREMIUM_UI_POLISH_ROADMAP_v1.md`.
+
 Customer Home's current visual language is the frozen reference
 implementation for every future Customer screen (Salon Details,
 Specialist Profile, Booking Flow, Customer Dashboard). Extend it
@@ -161,6 +176,24 @@ primitives at their current values) don't need approval. Changing the
 values themselves, or introducing a parallel visual system, does.
 
 ## Design Baseline v1.0 (Frozen — Manager Dashboard)
+
+> ⚠️ **PARTIALLY SUPERSEDED — 2026-09-02** (UI Polish Sprint 1, documentation alignment).
+> The Manager app ships a **dark emerald / teal luxury** theme, not warm
+> white: `manager/components/ManagerBackgroundTheme.kt` (deep teal gradient
+> `#084C52 → #063B3F → #041E2A` + quiet turquoise & gold glow zones) via
+> `ManagerScaffold`, and a bespoke `manager/components/ManagerColors.kt`
+> object (`BasePrimary #063B3F`, `BaseDeep #041E2A`, `Turquoise #00C9C8`,
+> `Gold #D4AF37`, `TextPrimary #FFFFFF`, `TextSecondary #C7D8D8`) that
+> **replaced** the earlier light-theme `ManagerAccent` teal/gold aliases.
+> This dark palette is **ratified here as the approved per-app expression
+> of the ROJAN brand for the Manager app** — consistent with the "one
+> shared glass + rose-gold-border mechanic, palette differs per app" model
+> the *Shared Premium Glass Design System* section below already defines.
+> The bullets below that concern the **background colour and the
+> Teal/Gold source tokens are superseded**; everything else in them
+> (section order, card hierarchy/weighting, typography hierarchy, `RojanDimens`
+> spacing rhythm, the thin-duplicate-of-`RojanScaffold` rule) **remains
+> authoritative**. See `docs/uiux/BASELINE_CHANGELOG.md`.
 
 Manager Dashboard's current visual direction (`ai.rojan.designlab.manager`,
 isolated from Customer App) is the approved reference implementation for
@@ -214,6 +247,16 @@ approval. Changing the values themselves, or introducing a parallel
 visual system, does.
 
 ## Shared Premium Glass Design System (Frozen — All Apps)
+
+> ℹ️ **Note — 2026-09-02 (UI Polish Sprint 1):** Both shipping apps now
+> render on **dark** canvases (Customer: navy / deep-purple
+> `HomeBackgroundTheme`; Manager: emerald / teal `ManagerBackgroundTheme`).
+> `WarmBackground` / `PremiumBackground` and the light `RojanColorScheme`
+> are legacy. This does not change anything in this section: the shared
+> glass mechanic, the rose-gold / gold `premiumMetallicBorder`, and the
+> `RojanAppPalette` + `LocalRojanPalette` seam described below are
+> **unchanged and authoritative** — the dark themes are exactly the
+> "palette differs per app, one mechanic" model this section defines.
 
 Every ROJAN app (Manager, Customer, and future Specialist/Reception/
 Accountant/Inventory apps) renders every UI mechanic — glass, borders,
@@ -358,10 +401,12 @@ redesign.
   directly — no regenerated/alternate icon asset.
 
 **Manager design system (frozen — see the "Design Baseline v1.0
-(Frozen — Manager Dashboard)" section above for the full spec):**
-Warm White background (`WarmBackground`/`ManagerScaffold`), Premium
-Glassmorphism (`GlassSurface` + `ManagerGlass` opacity constants), Teal
-+ Gold identity (`ManagerAccent`), the established typography hierarchy
+(Frozen — Manager Dashboard)" section above for the full spec, including
+the 2026-09-02 note: the background is now the dark emerald
+`ManagerBackgroundTheme` and the palette is `ManagerColors`, not Warm
+White / `ManagerAccent`):**
+Premium Glassmorphism (`ManagerGlassSurface` → shared `PremiumGlassSurface`),
+Teal + Gold identity (`ManagerColors`), the established typography hierarchy
 (`RtlSectionHeader` + `RojanTypography.Display` for KPI numbers, etc.),
 the existing RTL foundation, and the `RojanDimens` spacing rhythm.
 

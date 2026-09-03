@@ -186,8 +186,19 @@ val RojanButtonGradientEnd =
 val RojanTextOnGlass =
     Color(0xFF4D355F)
 
-/** Text on a solid/gradient dark surface — slightly softer than OnGlass. */
-/** Text on a solid/gradient dark surface. Luxury Typography & Contrast Finalization: now a solid "Soft White" (#F4F6F8, same value as [RojanLuxuryPrimaryHeading]) rather than alpha-reduced pure white — "Never reduce opacity of body text." */
+/**
+ * Text on a solid/gradient dark surface — a muted plum (`#6B5579`),
+ * slightly softer than [RojanTextOnGlass].
+ *
+ * Doc-accuracy fix (UI Polish Sprint 1): an earlier "Luxury Typography &
+ * Contrast Finalization" note claimed this was a near-white `#F4F6F8`;
+ * the committed value was never white. The Customer app has since moved
+ * to its own dark palette ([ai.rojan.designlab.screens.customer.hometheme.HomeColors]),
+ * so this token is now read only by a few legacy surfaces
+ * ([ai.rojan.designlab.screens.dashboard.DashboardPlaceholder], and a
+ * doc reference in [ai.rojan.designlab.components.hero.HeroBookingCard]).
+ * Value left unchanged — this pass only corrects the description.
+ */
 val RojanTextOnDarkSurface =
     Color(0xFF6B5579)
 
@@ -261,8 +272,15 @@ val RojanDisabledText = Color(0xFFC6BECF)
 /** Text on a glass surface — alias onto the existing [RojanTextOnGlass]. */
 val RojanGlassText = RojanTextOnGlass
 
-/** Text on a solid dark surface — alias onto the existing [RojanTextOnDarkSurface]. */
-/** Text on a solid dark surface — Luxury Typography & Contrast Finalization: now a solid "Soft White" hex ([RojanLuxuryPrimaryHeading]) rather than alpha-reduced pure white, per "Never reduce opacity of body text." */
+/**
+ * Text on a solid dark surface — the brand plum `#4D355F` (the same value
+ * as [RojanTextPrimary]/[RojanTextOnGlass], not the near-white an earlier
+ * doc comment claimed). Doc-accuracy fix (UI Polish Sprint 1) — value
+ * unchanged. Legacy: read only by [ai.rojan.designlab.ui.components.brand.VersionFooter]
+ * and [ai.rojan.designlab.components.AIHeader]; new dark-surface text uses
+ * [ai.rojan.designlab.screens.customer.hometheme.HomeColors] /
+ * `ManagerColors`.
+ */
 val RojanDarkSurfaceText = Color(0xFF4D355F)
 
 /** Text on a light/white surface (glass cards, dialogs) — alias onto the existing [RojanTextPrimary]. */
@@ -287,37 +305,45 @@ val RojanSectionTitle = RojanTextOnGlass
 val RojanCaptionText = RojanTextSecondary
 
 // =====================================
-// ROJAN AI - LUXURY TYPOGRAPHY & CONTRAST FINALIZATION
-// A dedicated white/light-gray hierarchy for text on dark surfaces
-// (PremiumBackground, Hero, Glass, Gradient). Distinct from the
-// RojanTextPrimary/Secondary family above, which stays correct and
-// unchanged for text on LIGHT surfaces (glass cards, dialogs) - "Keep
-// dark text ONLY on light cards" means these two families are not
-// interchangeable, each is correct in its own context.
+// ROJAN AI - LUXURY TYPOGRAPHY (LEGACY — description corrected UI Polish Sprint 1, 2026-09-02)
+// This family was ORIGINALLY intended as a white/light-gray hierarchy for
+// text on dark surfaces, but the committed values below are the brand
+// plum/mauve family (#4D355F / #6B5579 / #867391 / …), NOT white — the
+// "Soft White" / "Light Gray" / "Pure White" labels on the individual
+// tokens were inaccurate and are corrected below. Values are left
+// untouched (changing a token value would be a redesign, out of scope for
+// this pass).
+//
+// Current state: the Customer and Manager apps each ship their own
+// dark-surface text palette (HomeColors / ManagerColors). Of the tokens
+// below, only RojanLuxuryCaption is still referenced (RojanNavGraph). The
+// other seven are unused and are flagged for removal in a later,
+// separately-authorized cleanup pass — see
+// docs/uiux/ROJAN_UI_POLISH_SPRINT1_REPORT_v1.md.
 // =====================================
 
-/** Primary Heading - Luxury Soft White. */
+/** Legacy, unused. Actual value: brand plum `#4D355F` (not "Soft White"). */
 val RojanLuxuryPrimaryHeading = Color(0xFF4D355F)
 
-/** Section Heading - Luxury Light Gray. */
+/** Legacy, unused. Actual value: brand plum `#4D355F` (not "Light Gray"). */
 val RojanLuxurySectionHeading = Color(0xFF4D355F)
 
-/** Hero Titles - Pure White. */
+/** Legacy, unused. Actual value: brand plum `#4D355F` (not "Pure White"). */
 val RojanLuxuryHeroTitle = Color(0xFF4D355F)
 
-/** Primary Body text on dark surfaces. */
+/** Legacy, unused. Muted plum `#6B5579`. */
 val RojanLuxuryPrimaryBody = Color(0xFF6B5579)
 
-/** Secondary Body text on dark surfaces. */
+/** Legacy, unused. Muted mauve `#867391` (= [RojanTextSecondary]). */
 val RojanLuxurySecondaryBody = Color(0xFF867391)
 
-/** Caption text on dark surfaces. */
+/** Legacy. Muted mauve `#9D8AA7`. Still referenced by [ai.rojan.designlab.navigation] (RojanNavGraph). */
 val RojanLuxuryCaption = Color(0xFF9D8AA7)
 
-/** Hint/placeholder text on dark surfaces. */
+/** Legacy, unused. Pale mauve `#B5A9BE`. */
 val RojanLuxuryHint = Color(0xFFB5A9BE)
 
-/** Disabled text on dark surfaces. */
+/** Legacy, unused. Pale mauve `#C6BECF`. */
 val RojanLuxuryDisabled = Color(0xFFC6BECF)
 
 // =====================================

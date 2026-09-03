@@ -15,9 +15,18 @@ import ai.rojan.designlab.ui.theme.RojanBackgroundGradient
 import ai.rojan.designlab.ui.theme.RojanWarmWhite
 
 /**
- * Customer Journey UI Alignment — the approved Warm White background,
- * used from Member Salons List onward (every screen except Splash and
- * Welcome, which keep [PremiumBackground]'s decorative salon photo).
+ * Customer Journey UI Alignment — the (former) approved Warm White
+ * background.
+ *
+ * ⚠️ SUPERSEDED (2026-09-02): the Customer app moved to the dark
+ * [ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme]
+ * app-wide. This component is kept for reference / rollback and currently
+ * has no live call sites. The description below reflects its original,
+ * pre-dark-theme role.
+ *
+ * Originally: used from Member Salons List onward (every screen except
+ * Splash and Welcome, which keep [PremiumBackground]'s decorative salon
+ * photo).
  *
  * Solid [RojanWarmWhite] base with the existing, already design-approved
  * [RojanBackgroundGradient] token (Warm White → Blush Pink → Aqua Mint →

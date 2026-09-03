@@ -29,6 +29,16 @@ import androidx.compose.ui.unit.sp
  * explicitly (e.g. `outline`, `scrim`), the closest existing approved
  * color is reused rather than a new one invented; each choice is
  * commented with its reasoning below.
+ *
+ * ⚠️ LARGELY LEGACY (noted UI Polish Sprint 1, 2026-09-02): both shipping
+ * apps now render on dark canvases with their own palettes (Customer:
+ * [ai.rojan.designlab.screens.customer.hometheme.HomeColors]; Manager:
+ * `ManagerColors`), and — as the pre-migration audit already found —
+ * effectively nothing reads `MaterialTheme.colorScheme`. This light
+ * scheme is kept as the Material3 baseline but no longer describes the
+ * app's real canvas. The "the app's real canvas is now the Light Luxury
+ * photographic background" note below is out of date and retained only
+ * for history.
  */
 private val RojanColorScheme = lightColorScheme(
     // Global Typography & Theme Refactor: the app's real canvas is now

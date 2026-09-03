@@ -11,15 +11,17 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalDensity
 
 /**
- * Customer Home dark-luxury background — Home Visual Language Unification.
+ * Customer app dark-luxury background — Home Visual Language Unification,
+ * since rolled out app-wide.
  *
- * Used only by `CustomerHomeScreen`; does not replace or modify
- * [ai.rojan.designlab.ui.background.WarmBackground] (every other Customer
- * screen keeps that frozen light background untouched). Same layered
- * technique as [ai.rojan.designlab.ui.background.WarmBackground]/
- * [ai.rojan.designlab.screens.customer.theme.CustomerBackgroundTheme] —
- * solid base + gradient wash + radial glow zones — just a dark navy/purple
- * palette per the approved reference image instead of warm white.
+ * As of 2026-09-02 this is the background for the **whole Customer app**
+ * (Home, Search, Auth, Splash, salon / booking / profile screens), not
+ * just `CustomerHomeScreen`. [ai.rojan.designlab.ui.background.WarmBackground]
+ * (the previous warm-white background) is retained for reference/rollback
+ * but has effectively no live call sites. Same layered technique as
+ * `WarmBackground` — solid base + gradient wash + radial glow zones —
+ * with a dark navy / deep-purple palette per the approved reference image
+ * instead of warm white.
  */
 @Composable
 fun HomeBackgroundTheme(
