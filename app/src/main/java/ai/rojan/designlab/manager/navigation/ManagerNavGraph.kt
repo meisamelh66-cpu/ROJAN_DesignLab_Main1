@@ -35,6 +35,7 @@ import ai.rojan.designlab.manager.screens.services.ManagerServicesScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerSalonMediaScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerSalonSetupScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerWorkingHoursScreen
+import ai.rojan.designlab.manager.screens.staff.ManagerInvitesScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerSpecialistServicesScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerStaffEditScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerStaffScreen
@@ -249,6 +250,13 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
             onBackClick = { navController.popBackStack() },
             onAddClick = { navController.navigate(ManagerDestinations.staffEdit(ManagerDestinations.NEW_SPECIALIST_ID)) },
             onSpecialistClick = { specialistId -> navController.navigate(ManagerDestinations.staffEdit(specialistId)) },
+            onInvitesClick = { navController.navigate(ManagerDestinations.INVITES) },
+        )
+    }
+
+    composable(ManagerDestinations.INVITES) {
+        ManagerInvitesScreen(
+            onBackClick = { navController.popBackStack() },
         )
     }
 

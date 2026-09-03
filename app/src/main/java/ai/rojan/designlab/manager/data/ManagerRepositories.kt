@@ -12,8 +12,11 @@ import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
 import ai.rojan.designlab.manager.domain.customer.UserLinkCandidate
 import ai.rojan.designlab.manager.domain.dashboard.ManagerDashboardInsights
 import ai.rojan.designlab.manager.domain.dashboard.ManagerSalonSummary
+import ai.rojan.designlab.manager.domain.membership.SalonMemberRole
 import ai.rojan.designlab.manager.domain.repository.AppointmentRepository
 import ai.rojan.designlab.manager.domain.repository.CustomerRepository
+import ai.rojan.designlab.manager.domain.repository.ManagerInviteRepository
+import ai.rojan.designlab.manager.domain.repository.SalonInvite
 import ai.rojan.designlab.manager.domain.repository.ServiceRepository
 import ai.rojan.designlab.manager.domain.repository.SpecialistRepository
 import ai.rojan.designlab.manager.domain.service.Service
@@ -89,6 +92,18 @@ private object EmptySpecialistRepository : SpecialistRepository {
 }
 
 /** Empty until [ManagerRepositories.initialize] resolves a real salon - honest "nothing loaded yet," not fake sample data. */
+private object EmptyManagerInviteRepository : ManagerInviteRepository {
+    override suspend fun issueInvite(role: SalonMemberRole): Result<SalonInvite> =
+        Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
+    override suspend fun listInvites(): Result<List<SalonInvite>> =
+        Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
+    override suspend fun revokeInvite(inviteId: String): Result<Unit> =
+        Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
+    override suspend fun getInviteQrCode(inviteId: String, sizePx: Int): Result<ByteArray> =
+        Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
+}
+
+/** Empty until [ManagerRepositories.initialize] resolves a real salon - honest "nothing loaded yet," not fake sample data. */
 private object EmptyCustomerRepository : CustomerRepository {
     override fun getAll(): List<ManagerCustomer> = emptyList()
     override fun getById(id: String): ManagerCustomer? = null
@@ -126,6 +141,8 @@ internal class ManagerInitData(
     val appointments: RepoSync<AppointmentRepository>,
     val specialists: RepoSync<SpecialistRepository>,
     val customers: RepoSync<CustomerRepository>,
+    /** P1-6, Manager Salon Invite Management: no [RepoSync] wrapper - [ManagerInviteRepository] has no `sync()`, every method is an on-demand network call (same shape as [availabilityRepository]), so there is nothing to merge against a last-known-good value. */
+    val invites: ManagerInviteRepository,
     val salon: ManagerSalonSummary,
     val salonId: String,
     val availabilityRepository: AvailabilityRepository,
@@ -182,6 +199,8 @@ object ManagerRepositories {
     var customers: CustomerRepository = EmptyCustomerRepository
         private set
     var specialists: SpecialistRepository = EmptySpecialistRepository
+        private set
+    var invites: ManagerInviteRepository = EmptyManagerInviteRepository
         private set
     private val _salon = MutableStateFlow<ManagerSalonSummary?>(null)
 
@@ -366,6 +385,7 @@ object ManagerRepositories {
         _salon.value = data.salon
         salonId = data.salonId
         availabilityRepository = data.availabilityRepository
+        invites = data.invites
 
         data.dashboardInsights.onSuccess { dashboardInsights = it }
 
@@ -408,6 +428,10 @@ object ManagerRepositories {
             managerSpecialistApi = container.managerSpecialistApi,
             salonId = salonDto.id,
         )
+        val inviteRepo = BackendManagerInviteRepository(
+            managerInviteApi = container.managerInviteApi,
+            salonId = salonDto.id,
+        )
         val customerRepo = BackendCustomerRepository(
             managerCustomerApi = container.managerCustomerApi,
             serviceRepository = serviceRepo,
@@ -437,12 +461,18 @@ object ManagerRepositories {
             )
         }
 
+        val inviteRepo = BackendManagerInviteRepository(
+            managerInviteApi = container.managerInviteApi,
+            salonId = salonDto.id,
+        )
+
         return Result.success(
             ManagerInitData(
                 services = RepoSync(serviceRepo, serviceSync),
                 appointments = RepoSync(appointmentRepo, appointmentSync),
                 specialists = RepoSync(specialistRepo, specialistSync),
                 customers = RepoSync(customerRepo, customerSync),
+                invites = inviteRepo,
                 salon = ManagerSalonSummary(
                     id = salonDto.id,
                     name = salonDto.name,
@@ -474,6 +504,7 @@ object ManagerRepositories {
         appointments = EmptyAppointmentRepository
         specialists = EmptySpecialistRepository
         customers = EmptyCustomerRepository
+        invites = EmptyManagerInviteRepository
         _salon.value = null
         dashboardInsights = null
         salonId = null
