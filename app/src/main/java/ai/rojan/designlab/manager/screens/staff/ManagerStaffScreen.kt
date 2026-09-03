@@ -72,10 +72,17 @@ fun ManagerStaffScreen(
     onInvitesClick: () -> Unit = {},
 ) {
     var query by remember { mutableStateOf("") }
-    val filteredSpecialists = remember(query) {
-        val all = ManagerRepositories.specialists.getAll()
-        if (query.isBlank()) all else all.filter { it.name.contains(query, ignoreCase = true) }
-    }
+
+    // Deliberately not `remember`-cached: this composable's own NavBackStackEntry
+    // (and therefore its `remember` state) survives a push-then-pop-back round
+    // trip to ManagerStaffEditScreen unchanged, so a `remember(query)` here kept
+    // a stale pre-create/pre-edit/pre-deactivate roster alive whenever `query`
+    // itself hadn't changed - a real bug, not a hypothetical one, same class
+    // already found and fixed in ManagerServicesScreen (P0-2). Plain list
+    // filtering over this list's real size is cheap enough that no memoization
+    // is needed.
+    val all = ManagerRepositories.specialists.getAll()
+    val filteredSpecialists = if (query.isBlank()) all else all.filter { it.name.contains(query, ignoreCase = true) }
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         LazyColumn(
