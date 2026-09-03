@@ -2,11 +2,15 @@ package ai.rojan.designlab.manager.screens.services
 
 import ai.rojan.designlab.manager.components.ManagerColors
 import ai.rojan.designlab.manager.components.ManagerGlassSurface
+import ai.rojan.designlab.manager.components.ManagerPrimaryButton
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.data.formatDurationMinutes
 import ai.rojan.designlab.manager.data.formatTomanPrice
 import ai.rojan.designlab.manager.domain.service.Service
+import ai.rojan.designlab.manager.presentation.services.ManagerServicesUiState
+import ai.rojan.designlab.manager.presentation.services.ManagerServicesViewModel
+import ai.rojan.designlab.manager.presentation.services.ManagerServicesViewModelFactory
 import ai.rojan.designlab.manager.screens.customers.TagChip
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
@@ -32,6 +36,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,9 +45,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 /**
  * Manager App workspace — Services: list + search + create/edit/deactivate
@@ -51,10 +58,15 @@ import androidx.compose.ui.unit.dp
  * [onAddClick]/[onServiceClick] routing to
  * [ai.rojan.designlab.manager.screens.services.ManagerServiceEditScreen]).
  *
- * Reads [ManagerRepositories.services] directly, no re-[ManagerRepositories.initialize]
- * call — this screen is only reachable via the Dashboard's Quick Actions,
- * which has already populated the cache, exactly the same assumption
- * `ManagerCustomersListScreen` makes.
+ * Reliability Sprint 01, P0-2: list loading now goes through
+ * [ManagerServicesViewModel] instead of reading [ManagerRepositories.services]
+ * unconditionally — a real sync failure now renders a retryable error
+ * instead of the same "no services" empty notice a genuinely-empty
+ * catalog would show. [AddServiceRow] stays reachable regardless of
+ * [ManagerServicesUiState] (a deliberate product decision — creating a
+ * service isn't blocked by the *list* failing to load); the search field
+ * and list itself only render once [ManagerServicesUiState.Ready]. See
+ * [ManagerServicesContent] for the state dispatch.
  */
 @Composable
 fun ManagerServicesScreen(
@@ -63,15 +75,39 @@ fun ManagerServicesScreen(
     onAddClick: () -> Unit = {},
     onServiceClick: (String) -> Unit = {},
 ) {
+    val context = LocalContext.current
+    val viewModel: ManagerServicesViewModel = viewModel(
+        factory = ManagerServicesViewModelFactory(context.applicationContext),
+    )
+
+    ManagerServicesContent(
+        uiState = viewModel.state,
+        onRetry = viewModel::retry,
+        modifier = modifier,
+        onBackClick = onBackClick,
+        onAddClick = onAddClick,
+        onServiceClick = onServiceClick,
+    )
+}
+
+/**
+ * Stateless content split out from [ManagerServicesScreen] so the three
+ * [ManagerServicesUiState] branches can be previewed directly with a
+ * hardcoded state — no [ManagerServicesViewModel]/[LocalContext]/network
+ * needed (see the three `@Preview`s below). [query] is declared here,
+ * above the state dispatch, so it survives Loading/Error/Ready
+ * transitions rather than being recreated with each one.
+ */
+@Composable
+private fun ManagerServicesContent(
+    uiState: ManagerServicesUiState,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+    onBackClick: (() -> Unit)? = null,
+    onAddClick: () -> Unit = {},
+    onServiceClick: (String) -> Unit = {},
+) {
     var query by remember { mutableStateOf("") }
-    val filteredServices = remember(query) {
-        val all = ManagerRepositories.services.getAll()
-        if (query.isBlank()) {
-            all
-        } else {
-            all.filter { it.name.contains(query, ignoreCase = true) || it.category.contains(query, ignoreCase = true) }
-        }
-    }
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         LazyColumn(
@@ -89,21 +125,85 @@ fun ManagerServicesScreen(
 
             item { AddServiceRow(onClick = onAddClick) }
 
-            item {
-                ServiceSearchField(
-                    query = query,
-                    onQueryChange = { query = it },
-                )
-            }
+            when (uiState) {
+                is ManagerServicesUiState.Loading -> item { ManagerServicesLoading() }
+                is ManagerServicesUiState.Error -> item { ManagerServicesError(message = uiState.message, onRetry = onRetry) }
+                is ManagerServicesUiState.Ready -> {
+                    item {
+                        ServiceSearchField(
+                            query = query,
+                            onQueryChange = { query = it },
+                        )
+                    }
 
-            if (filteredServices.isEmpty()) {
-                item { EmptyServicesNotice() }
-            } else {
-                items(filteredServices) { service ->
-                    ServiceCard(service = service, onClick = { onServiceClick(service.id) })
+                    // Deliberately not `remember`-cached: this branch is re-entered fresh
+                    // every time uiState becomes Ready (cold load or post-retry), and a
+                    // `remember(query)` here previously kept a stale pre-load/pre-retry list
+                    // alive whenever `query` itself hadn't changed - a real bug, not a
+                    // hypothetical one. Plain list filtering over this list's real size is
+                    // cheap enough that no memoization is needed.
+                    val allServices = ManagerRepositories.services.getAll()
+                    val filteredServices = if (query.isBlank()) {
+                        allServices
+                    } else {
+                        allServices.filter { it.name.contains(query, ignoreCase = true) || it.category.contains(query, ignoreCase = true) }
+                    }
+
+                    if (filteredServices.isEmpty()) {
+                        item { EmptyServicesNotice() }
+                    } else {
+                        items(filteredServices) { service ->
+                            ServiceCard(service = service, onClick = { onServiceClick(service.id) })
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ManagerServicesLoading(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxWidth().padding(RojanDimens.SpaceLG), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(color = ManagerColors.Turquoise)
+    }
+}
+
+/** Mirrors [ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen]'s (P0-1) error card — same components, same shape, same proven Manager-palette-correct pattern. */
+@Composable
+private fun ManagerServicesError(message: String, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        ManagerGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(RojanDimens.SpaceLG),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = "بارگذاری خدمات با خطا مواجه شد",
+                    style = RojanTypography.CardTitle,
+                    color = ManagerColors.TextPrimary,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    text = message,
+                    style = RojanTypography.Body,
+                    color = ManagerColors.TextSecondary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = RojanDimens.SpaceSM),
+                )
+            }
+        }
+
+        ManagerPrimaryButton(
+            text = "تلاش مجدد",
+            onClick = onRetry,
+            modifier = Modifier.padding(top = RojanDimens.SpaceLG),
+        )
     }
 }
 
@@ -229,14 +329,29 @@ private fun EmptyServicesNotice() {
     }
 }
 
-@Preview(
-    showBackground = true,
-    widthDp = 390,
-    heightDp = 844,
-)
+@Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
-private fun ManagerServicesScreenPreview() {
+private fun ManagerServicesScreenLoadingPreview() {
     RojanTheme {
-        ManagerServicesScreen()
+        ManagerServicesContent(uiState = ManagerServicesUiState.Loading, onRetry = {})
+    }
+}
+
+@Preview(showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+private fun ManagerServicesScreenErrorPreview() {
+    RojanTheme {
+        ManagerServicesContent(
+            uiState = ManagerServicesUiState.Error("اتصال به اینترنت برقرار نیست"),
+            onRetry = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+private fun ManagerServicesScreenReadyPreview() {
+    RojanTheme {
+        ManagerServicesContent(uiState = ManagerServicesUiState.Ready, onRetry = {})
     }
 }
