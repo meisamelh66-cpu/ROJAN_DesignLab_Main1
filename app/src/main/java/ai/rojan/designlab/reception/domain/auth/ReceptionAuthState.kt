@@ -16,10 +16,16 @@ sealed interface ReceptionAuthState {
     /** Session restore in progress — the stored session (if any) is being validated against the backend. Splash stays visible for this state. */
     data object Checking : ReceptionAuthState
 
-    /** A real backend session exists and was validated. See [ai.rojan.designlab.reception.presentation.auth.ReceptionAuthViewModel]'s own doc comment for the provisional nature of which accounts pass this check today. */
+    /**
+     * A real backend session exists and was validated. Whether the
+     * account actually has salon access (owner/membership/specialist) is
+     * a separate question, tracked by
+     * [ai.rojan.designlab.reception.presentation.auth.ReceptionAuthViewModel.activeSalonState] —
+     * not this state, and not the account's global role.
+     */
     data class Authenticated(val userId: String, val fullName: String) : ReceptionAuthState
 
-    /** No valid session — either never logged in, the stored session failed validation, or the authenticated account doesn't pass the role gate. */
+    /** No valid session — either never logged in or the stored session failed validation. */
     data object Unauthenticated : ReceptionAuthState
 }
 

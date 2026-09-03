@@ -8,6 +8,7 @@ import ai.rojan.designlab.domain.repository.CurrentUserIdentityContext
 import ai.rojan.designlab.domain.repository.CurrentUserIdentityContextRepository
 import ai.rojan.designlab.domain.repository.OtpIssued
 import ai.rojan.designlab.domain.repository.OwnedSalonAccess
+import ai.rojan.designlab.domain.repository.SalonMembershipAccess
 import ai.rojan.designlab.domain.repository.TokenRepository
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.reception.domain.auth.ActiveSalonUiState
@@ -29,18 +30,26 @@ import org.junit.Test
 
 /**
  * Hermetic (no real backend, no Android framework) coverage of
- * [ReceptionAuthViewModel]'s resilient blocked-state behavior — added
- * alongside that Phase 1 change, same in-memory-fake approach
- * [ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModelTest]
+ * [ReceptionAuthViewModel]'s gate/OTP/logout logic, same in-memory-fake
+ * approach [ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModelTest]
  * already establishes for the structurally-identical Manager class.
  *
- * Scoped deliberately narrow: this covers the bug this phase actually
- * fixed (a `/salon-access` failure previously left [ReceptionAuthViewModel.activeSalonState]
- * stuck at [ActiveSalonUiState.Loading] forever instead of resolving to
- * [ActiveSalonUiState.Error]) plus [ReceptionAuthViewModel.retryIdentityResolution],
- * not a full re-derivation of every scenario
- * `ManagerAuthViewModelTest` already covers generically for the identical
- * underlying gate/OTP/logout shape.
+ * P1-7, Fix Reception Authentication Gate: also covers the real
+ * authorization boundary this gate actually enforces — a valid session or
+ * a successful OTP verification belonging to an account with **no salon
+ * access** (owner/membership/specialist) authenticates the session but
+ * resolves to [ActiveSalonUiState.Error], never a client-side rejection
+ * based on the account's global role (see [ReceptionAuthViewModel]'s own
+ * doc comment for why role is not checked here). [receptionUser] (role
+ * `MANAGER`) still authenticates too — the fix only removes a client-side
+ * rejection, it doesn't change what a `MANAGER`-role account could
+ * already do.
+ *
+ * Also covers the resilient blocked-state behavior added in an earlier
+ * phase: a `/salon-access` failure previously left
+ * [ReceptionAuthViewModel.activeSalonState] stuck at
+ * [ActiveSalonUiState.Loading] forever instead of resolving to
+ * [ActiveSalonUiState.Error]) — plus [ReceptionAuthViewModel.retryIdentityResolution].
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReceptionAuthViewModelTest {
@@ -58,6 +67,7 @@ class ReceptionAuthViewModelTest {
     }
 
     private val receptionUser = AuthenticatedUser(id = "user-1", email = "reception@example.com", fullName = "Test Reception", role = "MANAGER")
+    private val customerUser = AuthenticatedUser(id = "user-2", email = "customer@example.com", fullName = "Test Customer", role = "CUSTOMER")
 
     private fun emptyIdentityContext() = CurrentUserIdentityContext(
         userId = receptionUser.id,
@@ -204,6 +214,98 @@ class ReceptionAuthViewModelTest {
         assertEquals(receptionUser.id, authSessionRepository.savedPersonId)
     }
 
+    // --- P1-7: the real authorization boundary is salon access, never global role ---
+
+    @Test
+    fun `existing valid session for a customer-role account with no salon access still authenticates, but resolves to an access error`() = runTest {
+        val authSessionRepository = FakeAuthSessionRepository(initialPersonId = customerUser.id)
+        val backendAuthRepository = FakeBackendAuthRepository(currentUserResult = Result.success(customerUser))
+        val tokenRepository = FakeTokenRepository()
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.success(emptyIdentityContext()))
+
+        val viewModel = ReceptionAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository, FakeActiveSalonContextRepository())
+
+        val state = viewModel.authState.value
+        assertTrue(state is ReceptionAuthState.Authenticated)
+        assertEquals(customerUser.id, (state as ReceptionAuthState.Authenticated).userId)
+        assertTrue(viewModel.activeSalonState.value is ActiveSalonUiState.Error)
+        assertEquals(0, authSessionRepository.clearPersonIdCallCount)
+        assertEquals(0, tokenRepository.clearTokensCallCount)
+    }
+
+    @Test
+    fun `verifying an OTP for a customer-role account with no salon access still authenticates, but resolves to an access error`() = runTest {
+        val authSessionRepository = FakeAuthSessionRepository(initialPersonId = null)
+        val backendAuthRepository = FakeBackendAuthRepository(
+            requestOtpResult = Result.success(OtpIssued("+989123456789", expiresInSeconds = 120, canResendAfterSeconds = 60)),
+            verifyOtpResult = Result.success(customerUser),
+        )
+        val tokenRepository = FakeTokenRepository()
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.success(emptyIdentityContext()))
+
+        val viewModel = ReceptionAuthViewModel(authSessionRepository, backendAuthRepository, tokenRepository, identityContextRepository, FakeActiveSalonContextRepository())
+        viewModel.requestOtp("+989123456789")
+        viewModel.verifyOtp("482913")
+
+        val state = viewModel.authState.value
+        assertTrue(state is ReceptionAuthState.Authenticated)
+        assertEquals(customerUser.id, authSessionRepository.savedPersonId)
+        assertTrue(viewModel.activeSalonState.value is ActiveSalonUiState.Error)
+        assertEquals(0, tokenRepository.clearTokensCallCount) // the old bug cleared tokens on any non-MANAGER role, even a real account
+    }
+
+    @Test
+    fun `verifying an OTP for a customer-role account with a real salon membership reaches Authenticated and Active`() = runTest {
+        val authSessionRepository = FakeAuthSessionRepository(initialPersonId = null)
+        val backendAuthRepository = FakeBackendAuthRepository(
+            requestOtpResult = Result.success(OtpIssued("+989123456789", expiresInSeconds = 120, canResendAfterSeconds = 60)),
+            verifyOtpResult = Result.success(customerUser),
+        )
+        val membership = SalonMembershipAccess(
+            membershipId = "m1", salonId = "s1", salonName = "Salon One",
+            active = true, role = "RECEPTIONIST", permissions = setOf("MANAGE_BOOKINGS"),
+        )
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(
+            Result.success(emptyIdentityContext().copy(memberships = listOf(membership))),
+        )
+
+        val viewModel = ReceptionAuthViewModel(
+            authSessionRepository, backendAuthRepository, FakeTokenRepository(),
+            identityContextRepository, FakeActiveSalonContextRepository(),
+        )
+        viewModel.requestOtp("+989123456789")
+        viewModel.verifyOtp("482913")
+
+        assertTrue(viewModel.authState.value is ReceptionAuthState.Authenticated)
+        val state = viewModel.activeSalonState.value
+        assertTrue(state is ActiveSalonUiState.Active)
+        assertEquals("s1", (state as ActiveSalonUiState.Active).context.salonId)
+    }
+
+    @Test
+    fun `session restoration for a customer-role account with a real salon membership reaches Authenticated and Active`() = runTest {
+        val membership = SalonMembershipAccess(
+            membershipId = "m1", salonId = "s1", salonName = "Salon One",
+            active = true, role = "RECEPTIONIST", permissions = setOf("MANAGE_BOOKINGS"),
+        )
+        val identityContextRepository = FakeCurrentUserIdentityContextRepository(
+            Result.success(emptyIdentityContext().copy(memberships = listOf(membership))),
+        )
+
+        val viewModel = ReceptionAuthViewModel(
+            FakeAuthSessionRepository(initialPersonId = customerUser.id),
+            FakeBackendAuthRepository(currentUserResult = Result.success(customerUser)),
+            FakeTokenRepository(),
+            identityContextRepository,
+            FakeActiveSalonContextRepository(),
+        )
+
+        assertTrue(viewModel.authState.value is ReceptionAuthState.Authenticated)
+        val state = viewModel.activeSalonState.value
+        assertTrue(state is ActiveSalonUiState.Active)
+        assertEquals("s1", (state as ActiveSalonUiState.Active).context.salonId)
+    }
+
     @Test
     fun `logout resets activeSalonState back to Loading, clearing a prior Error`() = runTest {
         val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.failure(IllegalStateException("404")))
@@ -255,6 +357,8 @@ class ReceptionAuthViewModelTest {
 
         var savedPersonId: String? = null
             private set
+        var clearPersonIdCallCount = 0
+            private set
 
         override suspend fun savePersonId(personId: String) {
             this.personId.value = personId
@@ -262,6 +366,7 @@ class ReceptionAuthViewModelTest {
         }
 
         override suspend fun clearPersonId() {
+            clearPersonIdCallCount++
             personId.value = null
             savedPersonId = null
         }
@@ -273,12 +378,16 @@ class ReceptionAuthViewModelTest {
         private var access: String? = null
         private var refresh: String? = null
 
+        var clearTokensCallCount = 0
+            private set
+
         override fun saveTokens(accessToken: String, refreshToken: String) {
             access = accessToken
             refresh = refreshToken
         }
 
         override fun clearTokens() {
+            clearTokensCallCount++
             access = null
             refresh = null
         }

@@ -25,29 +25,26 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * CONFIRMED — `ROJAN_System1_Backend_Decision_v2.md` §1b (`ROJAN_Backend`):
- * System 1 decided **no** new global `UserRole.RECEPTIONIST` will be
- * added. Reception, Manager, and Owner accounts all authenticate under the
- * existing `UserRole.MANAGER` value permanently — ownership is resolved
- * via `Salon.ownerId`, and per-salon role/authorization is resolved via
- * `SalonMembership.role` (see [ActiveSalonUiState]/`SalonAccessType.MEMBER`),
- * never the global role. This was previously flagged provisional in this
- * file (`ROJAN_Reception_Implementation_Plan_v1.md` §4 item 5, open at the
- * time); that question is now closed, and this constant's value was
- * correct all along — no code change was needed here, only this comment.
- */
-private const val RECEPTION_GATE_ROLE = "MANAGER"
-
-/**
- * Owns the Reception App's entire authentication lifecycle — cold-start
- * session validation (the gate), the OTP request/verify flow, and logout.
- * Structurally identical to
+ * P1-7, Fix Reception Authentication Gate: owns the Reception App's entire
+ * authentication lifecycle — cold-start session validation (the gate),
+ * the OTP request/verify flow, and logout. Structurally identical to
  * [ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel] (same
  * reused infrastructure: [AuthSessionRepository], [BackendAuthRepository],
  * [TokenRepository]) — kept as Reception's own class, not a shared/reused
- * one, so the two flavors' auth lifecycles can diverge independently once
- * §4 item 5 is actually resolved (e.g. a real receptionist-specific gate)
- * without touching Manager at all.
+ * one, so the two flavors' auth lifecycles can diverge independently.
+ *
+ * Access itself is decided by real salon ownership/membership/specialist
+ * links (`GET /users/me/salon-access`, see [refreshIdentityContext]/
+ * [activeSalonState]) — the global account [AuthenticatedUser.role] the
+ * backend returns is not authoritative for this and is never checked here.
+ * A previous version of this class gated [restoreSession]/[onVerified] on
+ * `user.role == "MANAGER"` — confirmed via `ROJAN_Backend` source that the
+ * OTP flow always auto-registers a brand-new phone number as `CUSTOMER`
+ * (`VerifyOtpUseCase`'s documented default) and never assigns `MANAGER`,
+ * so that check rejected every real account, owners and invited staff
+ * alike, exactly the same bug already found and fixed in
+ * [ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel] —
+ * this class now ports that identical fix.
  *
  * See ROJAN_Reception_Implementation_Plan_v1.md, Phase 0.
  */
@@ -87,7 +84,19 @@ class ReceptionAuthViewModel(
         }
     }
 
-    /** Cold-start gate check — see [ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel.restoreSession] for the identical reasoning. */
+    /**
+     * Cold-start gate check: a persisted personId is only a *claim* that a
+     * session once existed — [BackendAuthRepository.currentUser] is the
+     * real check, re-deriving identity from the currently stored access
+     * token (transparently refreshed first if expired, via
+     * `TokenAuthenticator`). A revoked/expired refresh token or a network
+     * failure fails this check — back to [ReceptionAuthState.Unauthenticated],
+     * never a silent Dashboard entry. Whether the account actually has any
+     * salon access is a separate, later question — [refreshIdentityContext]/
+     * [activeSalonState] decide that, not this method (no
+     * [AuthenticatedUser.role] check here — see this class's own doc
+     * comment for why).
+     */
     private suspend fun restoreSession() {
         val personId = authSessionRepository.observePersonId().first()
         if (personId == null) {
@@ -97,12 +106,8 @@ class ReceptionAuthViewModel(
 
         backendAuthRepository.currentUser()
             .onSuccess { user ->
-                if (user.role == RECEPTION_GATE_ROLE) {
-                    _authState.value = ReceptionAuthState.Authenticated(user.id, user.fullName)
-                    refreshIdentityContext()
-                } else {
-                    clearSession()
-                }
+                _authState.value = ReceptionAuthState.Authenticated(user.id, user.fullName)
+                refreshIdentityContext()
             }
             .onFailure { clearSession() }
     }
@@ -223,17 +228,19 @@ class ReceptionAuthViewModel(
         }
     }
 
+    /**
+     * A successful OTP verify always authenticates the session — the
+     * backend auto-registers a brand-new phone number as CUSTOMER
+     * (`VerifyOtpUseCase`'s documented default) and never assigns
+     * `MANAGER`, so gating here on [AuthenticatedUser.role] would reject
+     * every account unconditionally, real owners and invited staff alike.
+     * Real authorization is salon ownership/membership/specialist access,
+     * resolved next by [refreshIdentityContext] into [activeSalonState] —
+     * an account with none of those correctly lands on the access-error
+     * state (`ReceptionAccessErrorScreen`), not on a client-side rejection
+     * here.
+     */
     private suspend fun onVerified(user: AuthenticatedUser) {
-        if (user.role != RECEPTION_GATE_ROLE) {
-            // See RECEPTION_GATE_ROLE's own doc comment — a successfully
-            // verified but non-gated-role account is a real, expected
-            // outcome, not a bug; rejected client-side rather than granting
-            // Dashboard access.
-            tokenRepository.clearTokens()
-            _errorMessage.value = "این شماره برای پذیرش ثبت نشده است"
-            return
-        }
-
         authSessionRepository.savePersonId(user.id)
         _authState.value = ReceptionAuthState.Authenticated(user.id, user.fullName)
         refreshIdentityContext()
