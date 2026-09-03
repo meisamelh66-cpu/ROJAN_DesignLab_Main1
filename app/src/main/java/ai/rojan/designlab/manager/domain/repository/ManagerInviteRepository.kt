@@ -3,58 +3,78 @@ package ai.rojan.designlab.manager.domain.repository
 import ai.rojan.designlab.manager.domain.membership.SalonMemberRole
 
 /**
- * `PENDING` (issued, not yet acted on) / `ACCEPTED` (terminal, success) /
- * `EXPIRED` (terminal) / `REVOKED` (terminal, owner cancelled before
- * acceptance) — approved states, `ROJAN_System1_Backend_Decision_v2.md`
- * §2. Own copy, not imported from
- * [ai.rojan.designlab.reception.domain.repository.SalonInviteStatus] —
+ * `CREATED` (issued, not yet acted on — the only status [ManagerInviteRepository.revokeInvite]/
+ * [ManagerInviteRepository.getInviteQrCode] work on) / `ACCEPTED` (terminal,
+ * success) / `EXPIRED` (terminal — never a stored transition on the
+ * backend; computed at read time from the invite's expiry, so the same
+ * invite can report a different status across two consecutive
+ * [ManagerInviteRepository.listInvites] calls with no mutation in
+ * between) / `REVOKED` (terminal, owner cancelled before acceptance) —
+ * confirmed exactly against the real backend `SalonInviteStatus` enum,
+ * P1-6. Own copy, not imported from
+ * [ai.rojan.designlab.reception.domain.repository.SalonInviteRepository] —
  * same "each flavor owns its own domain types" precedent already
  * established between Manager and Reception elsewhere in this codebase.
  */
 enum class SalonInviteStatus {
-    PENDING,
+    CREATED,
     ACCEPTED,
     EXPIRED,
     REVOKED,
 }
 
-/** An invite the salon owner has issued — the Manager-side (issuing) half of the flow Reception's `ReceptionInviteRepository` implements the accepting half of. */
+/**
+ * An invite the salon owner has issued — the Manager-side (issuing) half
+ * of the flow Reception's `ReceptionInviteRepository`/
+ * `ReceptionInviteAcceptanceViewModel` (P1-1) implements the accepting
+ * half of. No [phoneNumber] field — confirmed against the real backend
+ * `CreateSalonInviteRequest`/`SalonInviteResponse` (P1-6) that an invite is
+ * anonymous and QR/link-redeemable, never targeted at a known contact;
+ * this domain model previously assumed a phone-targeted shape ahead of the
+ * backend actually existing, corrected here to match reality exactly, the
+ * same class of pre-backend guess [ai.rojan.designlab.reception.domain.repository.SalonInviteAcceptance]
+ * needed the same correction for in P1-1.
+ */
 data class SalonInvite(
     val id: String,
     val salonId: String,
-    val phoneNumber: String,
     val role: SalonMemberRole,
     val status: SalonInviteStatus,
+    val expiresAt: String,
+    val createdAt: String,
 )
 
 /**
- * **Integration placeholder only — not backed by a real network call.**
- * `ROJAN_System1_Backend_Decision_v2.md` §2 approved the invite flow's
- * shape, including `POST /api/v1/salons/{salonId}/invites` (owner-only
- * issue) — but the backend (`InviteController` / `SalonInvite` domain /
- * `salon_invites` persistence) does not exist yet, re-confirmed absent on
- * `origin/feature/auth-rate-limit-finalization` at the time of this
- * interface's creation (System2 Android Parallel Work, Phase C). No
- * `InviteApi` Retrofit interface, no implementation, and no DI wiring
- * exist for this — same reasoning as
- * [ai.rojan.designlab.reception.domain.repository.ReceptionInviteRepository]'s
- * own doc comment, which this interface is the issuing-side counterpart
- * to: adding a Retrofit method against a route that 404s at runtime would
- * be worse than no binding at all.
+ * Real, backend-backed contract for the salon owner's staff-invite
+ * management (create/list/revoke/QR) — `SalonInviteController`
+ * (`POST`/`GET`/`DELETE /api/v1/salons/{salonId}/invites`,
+ * `GET .../invites/{inviteId}/qr-code`) is confirmed live this sprint
+ * (P1-6; previously documented here as a not-yet-built placeholder — that
+ * has shipped). Every method is owner-only server-side
+ * (`Permission.MANAGE_MEMBERSHIP`, never granted to `SalonRole.MANAGER`) —
+ * a manager-role caller gets a real, backend-enforced `403`, surfaced
+ * through the same generic error mapping every other access-denied
+ * response in this codebase already uses; no client-side role gate exists
+ * or is needed here.
  *
- * This interface exists purely so the domain-layer contract is captured
- * and typed ahead of the backend — a future `BackendManagerInviteRepository`
- * implementing it is the only change needed once `InviteController` ships.
+ * The complementary accepting half of this flow lives in
+ * [ai.rojan.designlab.reception.domain.repository.ReceptionInviteRepository]
+ * (P1-1) — entirely separate, untouched by this interface.
  *
- * **No UI is built against this** — no screen, no ViewModel, no nav route.
- * Preparing the interface is the entire scope of this phase; issuing an
- * invite from the Manager app is a separate, later decision.
+ * See `ai.rojan.designlab.manager.data.BackendManagerInviteRepository` for
+ * the implementation — [salonId] is baked into that implementation at
+ * construction time (same convention
+ * [ai.rojan.designlab.manager.data.BackendSpecialistRepository] already
+ * established for P1-5), not a per-call parameter here.
  */
 interface ManagerInviteRepository {
 
-    suspend fun issueInvite(salonId: String, phoneNumber: String, role: SalonMemberRole): Result<SalonInvite>
+    suspend fun issueInvite(role: SalonMemberRole): Result<SalonInvite>
 
-    suspend fun listInvites(salonId: String): Result<List<SalonInvite>>
+    suspend fun listInvites(): Result<List<SalonInvite>>
 
-    suspend fun revokeInvite(salonId: String, inviteId: String): Result<Unit>
+    suspend fun revokeInvite(inviteId: String): Result<Unit>
+
+    /** Real PNG bytes encoding this invite's accept link — only succeeds while the invite is still [SalonInviteStatus.CREATED] (backend 404s otherwise, same rule as [revokeInvite]). Fetched on demand only — never prefetched for a whole list. */
+    suspend fun getInviteQrCode(inviteId: String, sizePx: Int = 512): Result<ByteArray>
 }

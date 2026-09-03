@@ -30,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +56,12 @@ import androidx.compose.ui.unit.dp
  * Reads [ManagerRepositories.specialists] directly, no re-[ManagerRepositories.initialize]
  * call — only reachable via the Dashboard, which already populated the
  * cache, same assumption every other post-Dashboard Manager screen makes.
+ *
+ * [onInvitesClick] (P1-6, Manager Salon Invite Management): routes to
+ * [ai.rojan.designlab.manager.screens.staff.ManagerInvitesScreen] — shown
+ * unconditionally (not gated to owner-only client-side; see that screen's
+ * own doc comment for why a non-owner sees a real backend `403` there
+ * instead).
  */
 @Composable
 fun ManagerStaffScreen(
@@ -62,6 +69,7 @@ fun ManagerStaffScreen(
     onBackClick: (() -> Unit)? = null,
     onAddClick: () -> Unit = {},
     onSpecialistClick: (String) -> Unit = {},
+    onInvitesClick: () -> Unit = {},
 ) {
     var query by remember { mutableStateOf("") }
     val filteredSpecialists = remember(query) {
@@ -84,6 +92,8 @@ fun ManagerStaffScreen(
             }
 
             item { AddSpecialistRow(onClick = onAddClick) }
+
+            item { InviteStaffRow(onClick = onInvitesClick) }
 
             item {
                 StaffSearchField(
@@ -128,6 +138,32 @@ private fun AddSpecialistRow(onClick: () -> Unit) {
                 tint = ManagerColors.Gold,
             )
             Text(text = "افزودن متخصص", style = RojanTypography.Body, color = ManagerColors.TextPrimary)
+        }
+    }
+}
+
+@Composable
+private fun InviteStaffRow(onClick: () -> Unit) {
+    ManagerGlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .rojanPressable(onClick = onClick),
+        shape = RojanShapes.Small,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+        ) {
+            RojanIconContainer(
+                imageVector = Icons.Filled.Share,
+                contentDescription = "دعوت پذیرش",
+                size = RojanIconSize.Medium,
+                tint = ManagerColors.Turquoise,
+            )
+            Text(text = "دعوت پذیرش", style = RojanTypography.Body, color = ManagerColors.TextPrimary)
         }
     }
 }
