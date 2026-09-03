@@ -17,6 +17,7 @@ import ai.rojan.designlab.data.remote.ManagerServiceApi
 import ai.rojan.designlab.data.remote.ManagerSpecialistApi
 import ai.rojan.designlab.data.remote.NetworkConfig
 import ai.rojan.designlab.data.remote.PublicSalonApi
+import ai.rojan.designlab.data.remote.ReceptionInviteApi
 import ai.rojan.designlab.data.remote.SalonApi
 import ai.rojan.designlab.data.remote.SalonMembershipApi
 import ai.rojan.designlab.data.remote.SalonRelationshipApi
@@ -70,6 +71,8 @@ import ai.rojan.designlab.manager.domain.repository.ManagerMediaRepository
 import ai.rojan.designlab.manager.domain.repository.ManagerSalonRepository
 import ai.rojan.designlab.manager.domain.repository.ManagerWorkingHoursRepository
 import ai.rojan.designlab.manager.domain.repository.SalonMembershipRepository
+import ai.rojan.designlab.reception.data.BackendReceptionInviteRepository
+import ai.rojan.designlab.reception.domain.repository.ReceptionInviteRepository
 import android.content.Context
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -145,6 +148,15 @@ class BackendApiContainer(context: Context) {
         BookingRepositoryImpl(
             retrofit.create(BookingApi::class.java)
         )
+
+    // P1-1, Reception Invite Acceptance: same authenticated [retrofit] as
+    // authApi above — safe for [ReceptionInviteApi.getInvite]'s
+    // unauthenticated call too, see that interface's own doc comment.
+    val receptionInviteApi: ReceptionInviteApi =
+        retrofit.create(ReceptionInviteApi::class.java)
+
+    val receptionInviteRepository: ReceptionInviteRepository =
+        BackendReceptionInviteRepository(receptionInviteApi)
 
 
     // -----------------------------

@@ -47,6 +47,28 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!--
+                P1-1, Reception Invite Acceptance Flow — a custom-scheme
+                deep link, `rojanreception://invite/{token}`, reachable
+                without domain verification (unlike Android App Links).
+                android:autoVerify is intentionally NOT set here and no
+                `https` data element is added: doing so for the real invite
+                URL (`{publicBaseUrl}/invite/{token}`, see
+                ReceptionActivity.kt's own doc comment) requires a hosted
+                assetlinks.json at that domain — infra/System 1 territory,
+                not decided by this Android-only change.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="rojanreception"
+                    android:host="invite" />
+            </intent-filter>
+
         </activity>
 
     </application>

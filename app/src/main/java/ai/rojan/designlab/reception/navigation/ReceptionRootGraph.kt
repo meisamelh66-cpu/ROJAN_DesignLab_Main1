@@ -4,6 +4,7 @@ import ai.rojan.designlab.reception.domain.auth.ActiveSalonUiState
 import ai.rojan.designlab.reception.domain.auth.ReceptionAuthState
 import ai.rojan.designlab.reception.presentation.auth.ReceptionAuthViewModel
 import ai.rojan.designlab.reception.presentation.auth.ReceptionAuthViewModelFactory
+import ai.rojan.designlab.reception.screens.invite.ReceptionInviteAcceptanceScreen
 import ai.rojan.designlab.reception.screens.splash.ReceptionSplashScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,9 +29,30 @@ import androidx.navigation.compose.rememberNavController
  * to fall back to, same as Manager.
  *
  * See ROJAN_Reception_Implementation_Plan_v1.md, Phase 0.
+ *
+ * P1-1, Reception Invite Acceptance Flow: [inviteToken] — non-null only
+ * when [ai.rojan.designlab.ReceptionActivity] launched (or was re-launched
+ * via `onNewIntent`) from a real invite deep link — routes straight to
+ * [ReceptionInviteAcceptanceScreen], **before** [ReceptionAuthViewModel] is
+ * even constructed. This is deliberately "outside the gate": a
+ * newly-invited receptionist may still carry the global `UserRole.CUSTOMER`
+ * default, which [ReceptionAuthViewModel]'s own `RECEPTION_GATE_ROLE` check
+ * would reject and clear on sight — see that ViewModel's own doc comment.
+ * Everything below this branch (the gate, [receptionNavGraph], Dashboard
+ * and every other normal Reception screen) is completely untouched by it
+ * and still requires real authentication + resolved salon access, exactly
+ * as before — a deep link alone only ever reaches the invite confirmation/
+ * OTP screen, never Dashboard directly (see
+ * [ReceptionInviteAcceptanceScreen]/[ai.rojan.designlab.reception.presentation.invite.ReceptionInviteAcceptanceViewModel]
+ * for the real login + accept + salon-resolution steps still required).
  */
 @Composable
-fun ReceptionRootGraph() {
+fun ReceptionRootGraph(inviteToken: String? = null) {
+    if (inviteToken != null) {
+        ReceptionInviteAcceptanceScreen(token = inviteToken)
+        return
+    }
+
     val appContext = LocalContext.current.applicationContext
 
     val authViewModel: ReceptionAuthViewModel = viewModel(

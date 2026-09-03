@@ -42,10 +42,13 @@ import androidx.navigation.compose.navigation
  * [ReceptionDestinations.PROFILE]. This phase (System2 Reception Phase1
  * Controlled Implementation): the real [ReceptionDestinations.DASHBOARD],
  * [ReceptionDestinations.CUSTOMERS], and the
- * [ReceptionDestinations.BOOKING_FLOW_GRAPH] nested graph. No Invite
- * routes — [ai.rojan.designlab.reception.domain.repository.ReceptionInviteRepository]
- * is an integration placeholder only (backend doesn't exist yet), so there
- * is deliberately no UI built against it.
+ * [ReceptionDestinations.BOOKING_FLOW_GRAPH] nested graph. No Invite route
+ * in *this* graph — [ai.rojan.designlab.reception.domain.repository.ReceptionInviteRepository]
+ * is now real (P1-1), but its acceptance screen
+ * ([ai.rojan.designlab.reception.screens.invite.ReceptionInviteAcceptanceScreen])
+ * is deliberately registered outside this authenticated graph entirely, in
+ * [ReceptionRootGraph] directly — see that file's own doc comment for why
+ * an invite acceptance route cannot live behind this graph's gate.
  *
  * [authViewModel] is threaded through from [ReceptionRootGraph]
  * (constructed once, not per-screen). Every screen past [ReceptionDestinations.DASHBOARD]
