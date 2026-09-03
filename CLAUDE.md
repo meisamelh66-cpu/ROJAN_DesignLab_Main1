@@ -4,6 +4,8 @@ Android app (Kotlin, Jetpack Compose). Clean Architecture: `domain/` (no Android
 imports), `data/`, `navigation/`, `screens/`, `ui/` (design system: tokens,
 glass components, backgrounds, buttons, interaction).
 
+Before non-trivial work, read `.claude/brain/INDEX.md`.
+
 ## ROJAN Development Rules
 
 - Preserve Premium Glassmorphism Design System.

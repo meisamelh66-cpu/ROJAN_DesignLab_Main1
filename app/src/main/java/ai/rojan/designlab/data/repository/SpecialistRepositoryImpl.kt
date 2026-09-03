@@ -20,6 +20,9 @@ class SpecialistRepositoryImpl(
         safeApiCall { specialistApi.getMedia(salonId, mediaType = "PORTFOLIO", targetId = specialistId) }
             .map { assets -> assets.map { it.url } }
 
+    override suspend fun getAssignedServiceIds(salonId: String, specialistId: String): Result<List<String>> =
+        safeApiCall { specialistApi.getAssignedServiceIds(salonId, specialistId) }
+
     private fun SpecialistResponseDto.toDomain() = Specialist(
         id = id,
         salonId = salonId,

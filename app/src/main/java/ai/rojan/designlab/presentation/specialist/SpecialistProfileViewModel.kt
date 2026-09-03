@@ -16,8 +16,27 @@ import kotlinx.coroutines.launch
 
 data class SpecialistProfileData(
     val specialist: Specialist,
-    /** Every active service at the specialist's salon — the backend has no capability-to-service mapping, same disclosed simplification as before this milestone. */
+    /**
+     * Customer Specialist -> Services Integration: only the services this
+     * specialist is actually eligible to perform, resolved from the real
+     * `GET /specialists/{id}/services` assignment ids - the previous
+     * "every active service at the salon" behavior was a stale assumption
+     * (the backend capability-to-service mapping this class's own prior
+     * doc comment claimed didn't exist is real, confirmed directly against
+     * `SpecialistController.kt`). The eligibility decision itself is
+     * Backend's alone; this list is never inferred or hard-coded locally -
+     * it is exactly Backend's returned ids, cross-referenced against the
+     * salon's already-fetched catalog only because no endpoint returns
+     * full service objects scoped to a specialist directly.
+     */
     val services: List<Service>,
+    /**
+     * True when Backend returned no assignment ids for this specialist -
+     * its own documented meaning is "eligible for every service in the
+     * salon", never "assigned to nothing". [services] is the full salon
+     * catalog in that case, per that real business rule, not a fallback.
+     */
+    val isAssignedToEveryService: Boolean = false,
     /** Media System Evolution v2: this specialist's portfolio images. Enrichment, not a hard gate - a fetch failure degrades to empty rather than losing the whole profile. */
     val portfolio: List<String> = emptyList(),
 )
@@ -63,18 +82,33 @@ class SpecialistProfileViewModel(
                 return@launch
             }
 
-            val services = mutableListOf<Service>()
+            val allServices = mutableListOf<Service>()
             for (category in categories) {
                 val categoryServices = serviceRepository.getServices(resolvedSalonId, category.id).getOrElse {
                     state = UiState.Error(userMessageFor(it))
                     return@launch
                 }
-                services += categoryServices
+                allServices += categoryServices
+            }
+
+            // Real Backend relationship, not a hard-coded or inferred one - a fetch failure here
+            // is a hard gate (same treatment as specialist/categories/services above), not a
+            // silent fallback to "show everything", which would fabricate a relationship Backend
+            // never actually confirmed.
+            val assignedServiceIds = specialistRepository.getAssignedServiceIds(resolvedSalonId, specialistId).getOrElse {
+                state = UiState.Error(userMessageFor(it))
+                return@launch
+            }
+            val isAssignedToEveryService = assignedServiceIds.isEmpty()
+            val eligibleServices = if (isAssignedToEveryService) {
+                allServices
+            } else {
+                allServices.filter { it.id in assignedServiceIds }
             }
 
             val portfolio = specialistRepository.getPortfolio(resolvedSalonId, specialistId).getOrDefault(emptyList())
 
-            state = UiState.Success(SpecialistProfileData(specialist, services, portfolio))
+            state = UiState.Success(SpecialistProfileData(specialist, eligibleServices, isAssignedToEveryService, portfolio))
         }
     }
 

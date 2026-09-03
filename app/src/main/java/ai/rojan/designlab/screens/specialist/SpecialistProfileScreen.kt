@@ -79,6 +79,13 @@ private fun accentFor(id: String) = accentPalette[Math.floorMod(id.hashCode(), a
  * [SpecialistProfileData.portfolio] when non-empty, with the same
  * tap-to-preview [MediaPreviewDialog] the salon gallery and service images
  * sections use.
+ *
+ * Customer Specialist -> Services Integration: [SpecialistProfileData.services]
+ * is now the specialist's real, Backend-confirmed eligible services, not
+ * every salon service - the section header names this explicitly when
+ * [SpecialistProfileData.isAssignedToEveryService] is true, using the same
+ * [RtlSectionHeader] component as every other section here (no new
+ * component introduced for this).
  */
 @Composable
 fun SpecialistProfileScreen(
@@ -183,7 +190,13 @@ fun SpecialistProfileScreen(
                     }
 
                     if (services.isNotEmpty()) {
-                        item { RtlSectionHeader("خدمات قابل رزرو", horizontalPadding = 0.dp, color = HomeColors.TextPrimary) }
+                        item {
+                            RtlSectionHeader(
+                                if (loadState.data.isAssignedToEveryService) "خدمات قابل رزرو (تمام خدمات سالن)" else "خدمات قابل رزرو",
+                                horizontalPadding = 0.dp,
+                                color = HomeColors.TextPrimary,
+                            )
+                        }
                         itemsIndexed(services) { index, service ->
                             HomeGlassSurface(
                                 modifier = Modifier

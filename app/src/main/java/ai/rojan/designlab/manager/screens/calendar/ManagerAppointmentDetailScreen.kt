@@ -3,12 +3,15 @@ package ai.rojan.designlab.manager.screens.calendar
 import ai.rojan.designlab.manager.components.ManagerColors
 import ai.rojan.designlab.manager.components.ManagerGlassSurface
 import ai.rojan.designlab.manager.components.ManagerIconContainer
+import ai.rojan.designlab.manager.components.ManagerPrimaryButton
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.data.formatDurationMinutes
 import ai.rojan.designlab.manager.data.formatTomanPrice
 import ai.rojan.designlab.manager.domain.appointment.Appointment
 import ai.rojan.designlab.manager.domain.appointment.AppointmentStatus
+import ai.rojan.designlab.manager.presentation.calendar.ManagerAppointmentDetailViewModel
+import ai.rojan.designlab.manager.presentation.calendar.ManagerAppointmentDetailViewModelFactory
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
@@ -33,53 +36,38 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 /**
  * Manager App workspace — Appointment Detail (Manager Operational
- * Foundation, Phase 6 Step 4): **read-only**. Reached from
+ * Foundation, Phase 6 Step 4; confirm/cancel/complete actions added for
+ * the Android Pilot P0 gap). Reached from
  * [ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen]'s
- * already-existing `onAppointmentClick` (previously unwired — this step's
- * only Calendar-adjacent change is that one navigation wire, in
- * `ManagerNavGraph.kt`; this screen and Calendar itself are otherwise
- * untouched).
+ * `onAppointmentClick`, via `ManagerNavGraph.kt`.
  *
- * Deliberately has no status-change, cancel, or reschedule action: the
- * backend has no owner-side booking-mutation endpoint at all today
- * (`ManagerBookingApi` only has `list`/`createForCustomer` — confirmed by
- * direct inspection, not assumed). [ai.rojan.designlab.manager.data.BackendAppointmentRepository.update]/
- * `updateStatus`/`cancel` exist but are local-cache-only; wiring a button
- * to them here would look like it works while silently doing nothing real
- * on the backend, which is exactly what this screen avoids.
- *
- * **Future integration points (Phase 11 Step 2 backend specification —
- * not yet implemented backend-side, so none of this is built yet):**
- * - A cancel action belongs in [AppointmentIdentityHeader] or as a
- *   trailing action alongside the status chip there, since status is
- *   what it changes — not a separate section.
- * - A reschedule action belongs in [DateTimeSection], next to the
- *   date/time it would change.
- * - Both are destructive/impactful enough to need a confirmation dialog
- *   before firing (this app has no existing confirmation-dialog pattern
- *   to reuse yet — Customer's cancel flow in `AppointmentsScreen.kt` also
- *   has none, so this would be a first, not a retrofit).
- * - Both need real loading (in-flight) and error states once wired to
- *   `Result`-returning repository calls — mirroring
- *   [ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel]'s
- *   existing `isSubmitting`/`submitError` shape and its
- *   `confirmErrorMessage()` code-to-Persian-message mapping pattern,
- *   applied to the new `BOOKING_NOT_FOUND`/`UNAUTHORIZED_SALON_ACCESS`/
- *   `INVALID_STATUS_TRANSITION`/`BOOKING_CONFLICT`/`INVALID_TIME_SLOT`
- *   codes that specification defines - none of which exist on the
- *   backend yet either.
- * - This screen currently has no ViewModel at all (reads
- *   [ManagerRepositories] directly); real mutation would need one, since
- *   `isSubmitting`/error state can't live in a stateless `@Composable`.
+ * Status-change actions are wired through
+ * [ai.rojan.designlab.manager.presentation.calendar.ManagerAppointmentDetailViewModel],
+ * which calls the real, existing `PATCH .../bookings/{id}/confirm|cancel|complete`
+ * endpoints via the flavor-agnostic
+ * [ai.rojan.designlab.domain.repository.BookingRepository] — the same
+ * mechanism [ai.rojan.designlab.reception.presentation.dashboard.ReceptionDashboardViewModel]
+ * already uses. See [ActionsSection] below for the per-status button set
+ * and the cancel confirmation dialog (mirrors the one existing dialog
+ * precedent in the codebase, `AppointmentsScreen.kt`'s cancel-confirm).
  *
  * Resolves [Appointment.customerId]/[serviceId]/[specialistId] to display
  * data via [ManagerRepositories], the identical resolution
@@ -87,7 +75,7 @@ import androidx.compose.ui.unit.dp
  * already performs per row - no new lookup mechanism. Layout mirrors
  * [ai.rojan.designlab.manager.screens.customers.ManagerCustomerProfileScreen]
  * (identity header + stacked sections), the closer precedent for a
- * read-only single-record view than the Step 2/3 create/edit screens.
+ * single-record view than the Step 2/3 create/edit screens.
  */
 @Composable
 fun ManagerAppointmentDetailScreen(
@@ -95,22 +83,27 @@ fun ManagerAppointmentDetailScreen(
     appointmentId: String,
     onBackClick: (() -> Unit)? = null,
 ) {
-    val appointment = ManagerRepositories.appointments.getById(appointmentId)
+    val context = LocalContext.current
+    val viewModel: ManagerAppointmentDetailViewModel = viewModel(
+        factory = ManagerAppointmentDetailViewModelFactory(appointmentId, context),
+    )
+    val appointment by viewModel.appointment.collectAsState()
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         if (appointment == null) {
             return@ManagerScaffold
         }
+        val current = appointment!!
 
-        val customer = ManagerRepositories.customers.getById(appointment.customerId)
-        val service = ManagerRepositories.services.getById(appointment.serviceId)
-        val specialist = ManagerRepositories.specialists.getById(appointment.specialistId)
+        val customer = ManagerRepositories.customers.getById(current.customerId)
+        val service = ManagerRepositories.services.getById(current.serviceId)
+        val specialist = ManagerRepositories.specialists.getById(current.specialistId)
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceLG),
         ) {
-            item { AppointmentIdentityHeader(appointment, customerName = customer?.name ?: "—") }
+            item { AppointmentIdentityHeader(current, customerName = customer?.name ?: "—") }
             item {
                 ServiceSpecialistSection(
                     serviceName = service?.name ?: "—",
@@ -118,9 +111,19 @@ fun ManagerAppointmentDetailScreen(
                     specialistName = specialist?.name ?: "—",
                 )
             }
-            item { DateTimeSection(appointment) }
-            if (!appointment.notes.isNullOrBlank()) {
-                item { NotesSection(appointment.notes) }
+            item { DateTimeSection(current) }
+            if (!current.notes.isNullOrBlank()) {
+                item { NotesSection(current.notes) }
+            }
+            item {
+                ActionsSection(
+                    status = current.status,
+                    isSubmitting = viewModel.isSubmitting,
+                    actionError = viewModel.actionError,
+                    onConfirm = viewModel::confirm,
+                    onComplete = viewModel::complete,
+                    onCancel = viewModel::cancel,
+                )
             }
         }
     }
@@ -288,6 +291,86 @@ private fun NotesSection(notes: String) {
                     .padding(RojanDimens.SpaceMD),
             )
         }
+    }
+}
+
+/**
+ * Confirm/cancel/complete — the button set depends on [status]: `PENDING`
+ * gets "تایید"/"لغو نوبت", `CONFIRMED` gets "انجام شد"/"لغو نوبت",
+ * `COMPLETED`/`CANCELLED`/`NO_SHOW` are terminal and get none. Cancel is
+ * the one destructive action, so it goes through an [AlertDialog]
+ * confirmation first — same pattern as the Customer app's cancel flow in
+ * `AppointmentsScreen.kt`; confirm/complete are non-destructive promotions
+ * and fire directly.
+ */
+@Composable
+private fun ActionsSection(
+    status: AppointmentStatus,
+    isSubmitting: Boolean,
+    actionError: String?,
+    onConfirm: () -> Unit,
+    onComplete: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    if (status != AppointmentStatus.PENDING && status != AppointmentStatus.CONFIRMED) {
+        return
+    }
+
+    var showCancelConfirm by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (actionError != null) {
+            Text(
+                text = actionError,
+                style = RojanTypography.Caption,
+                color = RojanErrorText,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = RojanDimens.SpaceSM),
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ManagerPrimaryButton(
+                text = when {
+                    isSubmitting -> "در حال ثبت..."
+                    status == AppointmentStatus.PENDING -> "تایید"
+                    else -> "انجام شد"
+                },
+                onClick = if (status == AppointmentStatus.PENDING) onConfirm else onComplete,
+                enabled = !isSubmitting,
+                modifier = Modifier.weight(1f),
+            )
+
+            TextButton(onClick = { showCancelConfirm = true }, enabled = !isSubmitting) {
+                Text(text = "لغو نوبت", color = RojanErrorText)
+            }
+        }
+    }
+
+    if (showCancelConfirm) {
+        AlertDialog(
+            onDismissRequest = { showCancelConfirm = false },
+            title = { Text("لغو نوبت") },
+            text = { Text("مطمئن هستید می‌خواهید این نوبت را لغو کنید؟") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onCancel()
+                    showCancelConfirm = false
+                }) {
+                    Text("لغو نوبت", color = RojanErrorText)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelConfirm = false }) {
+                    Text("انصراف")
+                }
+            },
+        )
     }
 }
 

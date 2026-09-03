@@ -22,4 +22,14 @@ interface SpecialistRepository {
 
     /** Media System Evolution v2: this specialist's portfolio images, as plain URLs, pre-sorted by the backend's own display order. */
     suspend fun getPortfolio(salonId: String, specialistId: String): Result<List<String>>
+
+    /**
+     * Customer Specialist -> Services Integration: the real service ids this
+     * specialist is eligible to perform, per `SpecialistController`'s
+     * `GET /specialists/{id}/services`. **Empty means eligible for every
+     * service in the salon** - confirmed by reading `SpecialistController.kt`
+     * directly, never "assigned to nothing". Callers must preserve this
+     * distinction rather than treating an empty list as a restriction.
+     */
+    suspend fun getAssignedServiceIds(salonId: String, specialistId: String): Result<List<String>>
 }

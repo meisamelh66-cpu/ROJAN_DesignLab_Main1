@@ -31,6 +31,19 @@ interface SpecialistApi {
         @Query("targetId") targetId: String,
     ): List<MediaAssetResponseDto>
 
+    /**
+     * Customer Specialist -> Services Integration: the real service ids this
+     * specialist is eligible to perform. Raw `List<UUID>` on the backend
+     * (`SpecialistController.listEligibleServices`) - **empty means eligible
+     * for every service in the salon**, per that endpoint's own
+     * `@Operation` summary, never "assigned to nothing".
+     */
+    @GET("api/v1/salons/{salonId}/specialists/{specialistId}/services")
+    suspend fun getAssignedServiceIds(
+        @Path("salonId") salonId: String,
+        @Path("specialistId") specialistId: String,
+    ): List<String>
+
     @POST("api/v1/salons/{salonId}/specialists")
     suspend fun createSpecialist(
         @Path("salonId") salonId: String,
