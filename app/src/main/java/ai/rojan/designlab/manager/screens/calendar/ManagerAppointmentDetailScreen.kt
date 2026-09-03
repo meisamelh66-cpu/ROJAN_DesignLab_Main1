@@ -39,7 +39,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,9 +46,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 /**
@@ -59,15 +58,21 @@ import androidx.lifecycle.viewmodel.compose.viewModel
  * [ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen]'s
  * `onAppointmentClick`, via `ManagerNavGraph.kt`.
  *
- * Status-change actions are wired through
- * [ai.rojan.designlab.manager.presentation.calendar.ManagerAppointmentDetailViewModel],
- * which calls the real, existing `PATCH .../bookings/{id}/confirm|cancel|complete`
- * endpoints via the flavor-agnostic
- * [ai.rojan.designlab.domain.repository.BookingRepository] — the same
- * mechanism [ai.rojan.designlab.reception.presentation.dashboard.ReceptionDashboardViewModel]
- * already uses. See [ActionsSection] below for the per-status button set
- * and the cancel confirmation dialog (mirrors the one existing dialog
- * precedent in the codebase, `AppointmentsScreen.kt`'s cancel-confirm).
+ * Confirm/Complete/Cancel (RBAC compatibility fix — Manager Android Pilot;
+ * cancel added in branch-integration reconciliation): all three are real,
+ * backend-persistent actions via
+ * [ai.rojan.designlab.manager.presentation.calendar.ManagerAppointmentDetailViewModel] —
+ * `ManagerBookingApi.confirm`/`complete`/`cancel` (`PATCH /api/v1/bookings/{id}/confirm`|`/complete`|`/cancel`,
+ * already RBAC-correct on the backend, see that interface's own doc
+ * comment), routed through the manager-scoped
+ * [ai.rojan.designlab.manager.domain.repository.AppointmentRepository] —
+ * deliberately not the flavor-agnostic
+ * [ai.rojan.designlab.domain.repository.BookingRepository] Customer/
+ * Reception use, so Manager has exactly one coherent appointment-action
+ * abstraction rather than two competing ones. See [ActionsSection] below
+ * for the per-status button set and the cancel confirmation dialog
+ * (mirrors the one existing dialog precedent in the codebase,
+ * `AppointmentsScreen.kt`'s cancel-confirm).
  *
  * Resolves [Appointment.customerId]/[serviceId]/[specialistId] to display
  * data via [ManagerRepositories], the identical resolution
@@ -83,17 +88,15 @@ fun ManagerAppointmentDetailScreen(
     appointmentId: String,
     onBackClick: (() -> Unit)? = null,
 ) {
-    val context = LocalContext.current
     val viewModel: ManagerAppointmentDetailViewModel = viewModel(
-        factory = ManagerAppointmentDetailViewModelFactory(appointmentId, context),
+        factory = ManagerAppointmentDetailViewModelFactory(appointmentId),
     )
-    val appointment by viewModel.appointment.collectAsState()
+    val appointment by viewModel.appointment.collectAsStateWithLifecycle()
+    val isSubmitting by viewModel.isSubmitting.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
-        if (appointment == null) {
-            return@ManagerScaffold
-        }
-        val current = appointment!!
+        val current = appointment ?: return@ManagerScaffold
 
         val customer = ManagerRepositories.customers.getById(current.customerId)
         val service = ManagerRepositories.services.getById(current.serviceId)
@@ -118,11 +121,11 @@ fun ManagerAppointmentDetailScreen(
             item {
                 ActionsSection(
                     status = current.status,
-                    isSubmitting = viewModel.isSubmitting,
-                    actionError = viewModel.actionError,
-                    onConfirm = viewModel::confirm,
-                    onComplete = viewModel::complete,
-                    onCancel = viewModel::cancel,
+                    isSubmitting = isSubmitting,
+                    actionError = errorMessage,
+                    onConfirm = viewModel::confirmBooking,
+                    onComplete = viewModel::completeBooking,
+                    onCancel = viewModel::cancelBooking,
                 )
             }
         }

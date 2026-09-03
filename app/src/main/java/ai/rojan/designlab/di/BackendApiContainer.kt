@@ -116,10 +116,10 @@ class BackendApiContainer(context: Context) {
     val activeSalonContextRepository: ActiveSalonContextRepository =
         ActiveSalonContextRepositoryImpl(context.activeSalonDataStore)
 
+    val salonApi: SalonApi = retrofit.create(SalonApi::class.java)
+
     val salonRepository: SalonRepository =
-        SalonRepositoryImpl(
-            retrofit.create(SalonApi::class.java)
-        )
+        SalonRepositoryImpl(salonApi)
 
     val serviceCategoryRepository: ServiceCategoryRepository =
         ServiceCategoryRepositoryImpl(

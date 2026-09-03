@@ -48,23 +48,6 @@ interface AppointmentRepository {
      */
     fun updateStatus(id: String, status: AppointmentStatus): Appointment?
 
-    /**
-     * **Local-cache-only — not backend-persistent.** Same caveats as
-     * [update]; delegates to [updateStatus] with [AppointmentStatus.CANCELLED].
-     *
-     * Future real contract (Phase 11 Step 2 backend specification — not
-     * yet implemented backend-side, confirmed absent as of that audit):
-     * `PATCH /api/v1/salons/{salonId}/bookings/{bookingId}/cancel`, no
-     * request body, response `BookingResponseDto`, errors
-     * `BOOKING_NOT_FOUND`/`UNAUTHORIZED_SALON_ACCESS`/`INVALID_STATUS_TRANSITION`.
-     * When that endpoint is real, this should become `suspend fun
-     * cancel(id: String): Result<Appointment>` (matching [create]/
-     * [createForCustomer]'s shape), calling it via `safeApiCall` from
-     * [ai.rojan.designlab.manager.data.BackendAppointmentRepository] -
-     * not simply have this synchronous method's body swapped in place.
-     */
-    fun cancel(id: String): Appointment?
-
     suspend fun createForCustomer(
         customerId: String,
         serviceId: String,
@@ -72,4 +55,31 @@ interface AppointmentRepository {
         startTime: String,
         notes: String?,
     ): Result<Appointment>
+
+    /**
+     * Real, backend-persistent (RBAC compatibility fix — Manager Android
+     * Pilot): `PATCH /api/v1/bookings/{id}/confirm`, moving a `PENDING`
+     * booking to `CONFIRMED`. Distinct from [updateStatus], which stays
+     * local-cache-only for the transitions that still have no real backend
+     * endpoint wired up. See [ai.rojan.designlab.data.remote.ManagerBookingApi]'s
+     * own doc comment for why this is real despite this interface's other
+     * status-mutation methods not being.
+     */
+    suspend fun confirm(id: String): Result<Appointment>
+
+    /** Real, backend-persistent — same shape as [confirm]: `PATCH /api/v1/bookings/{id}/complete`, moving a `CONFIRMED` booking to `COMPLETED`. */
+    suspend fun complete(id: String): Result<Appointment>
+
+    /**
+     * Real, backend-persistent (branch-integration reconciliation) — same
+     * shape as [confirm]/[complete]: `PATCH /api/v1/bookings/{id}/cancel`,
+     * moving a `PENDING`/`CONFIRMED` booking to `CANCELLED`. Confirmed
+     * against backend source; see
+     * [ai.rojan.designlab.data.remote.ManagerBookingApi]'s own doc comment
+     * for this endpoint's (slightly broader) authorization rule. Replaces
+     * the previous local-cache-only synchronous `cancel(id): Appointment?`
+     * — [update]/[updateStatus] remain local-cache-only for the
+     * transitions that still have no real backend endpoint.
+     */
+    suspend fun cancel(id: String): Result<Appointment>
 }

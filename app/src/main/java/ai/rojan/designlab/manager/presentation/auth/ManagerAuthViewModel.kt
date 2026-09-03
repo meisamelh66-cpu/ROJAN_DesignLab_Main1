@@ -11,6 +11,7 @@ import ai.rojan.designlab.domain.repository.CurrentUserIdentityContextRepository
 import ai.rojan.designlab.domain.repository.TokenRepository
 import ai.rojan.designlab.domain.repository.availableSalons
 import ai.rojan.designlab.domain.repository.toActiveSalonContext
+import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.domain.auth.ActiveSalonUiState
 import ai.rojan.designlab.manager.domain.auth.ManagerAuthState
 import ai.rojan.designlab.manager.domain.auth.ManagerOtpStep
@@ -296,7 +297,7 @@ class ManagerAuthViewModel(
         _otpStep.value = ManagerOtpStep.EnteringPhone
     }
 
-    /** Discards the session (tokens + persisted identity) and returns to [ManagerAuthState.Unauthenticated]. */
+    /** Discards the session (tokens + persisted identity + cached active-salon snapshot) and returns to [ManagerAuthState.Unauthenticated]. */
     fun logout() {
         viewModelScope.launch {
             clearSession()
@@ -307,6 +308,7 @@ class ManagerAuthViewModel(
         tokenRepository.clearTokens()
         authSessionRepository.clearPersonId()
         activeSalonContextRepository.clearActiveSalonId()
+        ManagerRepositories.clearActiveSalon()
         _otpStep.value = ManagerOtpStep.EnteringPhone
         _identityContext.value = UiState.Loading
         _activeSalonState.value = ActiveSalonUiState.Loading

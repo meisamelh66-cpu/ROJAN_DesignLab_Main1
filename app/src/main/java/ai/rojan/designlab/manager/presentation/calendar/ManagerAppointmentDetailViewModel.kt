@@ -1,15 +1,8 @@
 package ai.rojan.designlab.manager.presentation.calendar
 
-import ai.rojan.designlab.domain.repository.Booking
-import ai.rojan.designlab.domain.repository.BookingRepository
-import ai.rojan.designlab.domain.repository.BookingStatus
+import ai.rojan.designlab.data.remote.BackendApiException
 import ai.rojan.designlab.manager.domain.appointment.Appointment
-import ai.rojan.designlab.manager.domain.appointment.AppointmentStatus
 import ai.rojan.designlab.manager.domain.repository.AppointmentRepository
-import ai.rojan.designlab.presentation.common.userMessageFor
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,58 +11,77 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Manager Booking Actions (Android Pilot P0 gap) — confirm/cancel/complete
- * for [ai.rojan.designlab.manager.screens.calendar.ManagerAppointmentDetailScreen].
- * Calls the real, existing `PATCH .../bookings/{id}/confirm|cancel|complete`
- * endpoints via the flavor-agnostic [genericBookingRepository]
- * ([BookingRepository]) — the exact same pattern
- * [ai.rojan.designlab.reception.presentation.dashboard.ReceptionDashboardViewModel]
- * already uses for the identical problem, not a new mechanism. No new
- * repository: [appointmentRepository] stays
- * [ai.rojan.designlab.manager.data.ManagerRepositories.appointments], and a
- * successful action reflects the fresh status into it via its own
- * [AppointmentRepository.updateStatus] (previously dead code, now this
- * class's real call site) rather than a full
- * [ai.rojan.designlab.manager.data.BackendAppointmentRepository.sync].
+ * RBAC compatibility fix — Manager Android Pilot: owns the Confirm/Complete
+ * actions for [ai.rojan.designlab.manager.screens.calendar.ManagerAppointmentDetailScreen],
+ * which that screen's own doc comment previously said would need a
+ * ViewModel once real mutation existed ("this screen currently has no
+ * ViewModel at all... real mutation would need one, since isSubmitting/error
+ * state can't live in a stateless @Composable"). Same
+ * `isSubmitting`/error-mapping shape as
+ * [ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel],
+ * for the same reason: real `Result`-returning repository calls need a place
+ * to hold in-flight/error state that survives recomposition.
+ *
+ * [cancelBooking] (branch-integration reconciliation) follows
+ * [confirmBooking]/[completeBooking]'s exact same shape —
+ * [AppointmentRepository.cancel] is just as real and backend-persistent as
+ * confirm/complete.
+ *
+ * [appointment] starts from [AppointmentRepository.getById] and is replaced
+ * with the real, backend-returned row after a successful [confirmBooking]/
+ * [completeBooking]/[cancelBooking] — not just optimistically flipped
+ * locally — so the screen always reflects what the backend actually
+ * persisted.
  */
 class ManagerAppointmentDetailViewModel(
-    private val appointmentId: String,
     private val appointmentRepository: AppointmentRepository,
-    private val genericBookingRepository: BookingRepository,
+    appointmentId: String,
 ) : ViewModel() {
 
     private val _appointment = MutableStateFlow(appointmentRepository.getById(appointmentId))
     val appointment: StateFlow<Appointment?> = _appointment.asStateFlow()
 
-    var isSubmitting by mutableStateOf(false)
-        private set
+    private val _isSubmitting = MutableStateFlow(false)
+    val isSubmitting: StateFlow<Boolean> = _isSubmitting.asStateFlow()
 
-    var actionError by mutableStateOf<String?>(null)
-        private set
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    fun confirm() = performAction { genericBookingRepository.confirmBooking(appointmentId) }
+    /** Moves this booking from `PENDING` to `CONFIRMED` — only meaningful while [appointment] is `PENDING`; the screen gates the button on that, this does not re-check it. */
+    fun confirmBooking() = mutate { appointmentRepository.confirm(it) }
 
-    fun cancel() = performAction { genericBookingRepository.cancelBooking(appointmentId) }
+    /** Moves this booking from `CONFIRMED` to `COMPLETED` — only meaningful while [appointment] is `CONFIRMED`; the screen gates the button on that, this does not re-check it. */
+    fun completeBooking() = mutate { appointmentRepository.complete(it) }
 
-    fun complete() = performAction { genericBookingRepository.completeBooking(appointmentId) }
+    /** Moves this booking from `PENDING`/`CONFIRMED` to `CANCELLED` — same shape as [confirmBooking]/[completeBooking]. */
+    fun cancelBooking() = mutate { appointmentRepository.cancel(it) }
 
-    private fun performAction(action: suspend () -> Result<Booking>) {
-        actionError = null
-        isSubmitting = true
+    private fun mutate(call: suspend (id: String) -> Result<Appointment>) {
+        val id = _appointment.value?.id ?: return
+        _isSubmitting.value = true
+        _errorMessage.value = null
         viewModelScope.launch {
-            action()
-                .onSuccess { booking ->
-                    _appointment.value = appointmentRepository.updateStatus(appointmentId, booking.status.toAppointmentStatus())
-                }
-                .onFailure { error -> actionError = userMessageFor(error) }
-            isSubmitting = false
+            call(id)
+                .onSuccess { updated -> _appointment.value = updated }
+                .onFailure { error -> _errorMessage.value = bookingActionErrorMessage(error) }
+            _isSubmitting.value = false
         }
     }
 }
 
-private fun BookingStatus.toAppointmentStatus(): AppointmentStatus = when (this) {
-    BookingStatus.PENDING -> AppointmentStatus.PENDING
-    BookingStatus.CONFIRMED -> AppointmentStatus.CONFIRMED
-    BookingStatus.CANCELLED -> AppointmentStatus.CANCELLED
-    BookingStatus.COMPLETED -> AppointmentStatus.COMPLETED
+/**
+ * Maps a real [ManagerAppointmentDetailViewModel.confirmBooking]/[ManagerAppointmentDetailViewModel.completeBooking]/[ManagerAppointmentDetailViewModel.cancelBooking]
+ * failure to Persian, user-facing copy — same idiom as
+ * [ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel]'s
+ * own `confirmErrorMessage`, distinguishing the backend's real status-
+ * transition/access error codes from a generic failure.
+ */
+private fun bookingActionErrorMessage(error: Throwable): String {
+    val apiError = (error as? BackendApiException)?.apiError
+    return when (apiError?.errorCode) {
+        "INVALID_BOOKING_STATE" -> "این نوبت در وضعیتی نیست که بتوان این عملیات را روی آن انجام داد."
+        "ACCESS_DENIED" -> "شما اجازه انجام این عملیات را ندارید."
+        "BOOKING_NOT_FOUND" -> "این نوبت دیگر یافت نشد."
+        else -> apiError?.message ?: "عملیات با خطا مواجه شد. لطفاً دوباره تلاش کنید."
+    }
 }

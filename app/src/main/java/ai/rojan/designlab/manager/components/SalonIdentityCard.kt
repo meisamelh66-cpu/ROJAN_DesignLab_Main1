@@ -28,12 +28,18 @@ import androidx.compose.ui.unit.dp
  * component reused.
  *
  * Phase 2, M6: [salonName]/[salonCategory]/[isActive] are real backend
- * fields (`GET /salons/mine`'s `name`/`description`/`active`) once
- * [ai.rojan.designlab.manager.data.ManagerRepositories.salon] loads —
- * the defaults here only cover the brief cold-start window before that
- * happens (and `@Preview`), not fabricated production data. [salonCategory]
- * is the salon's free-text `description`; the backend has no distinct
- * "category" field.
+ * fields (`GET /salons/{salonId}`'s `name`/`description`/`active`) once
+ * [ai.rojan.designlab.manager.data.ManagerRepositories.salon] loads.
+ * [salonCategory] is the salon's free-text `description`; the backend has
+ * no distinct "category" field.
+ *
+ * Manager Dashboard Active Salon Fix: [isLoading] replaces the previous
+ * hardcoded preview-only defaults (`سالن رویان` etc.) that used to stand
+ * in for "not loaded yet" — those were silently indistinguishable from a
+ * real salon named the same, which was the exact bug in
+ * `ROJAN_Active_Salon_Context_Root_Cause_Report_v1.md`. Callers must now
+ * pass real data or explicitly ask for the loading state; there is no
+ * fallback that looks like a real salon.
  *
  * ROJAN AI Manager Visual Theme Implementation: re-themed for the dark
  * luxury background — content/layout unchanged.
@@ -41,9 +47,10 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SalonIdentityCard(
     modifier: Modifier = Modifier,
-    salonName: String = "سالن رویان",
-    salonCategory: String? = "آرایش و زیبایی بانوان",
+    salonName: String = "",
+    salonCategory: String? = null,
     isActive: Boolean = true,
+    isLoading: Boolean = false,
 ) {
     ManagerGlassSurface(
         modifier = modifier.fillMaxWidth(),
@@ -58,17 +65,17 @@ fun SalonIdentityCard(
         ) {
             ManagerIconContainer(
                 imageVector = Icons.Filled.Storefront,
-                contentDescription = salonName,
+                contentDescription = if (isLoading) "در حال بارگذاری سالن" else salonName,
                 containerSize = 64.dp,
             )
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = salonName,
+                    text = if (isLoading) "در حال بارگذاری..." else salonName,
                     style = RojanTypography.CardTitle,
-                    color = ManagerColors.TextPrimary,
+                    color = if (isLoading) ManagerColors.TextSecondary else ManagerColors.TextPrimary,
                 )
-                if (!salonCategory.isNullOrBlank()) {
+                if (!isLoading && !salonCategory.isNullOrBlank()) {
                     Text(
                         text = salonCategory,
                         style = RojanTypography.Caption,
@@ -77,24 +84,26 @@ fun SalonIdentityCard(
                     )
                 }
 
-                Row(
-                    modifier = Modifier.padding(top = RojanDimens.SpaceSM),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(
-                                if (isActive) RojanStatusOnline else ManagerColors.TextSecondary,
-                                CircleShape,
-                            ),
-                    )
-                    Text(
-                        text = if (isActive) "فعال" else "غیرفعال",
-                        style = RojanTypography.Caption,
-                        color = if (isActive) RojanStatusOnline else ManagerColors.TextSecondary,
-                    )
+                if (!isLoading) {
+                    Row(
+                        modifier = Modifier.padding(top = RojanDimens.SpaceSM),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(
+                                    if (isActive) RojanStatusOnline else ManagerColors.TextSecondary,
+                                    CircleShape,
+                                ),
+                        )
+                        Text(
+                            text = if (isActive) "فعال" else "غیرفعال",
+                            style = RojanTypography.Caption,
+                            color = if (isActive) RojanStatusOnline else ManagerColors.TextSecondary,
+                        )
+                    }
                 }
             }
         }

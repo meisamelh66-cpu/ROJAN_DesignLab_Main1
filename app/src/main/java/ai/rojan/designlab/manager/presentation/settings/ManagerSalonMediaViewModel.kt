@@ -66,7 +66,7 @@ class ManagerSalonMediaViewModel(
             _loadState.value = UiState.Error("سالن فعال یافت نشد")
             return
         }
-        val salon = ManagerRepositories.salon
+        val salon = ManagerRepositories.salon.value
         _loadState.value = UiState.Success(SalonMediaState(logoUrl = salon?.logoUrl, coverUrl = salon?.coverImageUrl))
     }
 
