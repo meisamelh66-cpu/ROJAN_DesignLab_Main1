@@ -147,6 +147,21 @@ android {
 
     buildTypes {
         release {
+            // R8 code shrinking/obfuscation + resource shrinking (Sprint 5A-2).
+            // App code has no reflection, no dynamic class/resource loading,
+            // no WebView, no @Keep/@Parcelize; the only libraries with R8
+            // hazards (Retrofit, kotlinx.serialization, OkHttp, coroutines)
+            // all ship their own bundled R8 rules, so app/proguard-rules.pro
+            // stays minimal — see that file.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+            // Separate, newer AGP "application optimization" toggle — left
+            // off deliberately (was already false). Independent of
+            // isMinifyEnabled above, which is what drives the R8 task.
             optimization {
                 enable = false
             }
