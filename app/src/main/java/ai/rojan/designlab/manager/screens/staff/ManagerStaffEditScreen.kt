@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -70,7 +72,10 @@ fun ManagerStaffEditScreen(
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD),
+            // Sprint 5A-3: scrollable so the form stays reachable when
+            // ManagerScaffold's safeDrawing inset shrinks the area for the
+            // keyboard.
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(RojanDimens.SpaceMD),
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {
             Text(

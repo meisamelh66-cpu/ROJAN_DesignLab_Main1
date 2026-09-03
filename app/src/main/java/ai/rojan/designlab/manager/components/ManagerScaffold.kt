@@ -8,9 +8,13 @@ import ai.rojan.designlab.ui.theme.RojanShapes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
@@ -46,6 +50,9 @@ fun ManagerScaffold(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    // Sprint 5A-3: full-bleed background, inset content
+                    // (status + nav + cutout + IME).
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
                     .padding(contentPadding),
             ) {
                 content()
@@ -56,6 +63,7 @@ fun ManagerScaffold(
                     onClick = onBackClick,
                     modifier = Modifier
                         .align(Alignment.TopStart)
+                        .statusBarsPadding()
                         .padding(RojanDimens.SpaceLG),
                 )
             }

@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.TextButton
 import ai.rojan.designlab.ui.text.Text
@@ -93,6 +95,10 @@ fun AuthScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                // Sprint 5A-3: HomeBackgroundTheme applies the safeDrawing
+                // inset (status bar + keyboard); the scroll keeps the
+                // fields reachable when that area shrinks for the keyboard.
+                .verticalScroll(rememberScrollState())
                 .padding(RojanDimens.SpaceMD),
         ) {
             GlassBackButton(onClick = {

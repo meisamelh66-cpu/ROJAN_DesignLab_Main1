@@ -1,6 +1,6 @@
-package ai.rojan.designlab.reception.components
+package ai.rojan.designlab.screens.customer
 
-import ai.rojan.designlab.ui.background.WarmBackground
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.theme.RojanDimens
 import androidx.compose.foundation.layout.Box
@@ -17,35 +17,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
 /**
- * Reception App workspace screen wrapper — same structure as
- * [ai.rojan.designlab.ui.components.scaffold.RojanScaffold] (left
- * untouched), but built on the shared [WarmBackground] rather than
- * [ai.rojan.designlab.ui.background.PremiumBackground]'s decorative salon
- * photo (not appropriate behind operational staff screens) or a bespoke
- * dark theme like Manager's [ai.rojan.designlab.manager.components.ManagerScaffold]
- * (Manager's dark background came from an approved design reference —
- * `design/reference/ROJAN_Manager_Reference.png` — no equivalent exists
- * for Reception yet, so this deliberately reuses the shared, already-
- * approved light background instead of inventing a new visual system).
- * The shared [GlassBackButton] (white glass + dark-purple icon) is correct
- * as-is on this light background, unlike Manager's case.
+ * Sprint 5A-3 — the Customer-app screen wrapper, counterpart to
+ * `ManagerScaffold` / `ReceptionScaffold`: the dark [HomeBackgroundTheme]
+ * canvas full-bleed behind the system bars, a `WindowInsets.safeDrawing`
+ * content inset (status + nav + cutout + IME), and the shared
+ * [GlassBackButton] pinned just below the status bar.
  *
- * See ROJAN_Reception_Implementation_Plan_v1.md, Phase 0.
+ * Existing Customer screens still call [HomeBackgroundTheme] directly and
+ * already get the identical `safeDrawing` inset via its
+ * `applyContentInsets = true` default — this wrapper only spares *new*
+ * screens from re-hand-rolling the `Box` / `Column` / back-button
+ * structure. Migrating the existing direct callers onto it is deferred
+ * design-system cleanup, not an edge-to-edge change.
  */
 @Composable
-fun ReceptionScaffold(
+fun CustomerScreenScaffold(
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
     contentPadding: PaddingValues = PaddingValues(RojanDimens.SpaceMD),
     content: @Composable () -> Unit,
 ) {
-    WarmBackground {
+    HomeBackgroundTheme(applyContentInsets = false) {
         Box(modifier = modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    // Sprint 5A-3: full-bleed background, inset content
-                    // (status + nav + cutout + IME).
                     .windowInsetsPadding(WindowInsets.safeDrawing)
                     .padding(contentPadding),
             ) {

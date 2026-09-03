@@ -4,6 +4,7 @@ import ai.rojan.designlab.manager.navigation.ManagerRootGraph
 import ai.rojan.designlab.ui.theme.LocalRojanPalette
 import ai.rojan.designlab.ui.theme.ManagerPalette
 import ai.rojan.designlab.ui.theme.RojanTheme
+import ai.rojan.designlab.ui.window.applyRojanEdgeToEdge
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -25,6 +26,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 class ManagerActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        applyRojanEdgeToEdge(darkCanvas = true)
         super.onCreate(savedInstanceState)
 
         setContent {

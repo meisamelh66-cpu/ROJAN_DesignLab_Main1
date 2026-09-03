@@ -148,6 +148,10 @@ fun CustomerHomeScreen(
 
     HomeBackgroundTheme(
         modifier = Modifier.fillMaxSize(),
+        // Insets handled locally: HomeHeader applies statusBarsPadding and
+        // CustomerBottomBar applies navigationBarsPadding; the LazyColumn
+        // stays full-bleed so content scrolls under the bars.
+        applyContentInsets = false,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(

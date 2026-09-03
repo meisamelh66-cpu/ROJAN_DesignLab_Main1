@@ -3,7 +3,10 @@ package ai.rojan.designlab.screens.customer.hometheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -22,10 +25,21 @@ import androidx.compose.ui.platform.LocalDensity
  * `WarmBackground` — solid base + gradient wash + radial glow zones —
  * with a dark navy / deep-purple palette per the approved reference image
  * instead of warm white.
+ *
+ * Sprint 5A-3 (edge-to-edge): the background is always full-bleed (paints
+ * behind the system bars). [applyContentInsets] — `true` for the ~25
+ * Customer screens that call this directly and lay their content straight
+ * into the slot — insets that content by `WindowInsets.safeDrawing`
+ * (status + nav + cutout + IME) so nothing sits under a bar or the
+ * keyboard. Screens that manage their own insets pass `false`:
+ * `CustomerHomeScreen` / `CustomerDashboardScreen` (own `HomeHeader`
+ * status-bar padding + `CustomerBottomBar` nav-bar padding) and
+ * `SplashScreen` (centred content).
  */
 @Composable
 fun HomeBackgroundTheme(
     modifier: Modifier = Modifier,
+    applyContentInsets: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     BoxWithConstraints(
@@ -76,7 +90,17 @@ fun HomeBackgroundTheme(
                 ),
         )
 
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (applyContentInsets) {
+                        Modifier.windowInsetsPadding(WindowInsets.safeDrawing)
+                    } else {
+                        Modifier
+                    },
+                ),
+        ) {
             content()
         }
     }

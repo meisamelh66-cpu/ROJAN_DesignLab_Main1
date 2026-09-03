@@ -88,7 +88,8 @@ fun SplashScreen(
     }
 
 
-    HomeBackgroundTheme {
+    // Centred content — no inset needed; keep it full-bleed.
+    HomeBackgroundTheme(applyContentInsets = false) {
         SplashScreenContent(
             modifier = Modifier.alpha(alpha.value)
         )

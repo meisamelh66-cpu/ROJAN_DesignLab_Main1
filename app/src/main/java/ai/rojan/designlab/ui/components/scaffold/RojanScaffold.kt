@@ -3,8 +3,12 @@ package ai.rojan.designlab.ui.components.scaffold
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +51,11 @@ fun RojanScaffold(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    // Sprint 5A-3: keep the background full-bleed behind the
+                    // system bars, but inset the content (status + nav +
+                    // cutout + IME) so nothing sits under a bar or the
+                    // keyboard.
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
                     .padding(contentPadding),
             ) {
                 content()
@@ -57,6 +66,7 @@ fun RojanScaffold(
                     onClick = onBackClick,
                     modifier = Modifier
                         .align(Alignment.TopStart)
+                        .statusBarsPadding()
                         .padding(RojanDimens.SpaceLG),
                 )
             }

@@ -18,7 +18,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -76,7 +78,13 @@ fun ReceptionOtpAuthScreen(
 
     ReceptionScaffold {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD),
+            // Sprint 5A-3: ReceptionScaffold applies the safeDrawing inset
+            // (status bar + keyboard); the scroll keeps the entry cards
+            // reachable when that area shrinks for the keyboard.
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(RojanDimens.SpaceMD),
             verticalArrangement = Arrangement.Center,
         ) {
             Text(

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
@@ -33,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -104,7 +106,11 @@ fun CustomerBottomBar(
     val homeButtonOuterSize = 88.dp
 
     Box(
-        modifier = modifier,
+        // Sprint 5A-3: the pill floats above the gesture / 3-button nav
+        // bar. The caller's onSizeChanged sits left of this padding, so the
+        // measured height it feeds into the list's bottom contentPadding
+        // already includes the nav inset.
+        modifier = modifier.navigationBarsPadding(),
         contentAlignment = Alignment.TopCenter,
     ) {
         HomeGlassSurface(
@@ -187,14 +193,13 @@ fun CustomerBottomBar(
                 // have: Row's own SpaceXS top padding, a 20dp-tall slot
                 // (RojanIconSize.Medium), then a 4dp upward bias — FAB
                 // offset/size/position unchanged, only unclipped now.
+                // Sprint 5A-3: the click handler moved off this 20dp-tall
+                // layout box onto the visible 64dp circle below, so the
+                // Home tap target is a real 64dp (was ~20dp) — geometry
+                // here is untouched.
                 .padding(top = RojanDimens.SpaceXS)
                 .height(RojanIconSize.Medium.dp)
-                .offset(y = (-4).dp)
-                .clickable(
-                    interactionSource = homeInteractionSource,
-                    indication = LocalIndication.current,
-                    onClick = { onTabSelected(CustomerHomeTab.HOME) },
-                ),
+                .offset(y = (-4).dp),
             contentAlignment = Alignment.Center,
         ) {
             // requiredSize (not size): the enclosing Box above is
@@ -213,9 +218,17 @@ fun CustomerBottomBar(
             HomeMetallicRing(modifier = Modifier.requiredSize(72.dp))
             Box(
                 modifier = Modifier
-                    // Reference spec: center button = 64dp.
+                    // Reference spec: center button = 64dp. requiredSize
+                    // ignores the 20dp parent constraint, so this is the
+                    // real hit area — the Home tap target is 64dp.
                     .requiredSize(64.dp)
-                    .background(HomeColors.Glow, CircleShape),
+                    .clip(CircleShape)
+                    .background(HomeColors.Glow, CircleShape)
+                    .clickable(
+                        interactionSource = homeInteractionSource,
+                        indication = LocalIndication.current,
+                        onClick = { onTabSelected(CustomerHomeTab.HOME) },
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
                 RojanIconContainer(

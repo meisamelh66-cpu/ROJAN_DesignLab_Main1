@@ -8,11 +8,13 @@ import ai.rojan.designlab.navigation.RojanNavGraph
 import ai.rojan.designlab.ui.theme.CustomerPalette
 import ai.rojan.designlab.ui.theme.LocalRojanPalette
 import ai.rojan.designlab.ui.theme.RojanTheme
+import ai.rojan.designlab.ui.window.applyRojanEdgeToEdge
 
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        applyRojanEdgeToEdge(darkCanvas = true)
         super.onCreate(savedInstanceState)
 
         setContent {

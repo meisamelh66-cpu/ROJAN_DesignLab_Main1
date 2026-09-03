@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -75,8 +74,11 @@ fun ManagerOtpAuthScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                // Sprint 5A-3: the keyboard (IME) inset is now applied once
+                // by ManagerScaffold (WindowInsets.safeDrawing); this
+                // screen only keeps the scroll so the field stays reachable
+                // when the area shrinks.
                 .verticalScroll(rememberScrollState())
-                .imePadding()
                 .padding(RojanDimens.SpaceMD),
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {

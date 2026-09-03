@@ -4,6 +4,7 @@ import ai.rojan.designlab.reception.navigation.ReceptionRootGraph
 import ai.rojan.designlab.ui.theme.LocalRojanPalette
 import ai.rojan.designlab.ui.theme.ReceptionPalette
 import ai.rojan.designlab.ui.theme.RojanTheme
+import ai.rojan.designlab.ui.window.applyRojanEdgeToEdge
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -23,6 +24,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 class ReceptionActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        applyRojanEdgeToEdge(darkCanvas = false)
         super.onCreate(savedInstanceState)
 
         setContent {
