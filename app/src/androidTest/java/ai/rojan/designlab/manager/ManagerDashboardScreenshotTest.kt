@@ -2,6 +2,8 @@ package ai.rojan.designlab.manager
 
 import ai.rojan.designlab.manager.navigation.ManagerDestinations
 import ai.rojan.designlab.manager.navigation.managerNavGraph
+import ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel
+import ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModelFactory
 import ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen
 import ai.rojan.designlab.manager.screens.customers.ManagerCustomerProfileScreen
 import ai.rojan.designlab.manager.screens.customers.ManagerCustomersListScreen
@@ -12,6 +14,7 @@ import ai.rojan.designlab.ui.theme.RojanTheme
 import android.graphics.Bitmap
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasSetTextAction
@@ -22,6 +25,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
@@ -134,9 +138,15 @@ class ManagerDashboardScreenshotTest {
         lateinit var navController: NavHostController
         composeTestRule.setContent {
             navController = rememberNavController()
+            // Same construction ManagerRootGraph uses (this codebase has no
+            // DI framework): the real ManagerAuthViewModelFactory over the
+            // instrumentation Context.
+            val authViewModel: ManagerAuthViewModel = viewModel(
+                factory = ManagerAuthViewModelFactory(LocalContext.current.applicationContext),
+            )
             RojanTheme {
                 NavHost(navController = navController, startDestination = ManagerDestinations.DASHBOARD) {
-                    managerNavGraph(navController)
+                    managerNavGraph(navController, authViewModel)
                 }
             }
         }
@@ -193,9 +203,15 @@ class ManagerDashboardScreenshotTest {
         lateinit var navController: NavHostController
         composeTestRule.setContent {
             navController = rememberNavController()
+            // Same construction ManagerRootGraph uses (this codebase has no
+            // DI framework): the real ManagerAuthViewModelFactory over the
+            // instrumentation Context.
+            val authViewModel: ManagerAuthViewModel = viewModel(
+                factory = ManagerAuthViewModelFactory(LocalContext.current.applicationContext),
+            )
             RojanTheme {
                 NavHost(navController = navController, startDestination = ManagerDestinations.CUSTOMERS) {
-                    managerNavGraph(navController)
+                    managerNavGraph(navController, authViewModel)
                 }
             }
         }
