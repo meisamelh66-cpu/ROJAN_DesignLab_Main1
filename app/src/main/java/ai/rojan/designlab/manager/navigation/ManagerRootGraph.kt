@@ -16,6 +16,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 
+import ai.rojan.designlab.ui.motion.RojanNavTransitions
+import ai.rojan.designlab.ui.motion.rememberReducedMotion
+
 /**
  * OTP Authentication Entry Flow Integration — the real authentication gate
  * for the Manager App, replacing the previous unconditional
@@ -88,9 +91,21 @@ fun ManagerRootGraph() {
         }
     }
 
+    // UI Polish Sprint 2, Task 2: the Manager graph previously had no
+    // page transitions (screens snapped in). Applied here at the NavHost
+    // level — one place, every Manager destination — using the same
+    // direction-neutral fade+scale set as the Customer graph, and
+    // reduced-motion aware. `managerNavGraph`'s own `composable { }` calls
+    // are untouched.
+    val reduceMotion = rememberReducedMotion()
+
     NavHost(
         navController = navController,
         startDestination = startDestination,
+        enterTransition = { RojanNavTransitions.pageEnter(reduceMotion) },
+        exitTransition = { RojanNavTransitions.pageExit(reduceMotion) },
+        popEnterTransition = { RojanNavTransitions.popEnter(reduceMotion) },
+        popExitTransition = { RojanNavTransitions.popExit(reduceMotion) },
     ) {
         managerNavGraph(navController, authViewModel)
     }

@@ -48,7 +48,8 @@ import ai.rojan.designlab.screens.specialist.SpecialistProfileScreen
 import ai.rojan.designlab.screens.splash.SplashScreen
 import ai.rojan.designlab.ui.theme.RojanLuxuryCaption
 
-import ai.rojan.designlab.ui.animation.RojanAnimations
+import ai.rojan.designlab.ui.motion.RojanNavTransitions
+import ai.rojan.designlab.ui.motion.rememberReducedMotion
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -85,12 +86,13 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 
 
-// Final Premium Polish, Phase 1: relocated (unchanged values) onto
-// RojanAnimations.PageEnter/PageExit — the shared page-transition system
-// now used to be the single source of truth for cross-screen navigation
-// motion, instead of living only as private vals in this one file.
-private val motionEnter = RojanAnimations.PageEnter
-private val motionExit = RojanAnimations.PageExit
+// UI Polish Sprint 2: page-transition values now come from
+// RojanNavTransitions (shared with the Manager graph) and are
+// reduced-motion aware. The `motionEnter` / `motionExit` names the
+// `composable { ... }` blocks below reference are declared as LOCAL vals
+// inside the NavHost composable (see the SessionRestoreState.Restored
+// branch) so they can read `rememberReducedMotion()` — they are no longer
+// top-level vals here.
 
 
 /**
@@ -265,6 +267,14 @@ fun RojanNavGraph() {
             // existing "login only when booking" gate on the booking flow.
             // Authenticated customers still land on CUSTOMER_HOME (the
             // Dashboard), unchanged.
+            // UI Polish Sprint 2: local (not top-level) so they can read the
+            // reduced-motion setting; every `enterTransition = { motionEnter }`
+            // / `exitTransition = { motionExit }` in the NavHost below
+            // resolves to these.
+            val reduceMotion = rememberReducedMotion()
+            val motionEnter = RojanNavTransitions.pageEnter(reduceMotion)
+            val motionExit = RojanNavTransitions.pageExit(reduceMotion)
+
             val startDestination = remember {
                 RojanDestinations.routeForPersonRoles(state.personRoles)
                     ?: if (state.personId != null) {

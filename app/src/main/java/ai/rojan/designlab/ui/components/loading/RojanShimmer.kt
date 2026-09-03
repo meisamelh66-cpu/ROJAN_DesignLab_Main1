@@ -23,6 +23,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 
+import ai.rojan.designlab.ui.motion.RojanMotion
+import ai.rojan.designlab.ui.motion.rememberReducedMotion
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanLoadingGlowEnd
 import ai.rojan.designlab.ui.theme.RojanLoadingGlowMid
@@ -47,16 +49,24 @@ import ai.rojan.designlab.ui.theme.RojanShapes
  * needs a separate base-fill layer underneath it.
  */
 fun Modifier.rojanShimmer(shape: Shape = RojanShapes.Small): Modifier = composed {
-    val transition = rememberInfiniteTransition(label = "rojan_shimmer")
-    val sweep by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1100, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "rojan_shimmer_sweep",
-    )
+    // Reduced motion: hold the sweep at a fixed mid position so a skeleton
+    // still reads as a "loading" placeholder (a soft static gradient band)
+    // without an animated loop.
+    val sweep = if (rememberReducedMotion()) {
+        0.5f
+    } else {
+        val transition = rememberInfiniteTransition(label = "rojan_shimmer")
+        val animated by transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = RojanMotion.Shimmer, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+            label = "rojan_shimmer_sweep",
+        )
+        animated
+    }
 
     val brush = Brush.linearGradient(
         colors = listOf(

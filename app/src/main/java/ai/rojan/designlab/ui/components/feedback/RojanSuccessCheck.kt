@@ -1,7 +1,9 @@
 package ai.rojan.designlab.ui.components.feedback
 
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -24,6 +26,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
+import ai.rojan.designlab.ui.motion.rememberReducedMotion
 import ai.rojan.designlab.ui.theme.RojanStatusOnline
 import ai.rojan.designlab.ui.theme.RojanWarmWhite
 
@@ -48,13 +51,16 @@ fun RojanSuccessCheckmark(
     modifier: Modifier = Modifier,
     size: Dp = 72.dp,
 ) {
+    val reduceMotion = rememberReducedMotion()
+
     var ringVisible by remember { mutableStateOf(false) }
     var checkVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(visible) {
         if (visible) {
             ringVisible = true
-            delay(120)
+            // Reduced motion: no "ring then check" stagger — both appear together.
+            if (!reduceMotion) delay(120)
             checkVisible = true
         } else {
             checkVisible = false
@@ -62,20 +68,24 @@ fun RojanSuccessCheckmark(
         }
     }
 
-    val ringScale by animateFloatAsState(
-        targetValue = if (ringVisible) 1f else 0f,
-        animationSpec = spring(
+    // Reduced motion: snap to the end state (no spring overshoot).
+    val scaleSpec: AnimationSpec<Float> = if (reduceMotion) {
+        snap()
+    } else {
+        spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium,
-        ),
+        )
+    }
+
+    val ringScale by animateFloatAsState(
+        targetValue = if (ringVisible) 1f else 0f,
+        animationSpec = scaleSpec,
         label = "rojan_success_ring_scale",
     )
     val checkScale by animateFloatAsState(
         targetValue = if (checkVisible) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium,
-        ),
+        animationSpec = scaleSpec,
         label = "rojan_success_check_scale",
     )
 

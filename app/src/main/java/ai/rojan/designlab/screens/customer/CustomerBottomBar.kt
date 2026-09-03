@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
+import ai.rojan.designlab.ui.motion.rememberReducedMotion
 import ai.rojan.designlab.ui.components.effects.RojanAmbientGlow
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
@@ -242,15 +243,21 @@ fun CustomerBottomBar(
  */
 @Composable
 private fun HomeMetallicRing(modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "homeRingRotation")
-    val angle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 5500, easing = LinearEasing),
-        ),
-        label = "homeRingAngle",
-    )
+    // Reduced motion: a static metallic ring (no continuous rotation).
+    val angle = if (rememberReducedMotion()) {
+        0f
+    } else {
+        val infiniteTransition = rememberInfiniteTransition(label = "homeRingRotation")
+        val animated by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 5500, easing = LinearEasing),
+            ),
+            label = "homeRingAngle",
+        )
+        animated
+    }
 
     Box(
         modifier = modifier

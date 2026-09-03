@@ -23,6 +23,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
+import ai.rojan.designlab.ui.motion.RojanMotion
+import ai.rojan.designlab.ui.motion.rememberReducedMotion
 import ai.rojan.designlab.ui.theme.RojanLoadingGlowEnd
 import ai.rojan.designlab.ui.theme.RojanLoadingGlowMid
 import ai.rojan.designlab.ui.theme.RojanLoadingGlowStart
@@ -45,24 +47,29 @@ fun PremiumLoadingBar(
         RojanLoadingGlowEnd,
         Color.Transparent
     ),
-    durationMillis: Int = 2500,
+    durationMillis: Int = RojanMotion.LoadingSweep,
 ) {
 
-    val infiniteTransition =
-        rememberInfiniteTransition(label = "loading")
-
-    val sweepProgress by infiniteTransition.animateFloat(
-        initialValue = -0.4f,
-        targetValue = 1.4f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = durationMillis,
-                easing = LinearEasing
+    // Reduced motion: hold the glow at a fixed centre position — the bar
+    // still reads as an active "loading" affordance without a sweeping loop.
+    val sweepProgress = if (rememberReducedMotion()) {
+        0.5f
+    } else {
+        val infiniteTransition = rememberInfiniteTransition(label = "loading")
+        val progress by infiniteTransition.animateFloat(
+            initialValue = -0.4f,
+            targetValue = 1.4f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(
+                    durationMillis = durationMillis,
+                    easing = LinearEasing
+                ),
+                repeatMode = RepeatMode.Restart
             ),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "progress"
-    )
+            label = "progress"
+        )
+        progress
+    }
 
     Canvas(
         modifier = modifier

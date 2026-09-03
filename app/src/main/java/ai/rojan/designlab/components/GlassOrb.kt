@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 
+import ai.rojan.designlab.ui.motion.rememberReducedMotion
+
 /**
  * Reusable frosted-glass floating orb.
  *
@@ -39,20 +41,25 @@ fun GlassOrb(
     durationMillis: Int = 4200,
     blurRadius: Dp = 1.dp,
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "orb_float")
-
-    val floatOffset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = durationMillis,
-                easing = LinearEasing
+    // Reduced motion: the orb rests at its neutral position (no float loop).
+    val floatOffset = if (rememberReducedMotion()) {
+        0.5f
+    } else {
+        val infiniteTransition = rememberInfiniteTransition(label = "orb_float")
+        val animated by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(
+                    durationMillis = durationMillis,
+                    easing = LinearEasing
+                ),
+                repeatMode = RepeatMode.Reverse
             ),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "orb_offset"
-    )
+            label = "orb_offset"
+        )
+        animated
+    }
 
     val yOffset = (floatOffset - 0.5f) * 2f * floatDistance.value
 
