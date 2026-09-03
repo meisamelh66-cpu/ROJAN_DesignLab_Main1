@@ -80,9 +80,19 @@ class BackendAppointmentRepository(
 
     private var cache: List<Appointment> = emptyList()
 
-    /** Fetches this salon's bookings from the backend and repopulates the cache. Call before first read, and to refresh. */
+    /**
+     * Fetches this salon's bookings from the backend and repopulates the cache. Call before first read, and to refresh.
+     *
+     * `size = 100` (Booking Pagination Fix): the backend's `PageRequest` domain type rejects any
+     * `size > 100` with `400 INVALID_ARGUMENT` (`ROJAN_Backend/domain/.../common/Pagination.kt`'s
+     * `MAX_SIZE = 100`, enforced regardless of salon/RBAC) - this call previously requested `size = 200`,
+     * which always failed against that real, intentional backend limit. `100` is the backend's own
+     * inclusive maximum, not an arbitrary smaller guess. A salon with more than 100 bookings would still only
+     * see the first page here - real pagination, not attempted in this fix, is the complete answer if
+     * that becomes a real scenario.
+     */
     suspend fun sync(): Result<Unit> = safeApiCall {
-        managerBookingApi.list(salonId, page = 0, size = 200)
+        managerBookingApi.list(salonId, page = 0, size = 100)
     }.map { paged ->
         cache = paged.content.map { it.toDomain() }
     }
