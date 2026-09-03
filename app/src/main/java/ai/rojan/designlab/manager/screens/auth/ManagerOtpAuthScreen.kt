@@ -1,27 +1,29 @@
 package ai.rojan.designlab.manager.screens.auth
 
 import ai.rojan.designlab.manager.components.ManagerColors
-import ai.rojan.designlab.manager.components.ManagerGlassSurface
 import ai.rojan.designlab.manager.components.ManagerPrimaryButton
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.domain.auth.ActiveSalonUiState
 import ai.rojan.designlab.manager.domain.auth.ManagerAuthState
 import ai.rojan.designlab.manager.domain.auth.ManagerOtpStep
 import ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel
+import ai.rojan.designlab.ui.components.input.RojanOtpField
+import ai.rojan.designlab.ui.components.input.RojanTextField
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanErrorText
-import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,24 +37,22 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * OTP Authentication Entry Flow Integration — the Manager App's phone +
- * OTP entry screen. Navigation-agnostic like [ai.rojan.designlab.screens.auth.AuthScreen]
- * (Customer's own auth screen, untouched by this integration): it never
- * calls a NavController itself, only [onAuthenticated], invoked once via a
- * [LaunchedEffect] watching [ManagerAuthViewModel.authState] — same
- * callback pattern that screen already established.
+ * OTP entry screen. Navigation-agnostic like Customer's `AuthScreen`: it
+ * never calls a NavController itself, only [onAuthenticated], invoked once
+ * via a [LaunchedEffect] watching auth + active-salon state.
  *
  * All OTP/JWT logic lives in [viewModel] — this composable only reads
- * [ManagerAuthViewModel.otpStep]/`isSubmitting`/`errorMessage` and forwards
- * user input to `requestOtp`/`verifyOtp`/`resendOtp`/`editPhoneNumber`.
+ * `otpStep` / `isSubmitting` / `errorMessage` and forwards input to
+ * `requestOtp` / `verifyOtp` / `resendOtp` / `editPhoneNumber`.
  *
- * System2 Android Parallel Work, Phase A item 3: [onAuthenticated] no
- * longer fires the instant [authState] becomes [ManagerAuthState.Authenticated]
- * — that happens synchronously, before salon-access resolution (an async
- * network call) has any chance to finish, which previously meant the nav
- * graph unconditionally sent every fresh login to Dashboard regardless of
- * whether Salon Selection or the access-error screen was the real next
- * destination (identical fix already applied to
- * [ai.rojan.designlab.reception.screens.auth.ReceptionOtpAuthScreen]).
+ * UI Polish Sprint 3 (Task 4): the hand-rolled raw `OutlinedTextField`
+ * (which broke the glass language) and the masked `NumberPassword` code
+ * entry are replaced with the shared [RojanTextField] (glass, palette-
+ * bound, RTL-aware) and [RojanOtpField] (segmented, **unmasked**, one
+ * cell per digit). The form now scrolls and respects the keyboard inset
+ * (`imePadding`), so short screens no longer hide the field. Buttons show
+ * a real loading state. Navigation, callbacks and screen structure are
+ * unchanged.
  */
 @Composable
 fun ManagerOtpAuthScreen(
@@ -73,15 +73,18 @@ fun ManagerOtpAuthScreen(
 
     ManagerScaffold {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD),
-            verticalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .imePadding()
+                .padding(RojanDimens.SpaceMD),
+            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {
             Text(
                 text = "ورود مدیر",
                 style = RojanTypography.HeroTitle,
                 color = ManagerColors.TextPrimary,
             )
-            Spacer()
 
             when (val step = otpStep) {
                 ManagerOtpStep.EnteringPhone -> {
@@ -90,8 +93,7 @@ fun ManagerOtpAuthScreen(
                         style = RojanTypography.Body,
                         color = ManagerColors.TextSecondary,
                     )
-                    Spacer()
-                    PhoneEntryCard(
+                    PhoneEntryStep(
                         isSubmitting = isSubmitting,
                         onSubmit = viewModel::requestOtp,
                     )
@@ -103,9 +105,9 @@ fun ManagerOtpAuthScreen(
                         style = RojanTypography.Body,
                         color = ManagerColors.TextSecondary,
                     )
-                    Spacer()
-                    CodeEntryCard(
+                    CodeEntryStep(
                         isSubmitting = isSubmitting,
+                        isError = errorMessage != null,
                         onVerify = viewModel::verifyOtp,
                         onResend = viewModel::resendOtp,
                         onEditPhoneNumber = viewModel::editPhoneNumber,
@@ -114,115 +116,75 @@ fun ManagerOtpAuthScreen(
             }
 
             if (errorMessage != null) {
-                Spacer()
-                Text(text = errorMessage.orEmpty(), style = RojanTypography.Caption, color = RojanErrorText)
+                Text(
+                    text = errorMessage.orEmpty(),
+                    style = RojanTypography.Caption,
+                    color = RojanErrorText,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun PhoneEntryCard(
+private fun PhoneEntryStep(
     isSubmitting: Boolean,
     onSubmit: (String) -> Unit,
 ) {
     var phoneNumber by remember { mutableStateOf("") }
 
-    ManagerGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD),
-            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
-        ) {
-            ManagerTextField(
-                value = phoneNumber,
-                onValueChange = { phoneNumber = it },
-                label = "شماره موبایل",
-                placeholder = "+989123456789",
-                keyboardType = KeyboardType.Phone,
-                enabled = !isSubmitting,
-            )
-        }
-    }
-    Spacer()
+    RojanTextField(
+        value = phoneNumber,
+        onValueChange = { phoneNumber = it },
+        label = "شماره موبایل",
+        placeholder = "+989123456789",
+        leadingIcon = Icons.Filled.Phone,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+        enabled = !isSubmitting,
+    )
+
     ManagerPrimaryButton(
         text = "ارسال کد تایید",
         onClick = { onSubmit(phoneNumber) },
-        enabled = !isSubmitting,
+        enabled = phoneNumber.isNotBlank(),
+        loading = isSubmitting,
     )
 }
 
 @Composable
-private fun CodeEntryCard(
+private fun CodeEntryStep(
     isSubmitting: Boolean,
+    isError: Boolean,
     onVerify: (String) -> Unit,
     onResend: () -> Unit,
     onEditPhoneNumber: () -> Unit,
 ) {
     var code by remember { mutableStateOf("") }
 
-    ManagerGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD),
-            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
-        ) {
-            ManagerTextField(
-                value = code,
-                onValueChange = { code = it },
-                label = "کد تایید",
-                placeholder = "------",
-                keyboardType = KeyboardType.NumberPassword,
-                enabled = !isSubmitting,
-            )
+    RojanOtpField(
+        value = code,
+        onValueChange = { code = it },
+        length = 6,
+        enabled = !isSubmitting,
+        isError = isError,
+    )
 
-            TextButton(onClick = onResend, enabled = !isSubmitting) {
-                Text("ارسال مجدد کد", color = ManagerColors.Turquoise)
-            }
-            TextButton(onClick = onEditPhoneNumber, enabled = !isSubmitting) {
-                Text("ویرایش شماره موبایل", color = ManagerColors.TextSecondary)
-            }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+    ) {
+        TextButton(onClick = onResend, enabled = !isSubmitting) {
+            Text("ارسال مجدد کد", color = ManagerColors.Turquoise)
+        }
+        TextButton(onClick = onEditPhoneNumber, enabled = !isSubmitting) {
+            Text("ویرایش شماره موبایل", color = ManagerColors.TextSecondary)
         }
     }
-    Spacer()
+
     ManagerPrimaryButton(
         text = "تایید و ورود",
         onClick = { onVerify(code) },
-        enabled = !isSubmitting,
+        enabled = code.length == 6,
+        loading = isSubmitting,
     )
-}
-
-/** Minimal, self-contained Manager-themed text field — this screen's only text-entry need; no shared Manager `TextField` component exists yet to reuse (Customer's `HomeTextField` is theme-bound to `HomeColors`, not appropriate here). */
-@Composable
-private fun ManagerTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    placeholder: String,
-    keyboardType: KeyboardType,
-    enabled: Boolean,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        placeholder = { Text(placeholder) },
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        enabled = enabled,
-        singleLine = true,
-        textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = ManagerColors.TextPrimary,
-            unfocusedTextColor = ManagerColors.TextPrimary,
-            focusedBorderColor = ManagerColors.Turquoise,
-            unfocusedBorderColor = ManagerColors.TextSecondary,
-            focusedLabelColor = ManagerColors.Turquoise,
-            unfocusedLabelColor = ManagerColors.TextSecondary,
-            cursorColor = ManagerColors.Turquoise,
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    )
-}
-
-@Composable
-private fun Spacer() {
-    androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))
 }

@@ -37,6 +37,7 @@ fun GlassSurface(
     borderSecondaryAlpha: Float = PremiumGlassTheme.BorderSecondaryAlpha,
     elevation: Dp = RojanShadows.FloatingElevation,
     showHighlight: Boolean = true,
+    compact: Boolean = false,
     content: @Composable () -> Unit
 ) {
     CompositionLocalProvider(LocalRojanPalette provides CustomerPalette) {
@@ -49,6 +50,7 @@ fun GlassSurface(
             borderSecondaryAlpha = borderSecondaryAlpha,
             elevation = elevation,
             showHighlight = showHighlight,
+            compact = compact,
             content = content,
         )
     }

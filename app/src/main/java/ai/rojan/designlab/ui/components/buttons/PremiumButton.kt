@@ -12,6 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
@@ -80,6 +85,15 @@ fun PremiumButton(
 
     Box(
         modifier = modifier
+            // UI Polish Sprint 3, Task 2: screen-reader semantics — the
+            // button announces as a button, as disabled when not
+            // interactive, and as "processing" while loading. Visuals and
+            // the shared press feedback are unchanged.
+            .semantics {
+                role = Role.Button
+                if (!isInteractive) disabled()
+                if (loading) stateDescription = "در حال پردازش"
+            }
             .let {
                 if (isInteractive) {
                     it.shadow(

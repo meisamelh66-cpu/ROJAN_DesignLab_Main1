@@ -69,6 +69,7 @@ fun HomeGlassSurface(
     glassSecondaryAlpha: Float = PremiumGlassTheme.FillSecondaryAlpha,
     borderStrokeWidth: Dp = PremiumGlassTheme.BorderStrokeWidth,
     glowSpread: Dp = PremiumGlassTheme.GlowSpread,
+    compact: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(LocalRojanPalette provides CustomerPalette) {
@@ -81,6 +82,7 @@ fun HomeGlassSurface(
             glowSpread = glowSpread,
             elevation = elevation,
             showHighlight = showHighlight,
+            compact = compact,
             content = content,
         )
     }

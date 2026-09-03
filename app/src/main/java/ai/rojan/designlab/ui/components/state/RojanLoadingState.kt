@@ -14,6 +14,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.ui.components.glass.GlassSurface
+import ai.rojan.designlab.ui.motion.rememberReducedMotion
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
@@ -46,17 +47,24 @@ fun RojanLoadingState(
                 .padding(RojanDimens.SpaceXL),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(32.dp),
-                color = RojanTextOnGlass,
-                strokeWidth = 2.5.dp,
-            )
+            // Reduced motion (Sprint 2 integration): no spinning indicator.
+            // The message still communicates "loading" — a state must
+            // never depend on an animation running.
+            val reduceMotion = rememberReducedMotion()
+            if (!reduceMotion) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(32.dp),
+                    color = RojanTextOnGlass,
+                    strokeWidth = 2.5.dp,
+                )
+            }
 
-            if (message != null) {
-                Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))
+            val shown = message ?: if (reduceMotion) "در حال بارگذاری…" else null
+            if (shown != null) {
+                if (!reduceMotion) Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))
 
                 Text(
-                    text = message,
+                    text = shown,
                     style = RojanTypography.Body,
                     color = RojanTextSecondary,
                 )

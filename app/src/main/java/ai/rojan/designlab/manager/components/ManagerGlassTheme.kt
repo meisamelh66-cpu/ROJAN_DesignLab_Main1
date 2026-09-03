@@ -45,6 +45,7 @@ fun ManagerGlassSurface(
     borderSecondaryAlpha: Float = ManagerGlassTheme.BorderSecondaryAlpha,
     elevation: Dp = RojanShadows.FloatingElevation,
     showHighlight: Boolean = true,
+    compact: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(LocalRojanPalette provides ManagerPalette) {
@@ -57,6 +58,7 @@ fun ManagerGlassSurface(
             borderSecondaryAlpha = borderSecondaryAlpha,
             elevation = elevation,
             showHighlight = showHighlight,
+            compact = compact,
             content = content,
         )
     }

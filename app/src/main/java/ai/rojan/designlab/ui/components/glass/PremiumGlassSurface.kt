@@ -66,6 +66,10 @@ fun PremiumGlassSurface(
     glowSpread: Dp = PremiumGlassTheme.GlowSpread,
     elevation: Dp = RojanShadows.FloatingElevation,
     showHighlight: Boolean = true,
+    // UI Polish Sprint 3, Task 1: forwards to [premiumMetallicBorder]'s
+    // lighter rendering for small surfaces (see that function's doc).
+    // Default `false` — existing surfaces are byte-identical.
+    compact: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val palette = LocalRojanPalette.current
@@ -101,6 +105,7 @@ fun PremiumGlassSurface(
                 strokeWidth = borderStrokeWidth,
                 baseAlpha = borderAlpha,
                 secondaryAlpha = borderSecondaryAlpha,
+                compact = compact,
             )
     ) {
         if (showHighlight) {

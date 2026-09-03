@@ -62,6 +62,15 @@ fun Modifier.premiumMetallicBorder(
     strokeWidth: Dp = PremiumGlassTheme.BorderStrokeWidth,
     baseAlpha: Float = 1f,
     secondaryAlpha: Float = 0.9f,
+    // UI Polish Sprint 3, Task 1: a lighter rendering for small surfaces
+    // (chips, day-cells, toggles, badges — anything below ~120dp). The
+    // full treatment's 7-pass glow + two 4-point corner sparkles + sheen
+    // pass "reads as polished metal" on a hero card but as glitter at
+    // 200px. [compact] keeps the core alternating-band metallic stroke
+    // (the part that actually carries the Rose-Gold/Gold identity) and
+    // drops the sparkles, the directional sheen, and most of the glow
+    // passes. Default `false` — every existing call site is byte-identical.
+    compact: Boolean = false,
 ): Modifier = this.drawWithContent {
     drawContent()
 
@@ -94,7 +103,7 @@ fun Modifier.premiumMetallicBorder(
     // the crisp strokes below sit on top of it.
     val glowSpan = minOf(size.width, size.height)
     val maxGlowWidth = (glowSpan * 0.14f).coerceIn(auxPx * 4f, auxPx * 13f)
-    val glowSteps = 7
+    val glowSteps = if (compact) 3 else 7
     for (i in glowSteps downTo 1) {
         val t = i / glowSteps.toFloat()
         val width = (maxGlowWidth * t).coerceAtLeast(strokePx)
@@ -131,6 +140,8 @@ fun Modifier.premiumMetallicBorder(
         ),
         style = Stroke(width = strokePx),
     )
+
+    if (compact) return@drawWithContent
 
     // Directional sheen — light reading as if falling from above, so the
     // border's top arcs read brighter than its bottom ones ("edge
