@@ -1,11 +1,13 @@
 package ai.rojan.designlab.ui.components.cards
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
@@ -19,10 +21,11 @@ import ai.rojan.designlab.ui.theme.RojanShapes
 
 /**
  * ROJAN AI's single card shell — design-system refinement, Phase 4
- * (Premium Card Shell System), **foundation only**: this component exists
- * and is tested, but migrates no existing screen yet (see the Phase 4
- * migration-plan report — every current card stays exactly as it renders
- * today until a separately-reviewed migration pass).
+ * (Premium Card Shell System). Migrated so far (Phase 4B-1/4B-2/4C):
+ * `SalonOptionCard` (Manager + Reception), `StatCard`, `CustomerCard`,
+ * `ServiceCard`, `SpecialistCard`, `SalonCard`, `AppointmentCard`. Every
+ * remaining card (`HeroBookingCard`, identity cards) is deliberately
+ * out of scope — see each migration pass's own report.
  *
  * Every variant renders through [PremiumGlassSurface] — the one shared
  * glass mechanic — so there is exactly one shadow/border/highlight
@@ -35,7 +38,15 @@ import ai.rojan.designlab.ui.theme.RojanShapes
  * the three apps automatically renders in that app's identity.
  *
  * [onClick] is optional: `null` (the default) renders a static
- * card — the majority of today's cards outside browse rows.
+ * card — most of today's cards outside browse rows.
+ *
+ * [interactionSource] (Phase 4C): exposed so a caller whose card content
+ * reacts to its own press state — e.g. [ai.rojan.designlab.ui.text.rojanPressedShadow]
+ * on a title `Text`, as `SalonCard` uses — can read the exact same source
+ * [rojanPressable] drives, instead of two independently-created sources
+ * silently falling out of sync. Defaults to a freshly [remember]ed one,
+ * identical in effect to [rojanPressable]'s own internal default — every
+ * existing caller that doesn't pass one is unaffected.
  */
 enum class RojanCardVariant {
     /** Standard translucent glass card — the default for most content. Elevation: [RojanShadows.FloatingElevation] ("standard cards," per the app's shadow-by-intent rule). */
@@ -89,6 +100,7 @@ fun PremiumCardShell(
     /** Pass-through to [PremiumGlassSurface] — a lighter border/glow treatment for small surfaces (chips, badges). */
     compact: Boolean = false,
     onClick: (() -> Unit)? = null,
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val spec = rojanCardVariantSpec(variant)
@@ -96,7 +108,7 @@ fun PremiumCardShell(
     PremiumGlassSurface(
         modifier = modifier
             .fillMaxWidth()
-            .let { if (onClick != null) it.rojanPressable(onClick = onClick) else it },
+            .let { if (onClick != null) it.rojanPressable(onClick = onClick, interactionSource = interactionSource) else it },
         shape = shape,
         fillAlpha = spec.fillAlpha,
         fillSecondaryAlpha = spec.fillSecondaryAlpha,

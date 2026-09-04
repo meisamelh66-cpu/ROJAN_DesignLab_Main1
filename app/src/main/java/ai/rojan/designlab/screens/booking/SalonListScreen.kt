@@ -45,6 +45,7 @@ import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.screens.customer.hometheme.HomeTextField
 import ai.rojan.designlab.ui.animation.rojanEnterAnimation
+import ai.rojan.designlab.ui.components.cards.PremiumCardShell
 import ai.rojan.designlab.ui.components.image.RojanRemoteImage
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.interaction.rojanPressedShadow
@@ -285,6 +286,19 @@ private fun SalonFilterChip(label: String, selected: Boolean, onClick: () -> Uni
  * short description, and follow/favorite indicators — no rating/distance
  * (see this file's own doc comment for why).
  */
+/**
+ * Design-system refinement, Phase 4C: rendering moved onto the shared
+ * [PremiumCardShell] (shell only — content/spacing/behavior unchanged).
+ * [PremiumCardShell]'s default `variant = RojanCardVariant.GlassCard`
+ * resolves to the exact same fill/border/elevation the previous direct
+ * [HomeGlassSurface] call defaulted to, and its default `contentPadding`
+ * is [RojanDimens.SpaceMD] — the same value this `Row` applied manually
+ * before. [interactionSource] is threaded through explicitly (rather than
+ * left to `PremiumCardShell`'s own default) because the salon-name `Text`
+ * below reads the same source via `rojanPressedShadow` — the shell and
+ * the pressed-state text effect must share one source, not two
+ * independently-created ones.
+ */
 @Composable
 private fun SalonCard(
     salon: Salon,
@@ -294,17 +308,14 @@ private fun SalonCard(
     animationDelayMillis: Int = 0,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    HomeGlassSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .rojanEnterAnimation(delayMillis = animationDelayMillis)
-            .rojanPressable(onClick = onClick, interactionSource = interactionSource),
+    PremiumCardShell(
+        modifier = Modifier.rojanEnterAnimation(delayMillis = animationDelayMillis),
         shape = RojanShapes.Small,
+        onClick = onClick,
+        interactionSource = interactionSource,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(RojanDimens.SpaceMD),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {

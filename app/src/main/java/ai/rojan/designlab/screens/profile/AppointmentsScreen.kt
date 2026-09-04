@@ -44,9 +44,8 @@ import ai.rojan.designlab.presentation.booking.ReminderViewModel
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
-import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.animation.rojanEnterAnimation
-import ai.rojan.designlab.ui.components.interaction.rojanPressable
+import ai.rojan.designlab.ui.components.cards.PremiumCardShell
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.state.RojanEmptyState
 import ai.rojan.designlab.ui.components.state.RojanErrorState
@@ -169,6 +168,15 @@ private fun BookingStatus.label(): String = when (this) {
     BookingStatus.CANCELLED -> "لغو شده"
 }
 
+/**
+ * Design-system refinement, Phase 4C: rendering moved onto the shared
+ * [PremiumCardShell] (shell only — content/spacing/behavior unchanged).
+ * [PremiumCardShell]'s default `variant = RojanCardVariant.GlassCard`
+ * resolves to the exact same fill/border/elevation the previous direct
+ * [HomeGlassSurface] call defaulted to, and its default `contentPadding`
+ * is [RojanDimens.SpaceMD] — the same value the removed `Column` wrapper
+ * applied manually before.
+ */
 @Composable
 private fun AppointmentCard(
     item: BookingWithDetails,
@@ -180,114 +188,110 @@ private fun AppointmentCard(
 ) {
     val booking = item.booking
 
-    HomeGlassSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .rojanEnterAnimation(delayMillis = animationDelayMillis)
-            .rojanPressable(onClick = onClick),
+    PremiumCardShell(
+        modifier = Modifier.rojanEnterAnimation(delayMillis = animationDelayMillis),
         shape = RojanShapes.Small,
+        onClick = onClick,
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(salonAccentColorFor(booking.salonId).copy(alpha = 0.5f), RojanShapes.Small),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary)
+            }
+
+            Spacer(modifier = Modifier.width(RojanDimens.SpaceSM))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(item.salonName ?: booking.salonId, style = RojanTypography.Body, color = HomeColors.TextPrimary)
+                item.specialistName?.let { name ->
+                    Text(name, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
+                }
+                Text(booking.startTime.replace('T', ' '), style = RojanTypography.Caption, color = HomeColors.TextSecondary)
+            }
+            Text(
+                text = booking.status.label(),
+                style = RojanTypography.Caption,
+                color = if (booking.status == BookingStatus.CANCELLED) HomeColors.TextSecondary else HomeColors.Gold,
+            )
+        }
+
+        if (onCancel != null || onReschedule != null) {
+            Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
+            Row(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD)) {
+                if (onReschedule != null) {
+                    Text(
+                        text = "تغییر زمان",
+                        style = RojanTypography.Caption,
+                        color = HomeColors.Glow,
+                        modifier = Modifier.clickable(onClick = onReschedule),
+                    )
+                }
+                if (onCancel != null) {
+                    var showCancelConfirm by remember { mutableStateOf(false) }
+                    Text(
+                        text = "لغو نوبت",
+                        style = RojanTypography.Caption,
+                        color = RojanErrorText,
+                        modifier = Modifier.clickable { showCancelConfirm = true },
+                    )
+                    if (showCancelConfirm) {
+                        AlertDialog(
+                            onDismissRequest = { showCancelConfirm = false },
+                            title = { Text("لغو نوبت") },
+                            text = { Text("مطمئن هستید می‌خواهید این نوبت را لغو کنید؟") },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    onCancel()
+                                    showCancelConfirm = false
+                                }) {
+                                    Text("لغو نوبت", color = RojanErrorText)
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showCancelConfirm = false }) {
+                                    Text("انصراف")
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+        }
+
+        if (reminderViewModel != null && booking.status == BookingStatus.CONFIRMED) {
+            Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
+            val preference = reminderViewModel.reminderPreferenceFor(booking.id)
+            val isEnabled = preference?.enabled ?: false
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(salonAccentColorFor(booking.salonId).copy(alpha = 0.5f), RojanShapes.Small),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary)
-                }
-
-                Spacer(modifier = Modifier.width(RojanDimens.SpaceSM))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(item.salonName ?: booking.salonId, style = RojanTypography.Body, color = HomeColors.TextPrimary)
-                    item.specialistName?.let { name ->
-                        Text(name, style = RojanTypography.Caption, color = HomeColors.TextSecondary)
-                    }
-                    Text(booking.startTime.replace('T', ' '), style = RojanTypography.Caption, color = HomeColors.TextSecondary)
-                }
                 Text(
-                    text = booking.status.label(),
+                    text = "یادآوری نوبت",
                     style = RojanTypography.Caption,
-                    color = if (booking.status == BookingStatus.CANCELLED) HomeColors.TextSecondary else HomeColors.Gold,
+                    color = HomeColors.TextSecondary,
                 )
-            }
-
-            if (onCancel != null || onReschedule != null) {
-                Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
-                Row(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD)) {
-                    if (onReschedule != null) {
-                        Text(
-                            text = "تغییر زمان",
-                            style = RojanTypography.Caption,
-                            color = HomeColors.Glow,
-                            modifier = Modifier.clickable(onClick = onReschedule),
+                Switch(
+                    checked = isEnabled,
+                    onCheckedChange = { checked ->
+                        reminderViewModel.setReminderPreference(
+                            appointmentId = booking.id,
+                            enabled = checked,
+                            reminderTime = preference?.reminderTime ?: ReminderTime.H3,
+                            appointmentDateLabel = booking.startTime.substringBefore('T'),
+                            appointmentTime = booking.startTime.substringAfter('T').take(5),
                         )
-                    }
-                    if (onCancel != null) {
-                        var showCancelConfirm by remember { mutableStateOf(false) }
-                        Text(
-                            text = "لغو نوبت",
-                            style = RojanTypography.Caption,
-                            color = RojanErrorText,
-                            modifier = Modifier.clickable { showCancelConfirm = true },
-                        )
-                        if (showCancelConfirm) {
-                            AlertDialog(
-                                onDismissRequest = { showCancelConfirm = false },
-                                title = { Text("لغو نوبت") },
-                                text = { Text("مطمئن هستید می‌خواهید این نوبت را لغو کنید؟") },
-                                confirmButton = {
-                                    TextButton(onClick = {
-                                        onCancel()
-                                        showCancelConfirm = false
-                                    }) {
-                                        Text("لغو نوبت", color = RojanErrorText)
-                                    }
-                                },
-                                dismissButton = {
-                                    TextButton(onClick = { showCancelConfirm = false }) {
-                                        Text("انصراف")
-                                    }
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (reminderViewModel != null && booking.status == BookingStatus.CONFIRMED) {
-                Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
-                val preference = reminderViewModel.reminderPreferenceFor(booking.id)
-                val isEnabled = preference?.enabled ?: false
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "یادآوری نوبت",
-                        style = RojanTypography.Caption,
-                        color = HomeColors.TextSecondary,
-                    )
-                    Switch(
-                        checked = isEnabled,
-                        onCheckedChange = { checked ->
-                            reminderViewModel.setReminderPreference(
-                                appointmentId = booking.id,
-                                enabled = checked,
-                                reminderTime = preference?.reminderTime ?: ReminderTime.H3,
-                                appointmentDateLabel = booking.startTime.substringBefore('T'),
-                                appointmentTime = booking.startTime.substringAfter('T').take(5),
-                            )
-                        },
-                    )
-                }
+                    },
+                )
             }
         }
     }
