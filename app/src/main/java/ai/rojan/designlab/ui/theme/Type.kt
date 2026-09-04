@@ -1,44 +1,57 @@
 package ai.rojan.designlab.ui.theme
 
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 
+import ai.rojan.designlab.R
+
 /**
- * ROJAN typeface — the **single swap point** for the app's font family.
+ * ROJAN typeface — **Vazirmatn** (SIL OFL 1.1), bundled as four static
+ * weights under `res/font/` (`vazirmatn_regular/medium/semibold/bold.ttf`;
+ * licence at `assets/fonts/OFL.txt`). A modern Persian-first geometric
+ * sans — the design-spec target, replacing the platform `FontFamily.Default`
+ * fallback the app shipped through Phase 1.
  *
- * Today this is [FontFamily.Default] (the platform default, which shapes
- * Persian through whatever fallback face the device ships). The approved
- * design-spec target is **Vazirmatn**. Font-asset integration is a
- * follow-up step (the Vazirmatn font files are not yet in the repo): once
- * they are added under `app/src/main/res/font/` and a `FontFamily` is
- * built from them, **this one declaration is the only line that changes** —
- * every [RojanTypography] style and the Material [RojanBaseTypography]
- * below already route through it, so no screen or component is touched.
+ * This is still the **single swap point** for the family: every
+ * [RojanTypography] style and the Material [RojanBaseTypography] below
+ * route through it, so no screen or component references a font family
+ * directly. New code must reference this, never [FontFamily] literals.
  *
- * New code must reference this, never [FontFamily.Default] directly.
+ * Static weights (not the variable font) deliberately: `minSdk = 24`, and
+ * `Font(variationSettings = …)` needs API 26+ — static files render the
+ * correct weight on every supported device.
  */
-val RojanFontFamily: FontFamily = FontFamily.Default
+val RojanFontFamily: FontFamily = FontFamily(
+    Font(R.font.vazirmatn_regular, RojanFontWeights.Regular),
+    Font(R.font.vazirmatn_medium, RojanFontWeights.Medium),
+    Font(R.font.vazirmatn_semibold, RojanFontWeights.SemiBold),
+    Font(R.font.vazirmatn_bold, RojanFontWeights.Bold),
+)
 
 /**
  * ROJAN font-weight scale — named roles instead of bare [FontWeight]
  * literals spread across styles and components.
  *
- * The four weights [RojanTypography] actually uses ([Bold] 700 /
- * [SemiBold] 600 / [Medium] 500 / [Regular] 400) are unchanged in value
- * from before this mapping existed — this only gives them names. [Light]
- * (300) and [ExtraBold] (800) are declared for the display hierarchy
- * Vazirmatn's weight range will support once integrated; they are not
- * applied anywhere yet.
+ * The four weights [RojanTypography] uses ([Bold] 700 / [SemiBold] 600 /
+ * [Medium] 500 / [Regular] 400) are each backed by a real Vazirmatn file.
+ * [Light] (300) and [ExtraBold] (800) are declared for a future display
+ * hierarchy; Vazirmatn ships those weights, but the matching `.ttf` files
+ * are not bundled yet, so they currently resolve to the nearest loaded
+ * weight — do not apply them until their files are added.
  *
  * Role guidance:
  * - [Bold]      — Display / Screen / Section / Hero titles
  * - [SemiBold]  — Card titles, greetings, button labels
  * - [Medium]    — body text, emphasised captions
  * - [Regular]   — captions, secondary / meta text
- * - [Light]     — reserved (large display numerals, post-Vazirmatn)
- * - [ExtraBold] — reserved (hero display numerals, post-Vazirmatn)
+ * - [Light]     — reserved (large display numerals)
+ * - [ExtraBold] — reserved (hero display numerals)
  */
 object RojanFontWeights {
     val Light: FontWeight = FontWeight.Light        // 300
@@ -50,123 +63,107 @@ object RojanFontWeights {
 }
 
 /**
- * Material3 base text style — a floor for anything that reads
- * `MaterialTheme.typography.bodyLarge` directly. Routed through
- * [RojanFontFamily] / [RojanFontWeights] so a future Vazirmatn swap
- * covers it too. The real hierarchy is [RojanTypography] (below) plus
- * `RojanMaterialTypography` in `Theme.kt`, which is what `RojanTheme`
- * actually installs.
+ * Shared line-box behaviour for every ROJAN text style.
+ *
+ * Persian text carries diacritics above the baseline (zeer/zebar/tashdid)
+ * and deep descenders; the platform's default line-box distribution biases
+ * the extra `lineHeight` space to the top, which reads unevenly and can
+ * clip a diacritic against the line above. [LineHeightStyle.Alignment.Center]
+ * distributes the slack evenly; [LineHeightStyle.Trim.None] keeps the full
+ * line box on the first and last line so nothing is shaved.
+ *
+ * [PlatformTextStyle] `includeFontPadding = false` removes the legacy
+ * Android font-padding so the measured text box matches the real glyph
+ * metrics — required for the fixed-height rows (calendar day-cells, list
+ * rows) to centre Persian text correctly.
  */
-val RojanBaseTypography = androidx.compose.material3.Typography(
-    bodyLarge = TextStyle(
-        fontFamily = RojanFontFamily,
-        fontWeight = RojanFontWeights.Regular,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.5.sp
-    )
+@Suppress("DEPRECATION")
+private val RojanPlatformTextStyle = PlatformTextStyle(includeFontPadding = false)
+
+private val RojanLineHeightStyle = LineHeightStyle(
+    alignment = LineHeightStyle.Alignment.Center,
+    trim = LineHeightStyle.Trim.None,
 )
 
 /**
- * ROJAN AI named typography tokens (Design Token Specification v1.0,
- * Section 3) — the app's single text hierarchy.
+ * One builder for every [RojanTypography] style — guarantees they all
+ * carry [RojanFontFamily], zero letter-spacing (positive tracking breaks
+ * Persian's connected script), and the shared line-box behaviour.
+ */
+private fun rojanTextStyle(
+    weight: FontWeight,
+    fontSize: TextUnit,
+    lineHeight: TextUnit,
+): TextStyle = TextStyle(
+    fontFamily = RojanFontFamily,
+    fontWeight = weight,
+    fontSize = fontSize,
+    lineHeight = lineHeight,
+    letterSpacing = 0.sp,
+    platformStyle = RojanPlatformTextStyle,
+    lineHeightStyle = RojanLineHeightStyle,
+)
+
+/**
+ * Material3 base text style — a floor for anything that reads
+ * `MaterialTheme.typography.bodyLarge` directly. Routed through
+ * [RojanFontFamily] and given the same Persian line metrics as
+ * [RojanTypography.Body]. `letterSpacing` is `0.sp` (was `0.5.sp` — a
+ * Latin default that degrades Persian letter-joining). The real hierarchy
+ * is [RojanTypography] plus `RojanMaterialTypography` in `Theme.kt`, which
+ * is what `RojanTheme` installs.
+ */
+val RojanBaseTypography = androidx.compose.material3.Typography(
+    bodyLarge = rojanTextStyle(
+        weight = RojanFontWeights.Regular,
+        fontSize = 16.sp,
+        lineHeight = 26.sp,
+    ),
+)
+
+/**
+ * ROJAN AI named typography tokens — the app's single text hierarchy.
  *
- * UI Consolidation Sprint v2.0: complete 6-level hierarchy, exact sizes
- * as specified ("Suggested sizes... Never use unreadable tiny text").
- * [HeroTitle]/[Button] predate that pass and are left at their existing
- * sizes (32sp/16sp) rather than force-fit into the new scale — both were
- * already reasonably sized and are used in fixed-height layouts
- * ([ai.rojan.designlab.components.hero.HeroBookingCard]'s 360dp budget,
- * [ai.rojan.designlab.ui.components.buttons.PremiumButton]'s fixed pill)
- * where an uncoordinated size bump risks real overflow.
+ * **Persian line-metric pass (Phase 2B):** font sizes are unchanged; only
+ * `lineHeight` moved — the previous values were Latin-tuned (Body ≈ 1.41×)
+ * and too tight for Vazirmatn's Persian ascenders/descenders. New ratios
+ * are ≈ 1.65× for body/caption and ≈ 1.35–1.45× for titles. [HeroTitle]
+ * is kept deliberately tighter (1.31×) — it lives inside
+ * [ai.rojan.designlab.components.hero.HeroBookingCard]'s fixed 360 dp
+ * budget. [Button] line-height is unchanged (single line in a fixed pill).
+ * Every style also now carries `letterSpacing = 0`, `includeFontPadding =
+ * false`, and centred line-box trim, via [rojanTextStyle].
  *
- * Font family + weights route through [RojanFontFamily] / [RojanFontWeights]
- * — see those declarations. Sizes and line-heights are unchanged by the
- * UI Polish Sprint 1 typography-foundation pass (that pass only introduced
- * the family/weight swap points; a Persian line-height re-tune is a
- * separate, later step gated on the Vazirmatn asset).
+ * Sizes: verified on device is still pending — a Persian line-height is a
+ * visual judgement and these are the analysis-pass starting values.
  */
 object RojanTypography {
 
     /** Display Title. 34sp/Bold. */
-    val Display = TextStyle(
-        fontFamily = RojanFontFamily,
-        fontWeight = RojanFontWeights.Bold,
-        fontSize = 34.sp,
-        lineHeight = 42.sp,
-    )
+    val Display = rojanTextStyle(RojanFontWeights.Bold, 34.sp, 46.sp)
 
     /** Screen Title. 30sp/Bold. */
-    val ScreenTitle = TextStyle(
-        fontFamily = RojanFontFamily,
-        fontWeight = RojanFontWeights.Bold,
-        fontSize = 30.sp,
-        lineHeight = 38.sp,
-    )
+    val ScreenTitle = rojanTextStyle(RojanFontWeights.Bold, 30.sp, 42.sp)
 
     /** Section Title. 24sp/SemiBold. */
-    val SectionTitle = TextStyle(
-        fontFamily = RojanFontFamily,
-        fontWeight = RojanFontWeights.SemiBold,
-        fontSize = 24.sp,
-        lineHeight = 30.sp,
-    )
+    val SectionTitle = rojanTextStyle(RojanFontWeights.SemiBold, 24.sp, 34.sp)
 
-    /** Card Title. 20sp/SemiBold - distinct from the smaller, more general [Body]. */
-    val CardTitle = TextStyle(
-        fontFamily = RojanFontFamily,
-        fontWeight = RojanFontWeights.SemiBold,
-        fontSize = 20.sp,
-        lineHeight = 26.sp,
-    )
+    /** Card Title. 20sp/SemiBold — distinct from the smaller, more general [Body]. */
+    val CardTitle = rojanTextStyle(RojanFontWeights.SemiBold, 20.sp, 30.sp)
 
-    /** Hero Card titles. 32sp/Bold — unchanged from before the v2.0 pass, see class doc comment. */
-    val HeroTitle = TextStyle(
-        fontFamily = RojanFontFamily,
-        fontWeight = RojanFontWeights.Bold,
-        fontSize = 32.sp,
-        lineHeight = 40.sp,
-    )
+    /** Hero Card titles. 32sp/Bold — line-height kept tight for the fixed Hero budget. */
+    val HeroTitle = rojanTextStyle(RojanFontWeights.Bold, 32.sp, 42.sp)
 
     /**
      * Default body text — also what most card titles/names use throughout
-     * this codebase.
-     *
-     * UI Consolidation Sprint v2.0: 15sp -> 17sp ("Body → 17sp... the
-     * current typography is too small... Persian text must be comfortably
-     * readable on 6-7 inch phones") — the single highest-impact size
-     * change in that pass, since [Body] is this codebase's most-used text
-     * style.
+     * this codebase. 17sp/Medium, line-height ≈ 1.65× for comfortable
+     * Persian reading on 6–7 inch phones.
      */
-    val Body = TextStyle(
-        fontFamily = RojanFontFamily,
-        fontWeight = RojanFontWeights.Medium,
-        fontSize = 17.sp,
-        lineHeight = 24.sp,
-    )
+    val Body = rojanTextStyle(RojanFontWeights.Medium, 17.sp, 28.sp)
 
-    /**
-     * Button labels. 16sp/SemiBold — unchanged from before the v2.0 pass,
-     * see class doc comment (fixed-height button budget risk).
-     */
-    val Button = TextStyle(
-        fontFamily = RojanFontFamily,
-        fontWeight = RojanFontWeights.SemiBold,
-        fontSize = 16.sp,
-        lineHeight = 20.sp,
-    )
+    /** Button labels. 16sp/SemiBold — single line, fixed-height pill: line-height unchanged. */
+    val Button = rojanTextStyle(RojanFontWeights.SemiBold, 16.sp, 20.sp)
 
-    /**
-     * Caption / secondary-meta text.
-     *
-     * UI Consolidation Sprint v2.0: 12sp -> 15sp ("Caption → 15sp... Never
-     * use unreadable tiny text") - this was the smallest text size in the
-     * app and the most likely to be genuinely hard to read.
-     */
-    val Caption = TextStyle(
-        fontFamily = RojanFontFamily,
-        fontWeight = RojanFontWeights.Regular,
-        fontSize = 15.sp,
-        lineHeight = 20.sp,
-    )
+    /** Caption / secondary-meta text. 15sp/Regular. */
+    val Caption = rojanTextStyle(RojanFontWeights.Regular, 15.sp, 24.sp)
 }
