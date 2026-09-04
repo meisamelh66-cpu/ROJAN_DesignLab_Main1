@@ -8,7 +8,10 @@ import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.domain.appointment.Appointment
 import ai.rojan.designlab.manager.domain.appointment.AppointmentStatus as DomainAppointmentStatus
+import ai.rojan.designlab.manager.domain.appointment.CalendarWeekDay
 import ai.rojan.designlab.manager.domain.appointment.ManagerCalendarWeek
+import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
+import ai.rojan.designlab.manager.domain.service.Service
 import ai.rojan.designlab.manager.domain.specialist.Specialist
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
@@ -59,7 +62,7 @@ import androidx.compose.ui.unit.dp
 private enum class ManagerCalendarViewMode { DAILY, WEEKLY }
 
 /** Status indicator — Turquoise/Gold extend naturally into "confirmed/pending"; [RojanErrorText] (existing token) covers "cancelled/no-show." */
-private enum class AppointmentStatus(val label: String, val color: Color) {
+internal enum class AppointmentStatus(val label: String, val color: Color) {
     CONFIRMED("تایید شده", ManagerColors.Turquoise),
     PENDING("در انتظار", ManagerColors.Gold),
     COMPLETED("انجام شده", ManagerColors.Turquoise),
@@ -75,8 +78,8 @@ private fun DomainAppointmentStatus.toDisplayStatus(): AppointmentStatus = when 
     DomainAppointmentStatus.NO_SHOW -> AppointmentStatus.NO_SHOW
 }
 
-/** Display row for one real [Appointment] — customer/service/specialist ids resolved to names via [ManagerRepositories]. */
-private data class CalendarAppointment(
+/** Display row for one real [Appointment] — customer/service/specialist ids resolved to names. */
+internal data class CalendarAppointment(
     val id: String,
     val time: String,
     val clientName: String,
@@ -85,14 +88,33 @@ private data class CalendarAppointment(
     val status: AppointmentStatus,
 )
 
-private fun Appointment.toDisplay(): CalendarAppointment = CalendarAppointment(
-    id = id,
-    time = time,
-    clientName = ManagerRepositories.customers.getById(customerId)?.name ?: "—",
-    service = ManagerRepositories.services.getById(serviceId)?.name ?: "—",
-    specialist = ManagerRepositories.specialists.getById(specialistId)?.name ?: "—",
-    status = status.toDisplayStatus(),
-)
+/**
+ * 5B4-1 / 5B4-2: pure transformation for one day's column — filter by the
+ * selected specialist (null = all), sort chronologically by [Appointment.time],
+ * resolve names via the id-indexed maps the screen snapshots once per refresh
+ * (was three `ManagerRepositories.*.getById` linear scans per appointment).
+ * Missing ids fall back to `"—"`, exactly as before.
+ */
+internal fun calendarDayAppointments(
+    appointmentsForDay: List<Appointment>,
+    selectedSpecialistId: String?,
+    customersById: Map<String, ManagerCustomer>,
+    servicesById: Map<String, Service>,
+    specialistsById: Map<String, Specialist>,
+): List<CalendarAppointment> =
+    appointmentsForDay
+        .filter { selectedSpecialistId == null || it.specialistId == selectedSpecialistId }
+        .sortedBy { it.time }
+        .map { appointment ->
+            CalendarAppointment(
+                id = appointment.id,
+                time = appointment.time,
+                clientName = customersById[appointment.customerId]?.name ?: "—",
+                service = servicesById[appointment.serviceId]?.name ?: "—",
+                specialist = specialistsById[appointment.specialistId]?.name ?: "—",
+                status = appointment.status.toDisplayStatus(),
+            )
+        }
 
 /**
  * Manager App workspace — Calendar MVP. Additive-only: does not modify
@@ -131,14 +153,67 @@ fun ManagerCalendarScreen(
         refreshTrigger++
     }
 
-    // Read directly on every recomposition (no remember) so an appointment
-    // just created via the booking wizard (ManagerBookingViewModel.confirm(),
-    // same ManagerRepositories.appointments instance) shows up as soon as
-    // this screen is (re)entered, instead of the screen-local hardcoded
-    // sample set this used to render regardless of what was actually booked.
-    @Suppress("UNUSED_EXPRESSION") refreshTrigger
-    val specialists = ManagerRepositories.specialists.getAll()
-    val appointmentsByDayKey = ManagerRepositories.appointments.getAll().groupBy { it.date }
+    // 5B4-1 / 5B4-2: snapshot the in-memory repository caches once per
+    // refresh. `refreshTrigger` (bumped by the LaunchedEffect above once
+    // ManagerRepositories.initialize() completes) is now a real remember key,
+    // and re-entering this screen creates a fresh composition — so a booking
+    // wizard write still shows up on (re)entry, exactly as before, just
+    // without re-deriving the whole chain on every unrelated recomposition.
+    // Name resolution uses id-indexed maps instead of repeated O(n) getById
+    // scans.
+    val specialists = remember(refreshTrigger) { ManagerRepositories.specialists.getAll() }
+    val appointmentsByDayKey = remember(refreshTrigger) {
+        ManagerRepositories.appointments.getAll().groupBy { it.date }
+    }
+    val customersById = remember(refreshTrigger) {
+        ManagerRepositories.customers.getAll().associateBy { it.id }
+    }
+    val servicesById = remember(refreshTrigger) {
+        ManagerRepositories.services.getAll().associateBy { it.id }
+    }
+    val specialistsById = remember(refreshTrigger) {
+        ManagerRepositories.specialists.getAll().associateBy { it.id }
+    }
+
+    // 5B4-3: capture the rolling 7-day window once for this composition.
+    val week = ManagerCalendarWeek.days
+    val selectedDayKey = week[selectedDayIndex].key
+
+    val dayAppointments = remember(
+        appointmentsByDayKey,
+        customersById,
+        servicesById,
+        specialistsById,
+        selectedSpecialistId,
+        selectedDayKey,
+    ) {
+        calendarDayAppointments(
+            appointmentsForDay = appointmentsByDayKey[selectedDayKey] ?: emptyList(),
+            selectedSpecialistId = selectedSpecialistId,
+            customersById = customersById,
+            servicesById = servicesById,
+            specialistsById = specialistsById,
+        )
+    }
+
+    val weeklyAppointmentsByDayKey = remember(
+        appointmentsByDayKey,
+        customersById,
+        servicesById,
+        specialistsById,
+        selectedSpecialistId,
+        week,
+    ) {
+        week.associate { day ->
+            day.key to calendarDayAppointments(
+                appointmentsForDay = appointmentsByDayKey[day.key] ?: emptyList(),
+                selectedSpecialistId = selectedSpecialistId,
+                customersById = customersById,
+                servicesById = servicesById,
+                specialistsById = specialistsById,
+            )
+        }
+    }
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         LazyColumn(
@@ -173,16 +248,11 @@ fun ManagerCalendarScreen(
                 ManagerCalendarViewMode.DAILY -> {
                     item {
                         DaySelectorRow(
+                            week = week,
                             selectedDayIndex = selectedDayIndex,
                             onDaySelected = { selectedDayIndex = it },
                         )
                     }
-
-                    val dayKey = ManagerCalendarWeek.days[selectedDayIndex].key
-                    val dayAppointments = (appointmentsByDayKey[dayKey] ?: emptyList())
-                        .filter { selectedSpecialistId == null || it.specialistId == selectedSpecialistId }
-                        .sortedBy { it.time }
-                        .map { it.toDisplay() }
 
                     if (dayAppointments.isEmpty()) {
                         item { EmptyDayNotice() }
@@ -199,8 +269,8 @@ fun ManagerCalendarScreen(
                 ManagerCalendarViewMode.WEEKLY -> {
                     item {
                         WeeklyOverview(
-                            appointmentsByDayKey = appointmentsByDayKey,
-                            selectedSpecialistId = selectedSpecialistId,
+                            week = week,
+                            appointmentsByDayKey = weeklyAppointmentsByDayKey,
                             onDayClick = { dayIndex ->
                                 selectedDayIndex = dayIndex
                                 viewMode = ManagerCalendarViewMode.DAILY
@@ -329,10 +399,14 @@ private fun SpecialistChip(label: String, selected: Boolean, onClick: () -> Unit
 }
 
 @Composable
-private fun DaySelectorRow(selectedDayIndex: Int, onDaySelected: (Int) -> Unit) {
+private fun DaySelectorRow(
+    week: List<CalendarWeekDay>,
+    selectedDayIndex: Int,
+    onDaySelected: (Int) -> Unit,
+) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
-        items(ManagerCalendarWeek.days.indices.toList()) { index ->
-            val day = ManagerCalendarWeek.days[index]
+        items(week.indices.toList()) { index ->
+            val day = week[index]
             val selected = index == selectedDayIndex
             ManagerGlassSurface(
                 modifier = Modifier
@@ -438,17 +512,14 @@ private fun EmptyDayNotice() {
 
 @Composable
 private fun WeeklyOverview(
-    appointmentsByDayKey: Map<String, List<Appointment>>,
-    selectedSpecialistId: String?,
+    week: List<CalendarWeekDay>,
+    appointmentsByDayKey: Map<String, List<CalendarAppointment>>,
     onDayClick: (Int) -> Unit,
 ) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD)) {
-        items(ManagerCalendarWeek.days.indices.toList()) { index ->
-            val day = ManagerCalendarWeek.days[index]
-            val dayAppointments = (appointmentsByDayKey[day.key] ?: emptyList())
-                .filter { selectedSpecialistId == null || it.specialistId == selectedSpecialistId }
-                .sortedBy { it.time }
-                .map { it.toDisplay() }
+        items(week.indices.toList()) { index ->
+            val day = week[index]
+            val dayAppointments = appointmentsByDayKey[day.key] ?: emptyList()
 
             ManagerGlassSurface(
                 modifier = Modifier

@@ -50,6 +50,14 @@ private val weekdayLabels = mapOf(
 )
 
 /**
+ * 5B4-3: hoisted so the `yyyy/MM/dd` pattern is parsed once at class load
+ * instead of on every [ManagerCalendarWeek.days] access (the getter is read
+ * several times per Calendar composition). [days] intentionally stays a
+ * getter — it still rolls with [LocalDate.now] across midnight.
+ */
+private val KEY_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy/MM/dd")
+
+/**
  * Final Release Validation — Real Booking Calendar Integration: real,
  * clock-driven week (today + the next 6 days), replacing the previously
  * static/fake reference week. Shared by
@@ -68,7 +76,7 @@ object ManagerCalendarWeek {
             return (0..6).map { offset ->
                 val date = today.plusDays(offset.toLong())
                 CalendarWeekDay(
-                    key = date.format(DateTimeFormatter.ofPattern("yyyy/MM/dd")),
+                    key = date.format(KEY_FORMATTER),
                     label = weekdayLabels.getValue(date.dayOfWeek),
                     dayNumber = date.dayOfMonth.toString().toPersianDigits(),
                     isoDate = date.format(DateTimeFormatter.ISO_LOCAL_DATE),
