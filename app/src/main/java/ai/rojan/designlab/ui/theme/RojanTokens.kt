@@ -84,17 +84,6 @@ val RojanNavy =
 
 
 // =====================================
-// ROJAN AI - COMPATIBILITY ALIASES
-// =====================================
-
-val RojanVividPink =
-    RojanVividMagenta
-
-val RojanVivdPurple =
-    RojanVividPurple
-
-
-// =====================================
 // ROJAN AI - BACKGROUND SYSTEM
 // =====================================
 
@@ -305,46 +294,24 @@ val RojanSectionTitle = RojanTextOnGlass
 val RojanCaptionText = RojanTextSecondary
 
 // =====================================
-// ROJAN AI - LUXURY TYPOGRAPHY (LEGACY — description corrected UI Polish Sprint 1, 2026-09-02)
-// This family was ORIGINALLY intended as a white/light-gray hierarchy for
-// text on dark surfaces, but the committed values below are the brand
-// plum/mauve family (#4D355F / #6B5579 / #867391 / …), NOT white — the
-// "Soft White" / "Light Gray" / "Pure White" labels on the individual
-// tokens were inaccurate and are corrected below. Values are left
-// untouched (changing a token value would be a redesign, out of scope for
-// this pass).
+// ROJAN AI - LUXURY TYPOGRAPHY (LEGACY)
+// The seven unused members of this family (PrimaryHeading / SectionHeading
+// / HeroTitle / PrimaryBody / SecondaryBody / Hint / Disabled) were removed
+// in the design-system cleanup pass — the Customer and Manager apps each
+// ship their own dark-surface text palette (HomeColors / ManagerColors),
+// and those tokens had zero call sites.
 //
-// Current state: the Customer and Manager apps each ship their own
-// dark-surface text palette (HomeColors / ManagerColors). Of the tokens
-// below, only RojanLuxuryCaption is still referenced (RojanNavGraph). The
-// other seven are unused and are flagged for removal in a later,
-// separately-authorized cleanup pass — see
-// docs/uiux/ROJAN_UI_POLISH_SPRINT1_REPORT_v1.md.
+// Only RojanLuxuryCaption survives: its single caller is in the navigation
+// package, which is out of scope for this pass. Migrate that one call site
+// to [RojanCaptionText] / a palette caption color, then this token can go
+// too.
 // =====================================
 
-/** Legacy, unused. Actual value: brand plum `#4D355F` (not "Soft White"). */
-val RojanLuxuryPrimaryHeading = Color(0xFF4D355F)
-
-/** Legacy, unused. Actual value: brand plum `#4D355F` (not "Light Gray"). */
-val RojanLuxurySectionHeading = Color(0xFF4D355F)
-
-/** Legacy, unused. Actual value: brand plum `#4D355F` (not "Pure White"). */
-val RojanLuxuryHeroTitle = Color(0xFF4D355F)
-
-/** Legacy, unused. Muted plum `#6B5579`. */
-val RojanLuxuryPrimaryBody = Color(0xFF6B5579)
-
-/** Legacy, unused. Muted mauve `#867391` (= [RojanTextSecondary]). */
-val RojanLuxurySecondaryBody = Color(0xFF867391)
-
-/** Legacy. Muted mauve `#9D8AA7`. Still referenced by [ai.rojan.designlab.navigation] (RojanNavGraph). */
+/**
+ * Legacy — muted mauve `#9D8AA7`. Single remaining caller: `RojanNavGraph`.
+ * Pending migration to [RojanCaptionText]; do not add new call sites.
+ */
 val RojanLuxuryCaption = Color(0xFF9D8AA7)
-
-/** Legacy, unused. Pale mauve `#B5A9BE`. */
-val RojanLuxuryHint = Color(0xFFB5A9BE)
-
-/** Legacy, unused. Pale mauve `#C6BECF`. */
-val RojanLuxuryDisabled = Color(0xFFC6BECF)
 
 // =====================================
 // ROJAN AI - LOADING SYSTEM

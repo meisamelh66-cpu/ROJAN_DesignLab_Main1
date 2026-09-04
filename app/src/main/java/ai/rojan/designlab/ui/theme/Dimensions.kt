@@ -1,7 +1,6 @@
 package ai.rojan.designlab.ui.theme
 
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 object RojanDimens {
 
@@ -33,11 +32,9 @@ object RojanDimens {
     val SpaceSectionToSection = SpaceMD
 
 
-    // Corner Radius
-    val RadiusSM = 12.dp
-    val RadiusMD = 20.dp
-    val RadiusLG = 32.dp
-    val RadiusXL = 48.dp
+    // Corner radius lives in RojanRadius (single source of truth) — the
+    // former RadiusSM/MD/LG/XL here had zero call sites and values that
+    // matched no rendered shape; removed in the radius-system unification.
 
 
     // Glass
@@ -52,11 +49,9 @@ object RojanDimens {
     // Hero
     val HeroHeight = 360.dp
 
-
-    // Typography
-    val TitleSize = 32.sp
-    val SubtitleSize = 18.sp
-    val BodySize = 15.sp
+    // Text sizes live in RojanTypography (single source of truth) — the
+    // former TitleSize/SubtitleSize/BodySize here had zero call sites and
+    // contradicted RojanTypography (Body is 17sp, not 15sp); removed.
 
 
     /**

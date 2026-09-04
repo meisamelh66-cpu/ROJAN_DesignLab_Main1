@@ -1,35 +1,26 @@
 package ai.rojan.designlab.ui.theme
 
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.unit.dp
 
 
+/**
+ * Compose [androidx.compose.ui.graphics.Shape]s for the ROJAN design
+ * system. Every value derives from [RojanRadius] — the single radius
+ * source of truth — so a corner-radius change happens in exactly one
+ * place.
+ *
+ * Names and rendered corners are unchanged from before [RojanRadius]
+ * existed; this only replaces the duplicated raw `.dp` literals with the
+ * named tier they always equalled (`GlassCard` = `Card` 32, `Small` = 16,
+ * `PremiumButton` = `Pill` 50, `Circle` = 100).
+ */
 object RojanShapes {
 
+    val GlassCard = RoundedCornerShape(RojanRadius.Card)
 
-    val GlassCard =
-        RoundedCornerShape(
-            topStart = 32.dp,
-            topEnd = 32.dp,
-            bottomStart = 32.dp,
-            bottomEnd = 32.dp
-        )
+    val PremiumButton = RoundedCornerShape(RojanRadius.Pill)
 
+    val Circle = RoundedCornerShape(RojanRadius.Circle)
 
-    val PremiumButton =
-        RoundedCornerShape(
-            50.dp
-        )
-
-
-    val Circle =
-        RoundedCornerShape(
-            100.dp
-        )
-
-
-    val Small =
-        RoundedCornerShape(
-            16.dp
-        )
+    val Small = RoundedCornerShape(RojanRadius.Small)
 }
