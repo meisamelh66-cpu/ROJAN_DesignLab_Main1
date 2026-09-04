@@ -45,7 +45,7 @@ import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -78,7 +78,7 @@ fun ManagerSalonMediaScreen(
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
 ) {
-    val loadState by viewModel.loadState.collectAsState()
+    val loadState by viewModel.loadState.collectAsStateWithLifecycle()
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         when (val state = loadState) {

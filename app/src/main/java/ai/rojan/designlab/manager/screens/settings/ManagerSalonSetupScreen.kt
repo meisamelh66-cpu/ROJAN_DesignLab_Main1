@@ -31,7 +31,7 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -76,10 +76,10 @@ fun ManagerSalonSetupScreen(
     onWorkingHoursClick: (() -> Unit)? = null,
     onSalonMediaClick: (() -> Unit)? = null,
 ) {
-    val loadState by viewModel.loadState.collectAsState()
-    val form by viewModel.formState.collectAsState()
-    val isSubmitting by viewModel.isSubmitting.collectAsState()
-    val submitError by viewModel.submitError.collectAsState()
+    val loadState by viewModel.loadState.collectAsStateWithLifecycle()
+    val form by viewModel.formState.collectAsStateWithLifecycle()
+    val isSubmitting by viewModel.isSubmitting.collectAsStateWithLifecycle()
+    val submitError by viewModel.submitError.collectAsStateWithLifecycle()
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         when (val state = loadState) {
