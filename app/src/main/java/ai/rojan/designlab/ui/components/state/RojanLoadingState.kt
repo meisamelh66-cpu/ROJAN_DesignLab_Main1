@@ -10,6 +10,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
@@ -38,7 +41,12 @@ fun RojanLoadingState(
     message: String? = null,
 ) {
     GlassSurface(
-        modifier = modifier.fillMaxWidth(),
+        // Accessibility foundation (design-system refinement, Phase 5) —
+        // same reasoning as RojanEmptyState/RojanErrorState's shared
+        // RojanStateCard: announces this card's content (the loading
+        // message, when shown) as soon as it appears, no call-site work
+        // needed.
+        modifier = modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
         shape = RojanShapes.Small,
     ) {
         Column(

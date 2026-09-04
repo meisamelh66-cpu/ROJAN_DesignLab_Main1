@@ -346,3 +346,20 @@ val RojanPremiumBorderShadow = Color(0xFF7A4A22)
 
 /** Near-white warm-gold specular — the sharpest glint tone, distinct from [RojanPremiumBorderHighlight]'s broader champagne band; reserved for corner sparkle points and tight reflection lines. */
 val RojanPremiumBorderSpecular = Color(0xFFFFF6E0)
+
+// =====================================
+// ROJAN AI - DECORATIVE ORB TOKENS
+// Design-system refinement, Phase 4 — semantic aliases for
+// ai.rojan.designlab.components.GlassOrb's own @Preview functions (the
+// only place this file had raw hex: GlassOrb lives in the flavor-agnostic
+// components/ package, so it can't import a flavor's own theme file
+// (HomeColors/ManagerColors) the way a real call site would — these alias
+// the closest existing approved brand tones instead of inventing new hex,
+// same convention as every other alias in this file.
+// =====================================
+
+/** Alias onto [RojanSoftLavender] — was `Color(0xFFD1B3FF)`, an unnamed near-duplicate of this exact tone. */
+val RojanOrbLavenderGlow = RojanSoftLavender
+
+/** Alias onto [RojanBlushPink] — was `Color(0xFFFFC1D6)`, an unnamed near-duplicate of this exact tone. */
+val RojanOrbBlushGlow = RojanBlushPink

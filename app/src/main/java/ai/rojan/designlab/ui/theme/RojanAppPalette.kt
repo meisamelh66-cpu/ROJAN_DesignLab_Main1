@@ -108,21 +108,21 @@ val CustomerPalette = RojanAppPalette(
  * Reception panel while staying inside the existing token vocabulary
  * (no new hex).
  *
- * Still deferred: [textAccent] (focus borders, links, spinners) is left
- * on the existing value — a rose-gold that also clears the 3:1 UI-contrast
- * bar on soft white is not among the current tokens, so choosing that
- * accent needs a designer + a contrast check on-device, not a blind pick.
- *
- * **Phase 3 — button system:** [buttonStyle] = [RojanButtonStyle.Glass]
- * moves Reception's primary CTA off Customer's purple/magenta
- * [RojanButtonStyle.Gradient] (what every Reception screen rendered before
- * this pass — `PremiumButton` had no per-app style, so Reception simply
- * got Customer's) onto its own rose-gold glass identity. [buttonAccent]
- * is deliberately **not** [textAccent] (still the deferred amber): it uses
- * [RojanPremiumBorderShadow], the metallic border's darkened-bronze band —
- * same rose-gold/gold family as the glass edge, and ≈5.9:1 contrast on
- * [ai.rojan.designlab.ui.background.WarmBackground], comfortably clearing
- * the bar a primary CTA's label needs.
+ * **Resolved (design-system refinement, Phase 5):** [textAccent] (focus
+ * borders, links, spinners) previously stayed on the deferred makeup-amber
+ * because no *pale/mid-tone* rose-gold in the token set clears 3:1 on
+ * [ai.rojan.designlab.ui.background.WarmBackground] — precise WCAG
+ * relative-luminance contrast was computed against `RojanWarmWhite`
+ * (`#FFFBFF`) for every rose-gold-family candidate: [RojanPremiumBorderRoseGold]
+ * ≈2.07:1, [RojanPremiumBorderGold] ≈2.05:1, [RojanRatingGold] ≈1.79:1 —
+ * all fail. Only the family's darkest band, [RojanPremiumBorderShadow]
+ * (already chosen for [buttonAccent] below), clears it: ≈**7.25:1** —
+ * comfortably past not just the 3:1 UI-component bar but the stricter
+ * 4.5:1 normal-text bar a "resend code" link needs. [textAccent] now uses
+ * it too, so this field and [buttonAccent] are the same value again (as
+ * they already are for Manager/Customer) — no new token invented, the
+ * two-field split collapses back to one now that a safe shared value
+ * exists.
  */
 val ReceptionPalette = RojanAppPalette(
     name = "Reception",
@@ -132,7 +132,9 @@ val ReceptionPalette = RojanAppPalette(
     highlightTint = Color.White,
     textPrimary = RojanTextPrimary,
     textSecondary = RojanTextSecondary,
-    textAccent = RojanCategoryMakeupIcon,
+    textAccent = RojanPremiumBorderShadow,
     buttonStyle = RojanButtonStyle.Glass,
-    buttonAccent = RojanPremiumBorderShadow,
+    // buttonAccent defaults to textAccent — no longer needs an explicit
+    // override now that textAccent itself is contrast-safe (see doc
+    // comment above).
 )

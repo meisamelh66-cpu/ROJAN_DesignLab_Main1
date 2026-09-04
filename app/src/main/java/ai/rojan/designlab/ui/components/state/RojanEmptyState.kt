@@ -12,6 +12,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 
@@ -118,7 +121,13 @@ internal fun RojanStateCard(
     onAction: (() -> Unit)? = null,
 ) {
     GlassSurface(
-        modifier = modifier.fillMaxWidth(),
+        // Accessibility foundation (design-system refinement, Phase 5):
+        // a screen reader announces this card's content as soon as it
+        // enters composition — the moment a list finishes loading empty,
+        // or an error replaces a loading state — without any call site
+        // needing its own announcement logic. Polite: waits for whatever
+        // TalkBack is currently saying, never interrupts.
+        modifier = modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
         shape = RojanShapes.Small,
     ) {
         Column(

@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.ui.motion.rememberReducedMotion
+import ai.rojan.designlab.ui.theme.RojanOrbBlushGlow
+import ai.rojan.designlab.ui.theme.RojanOrbLavenderGlow
 
 /**
  * Reusable frosted-glass floating orb.
@@ -104,7 +106,7 @@ fun FrostedGlassOrb(
 private fun GlassOrbPreview() {
     Box(modifier = Modifier.size(160.dp)) {
         GlassOrb(
-            colors = listOf(Color(0xFFD1B3FF), Color.Transparent),
+            colors = listOf(RojanOrbLavenderGlow, Color.Transparent),
             size = 100.dp,
         )
     }
@@ -115,7 +117,7 @@ private fun GlassOrbPreview() {
 private fun FrostedGlassOrbPreview() {
     FrostedGlassOrb(
         size = 90.dp,
-        tint = Color(0xFFFFC1D6),
+        tint = RojanOrbBlushGlow,
         alpha = 0.45f,
     )
 }

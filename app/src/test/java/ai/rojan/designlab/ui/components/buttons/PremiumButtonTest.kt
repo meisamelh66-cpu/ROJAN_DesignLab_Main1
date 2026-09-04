@@ -7,7 +7,6 @@ import ai.rojan.designlab.ui.theme.ReceptionPalette
 import ai.rojan.designlab.ui.theme.RojanButtonStyle
 import ai.rojan.designlab.ui.theme.RojanPremiumBorderShadow
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 /**
@@ -56,8 +55,13 @@ class PremiumButtonTest {
     }
 
     @Test
-    fun `Reception buttonAccent is deliberately NOT textAccent - a contrast-safe rose-gold, not the deferred amber`() {
-        assertNotEquals(ReceptionPalette.textAccent, ReceptionPalette.buttonAccent)
+    fun `Reception buttonAccent defaults to textAccent - both the same contrast-safe rose-gold as of Phase 5`() {
+        // Phase 3 deliberately split buttonAccent from textAccent because
+        // textAccent was still the deferred, contrast-unverified amber.
+        // Phase 5 replaced textAccent with a WCAG-checked rose-gold-family
+        // value (RojanPremiumBorderShadow, ~7.25:1 on WarmWhite) — the two
+        // fields collapse back to the same default, like Manager/Customer.
+        assertEquals(ReceptionPalette.textAccent, ReceptionPalette.buttonAccent)
         assertEquals(RojanPremiumBorderShadow, ReceptionPalette.buttonAccent)
     }
 
