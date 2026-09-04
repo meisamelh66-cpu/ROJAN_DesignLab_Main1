@@ -35,6 +35,7 @@ import ai.rojan.designlab.manager.screens.settings.ManagerSalonSetupScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerWorkingHoursScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerStaffEditScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerStaffScreen
+import ai.rojan.designlab.ui.navigation.navigateHomeAfterBooking
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -373,13 +374,12 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
         composable(ManagerDestinations.BOOKING_SUCCESS) {
             ManagerBookingSuccessScreen(
                 onDoneClick = {
-                    // Pops the whole booking sub-graph at once — this is what
-                    // clears ManagerBookingViewModel's state, not a manual
-                    // reset call (mirrors BookingSuccessScreen's wiring in
-                    // RojanNavGraph.kt).
-                    navController.navigate(ManagerDestinations.DASHBOARD) {
-                        popUpTo(ManagerDestinations.DASHBOARD) { inclusive = false }
-                    }
+                    // 5B7-2: clear the whole back stack (including the finished
+                    // booking sub-graph, which clears ManagerBookingViewModel)
+                    // and land on a single DASHBOARD — Back exits instead of
+                    // returning to a stale dashboard / the completed flow.
+                    // Mirrors BookingSuccessScreen's wiring in RojanNavGraph.kt.
+                    navController.navigateHomeAfterBooking(ManagerDestinations.DASHBOARD)
                 },
             )
         }

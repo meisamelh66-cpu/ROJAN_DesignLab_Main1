@@ -50,6 +50,7 @@ import ai.rojan.designlab.ui.theme.RojanLuxuryCaption
 
 import ai.rojan.designlab.ui.motion.RojanNavTransitions
 import ai.rojan.designlab.ui.motion.rememberReducedMotion
+import ai.rojan.designlab.ui.navigation.navigateHomeAfterBooking
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -742,21 +743,22 @@ fun RojanNavGraph() {
                     ) {
                         BookingSuccessScreen(
                             onDoneClick = {
-                                // Pops the whole booking sub-graph at once - this is what
-                                // clears BookingViewModel's state (see its own doc comment),
-                                // not a manual reset call.
+                                // 5B7-2: clear the entire back stack (including the
+                                // just-finished booking sub-graph, which is what
+                                // clears BookingViewModel) and land on a single
+                                // CUSTOMER_HOME — so Back exits rather than
+                                // re-entering the completed flow, and the
+                                // "log in while booking" path (startDestination
+                                // frozen to EXPLORE, CUSTOMER_HOME never on the
+                                // stack) is handled too.
                                 //
                                 // UX Refactor Phase 1: always CUSTOMER_HOME now,
                                 // not conditional on how this user started out —
                                 // Booking Confirmation is only reachable once
                                 // authenticated (the Login/OTP gate on
                                 // BOOKING_TIME), so by the time anyone reaches
-                                // Success they're already a customer, whether
-                                // they just completed their first login or were
-                                // a returning registered customer all along.
-                                navController.navigate(RojanDestinations.CUSTOMER_HOME) {
-                                    popUpTo(RojanDestinations.CUSTOMER_HOME) { inclusive = false }
-                                }
+                                // Success they're already a customer.
+                                navController.navigateHomeAfterBooking(RojanDestinations.CUSTOMER_HOME)
                             },
                         )
                     }

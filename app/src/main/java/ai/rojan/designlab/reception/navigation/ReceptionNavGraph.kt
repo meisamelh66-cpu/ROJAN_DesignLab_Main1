@@ -24,6 +24,7 @@ import ai.rojan.designlab.reception.screens.customers.ReceptionCustomersListScre
 import ai.rojan.designlab.reception.screens.dashboard.ReceptionDashboardScreen
 import ai.rojan.designlab.reception.screens.profile.ReceptionProfileScreen
 import ai.rojan.designlab.reception.screens.splash.ReceptionSplashScreen
+import ai.rojan.designlab.ui.navigation.navigateHomeAfterBooking
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -230,12 +231,10 @@ fun NavGraphBuilder.receptionNavGraph(navController: NavController, authViewMode
         composable(ReceptionDestinations.BOOKING_SUCCESS) {
             ReceptionBookingSuccessScreen(
                 onDoneClick = {
-                    // Pops the whole booking sub-graph at once — clears
-                    // ReceptionBookingViewModel's state, matching
-                    // ManagerNavGraph.kt's identical wiring.
-                    navController.navigate(ReceptionDestinations.DASHBOARD) {
-                        popUpTo(ReceptionDestinations.DASHBOARD) { inclusive = false }
-                    }
+                    // 5B7-2: clear the whole back stack (including the finished
+                    // booking sub-graph, which clears ReceptionBookingViewModel)
+                    // and land on a single DASHBOARD. Matches ManagerNavGraph.kt.
+                    navController.navigateHomeAfterBooking(ReceptionDestinations.DASHBOARD)
                 },
             )
         }
