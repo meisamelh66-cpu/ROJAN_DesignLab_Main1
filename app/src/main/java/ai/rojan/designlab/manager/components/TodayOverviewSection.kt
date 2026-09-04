@@ -19,7 +19,6 @@ import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -50,12 +49,13 @@ private fun overviewStatsFrom(stats: ManagerDashboardStats): List<OverviewStat> 
  * luxury background — content/layout unchanged.
  */
 @Composable
-fun TodayOverviewSection(modifier: Modifier = Modifier, refreshKey: Int = 0) {
-    // Manager App Phase 2: keyed on refreshKey (bumped by ManagerDashboardScreen once
-    // ManagerRepositories.initialize() completes) so real backend-synced appointment/service
-    // data is reflected once, not just whatever was in the (possibly still-empty) repositories
-    // at this Composable's first entry into composition.
-    val overviewStats = remember(refreshKey) { overviewStatsFrom(computeManagerDashboardStats()) }
+fun TodayOverviewSection(modifier: Modifier = Modifier) {
+    // Deliberately not `remember`-cached: computeManagerDashboardStats() is a cheap
+    // synchronous read over ManagerRepositories' in-memory caches, which can mutate
+    // independently (new bookings, specialist deactivation) without this composable's
+    // own state changing - the same stale-data class already found and fixed in
+    // ManagerStaffScreen and ManagerCustomersListScreen.
+    val overviewStats = overviewStatsFrom(computeManagerDashboardStats())
 
     Column(modifier = modifier.fillMaxWidth()) {
         RtlSectionHeader(
