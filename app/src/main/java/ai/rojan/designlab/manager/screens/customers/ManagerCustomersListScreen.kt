@@ -120,7 +120,7 @@ fun ManagerCustomersListScreen(
             if (filteredCustomers.isEmpty()) {
                 item { EmptyCustomersNotice() }
             } else {
-                items(filteredCustomers) { customer ->
+                items(filteredCustomers, key = { it.id }) { customer ->
                     CustomerCard(
                         customer = customer,
                         onClick = { onCustomerClick(customer.id) },

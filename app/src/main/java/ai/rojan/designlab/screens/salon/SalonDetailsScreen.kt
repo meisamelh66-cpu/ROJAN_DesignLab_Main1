@@ -439,7 +439,7 @@ fun SalonDetailsScreen(
                                 modifier = Modifier.padding(horizontal = RojanDimens.SpaceMD),
                                 horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
                             ) {
-                                itemsIndexed(specialists) { index, specialist ->
+                                itemsIndexed(specialists, key = { _, specialist -> specialist.id }) { index, specialist ->
                                     HomeGlassSurface(
                                         modifier = Modifier
                                             .rojanEnterAnimation(delayMillis = index * 60)
@@ -482,7 +482,7 @@ fun SalonDetailsScreen(
 
                     if (services.isNotEmpty()) {
                         item { RtlSectionHeader("خدمات", color = HomeColors.TextPrimary) }
-                        itemsIndexed(services) { index, service ->
+                        itemsIndexed(services, key = { _, service -> service.id }) { index, service ->
                             HomeGlassSurface(
                                 modifier = Modifier
                                     .fillMaxWidth()

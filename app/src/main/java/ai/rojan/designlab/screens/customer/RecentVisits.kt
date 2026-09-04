@@ -44,7 +44,7 @@ fun RecentVisits(viewModel: BookingHistoryViewModel, onSalonClick: (String) -> U
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
     ) {
-        itemsIndexed(pastVisits) { index, item ->
+        itemsIndexed(pastVisits, key = { _, item -> item.booking.id }) { index, item ->
             val booking = item.booking
 
             HomeCard(

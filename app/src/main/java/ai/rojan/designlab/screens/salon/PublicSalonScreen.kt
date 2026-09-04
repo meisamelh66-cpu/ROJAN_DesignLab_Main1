@@ -159,7 +159,7 @@ private fun PublicSalonContent(data: PublicSalonData, onLoginClick: () -> Unit) 
 
         if (data.specialists.isNotEmpty()) {
             item { RtlSectionHeader("متخصصان", color = HomeColors.TextPrimary) }
-            itemsIndexed(data.specialists) { index, specialist ->
+            itemsIndexed(data.specialists, key = { _, specialist -> "specialist-${specialist.id}" }) { index, specialist ->
                 HomeGlassSurface(modifier = Modifier.fillMaxWidth().rojanEnterAnimation(delayMillis = index * 60), shape = RojanShapes.Small) {
                     Box(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
                         RtlListRow(
@@ -175,7 +175,7 @@ private fun PublicSalonContent(data: PublicSalonData, onLoginClick: () -> Unit) 
 
         data.serviceGroups.filter { it.services.isNotEmpty() }.forEach { group ->
             item { RtlSectionHeader(group.category.name, color = HomeColors.TextPrimary) }
-            itemsIndexed(group.services) { index, service ->
+            itemsIndexed(group.services, key = { _, service -> "service-${service.id}" }) { index, service ->
                 HomeGlassSurface(modifier = Modifier.fillMaxWidth().rojanEnterAnimation(delayMillis = index * 60), shape = RojanShapes.Small) {
                     RtlListRow(
                         title = service.name,

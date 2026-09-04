@@ -56,7 +56,7 @@ fun UpcomingBookings(viewModel: BookingHistoryViewModel) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
     ) {
-        itemsIndexed(upcoming) { index, item ->
+        itemsIndexed(upcoming, key = { _, item -> item.booking.id }) { index, item ->
             val booking = item.booking
 
             Box(

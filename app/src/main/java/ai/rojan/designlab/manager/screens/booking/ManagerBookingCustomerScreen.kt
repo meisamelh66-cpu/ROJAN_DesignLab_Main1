@@ -75,7 +75,7 @@ fun ManagerBookingCustomerScreen(
                 )
             }
 
-            items(customers) { customer ->
+            items(customers, key = { it.id }) { customer ->
                 BookingCustomerRow(
                     customer = customer,
                     onClick = {

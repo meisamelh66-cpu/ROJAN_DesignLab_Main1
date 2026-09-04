@@ -97,7 +97,7 @@ fun SpecialistSelectionScreen(
                 is UiState.Empty -> RojanEmptyState(title = "متخصصی برای این سالن یافت نشد")
                 is UiState.Success -> {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
-                        itemsIndexed(state.data) { index, specialist ->
+                        itemsIndexed(state.data, key = { _, specialist -> specialist.id }) { index, specialist ->
                             SpecialistRow(
                                 specialist = specialist,
                                 onClick = { onSpecialistSelected(specialist.id) },

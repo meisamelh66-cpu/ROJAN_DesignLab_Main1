@@ -130,7 +130,7 @@ fun AppointmentsScreen(
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD)) {
                         if (upcoming.isNotEmpty()) {
                             item { Text("پیش‌رو", style = RojanTypography.Body, color = HomeColors.TextPrimary) }
-                            itemsIndexed(upcoming) { index, item ->
+                            itemsIndexed(upcoming, key = { _, item -> item.booking.id }) { index, item ->
                                 AppointmentCard(
                                     item = item,
                                     onClick = { onAppointmentClick(item.booking.id) },
@@ -147,7 +147,7 @@ fun AppointmentsScreen(
 
                         if (past.isNotEmpty()) {
                             item { Text("گذشته", style = RojanTypography.Body, color = HomeColors.TextPrimary) }
-                            itemsIndexed(past) { index, item ->
+                            itemsIndexed(past, key = { _, item -> item.booking.id }) { index, item ->
                                 AppointmentCard(
                                     item = item,
                                     onClick = { onAppointmentClick(item.booking.id) },

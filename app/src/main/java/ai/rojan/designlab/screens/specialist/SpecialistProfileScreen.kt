@@ -141,7 +141,7 @@ fun SpecialistProfileScreen(
 
                     if (services.isNotEmpty()) {
                         item { RtlSectionHeader("خدمات قابل رزرو", horizontalPadding = 0.dp, color = HomeColors.TextPrimary) }
-                        itemsIndexed(services) { index, service ->
+                        itemsIndexed(services, key = { _, service -> service.id }) { index, service ->
                             HomeGlassSurface(
                                 modifier = Modifier
                                     .fillMaxWidth()

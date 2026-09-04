@@ -99,7 +99,7 @@ fun ManagerServicesScreen(
             if (filteredServices.isEmpty()) {
                 item { EmptyServicesNotice() }
             } else {
-                items(filteredServices) { service ->
+                items(filteredServices, key = { it.id }) { service ->
                     ServiceCard(service = service, onClick = { onServiceClick(service.id) })
                 }
             }

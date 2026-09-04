@@ -95,7 +95,7 @@ fun ManagerStaffScreen(
             if (filteredSpecialists.isEmpty()) {
                 item { EmptyStaffNotice() }
             } else {
-                items(filteredSpecialists) { specialist ->
+                items(filteredSpecialists, key = { it.id }) { specialist ->
                     SpecialistCard(
                         specialist = specialist,
                         onClick = { onSpecialistClick(specialist.id) },

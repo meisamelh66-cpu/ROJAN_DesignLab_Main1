@@ -80,7 +80,7 @@ fun FavoritesScreen(
                     RojanErrorState(description = loadState.message, actionLabel = "تلاش مجدد", onAction = viewModel::retry)
                 }
                 is UiState.Success -> {
-                    itemsIndexed(loadState.data) { index, item ->
+                    itemsIndexed(loadState.data, key = { _, item -> item.salonId }) { index, item ->
                         HomeGlassSurface(
                             modifier = Modifier
                                 .fillMaxWidth()

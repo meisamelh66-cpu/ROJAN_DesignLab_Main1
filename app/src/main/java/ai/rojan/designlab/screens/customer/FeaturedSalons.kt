@@ -69,7 +69,7 @@ fun FeaturedSalons(
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
     ) {
-        itemsIndexed(salons) { index, salon ->
+        itemsIndexed(salons, key = { _, salon -> salon.id }) { index, salon ->
             HomeCard(
                 accentColor = salonAccentColorFor(salon.id),
                 // Visual Refinement: tint reduced 0.30f -> 0.25f (~17%). No
