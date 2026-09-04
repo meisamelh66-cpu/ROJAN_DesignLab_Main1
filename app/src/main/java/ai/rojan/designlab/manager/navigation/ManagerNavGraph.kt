@@ -403,6 +403,8 @@ private fun managerBookingViewModelFor(
     }
     return viewModel(
         viewModelStoreOwner = parentEntry,
-        factory = ManagerBookingViewModelFactory(),
+        factory = ManagerBookingViewModelFactory,
+        // 5B6-1: the extras Navigation-Compose restores SavedStateHandle through.
+        extras = parentEntry.defaultViewModelCreationExtras,
     )
 }

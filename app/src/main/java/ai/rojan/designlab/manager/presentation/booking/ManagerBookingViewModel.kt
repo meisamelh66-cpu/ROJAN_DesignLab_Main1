@@ -14,6 +14,7 @@ import ai.rojan.designlab.manager.domain.specialist.Specialist
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,15 +44,29 @@ import kotlinx.coroutines.flow.asStateFlow
  * [ai.rojan.designlab.manager.screens.booking.ManagerBookingStartScreen])
  * has realistically had time to resolve `salonId` by then, and reading it
  * live means this doesn't matter either way.
+ *
+ * **Process-death fix (5B6-1):** the wizard's selections previously lived
+ * only in [MutableStateFlow], so a manager who backgrounded the app
+ * mid-wizard (an ordinary interruption on a shared salon device) returned
+ * — via the nested graph's restored back-stack entry — into an empty
+ * wizard. Ported from the Customer [ai.rojan.designlab.presentation.booking.BookingViewModel]
+ * pattern: [savedStateHandle] persists the five selection fields on every
+ * mutation and [restoreState] rebuilds them on construction. The
+ * [SavedStateHandle] is sourced from the nested graph's
+ * `NavBackStackEntry` extras at the `managerBookingViewModelFor` call site
+ * — the API Navigation-Compose is built to restore through. Transient
+ * fields (isSubmitting / confirmError / createdAppointmentId) are
+ * deliberately not persisted.
  */
 class ManagerBookingViewModel(
+    private val savedStateHandle: SavedStateHandle,
     private val customerRepository: CustomerRepository,
     private val serviceRepository: ServiceRepository,
     private val specialistRepository: SpecialistRepository,
     private val appointmentRepository: AppointmentRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(ManagerBookingState())
+    private val _uiState = MutableStateFlow(restoreState())
     val uiState: StateFlow<ManagerBookingState> = _uiState.asStateFlow()
 
     var isSubmitting by mutableStateOf(false)
@@ -60,31 +75,49 @@ class ManagerBookingViewModel(
     var submitError by mutableStateOf<String?>(null)
         private set
 
+    private fun restoreState(): ManagerBookingState = ManagerBookingState(
+        customerId = savedStateHandle[KEY_CUSTOMER_ID],
+        serviceId = savedStateHandle[KEY_SERVICE_ID],
+        specialistId = savedStateHandle[KEY_SPECIALIST_ID],
+        dateKey = savedStateHandle[KEY_DATE_KEY],
+        time = savedStateHandle[KEY_TIME],
+    )
+
+    /** Single write path — updates the flow and persists the five selection fields. */
+    private fun setState(newState: ManagerBookingState) {
+        _uiState.value = newState
+        savedStateHandle[KEY_CUSTOMER_ID] = newState.customerId
+        savedStateHandle[KEY_SERVICE_ID] = newState.serviceId
+        savedStateHandle[KEY_SPECIALIST_ID] = newState.specialistId
+        savedStateHandle[KEY_DATE_KEY] = newState.dateKey
+        savedStateHandle[KEY_TIME] = newState.time
+    }
+
     fun reset() {
-        _uiState.value = ManagerBookingState()
+        setState(ManagerBookingState())
     }
 
     fun selectCustomer(customerId: String) {
-        _uiState.value = _uiState.value.copy(customerId = customerId)
+        setState(_uiState.value.copy(customerId = customerId))
     }
 
     fun selectService(serviceId: String) {
-        _uiState.value = _uiState.value.copy(serviceId = serviceId)
+        setState(_uiState.value.copy(serviceId = serviceId))
     }
 
     fun selectSpecialist(specialistId: String) {
-        _uiState.value = _uiState.value.copy(specialistId = specialistId)
+        setState(_uiState.value.copy(specialistId = specialistId))
     }
 
     fun selectDate(dateKey: String) {
         // Changing the date invalidates a previously chosen time — the
         // slot may not even exist/be free on the new date.
-        _uiState.value = _uiState.value.copy(dateKey = dateKey, time = null)
+        setState(_uiState.value.copy(dateKey = dateKey, time = null))
     }
 
     /** [time] must be a raw ISO-8601 `start` value from a real [availableTimes] result — see [ManagerBookingState.time]'s doc comment for why. */
     fun selectTime(time: String) {
-        _uiState.value = _uiState.value.copy(time = time)
+        setState(_uiState.value.copy(time = time))
     }
 
     fun searchCustomers(query: String) = customerRepository.search(query)
@@ -153,7 +186,7 @@ class ManagerBookingViewModel(
         val specialistId = state.specialistId ?: return Result.failure(IllegalStateException("No specialist selected"))
         val startTime = state.time ?: return Result.failure(IllegalStateException("No time selected"))
 
-        _uiState.value = state.copy(isSubmitting = true, confirmError = null)
+        setState(state.copy(isSubmitting = true, confirmError = null))
         val result = appointmentRepository.createForCustomer(
             customerId = customerId,
             serviceId = serviceId,
@@ -161,12 +194,22 @@ class ManagerBookingViewModel(
             startTime = startTime,
             notes = null,
         )
-        _uiState.value = _uiState.value.copy(
-            isSubmitting = false,
-            createdAppointmentId = result.getOrNull()?.id,
-            confirmError = result.exceptionOrNull()?.let(::confirmErrorMessage),
+        setState(
+            _uiState.value.copy(
+                isSubmitting = false,
+                createdAppointmentId = result.getOrNull()?.id,
+                confirmError = result.exceptionOrNull()?.let(::confirmErrorMessage),
+            ),
         )
         return result
+    }
+
+    private companion object {
+        const val KEY_CUSTOMER_ID = "manager_booking_customer_id"
+        const val KEY_SERVICE_ID = "manager_booking_service_id"
+        const val KEY_SPECIALIST_ID = "manager_booking_specialist_id"
+        const val KEY_DATE_KEY = "manager_booking_date_key"
+        const val KEY_TIME = "manager_booking_time"
     }
 }
 

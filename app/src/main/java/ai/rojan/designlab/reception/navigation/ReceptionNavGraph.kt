@@ -23,7 +23,9 @@ import ai.rojan.designlab.reception.screens.booking.ReceptionBookingSuccessScree
 import ai.rojan.designlab.reception.screens.customers.ReceptionCustomersListScreen
 import ai.rojan.designlab.reception.screens.dashboard.ReceptionDashboardScreen
 import ai.rojan.designlab.reception.screens.profile.ReceptionProfileScreen
+import ai.rojan.designlab.reception.screens.splash.ReceptionSplashScreen
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -31,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
@@ -48,14 +51,10 @@ import androidx.navigation.compose.navigation
  * is deliberately no UI built against it.
  *
  * [authViewModel] is threaded through from [ReceptionRootGraph]
- * (constructed once, not per-screen). Every screen past [ReceptionDestinations.DASHBOARD]
- * needs a resolved `salonId`, obtained via [requireActiveSalonId] — safe
- * by construction, since every such screen is only ever reachable after
- * [ai.rojan.designlab.reception.domain.auth.ActiveSalonUiState.Active] has
- * already resolved (this graph's own [ReceptionDestinations.OTP_AUTH]/
- * [ReceptionDestinations.SALON_SELECTION]/[ReceptionDestinations.ACCESS_ERROR]
- * routes only ever navigate to [ReceptionDestinations.DASHBOARD] once that
- * holds).
+ * (constructed once, not per-screen). Every salon-scoped screen goes
+ * through [WithActiveSalon], which supplies the resolved `salonId` when
+ * the active salon is [ActiveSalonUiState.Active] and otherwise routes to
+ * a recovery destination instead of crashing — see 5B7-1 below.
  */
 fun NavGraphBuilder.receptionNavGraph(navController: NavController, authViewModel: ReceptionAuthViewModel) {
     composable(ReceptionDestinations.OTP_AUTH) {
@@ -107,29 +106,31 @@ fun NavGraphBuilder.receptionNavGraph(navController: NavController, authViewMode
     }
 
     composable(ReceptionDestinations.DASHBOARD) {
-        val appContext = LocalContext.current.applicationContext
-        val salonId = requireActiveSalonId(authViewModel)
-        val dashboardViewModel: ReceptionDashboardViewModel = viewModel(
-            factory = ReceptionDashboardViewModelFactory(appContext, salonId),
-        )
-        ReceptionDashboardScreen(
-            viewModel = dashboardViewModel,
-            onNewBookingClick = { navController.navigate(ReceptionDestinations.BOOKING_FLOW_GRAPH) },
-            onCustomersClick = { navController.navigate(ReceptionDestinations.CUSTOMERS) },
-            onProfileClick = { navController.navigate(ReceptionDestinations.PROFILE) },
-        )
+        WithActiveSalon(navController, authViewModel) { salonId ->
+            val appContext = LocalContext.current.applicationContext
+            val dashboardViewModel: ReceptionDashboardViewModel = viewModel(
+                factory = ReceptionDashboardViewModelFactory(appContext, salonId),
+            )
+            ReceptionDashboardScreen(
+                viewModel = dashboardViewModel,
+                onNewBookingClick = { navController.navigate(ReceptionDestinations.BOOKING_FLOW_GRAPH) },
+                onCustomersClick = { navController.navigate(ReceptionDestinations.CUSTOMERS) },
+                onProfileClick = { navController.navigate(ReceptionDestinations.PROFILE) },
+            )
+        }
     }
 
     composable(ReceptionDestinations.CUSTOMERS) {
-        val appContext = LocalContext.current.applicationContext
-        val salonId = requireActiveSalonId(authViewModel)
-        val customersViewModel: ReceptionCustomersViewModel = viewModel(
-            factory = ReceptionCustomersViewModelFactory(appContext, salonId),
-        )
-        ReceptionCustomersListScreen(
-            viewModel = customersViewModel,
-            onBackClick = { navController.popBackStack() },
-        )
+        WithActiveSalon(navController, authViewModel) { salonId ->
+            val appContext = LocalContext.current.applicationContext
+            val customersViewModel: ReceptionCustomersViewModel = viewModel(
+                factory = ReceptionCustomersViewModelFactory(appContext, salonId),
+            )
+            ReceptionCustomersListScreen(
+                viewModel = customersViewModel,
+                onBackClick = { navController.popBackStack() },
+            )
+        }
     }
 
     composable(ReceptionDestinations.PROFILE) {
@@ -161,57 +162,69 @@ fun NavGraphBuilder.receptionNavGraph(navController: NavController, authViewMode
         startDestination = ReceptionDestinations.CREATE_APPOINTMENT,
     ) {
         composable(ReceptionDestinations.CREATE_APPOINTMENT) { backStackEntry ->
-            val viewModel = receptionBookingViewModelFor(navController, backStackEntry, authViewModel)
-            ReceptionBookingStartScreen(
-                viewModel = viewModel,
-                onBackClick = { navController.popBackStack() },
-                onStartClick = { navController.navigate(ReceptionDestinations.BOOKING_CUSTOMER) },
-            )
+            WithActiveSalon(navController, authViewModel) { salonId ->
+                val viewModel = receptionBookingViewModelFor(navController, backStackEntry, salonId)
+                ReceptionBookingStartScreen(
+                    viewModel = viewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onStartClick = { navController.navigate(ReceptionDestinations.BOOKING_CUSTOMER) },
+                )
+            }
         }
 
         composable(ReceptionDestinations.BOOKING_CUSTOMER) { backStackEntry ->
-            val viewModel = receptionBookingViewModelFor(navController, backStackEntry, authViewModel)
-            ReceptionBookingCustomerScreen(
-                viewModel = viewModel,
-                onBackClick = { navController.popBackStack() },
-                onCustomerSelected = { navController.navigate(ReceptionDestinations.BOOKING_SERVICE) },
-            )
+            WithActiveSalon(navController, authViewModel) { salonId ->
+                val viewModel = receptionBookingViewModelFor(navController, backStackEntry, salonId)
+                ReceptionBookingCustomerScreen(
+                    viewModel = viewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onCustomerSelected = { navController.navigate(ReceptionDestinations.BOOKING_SERVICE) },
+                )
+            }
         }
 
         composable(ReceptionDestinations.BOOKING_SERVICE) { backStackEntry ->
-            val viewModel = receptionBookingViewModelFor(navController, backStackEntry, authViewModel)
-            ReceptionBookingServiceScreen(
-                viewModel = viewModel,
-                onBackClick = { navController.popBackStack() },
-                onServiceSelected = { navController.navigate(ReceptionDestinations.BOOKING_SPECIALIST) },
-            )
+            WithActiveSalon(navController, authViewModel) { salonId ->
+                val viewModel = receptionBookingViewModelFor(navController, backStackEntry, salonId)
+                ReceptionBookingServiceScreen(
+                    viewModel = viewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onServiceSelected = { navController.navigate(ReceptionDestinations.BOOKING_SPECIALIST) },
+                )
+            }
         }
 
         composable(ReceptionDestinations.BOOKING_SPECIALIST) { backStackEntry ->
-            val viewModel = receptionBookingViewModelFor(navController, backStackEntry, authViewModel)
-            ReceptionBookingSpecialistScreen(
-                viewModel = viewModel,
-                onBackClick = { navController.popBackStack() },
-                onSpecialistSelected = { navController.navigate(ReceptionDestinations.BOOKING_DATETIME) },
-            )
+            WithActiveSalon(navController, authViewModel) { salonId ->
+                val viewModel = receptionBookingViewModelFor(navController, backStackEntry, salonId)
+                ReceptionBookingSpecialistScreen(
+                    viewModel = viewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onSpecialistSelected = { navController.navigate(ReceptionDestinations.BOOKING_DATETIME) },
+                )
+            }
         }
 
         composable(ReceptionDestinations.BOOKING_DATETIME) { backStackEntry ->
-            val viewModel = receptionBookingViewModelFor(navController, backStackEntry, authViewModel)
-            ReceptionBookingDateTimeScreen(
-                viewModel = viewModel,
-                onBackClick = { navController.popBackStack() },
-                onContinueClick = { navController.navigate(ReceptionDestinations.BOOKING_REVIEW) },
-            )
+            WithActiveSalon(navController, authViewModel) { salonId ->
+                val viewModel = receptionBookingViewModelFor(navController, backStackEntry, salonId)
+                ReceptionBookingDateTimeScreen(
+                    viewModel = viewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onContinueClick = { navController.navigate(ReceptionDestinations.BOOKING_REVIEW) },
+                )
+            }
         }
 
         composable(ReceptionDestinations.BOOKING_REVIEW) { backStackEntry ->
-            val viewModel = receptionBookingViewModelFor(navController, backStackEntry, authViewModel)
-            ReceptionBookingReviewScreen(
-                viewModel = viewModel,
-                onBackClick = { navController.popBackStack() },
-                onConfirmed = { navController.navigate(ReceptionDestinations.BOOKING_SUCCESS) },
-            )
+            WithActiveSalon(navController, authViewModel) { salonId ->
+                val viewModel = receptionBookingViewModelFor(navController, backStackEntry, salonId)
+                ReceptionBookingReviewScreen(
+                    viewModel = viewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onConfirmed = { navController.navigate(ReceptionDestinations.BOOKING_SUCCESS) },
+                )
+            }
         }
 
         composable(ReceptionDestinations.BOOKING_SUCCESS) {
@@ -230,33 +243,88 @@ fun NavGraphBuilder.receptionNavGraph(navController: NavController, authViewMode
 }
 
 /**
- * Safe by construction (see this file's own doc comment) — every call
- * site is only ever reached after [ActiveSalonUiState.Active] has already
- * resolved. Fails loudly rather than silently defaulting if that
- * invariant is ever violated, consistent with this codebase's established
- * "no unprovided palette/context renders mystery state" convention.
+ * 5B7-1 — the single choke point for every salon-scoped Reception
+ * destination. [ReceptionRootGraph]'s splash gate only protects the
+ * *initial* route: after Android process death, Jetpack Navigation
+ * restores the saved back stack (a booking step / dashboard / customers)
+ * regardless of `startDestination`, and the active salon may not have
+ * re-resolved to [ActiveSalonUiState.Active] (a transient `/salon-access`
+ * failure resolves it to [ActiveSalonUiState.Error]; a revoked session
+ * leaves it [ActiveSalonUiState.Loading]). This previously reached a hard
+ * `check(state is Active)` and crashed. Now:
+ *
+ * - [ActiveSalonUiState.Active] → render [content] with the resolved id
+ *   (behaviour unchanged from before).
+ * - otherwise → navigate once to the correct recovery destination,
+ *   clearing the now-invalid back stack, and render a placeholder until
+ *   the redirect lands. Recovery destinations do not route back through
+ *   here, so there is no loop.
  */
 @Composable
-private fun requireActiveSalonId(authViewModel: ReceptionAuthViewModel): String {
+private fun WithActiveSalon(
+    navController: NavController,
+    authViewModel: ReceptionAuthViewModel,
+    content: @Composable (salonId: String) -> Unit,
+) {
+    val authState by authViewModel.authState.collectAsStateWithLifecycle()
     val activeSalonState by authViewModel.activeSalonState.collectAsStateWithLifecycle()
-    val state = activeSalonState
-    check(state is ActiveSalonUiState.Active) { "requireActiveSalonId called before ActiveSalonUiState.Active resolved" }
-    return state.context.salonId
+
+    when (val gate = receptionSalonRecovery(authState, activeSalonState)) {
+        is ReceptionSalonGate.Ready -> content(gate.salonId)
+        is ReceptionSalonGate.Recover -> {
+            LaunchedEffect(gate.destination) {
+                navController.navigate(gate.destination) {
+                    popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+            ReceptionSplashScreen(onSplashFinished = {})
+        }
+        ReceptionSalonGate.Wait -> ReceptionSplashScreen(onSplashFinished = {})
+    }
+}
+
+/**
+ * Pure decision for [WithActiveSalon] — extracted so the recovery routing
+ * (5B7-1) is unit-testable without a Compose/NavController harness.
+ */
+internal sealed interface ReceptionSalonGate {
+    /** The active salon is resolved — render the salon-scoped screen. */
+    data class Ready(val salonId: String) : ReceptionSalonGate
+
+    /** Route to [destination] and drop the restored (now-invalid) back stack. */
+    data class Recover(val destination: String) : ReceptionSalonGate
+
+    /** Still resolving (authenticated, salon-access in flight) — show a placeholder and re-evaluate on the next emission. */
+    data object Wait : ReceptionSalonGate
+}
+
+internal fun receptionSalonRecovery(
+    authState: ReceptionAuthState,
+    activeSalonState: ActiveSalonUiState,
+): ReceptionSalonGate = when {
+    activeSalonState is ActiveSalonUiState.Active -> ReceptionSalonGate.Ready(activeSalonState.context.salonId)
+    // No valid session behind the restored screen → back to sign-in.
+    authState !is ReceptionAuthState.Authenticated -> ReceptionSalonGate.Recover(ReceptionDestinations.OTP_AUTH)
+    activeSalonState is ActiveSalonUiState.SelectionRequired -> ReceptionSalonGate.Recover(ReceptionDestinations.SALON_SELECTION)
+    activeSalonState is ActiveSalonUiState.Error -> ReceptionSalonGate.Recover(ReceptionDestinations.ACCESS_ERROR)
+    else -> ReceptionSalonGate.Wait // authenticated + Loading — resolution still in flight
 }
 
 @Composable
 private fun receptionBookingViewModelFor(
     navController: NavController,
     backStackEntry: NavBackStackEntry,
-    authViewModel: ReceptionAuthViewModel,
+    salonId: String,
 ): ReceptionBookingViewModel {
     val appContext = LocalContext.current.applicationContext
-    val salonId = requireActiveSalonId(authViewModel)
     val parentEntry = remember(backStackEntry) {
         navController.getBackStackEntry(ReceptionDestinations.BOOKING_FLOW_GRAPH)
     }
     return viewModel(
         viewModelStoreOwner = parentEntry,
         factory = ReceptionBookingViewModelFactory(appContext, salonId),
+        // 5B6-1: the extras Navigation-Compose restores SavedStateHandle through.
+        extras = parentEntry.defaultViewModelCreationExtras,
     )
 }

@@ -13,6 +13,7 @@ import ai.rojan.designlab.reception.domain.booking.ReceptionBookingState
 import ai.rojan.designlab.reception.domain.repository.ReceptionBookingRepository
 import ai.rojan.designlab.reception.domain.repository.ReceptionCustomer
 import ai.rojan.designlab.reception.domain.repository.ReceptionCustomerRepository
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,8 +37,21 @@ import kotlinx.coroutines.launch
  * 6 ships; `serviceRepository`/`specialistRepository`/`availabilityRepository`
  * are "any authenticated user" and work today. No mock, no fake data
  * anywhere in this class.
+ *
+ * **Process-death fix (5B6-1):** the wizard's selections previously lived
+ * only in [MutableStateFlow], so a receptionist who backgrounded the app
+ * mid-wizard returned — via the nested graph's restored back-stack entry
+ * — into an empty wizard. Ported from the Customer
+ * [ai.rojan.designlab.presentation.booking.BookingViewModel] pattern:
+ * [savedStateHandle] persists the selected customer/service/specialist
+ * (as their own flat primitive fields, since the domain models are
+ * Android-free and not `Parcelable`) plus date/time on every mutation,
+ * and [restoreState] rebuilds them on construction. The re-fetched picker
+ * lists are not persisted (they reload). Transient fields
+ * (isSubmitting / confirmError / createdBookingId) are not persisted.
  */
 class ReceptionBookingViewModel(
+    private val savedStateHandle: SavedStateHandle,
     private val salonId: String,
     private val bookingRepository: ReceptionBookingRepository,
     private val customerRepository: ReceptionCustomerRepository,
@@ -47,7 +61,7 @@ class ReceptionBookingViewModel(
     private val availabilityRepository: AvailabilityRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(ReceptionBookingState())
+    private val _uiState = MutableStateFlow(restoreState())
     val uiState: StateFlow<ReceptionBookingState> = _uiState.asStateFlow()
 
     private val _customers = MutableStateFlow<UiState<List<ReceptionCustomer>>>(UiState.Loading)
@@ -61,6 +75,71 @@ class ReceptionBookingViewModel(
 
     private val _availableTimes = MutableStateFlow<UiState<List<TimeSlot>>>(UiState.Loading)
     val availableTimes: StateFlow<UiState<List<TimeSlot>>> = _availableTimes.asStateFlow()
+
+    private fun restoreState(): ReceptionBookingState {
+        val customer = savedStateHandle.get<String>(KEY_CUSTOMER_ID)?.let { id ->
+            ReceptionCustomer(
+                id = id,
+                salonId = savedStateHandle[KEY_CUSTOMER_SALON_ID] ?: salonId,
+                fullName = savedStateHandle[KEY_CUSTOMER_NAME] ?: "",
+                phoneNumber = savedStateHandle[KEY_CUSTOMER_PHONE],
+                email = savedStateHandle[KEY_CUSTOMER_EMAIL],
+                active = savedStateHandle[KEY_CUSTOMER_ACTIVE] ?: true,
+            )
+        }
+        val service = savedStateHandle.get<String>(KEY_SERVICE_ID)?.let { id ->
+            Service(
+                id = id,
+                salonId = savedStateHandle[KEY_SERVICE_SALON_ID] ?: salonId,
+                categoryId = savedStateHandle[KEY_SERVICE_CATEGORY_ID] ?: "",
+                name = savedStateHandle[KEY_SERVICE_NAME] ?: "",
+                description = savedStateHandle[KEY_SERVICE_DESC],
+                durationMinutes = savedStateHandle[KEY_SERVICE_DURATION] ?: 0,
+                price = savedStateHandle[KEY_SERVICE_PRICE] ?: 0.0,
+            )
+        }
+        val specialist = savedStateHandle.get<String>(KEY_SPECIALIST_ID)?.let { id ->
+            Specialist(
+                id = id,
+                salonId = savedStateHandle[KEY_SPECIALIST_SALON_ID] ?: salonId,
+                displayName = savedStateHandle[KEY_SPECIALIST_NAME] ?: "",
+                bio = savedStateHandle[KEY_SPECIALIST_BIO],
+                photoUrl = savedStateHandle[KEY_SPECIALIST_PHOTO],
+            )
+        }
+        return ReceptionBookingState(
+            customer = customer,
+            service = service,
+            specialist = specialist,
+            dateIso = savedStateHandle[KEY_DATE_ISO],
+            time = savedStateHandle[KEY_TIME],
+        )
+    }
+
+    /** Single write path — updates the flow and persists the selections + date/time. */
+    private fun setState(newState: ReceptionBookingState) {
+        _uiState.value = newState
+        savedStateHandle[KEY_CUSTOMER_ID] = newState.customer?.id
+        savedStateHandle[KEY_CUSTOMER_SALON_ID] = newState.customer?.salonId
+        savedStateHandle[KEY_CUSTOMER_NAME] = newState.customer?.fullName
+        savedStateHandle[KEY_CUSTOMER_PHONE] = newState.customer?.phoneNumber
+        savedStateHandle[KEY_CUSTOMER_EMAIL] = newState.customer?.email
+        savedStateHandle[KEY_CUSTOMER_ACTIVE] = newState.customer?.active
+        savedStateHandle[KEY_SERVICE_ID] = newState.service?.id
+        savedStateHandle[KEY_SERVICE_SALON_ID] = newState.service?.salonId
+        savedStateHandle[KEY_SERVICE_CATEGORY_ID] = newState.service?.categoryId
+        savedStateHandle[KEY_SERVICE_NAME] = newState.service?.name
+        savedStateHandle[KEY_SERVICE_DESC] = newState.service?.description
+        savedStateHandle[KEY_SERVICE_DURATION] = newState.service?.durationMinutes
+        savedStateHandle[KEY_SERVICE_PRICE] = newState.service?.price
+        savedStateHandle[KEY_SPECIALIST_ID] = newState.specialist?.id
+        savedStateHandle[KEY_SPECIALIST_SALON_ID] = newState.specialist?.salonId
+        savedStateHandle[KEY_SPECIALIST_NAME] = newState.specialist?.displayName
+        savedStateHandle[KEY_SPECIALIST_BIO] = newState.specialist?.bio
+        savedStateHandle[KEY_SPECIALIST_PHOTO] = newState.specialist?.photoUrl
+        savedStateHandle[KEY_DATE_ISO] = newState.dateIso
+        savedStateHandle[KEY_TIME] = newState.time
+    }
 
     fun searchCustomers(query: String?) {
         _customers.value = UiState.Loading
@@ -135,7 +214,7 @@ class ReceptionBookingViewModel(
             _availableTimes.value = UiState.Error("ابتدا خدمت و متخصص را انتخاب کنید")
             return
         }
-        _uiState.value = _uiState.value.copy(dateIso = dateIso, time = null)
+        setState(_uiState.value.copy(dateIso = dateIso, time = null))
         _availableTimes.value = UiState.Loading
         viewModelScope.launch {
             availabilityRepository.getAvailableSlots(
@@ -150,20 +229,20 @@ class ReceptionBookingViewModel(
     }
 
     fun selectCustomer(customer: ReceptionCustomer) {
-        _uiState.value = _uiState.value.copy(customer = customer)
+        setState(_uiState.value.copy(customer = customer))
     }
 
     fun selectService(service: Service) {
-        _uiState.value = _uiState.value.copy(service = service)
+        setState(_uiState.value.copy(service = service))
     }
 
     fun selectSpecialist(specialist: Specialist) {
-        _uiState.value = _uiState.value.copy(specialist = specialist)
+        setState(_uiState.value.copy(specialist = specialist))
     }
 
     /** [time] must be a raw ISO-8601 `start` value from a real [availableTimes] result — see [ReceptionBookingState.time]'s doc comment for why. */
     fun selectTime(time: String) {
-        _uiState.value = _uiState.value.copy(time = time)
+        setState(_uiState.value.copy(time = time))
     }
 
     suspend fun confirm(): Result<String> {
@@ -173,7 +252,7 @@ class ReceptionBookingViewModel(
         val specialistId = state.specialist?.id ?: return Result.failure(IllegalStateException("متخصص انتخاب نشده است"))
         val startTime = state.time ?: return Result.failure(IllegalStateException("زمان انتخاب نشده است"))
 
-        _uiState.value = state.copy(isSubmitting = true, confirmError = null)
+        setState(state.copy(isSubmitting = true, confirmError = null))
         val result = bookingRepository.createBookingForCustomer(
             salonId = salonId,
             customerId = customerId,
@@ -182,12 +261,37 @@ class ReceptionBookingViewModel(
             startTime = startTime,
             notes = null,
         )
-        _uiState.value = _uiState.value.copy(
-            isSubmitting = false,
-            createdBookingId = result.getOrNull()?.id,
-            confirmError = result.exceptionOrNull()?.let(::bookingErrorMessage),
+        setState(
+            _uiState.value.copy(
+                isSubmitting = false,
+                createdBookingId = result.getOrNull()?.id,
+                confirmError = result.exceptionOrNull()?.let(::bookingErrorMessage),
+            ),
         )
         return result.map { it.id }
+    }
+
+    private companion object {
+        const val KEY_CUSTOMER_ID = "reception_booking_customer_id"
+        const val KEY_CUSTOMER_SALON_ID = "reception_booking_customer_salon_id"
+        const val KEY_CUSTOMER_NAME = "reception_booking_customer_name"
+        const val KEY_CUSTOMER_PHONE = "reception_booking_customer_phone"
+        const val KEY_CUSTOMER_EMAIL = "reception_booking_customer_email"
+        const val KEY_CUSTOMER_ACTIVE = "reception_booking_customer_active"
+        const val KEY_SERVICE_ID = "reception_booking_service_id"
+        const val KEY_SERVICE_SALON_ID = "reception_booking_service_salon_id"
+        const val KEY_SERVICE_CATEGORY_ID = "reception_booking_service_category_id"
+        const val KEY_SERVICE_NAME = "reception_booking_service_name"
+        const val KEY_SERVICE_DESC = "reception_booking_service_desc"
+        const val KEY_SERVICE_DURATION = "reception_booking_service_duration"
+        const val KEY_SERVICE_PRICE = "reception_booking_service_price"
+        const val KEY_SPECIALIST_ID = "reception_booking_specialist_id"
+        const val KEY_SPECIALIST_SALON_ID = "reception_booking_specialist_salon_id"
+        const val KEY_SPECIALIST_NAME = "reception_booking_specialist_name"
+        const val KEY_SPECIALIST_BIO = "reception_booking_specialist_bio"
+        const val KEY_SPECIALIST_PHOTO = "reception_booking_specialist_photo"
+        const val KEY_DATE_ISO = "reception_booking_date_iso"
+        const val KEY_TIME = "reception_booking_time"
     }
 }
 

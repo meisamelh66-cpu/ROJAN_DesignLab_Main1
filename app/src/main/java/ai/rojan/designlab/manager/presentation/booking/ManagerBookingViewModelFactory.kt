@@ -1,23 +1,32 @@
 package ai.rojan.designlab.manager.presentation.booking
 
 import ai.rojan.designlab.manager.data.ManagerRepositories
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 
 /**
- * Manual factory for [ManagerBookingViewModel], same idiom as
- * [ai.rojan.designlab.presentation.auth.AuthViewModelFactory] — wires
- * [ManagerRepositories]' in-memory repositories in, nowhere else.
+ * Factory for [ManagerBookingViewModel] — built with the current,
+ * non-deprecated `viewModelFactory { initializer { ... } }` +
+ * [createSavedStateHandle] APIs (via `CreationExtras`), mirroring
+ * [ai.rojan.designlab.presentation.booking.BookingViewModelFactory].
+ *
+ * **5B6-1:** `createSavedStateHandle()` sourced from the `CreationExtras`
+ * supplied at the call site (`managerBookingViewModelFor` in
+ * `ManagerNavGraph.kt`, which passes
+ * `parentEntry.defaultViewModelCreationExtras`) is the API Navigation
+ * itself restores through — so the wizard's selections survive process
+ * death. Wires [ManagerRepositories]' in-memory repositories in, nowhere
+ * else.
  */
-class ManagerBookingViewModelFactory : ViewModelProvider.Factory {
-
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return ManagerBookingViewModel(
+val ManagerBookingViewModelFactory = viewModelFactory {
+    initializer {
+        ManagerBookingViewModel(
+            savedStateHandle = createSavedStateHandle(),
             customerRepository = ManagerRepositories.customers,
             serviceRepository = ManagerRepositories.services,
             specialistRepository = ManagerRepositories.specialists,
             appointmentRepository = ManagerRepositories.appointments,
-        ) as T
+        )
     }
 }
