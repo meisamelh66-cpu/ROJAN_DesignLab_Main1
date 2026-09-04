@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
@@ -22,6 +23,7 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -118,16 +120,26 @@ fun HomeHeader(
                 .fillMaxWidth()
                 .padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceLG),
         ) {
-            RojanIconContainer(
-                imageVector = Icons.Filled.Notifications,
-                contentDescription = "اعلان‌ها",
-                tint = HomeColors.TextPrimary,
-                size = RojanIconSize.Medium,
-                showGlassBackground = true,
+            // 5B-2B: the visible glass chip is unchanged (still flush to
+            // the header's start edge, same size, same vertical centre) —
+            // only the tap / semantics target is widened to a real 48dp,
+            // the extra area sitting to the right of the chip inside the
+            // header's own padding, clear of the centred greeting.
+            Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .rojanPressable(onClick = onNotificationsClick),
-            )
+                    .requiredSize(RojanDimens.MinTouchTarget)
+                    .rojanPressable(onClick = onNotificationsClick, role = Role.Button),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                RojanIconContainer(
+                    imageVector = Icons.Filled.Notifications,
+                    contentDescription = "اعلان‌ها",
+                    tint = HomeColors.TextPrimary,
+                    size = RojanIconSize.Medium,
+                    showGlassBackground = true,
+                )
+            }
 
             val firstName = displayName?.trim()?.substringBefore(" ")?.takeIf { it.isNotBlank() } ?: "کاربر"
             Text(

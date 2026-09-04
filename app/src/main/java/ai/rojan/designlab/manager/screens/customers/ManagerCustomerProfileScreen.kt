@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -45,6 +46,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
@@ -215,13 +217,29 @@ private fun CustomerIdentityHeader(customer: ManagerCustomer, onEditClick: () ->
                 TagChip(text = customer.tag.displayLabel, modifier = Modifier.padding(top = RojanDimens.SpaceSM))
             }
 
-            RojanIconContainer(
-                imageVector = Icons.Filled.Edit,
-                contentDescription = "ویرایش مشتری",
-                size = RojanIconSize.Medium,
-                tint = ManagerColors.Turquoise,
-                modifier = Modifier.rojanPressable(onClick = onEditClick),
-            )
+            // 5B-2B: the layout footprint stays the visible icon size
+            // (RojanIconSize.Medium) so the Row's spacedBy spacing and the
+            // name/tag column are unaffected; the tap / semantics target is
+            // a real 48dp, overflowing symmetrically into the surrounding
+            // Row spacing. Same technique as Sprint 5B-1's bottom bar.
+            Box(
+                modifier = Modifier.size(RojanIconSize.Medium.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .requiredSize(RojanDimens.MinTouchTarget)
+                        .rojanPressable(onClick = onEditClick, role = Role.Button),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    RojanIconContainer(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = "ویرایش مشتری",
+                        size = RojanIconSize.Medium,
+                        tint = ManagerColors.Turquoise,
+                    )
+                }
+            }
         }
     }
 }
