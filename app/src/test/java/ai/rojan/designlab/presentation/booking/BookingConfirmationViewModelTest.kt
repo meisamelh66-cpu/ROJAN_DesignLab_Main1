@@ -262,6 +262,70 @@ class BookingConfirmationViewModelTest {
         assertEquals("summary is fetched once per unique id triple", 1, salonRepo.getSalonCalls)
     }
 
+    // ---- 5B-8D: loadSummary edge cases -------------------------
+
+    @Test
+    fun `loadSummary re-fetches when the id triple changes - edit-and-return refreshes the summary`() = runTest(dispatcher) {
+        val salonRepo = FakeSalonRepository(salon("salon-1"))
+        val vm = BookingConfirmationViewModel(
+            bookingRepository = FakeBookingRepository(),
+            salonRepository = salonRepo,
+            specialistRepository = FakeSpecialistRepository(specialist("spec-1")),
+            serviceCategoryRepository = FakeServiceCategoryRepository(listOf(category("cat-1"))),
+            serviceRepository = FakeServiceRepository(mapOf("cat-1" to listOf(service("svc-1"), service("svc-2")))),
+        )
+
+        vm.loadSummary("salon-1", "spec-1", "svc-1")
+        advanceUntilIdle()
+        vm.loadSummary("salon-1", "spec-1", "svc-2") // customer edited the service
+        advanceUntilIdle()
+
+        assertEquals("a changed selection must trigger a fresh resolve", 2, salonRepo.getSalonCalls)
+        assertEquals("svc-2", vm.summary.service?.id)
+    }
+
+    @Test
+    fun `loadSummary with no specialist still resolves the salon and service`() = runTest(dispatcher) {
+        val vm = viewModel(
+            salon = salon("salon-1"),
+            servicesByCategory = mapOf("cat-1" to listOf(service("svc-1"))),
+        )
+
+        vm.loadSummary("salon-1", specialistId = null, serviceId = "svc-1")
+        advanceUntilIdle()
+
+        assertEquals("salon-1", vm.summary.salon?.id)
+        assertEquals("svc-1", vm.summary.service?.id)
+        assertNull("auto-selected specialist path leaves it null", vm.summary.specialist)
+    }
+
+    @Test
+    fun `isLoadingSummary is true while the resolve is in flight and false once it settles`() = runTest(dispatcher) {
+        val vm = viewModel(salon = salon("salon-1"))
+
+        vm.loadSummary("salon-1", "spec-1", "svc-1")
+        assertTrue("in flight", vm.isLoadingSummary)
+
+        advanceUntilIdle()
+        assertFalse("settled", vm.isLoadingSummary)
+    }
+
+    @Test
+    fun `a successful confirm after a failed one clears the stale submitError`() = runTest(dispatcher) {
+        val repo = FakeBookingRepository { Result.failure(IOException("network down")) }
+        val vm = viewModel(booking = repo)
+
+        vm.confirmBooking("salon-1", "svc-1", "spec-1", "2026/09/01", "10:00") {}
+        advanceUntilIdle()
+        assertTrue(vm.submitError != null)
+
+        repo.onCreate = { Result.success(booking("b-ok")) }
+        vm.confirmBooking("salon-1", "svc-1", "spec-1", "2026/09/01", "10:00") {}
+        advanceUntilIdle()
+
+        assertNull("retry success must clear the earlier error message", vm.submitError)
+    }
+
     private companion object {
         fun booking(id: String) = Booking(
             id = id, salonId = "salon-1", serviceId = "svc-1", specialistId = "spec-1",
