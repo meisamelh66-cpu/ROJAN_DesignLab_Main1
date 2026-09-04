@@ -9,7 +9,7 @@ import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.domain.auth.ActiveSalonUiState
 import ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel
 import ai.rojan.designlab.manager.screens.customers.TagChip
-import ai.rojan.designlab.ui.components.interaction.rojanPressable
+import ai.rojan.designlab.ui.components.cards.PremiumCardShell
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
@@ -97,18 +97,24 @@ fun ManagerSalonSelectionScreen(
     }
 }
 
+/**
+ * Design-system refinement, Phase 4B-1: rendering moved onto the shared
+ * [PremiumCardShell] (shell only — content/spacing/behavior unchanged).
+ * `shape`/padding/press-feedback are byte-identical to the previous
+ * direct [ManagerGlassSurface] call: [PremiumCardShell]'s default
+ * `variant = RojanCardVariant.GlassCard` resolves to the exact same
+ * fill/border/elevation [ManagerGlassSurface] itself defaulted to, and
+ * its default `contentPadding` is [RojanDimens.SpaceMD] — the same value
+ * this `Row` applied manually before.
+ */
 @Composable
 private fun SalonOptionCard(salon: AvailableSalon, onClick: () -> Unit) {
-    ManagerGlassSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .rojanPressable(onClick = onClick),
+    PremiumCardShell(
         shape = RojanShapes.Small,
+        onClick = onClick,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(RojanDimens.SpaceMD),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {

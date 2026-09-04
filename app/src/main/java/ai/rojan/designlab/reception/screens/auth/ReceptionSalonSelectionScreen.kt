@@ -7,7 +7,7 @@ import ai.rojan.designlab.reception.components.ReceptionScaffold
 import ai.rojan.designlab.reception.domain.auth.ActiveSalonUiState
 import ai.rojan.designlab.reception.presentation.auth.ReceptionAuthViewModel
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
-import ai.rojan.designlab.ui.components.interaction.rojanPressable
+import ai.rojan.designlab.ui.components.cards.PremiumCardShell
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.ReceptionPalette
@@ -96,18 +96,25 @@ fun ReceptionSalonSelectionScreen(
     }
 }
 
+/**
+ * Design-system refinement, Phase 4B-1: rendering moved onto the shared
+ * [PremiumCardShell] (shell only — content/spacing/behavior unchanged,
+ * still flavor-independent from Manager's identical migration: this file
+ * still keeps its own [AccessTypeChip] rather than importing Manager's
+ * `TagChip`). [PremiumCardShell]'s default `variant = RojanCardVariant.GlassCard`
+ * resolves to the exact same fill/border/elevation [ReceptionGlassSurface]
+ * itself defaulted to, and its default `contentPadding` is
+ * [RojanDimens.SpaceMD] — the same value this `Row` applied manually
+ * before.
+ */
 @Composable
 private fun SalonOptionCard(salon: AvailableSalon, onClick: () -> Unit) {
-    ReceptionGlassSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .rojanPressable(onClick = onClick),
+    PremiumCardShell(
         shape = RojanShapes.Small,
+        onClick = onClick,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(RojanDimens.SpaceMD),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {
