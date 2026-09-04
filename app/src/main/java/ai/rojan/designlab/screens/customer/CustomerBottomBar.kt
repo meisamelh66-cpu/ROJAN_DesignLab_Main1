@@ -9,19 +9,20 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -38,6 +39,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
@@ -71,6 +75,10 @@ private val tabs = listOf(
     TabItem(CustomerHomeTab.BOOKINGS, Icons.Filled.CalendarMonth, "نوبت‌ها"),
     TabItem(CustomerHomeTab.SEARCH, Icons.Filled.Search, "جستجو"),
 )
+
+// 5B-1: TalkBack state announcements for each tab (Persian-first).
+private const val TAB_STATE_ACTIVE = "فعال"
+private const val TAB_STATE_INACTIVE = "غیرفعال"
 
 /**
  * Customer Home bottom navigation — Home Visual Language Unification.
@@ -110,7 +118,11 @@ fun CustomerBottomBar(
         // bar. The caller's onSizeChanged sits left of this padding, so the
         // measured height it feeds into the list's bottom contentPadding
         // already includes the nav inset.
-        modifier = modifier.navigationBarsPadding(),
+        modifier = modifier
+            .navigationBarsPadding()
+            // 5B-1: one selection group over all 5 tabs (4 in the pill +
+            // the Home FAB) so TalkBack announces "tab N of 5".
+            .selectableGroup(),
         contentAlignment = Alignment.TopCenter,
     ) {
         HomeGlassSurface(
@@ -163,22 +175,42 @@ fun CustomerBottomBar(
                         val tint = if (isActive) HomeColors.Glow else HomeColors.TextSecondary
                         val interactionSource = remember { MutableInteractionSource() }
 
-                        Column(
+                        // 5B-1: the layout slot keeps the exact slim height
+                        // the icon Column occupied before (RojanIconSize.Medium)
+                        // so the pill geometry does not change...
+                        Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clickable(
-                                    interactionSource = interactionSource,
-                                    indication = LocalIndication.current,
-                                    onClick = { onTabSelected(item.tab) },
-                                ),
-                            horizontalAlignment = Alignment.CenterHorizontally,
+                                .height(RojanIconSize.Medium.dp),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            RojanIconContainer(
-                                imageVector = item.icon,
-                                contentDescription = item.label,
-                                tint = tint,
-                                size = RojanIconSize.Medium,
-                            )
+                            // ...while the tap / semantics target is a real
+                            // >= 48dp, overflowing the slim slot into the
+                            // transparent space above and below the icon row.
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .requiredHeight(48.dp)
+                                    .selectable(
+                                        selected = isActive,
+                                        interactionSource = interactionSource,
+                                        indication = LocalIndication.current,
+                                        role = Role.Tab,
+                                        onClick = { onTabSelected(item.tab) },
+                                    )
+                                    .semantics {
+                                        stateDescription =
+                                            if (isActive) TAB_STATE_ACTIVE else TAB_STATE_INACTIVE
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                RojanIconContainer(
+                                    imageVector = item.icon,
+                                    contentDescription = item.label,
+                                    tint = tint,
+                                    size = RojanIconSize.Medium,
+                                )
+                            }
                         }
                     }
                 }
@@ -224,11 +256,23 @@ fun CustomerBottomBar(
                     .requiredSize(64.dp)
                     .clip(CircleShape)
                     .background(HomeColors.Glow, CircleShape)
-                    .clickable(
+                    // 5B-1: Home is the 5th tab — selectable (not clickable)
+                    // so it exposes Role.Tab + selected state like the
+                    // others. The 64dp circle is already >= 48dp.
+                    .selectable(
+                        selected = activeTab == CustomerHomeTab.HOME,
                         interactionSource = homeInteractionSource,
                         indication = LocalIndication.current,
+                        role = Role.Tab,
                         onClick = { onTabSelected(CustomerHomeTab.HOME) },
-                    ),
+                    )
+                    .semantics {
+                        stateDescription = if (activeTab == CustomerHomeTab.HOME) {
+                            TAB_STATE_ACTIVE
+                        } else {
+                            TAB_STATE_INACTIVE
+                        }
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 RojanIconContainer(
