@@ -3,6 +3,7 @@ package ai.rojan.designlab.manager.components
 import ai.rojan.designlab.manager.data.ManagerDashboardStats
 import ai.rojan.designlab.manager.data.computeManagerDashboardStats
 import ai.rojan.designlab.manager.data.toPersianDigits
+import ai.rojan.designlab.ui.components.cards.PremiumCardShell
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
@@ -88,30 +89,38 @@ fun TodayOverviewSection(modifier: Modifier = Modifier, refreshKey: Int = 0) {
     }
 }
 
+/**
+ * Design-system refinement, Phase 4B-2: rendering moved onto the shared
+ * [PremiumCardShell] (shell only — content/spacing/behavior unchanged).
+ * [PremiumCardShell]'s default `variant = RojanCardVariant.GlassCard`
+ * resolves to the exact same fill/border/elevation the previous direct
+ * [ManagerGlassSurface] call defaulted to, and its default
+ * `contentPadding` is [RojanDimens.SpaceMD] — the same value this
+ * `Column` applied manually before. Still non-interactive (no `onClick`
+ * — a static KPI tile, not a tappable card).
+ */
 @Composable
 private fun StatCard(stat: OverviewStat, modifier: Modifier = Modifier) {
-    ManagerGlassSurface(
-        modifier = modifier.fillMaxWidth(),
+    PremiumCardShell(
+        modifier = modifier,
         shape = RojanShapes.Small,
     ) {
-        Column(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
-            ManagerIconContainer(
-                imageVector = stat.icon,
-                contentDescription = stat.label,
-                containerSize = 40.dp,
-                accentColor = stat.accent,
-            )
-            Text(
-                text = stat.value,
-                style = RojanTypography.Display,
-                color = ManagerColors.TextPrimary,
-                modifier = Modifier.padding(top = RojanDimens.SpaceSM),
-            )
-            Text(
-                text = stat.label,
-                style = RojanTypography.Caption,
-                color = ManagerColors.TextSecondary,
-            )
-        }
+        ManagerIconContainer(
+            imageVector = stat.icon,
+            contentDescription = stat.label,
+            containerSize = 40.dp,
+            accentColor = stat.accent,
+        )
+        Text(
+            text = stat.value,
+            style = RojanTypography.Display,
+            color = ManagerColors.TextPrimary,
+            modifier = Modifier.padding(top = RojanDimens.SpaceSM),
+        )
+        Text(
+            text = stat.label,
+            style = RojanTypography.Caption,
+            color = ManagerColors.TextSecondary,
+        )
     }
 }

@@ -8,6 +8,7 @@ import ai.rojan.designlab.manager.data.formatDurationMinutes
 import ai.rojan.designlab.manager.data.formatTomanPrice
 import ai.rojan.designlab.manager.domain.service.Service
 import ai.rojan.designlab.manager.screens.customers.TagChip
+import ai.rojan.designlab.ui.components.cards.PremiumCardShell
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
@@ -175,18 +176,23 @@ private fun ServiceSearchField(query: String, onQueryChange: (String) -> Unit) {
     }
 }
 
+/**
+ * Design-system refinement, Phase 4B-2: rendering moved onto the shared
+ * [PremiumCardShell] (shell only — content/spacing/behavior unchanged).
+ * [PremiumCardShell]'s default `variant = RojanCardVariant.GlassCard`
+ * resolves to the exact same fill/border/elevation the previous direct
+ * [ManagerGlassSurface] call defaulted to, and its default
+ * `contentPadding` is [RojanDimens.SpaceMD] — the same value this `Row`
+ * applied manually before.
+ */
 @Composable
 private fun ServiceCard(service: Service, onClick: () -> Unit) {
-    ManagerGlassSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .rojanPressable(onClick = onClick),
+    PremiumCardShell(
         shape = RojanShapes.Small,
+        onClick = onClick,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(RojanDimens.SpaceMD),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {
