@@ -14,13 +14,18 @@ import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.TokenRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.serialization.SerializationException
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import retrofit2.HttpException
 import java.io.IOException
+import java.net.SocketTimeoutException
 
 /**
  * Auth Reliability test coverage: [TokenAuthenticator] in isolation.
@@ -31,14 +36,18 @@ import java.io.IOException
  *
  * Deliberately does **not** test any concurrency coordination between
  * multiple simultaneous [okhttp3.Authenticator.authenticate] invocations
- * (C1) or refresh-failure-type differentiation (C2) — both out of scope
- * for this task; [TokenAuthenticator]'s current behavior (one refresh
- * attempt per call, any failure uniformly clears both persistence layers)
- * is exactly what's under test here, not changed.
+ * (C1) — out of scope for this task. Refresh-failure-type differentiation
+ * (C2) IS covered here: only a 401 from the refresh call itself (a
+ * genuinely rejected refresh token) clears the session; every other
+ * failure (network, timeout, a 5xx, or any other unexpected exception)
+ * leaves the stored session intact and just fails this one request.
  */
 class TokenAuthenticatorTest {
 
     private val originalRequest = Request.Builder().url("https://example.com/foo").build()
+
+    private fun httpException(code: Int): HttpException =
+        HttpException(retrofit2.Response.error<Any>(code, "".toResponseBody("application/json".toMediaType())))
 
     private fun response(code: Int, priorResponse: Response? = null): Response =
         Response.Builder()
@@ -110,7 +119,7 @@ class TokenAuthenticatorTest {
     }
 
     @Test
-    fun `refresh failure clears both the token repository and the persisted personId`() {
+    fun `IOException from refresh leaves the session intact`() {
         val tokenRepository = FakeTokenRepository(refreshToken = "old-refresh-token")
         val authApi = FakeAuthApi(refreshResult = Result.failure(IOException("network down")))
         val authSessionRepository = FakeAuthSessionRepository()
@@ -119,9 +128,69 @@ class TokenAuthenticatorTest {
         val result = authenticator.authenticate(null, response(401))
 
         assertNull(result)
+        assertEquals(0, tokenRepository.clearCallCount)
+        assertEquals(0, authSessionRepository.clearPersonIdCallCount)
+        assertNull(tokenRepository.savedTokens)
+    }
+
+    @Test
+    fun `SocketTimeoutException from refresh leaves the session intact`() {
+        val tokenRepository = FakeTokenRepository(refreshToken = "old-refresh-token")
+        val authApi = FakeAuthApi(refreshResult = Result.failure(SocketTimeoutException("timed out")))
+        val authSessionRepository = FakeAuthSessionRepository()
+        val authenticator = TokenAuthenticator(tokenRepository, authApi, authSessionRepository)
+
+        val result = authenticator.authenticate(null, response(401))
+
+        assertNull(result)
+        assertEquals(0, tokenRepository.clearCallCount)
+        assertEquals(0, authSessionRepository.clearPersonIdCallCount)
+        assertNull(tokenRepository.savedTokens)
+    }
+
+    @Test
+    fun `HttpException 401 from refresh clears both the token repository and the persisted personId`() {
+        val tokenRepository = FakeTokenRepository(refreshToken = "old-refresh-token")
+        val authApi = FakeAuthApi(refreshResult = Result.failure(httpException(401)))
+        val authSessionRepository = FakeAuthSessionRepository()
+        val authenticator = TokenAuthenticator(tokenRepository, authApi, authSessionRepository)
+
+        val result = authenticator.authenticate(null, response(401))
+
+        assertNull(result)
         assertEquals(1, tokenRepository.clearCallCount)
         assertEquals(1, authSessionRepository.clearPersonIdCallCount)
-        assertNull(tokenRepository.savedTokens) // no tokens were ever saved on the failure path
+        assertNull(tokenRepository.savedTokens)
+    }
+
+    @Test
+    fun `HttpException 5xx from refresh leaves the session intact`() {
+        val tokenRepository = FakeTokenRepository(refreshToken = "old-refresh-token")
+        val authApi = FakeAuthApi(refreshResult = Result.failure(httpException(503)))
+        val authSessionRepository = FakeAuthSessionRepository()
+        val authenticator = TokenAuthenticator(tokenRepository, authApi, authSessionRepository)
+
+        val result = authenticator.authenticate(null, response(401))
+
+        assertNull(result)
+        assertEquals(0, tokenRepository.clearCallCount)
+        assertEquals(0, authSessionRepository.clearPersonIdCallCount)
+        assertNull(tokenRepository.savedTokens)
+    }
+
+    @Test
+    fun `an unexpected non-HTTP exception from refresh leaves the session intact and does not throw`() {
+        val tokenRepository = FakeTokenRepository(refreshToken = "old-refresh-token")
+        val authApi = FakeAuthApi(refreshResult = Result.failure(SerializationException("malformed body")))
+        val authSessionRepository = FakeAuthSessionRepository()
+        val authenticator = TokenAuthenticator(tokenRepository, authApi, authSessionRepository)
+
+        val result = authenticator.authenticate(null, response(401))
+
+        assertNull(result)
+        assertEquals(0, tokenRepository.clearCallCount)
+        assertEquals(0, authSessionRepository.clearPersonIdCallCount)
+        assertNull(tokenRepository.savedTokens)
     }
 
     private class FakeTokenRepository(

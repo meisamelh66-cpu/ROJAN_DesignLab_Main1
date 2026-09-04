@@ -8,6 +8,7 @@ import okhttp3.Authenticator
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.Route
+import retrofit2.HttpException
 
 private const val MAX_RETRIES = 1
 
@@ -31,6 +32,14 @@ private const val MAX_RETRIES = 1
  * the session was dead. `runBlocking` mirrors the refresh call just above,
  * for the same reason: [Authenticator.authenticate] is a synchronous OkHttp
  * SPI callback with no coroutine scope of its own.
+ *
+ * Refresh-failure-type differentiation: only a 401 from the refresh call
+ * itself ([isInvalidRefreshToken]) means the refresh token was genuinely
+ * rejected — a network [java.io.IOException]/timeout, a 5xx from a
+ * transiently-down auth service, or any other unexpected exception (e.g. a
+ * malformed response body) is an operational failure, not evidence the
+ * session is dead, so the stored session is left intact and this one
+ * request just fails; the caller sees the failure and can retry.
  */
 class TokenAuthenticator(
     private val tokenRepository: TokenRepository,
@@ -47,9 +56,11 @@ class TokenAuthenticator(
 
         val newTokens = runBlocking {
             runCatching { plainAuthApi.refresh(RefreshRequestDto(refreshToken)) }
-        }.getOrElse {
-            tokenRepository.clearTokens()
-            runBlocking { authSessionRepository.clearPersonId() }
+        }.getOrElse { error ->
+            if (isInvalidRefreshToken(error)) {
+                tokenRepository.clearTokens()
+                runBlocking { authSessionRepository.clearPersonId() }
+            }
             return null
         }
 
@@ -69,4 +80,7 @@ class TokenAuthenticator(
         }
         return count
     }
+
+    private fun isInvalidRefreshToken(error: Throwable): Boolean =
+        error is HttpException && error.code() == 401
 }
