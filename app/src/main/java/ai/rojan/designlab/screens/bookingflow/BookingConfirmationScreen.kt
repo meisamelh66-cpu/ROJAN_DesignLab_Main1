@@ -53,6 +53,7 @@ import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.rtl.RtlListRow
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
+import ai.rojan.designlab.ui.components.state.RojanErrorState
 import ai.rojan.designlab.ui.theme.RojanAquaMint
 import ai.rojan.designlab.ui.theme.RojanBlushPink
 import ai.rojan.designlab.ui.theme.RojanDimens
@@ -87,7 +88,7 @@ import kotlin.math.roundToInt
 fun BookingConfirmationScreen(
     bookingViewModel: BookingViewModel,
     onBackClick: () -> Unit,
-    onConfirmClick: (backendBookingId: String?, summary: BookingSummary) -> Unit,
+    onConfirmClick: (backendBookingId: String, summary: BookingSummary) -> Unit,
     onEditSalon: () -> Unit = {},
     onEditSpecialist: () -> Unit = {},
     onEditService: () -> Unit = {},
@@ -117,6 +118,21 @@ fun BookingConfirmationScreen(
     val dateLabel = bookingViewModel.state.selectedDateKey?.let { RollingBookingDates.labelFor(it) }
     val time = bookingViewModel.state.selectedTime
     val selectedPaymentMethod = bookingViewModel.state.paymentMethod
+
+    // Shared by the primary button and the error state's retry action
+    // below, so a failed attempt can be retried without duplicating this
+    // call — see BookingConfirmationViewModel.confirmBooking's contract.
+    val confirmBooking: () -> Unit = {
+        val state = bookingViewModel.state
+        confirmationViewModel.confirmBooking(
+            salonId = state.salonId,
+            serviceId = state.serviceId,
+            specialistId = state.specialistId,
+            dateKey = state.selectedDateKey,
+            time = state.selectedTime,
+            onResult = { backendBookingId -> onConfirmClick(backendBookingId, confirmationViewModel.summary) },
+        )
+    }
 
     // Final Premium Polish, Phase 2: a one-shot fade + slight-upward-motion
     // entrance for the summary card — this screen is a decision/review
@@ -215,22 +231,27 @@ fun BookingConfirmationScreen(
                     )
                     Spacer(modifier = Modifier.height(RojanDimens.SpaceXS))
                 }
+
+                // Booking Transaction Integrity (TEAM2-001): confirmBooking's
+                // onResult now only fires on a genuinely confirmed, persisted
+                // backend booking — a failed attempt lands here instead, with
+                // a real retry path (same confirm() call again), rather than
+                // silently proceeding to BookingSuccessScreen.
+                val submitError = confirmationViewModel.submitError
+                if (submitError != null) {
+                    Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))
+                    RojanErrorState(
+                        description = submitError,
+                        actionLabel = "تلاش مجدد",
+                        onAction = { confirmBooking() },
+                    )
+                }
             }
 
             Box(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
                 PremiumButton(
                     text = "تایید نهایی رزرو",
-                    onClick = {
-                        val state = bookingViewModel.state
-                        confirmationViewModel.confirmBooking(
-                            salonId = state.salonId,
-                            serviceId = state.serviceId,
-                            specialistId = state.specialistId,
-                            dateKey = state.selectedDateKey,
-                            time = state.selectedTime,
-                            onResult = { backendBookingId -> onConfirmClick(backendBookingId, confirmationViewModel.summary) },
-                        )
-                    },
+                    onClick = { confirmBooking() },
                     enabled = bookingViewModel.isReadyForConfirmation() &&
                         !confirmationViewModel.isSubmitting &&
                         !confirmationViewModel.isLoadingSummary,

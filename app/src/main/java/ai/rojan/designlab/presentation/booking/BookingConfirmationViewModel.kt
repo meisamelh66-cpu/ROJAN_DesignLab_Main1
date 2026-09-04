@@ -8,6 +8,7 @@ import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
 import ai.rojan.designlab.domain.repository.ServiceRepository
 import ai.rojan.designlab.domain.repository.Specialist
 import ai.rojan.designlab.domain.repository.SpecialistRepository
+import ai.rojan.designlab.presentation.common.userMessageFor
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -27,20 +28,22 @@ data class BookingSummary(
  * Fires the real `POST /api/v1/bookings` call when the customer taps
  * "تایید نهایی رزرو" on [ai.rojan.designlab.screens.bookingflow.BookingConfirmationScreen].
  *
- * This call is genuinely best-effort, not a gate: the customer-ecosystem
- * "booking success" flow this screen leads into is local/demo state (no
- * backend equivalent — loyalty points, wallet cashback, reminders, etc.)
- * and has always completed unconditionally. Auth is frozen this milestone
- * (`di/BackendApiContainer.kt`'s doc comment) — this call *will* genuinely
- * 401 until a future milestone wires native Phone-OTP auth. Blocking the
- * existing, working local success flow on a network call known to be
- * dormant right now would be a real regression, not a fix, and there's no
- * user-facing way to resolve a 401 this milestone anyway. So: try the real
- * call, hand back the real booking id on success for
- * [ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel.bookAppointment]
- * to record (the join key real cancel later needs), and on any failure
- * hand back `null` — the local flow proceeds exactly as it did before this
- * milestone either way.
+ * **Booking Transaction Integrity (TEAM2-001):** [onResult] in
+ * [confirmBooking] is invoked if and only if the backend call both
+ * succeeded and returned a booking with a non-blank persisted id — that id
+ * is what [ai.rojan.designlab.presentation.customer.CustomerEcosystemViewModel.bookAppointment]
+ * records and what a later real cancel needs. Any other outcome (network
+ * failure, a non-2xx response, a malformed/incomplete response body, or a
+ * blank id) is surfaced via [submitError] instead, and [onResult] is never
+ * called — the caller (`BookingConfirmationScreen`/`RojanNavGraph`) must
+ * not treat the booking as confirmed, must not navigate to the success
+ * screen, and must not award any loyalty/wallet reward unless [onResult]
+ * actually fires. This replaces an earlier "best-effort, not a gate"
+ * design from when auth was frozen and this call was expected to 401
+ * unconditionally; auth is wired for real now
+ * (`di/BackendApiContainer.kt`), so a failure here is a real failure, not
+ * an expected one, and can no longer be silently absorbed into the local
+ * demo success flow.
  */
 class BookingConfirmationViewModel(
     private val bookingRepository: BookingRepository,
@@ -57,6 +60,17 @@ class BookingConfirmationViewModel(
         private set
 
     var summary by mutableStateOf(BookingSummary())
+        private set
+
+    /**
+     * Non-null exactly when the most recent [confirmBooking] attempt did
+     * not produce a confirmed backend booking — a user-facing message,
+     * ready to show via [ai.rojan.designlab.ui.components.state.RojanErrorState].
+     * Cleared at the start of every new [confirmBooking] attempt (including
+     * a retry of the same tap), so it never lingers past a subsequent
+     * success.
+     */
+    var submitError by mutableStateOf<String?>(null)
         private set
 
     private var loadedForKey: Triple<String?, String?, String?>? = null
@@ -99,31 +113,58 @@ class BookingConfirmationViewModel(
         return null
     }
 
+    /**
+     * [onResult] fires with the real backend `Booking.id` only when the
+     * booking is genuinely confirmed and persisted. Every other outcome —
+     * missing required selection state, a failed API call, or a response
+     * that decoded but carries a blank id — sets [submitError] and returns
+     * without calling [onResult]. Safe to call again after a failure: it
+     * re-enters the same flow (a fresh attempt, per
+     * [BookingRepository.createBooking]'s own idempotency-key contract)
+     * and clears the previous [submitError] first.
+     */
     fun confirmBooking(
         salonId: String?,
         serviceId: String?,
         specialistId: String?,
         dateKey: String?,
         time: String?,
-        onResult: (backendBookingId: String?) -> Unit,
+        onResult: (backendBookingId: String) -> Unit,
     ) {
         if (isSubmitting) return
+        submitError = null
+
+        if (salonId == null || serviceId == null || specialistId == null || dateKey == null || time == null) {
+            submitError = "اطلاعات لازم برای تکمیل رزرو در دسترس نیست. لطفاً دوباره تلاش کنید."
+            return
+        }
+
         isSubmitting = true
         viewModelScope.launch {
-            val backendBookingId = if (salonId != null && serviceId != null && specialistId != null && dateKey != null && time != null) {
-                bookingRepository.createBooking(
-                    salonId = salonId,
-                    serviceId = serviceId,
-                    specialistId = specialistId,
-                    startTime = "${dateKey}T$time:00",
-                    notes = null,
-                    idempotencyKey = UUID.randomUUID().toString(),
-                ).getOrNull()?.id
-            } else {
-                null
-            }
-            isSubmitting = false
-            onResult(backendBookingId)
+            bookingRepository.createBooking(
+                salonId = salonId,
+                serviceId = serviceId,
+                specialistId = specialistId,
+                startTime = "${dateKey}T$time:00",
+                notes = null,
+                idempotencyKey = UUID.randomUUID().toString(),
+            )
+                .onSuccess { booking ->
+                    isSubmitting = false
+                    if (booking.id.isBlank()) {
+                        // The call returned 2xx and decoded, but without a
+                        // usable booking id — treat exactly like a failure:
+                        // there is nothing a caller could record or later
+                        // cancel.
+                        submitError = "پاسخ سرور نامعتبر بود. لطفاً دوباره تلاش کنید."
+                    } else {
+                        onResult(booking.id)
+                    }
+                }
+                .onFailure { error ->
+                    isSubmitting = false
+                    submitError = userMessageFor(error)
+                }
         }
     }
 }

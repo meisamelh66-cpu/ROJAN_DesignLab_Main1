@@ -828,12 +828,15 @@ fun RojanNavGraph() {
                                 // (which always resolved to null and silently dropped the
                                 // booking here before this fix).
                                 //
-                                // Android <-> Backend Full Integration milestone:
-                                // [backendBookingId] is the real backend `Booking.id` when
-                                // BookingConfirmationViewModel's real POST /api/v1/bookings
-                                // call succeeded (null otherwise, e.g. the expected 401s
-                                // until native Phone-OTP auth lands) - recorded so a later
-                                // real cancel can find it (see AppointmentsScreen).
+                                // Booking Transaction Integrity (TEAM2-001): this callback
+                                // is now only invoked by BookingConfirmationViewModel.confirmBooking
+                                // when the real POST /api/v1/bookings call succeeded AND
+                                // returned a persisted booking id - never on failure, so
+                                // reaching here (and the BOOKING_SUCCESS navigation below)
+                                // is itself proof of a confirmed backend booking.
+                                // [backendBookingId] is that real backend `Booking.id`,
+                                // recorded so a later real cancel can find it (see
+                                // AppointmentsScreen).
                                 val confirmedState = bookingViewModel.state
                                 val service = summary.service
                                 val time = confirmedState.selectedTime

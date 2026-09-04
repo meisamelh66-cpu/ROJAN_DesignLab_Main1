@@ -1,6 +1,7 @@
 package ai.rojan.designlab.presentation.common
 
 import ai.rojan.designlab.data.remote.BackendApiException
+import ai.rojan.designlab.data.remote.InvalidResponseException
 import ai.rojan.designlab.data.remote.NetworkUnavailableException
 
 /**
@@ -13,6 +14,7 @@ import ai.rojan.designlab.data.remote.NetworkUnavailableException
  */
 fun userMessageFor(throwable: Throwable): String = when (throwable) {
     is NetworkUnavailableException -> "اتصال اینترنت برقرار نیست. لطفاً دوباره تلاش کنید."
+    is InvalidResponseException -> "پاسخ سرور نامعتبر بود. لطفاً دوباره تلاش کنید."
     is BackendApiException -> when (throwable.statusCode) {
         401 -> "برای این عملیات نیاز به ورود مجدد دارید."
         403 -> "اجازه دسترسی به این بخش را ندارید."
