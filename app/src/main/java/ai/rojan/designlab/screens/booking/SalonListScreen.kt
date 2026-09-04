@@ -122,16 +122,23 @@ fun SalonListScreen(
     var sortOption by remember { mutableStateOf(SalonSortOption.ALL) }
     var isFirstComposition by remember { mutableStateOf(true) }
 
+    val listState = rememberLazyListState()
+
     LaunchedEffect(searchQuery) {
         if (isFirstComposition) {
             isFirstComposition = false
         } else {
             delay(SEARCH_DEBOUNCE_MS)
             viewModel.load(searchQuery.takeIf { it.isNotBlank() })
+            // T2-1: a new search swaps in a fresh page-0 result set while the
+            // previous list can stay mounted (SalonListViewModel.load's
+            // `isSearching` path), so without this the new results would render
+            // from the old scroll offset. loadMore() never changes `searchQuery`,
+            // so pagination keeps the user's position.
+            listState.scrollToItem(0)
         }
     }
 
-    val listState = rememberLazyListState()
     LaunchedEffect(listState, viewModel.canLoadMore) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .collect { lastVisibleIndex ->
