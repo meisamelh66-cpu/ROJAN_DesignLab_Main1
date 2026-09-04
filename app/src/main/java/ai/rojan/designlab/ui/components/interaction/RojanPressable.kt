@@ -14,6 +14,7 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 
 import ai.rojan.designlab.ui.theme.RojanShadows
@@ -40,6 +41,10 @@ fun Modifier.rojanPressable(
     onClick: () -> Unit,
     scaleTarget: Float = 1.06f,
     interactionSource: MutableInteractionSource? = null,
+    // 5B-2: opt-in accessibility role. `null` (every existing caller)
+    // leaves the click semantics exactly as before; icon-buttons /
+    // back-buttons pass Role.Button.
+    role: Role? = null,
 ): Modifier = composed {
 
     val source =
@@ -70,6 +75,7 @@ fun Modifier.rojanPressable(
         .clickable(
             interactionSource = source,
             indication = null,
+            role = role,
             onClick = onClick
         )
 }

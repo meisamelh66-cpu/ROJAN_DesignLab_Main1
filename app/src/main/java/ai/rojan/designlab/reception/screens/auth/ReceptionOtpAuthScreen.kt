@@ -32,6 +32,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
@@ -126,7 +129,14 @@ fun ReceptionOtpAuthScreen(
 
             if (errorMessage != null) {
                 Spacer()
-                Text(text = errorMessage.orEmpty(), style = RojanTypography.Caption, color = RojanErrorText)
+                Text(
+                    text = errorMessage.orEmpty(),
+                    style = RojanTypography.Caption,
+                    color = RojanErrorText,
+                    // 5B-2: polite live region so the error is announced on
+                    // appear / change. Text and layout unchanged.
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
             }
         }
     }

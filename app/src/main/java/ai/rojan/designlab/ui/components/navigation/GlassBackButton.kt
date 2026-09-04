@@ -7,6 +7,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 
 import ai.rojan.designlab.ui.components.glass.GlassSurface
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
@@ -58,7 +59,7 @@ fun GlassBackButton(
     GlassSurface(
         modifier = modifier
             .size(RojanDimens.BackButtonSize)
-            .rojanPressable(onClick = onClick),
+            .rojanPressable(onClick = onClick, role = Role.Button),
         shape = RojanShapes.Circle,
     ) {
         Box(

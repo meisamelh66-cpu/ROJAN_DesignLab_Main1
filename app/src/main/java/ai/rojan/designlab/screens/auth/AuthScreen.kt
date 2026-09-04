@@ -26,6 +26,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.shadow
@@ -175,6 +178,12 @@ fun AuthScreen(
                                 text = errorMessage.orEmpty(),
                                 style = RojanTypography.Caption,
                                 color = RojanErrorText,
+                                // 5B-2: announce the error when it appears /
+                                // changes even if focus is elsewhere. Text
+                                // and layout unchanged.
+                                modifier = Modifier.semantics {
+                                    liveRegion = LiveRegionMode.Polite
+                                },
                             )
                         }
                     }

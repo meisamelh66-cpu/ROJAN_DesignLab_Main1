@@ -16,6 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -81,7 +83,10 @@ fun RtlSectionHeader(
         color = color,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = horizontalPadding),
+            .padding(horizontal = horizontalPadding)
+            // 5B-2: section / screen titles are TalkBack headings so users
+            // can jump between them. Semantics only — no visual change.
+            .semantics { heading() },
     )
 }
 

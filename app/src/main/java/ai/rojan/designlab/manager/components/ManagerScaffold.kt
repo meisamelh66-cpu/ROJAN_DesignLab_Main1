@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 
 /**
  * Manager App workspace screen wrapper — same structure as
@@ -80,7 +81,7 @@ private fun ManagerBackButton(
     ManagerGlassSurface(
         modifier = modifier
             .size(RojanDimens.BackButtonSize)
-            .rojanPressable(onClick = onClick),
+            .rojanPressable(onClick = onClick, role = Role.Button),
         shape = RojanShapes.Circle,
     ) {
         Box(
