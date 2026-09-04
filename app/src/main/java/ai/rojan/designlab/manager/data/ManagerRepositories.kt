@@ -18,10 +18,19 @@ import ai.rojan.designlab.manager.domain.repository.SpecialistRepository
 import ai.rojan.designlab.manager.domain.service.Service
 import ai.rojan.designlab.manager.domain.specialist.Specialist
 import android.content.Context
+import androidx.annotation.VisibleForTesting
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** Empty until [ManagerRepositories.initialize] resolves a real salon - honest "nothing loaded yet," not fake sample data. */
 private object EmptyServiceRepository : ServiceRepository {
@@ -86,6 +95,30 @@ private object EmptyCustomerRepository : CustomerRepository {
     override suspend fun loadDetail(customerId: String): Result<Unit> =
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
 }
+
+/**
+ * A freshly-constructed candidate repository plus the outcome of its
+ * `sync()`. [ManagerRepositories.initialize] swaps [repository] into the
+ * singleton **only when [syncResult] succeeded** (5B5-1) — a failed sync
+ * leaves the previous known-good repository in place.
+ */
+internal class RepoSync<T>(val repository: T, val syncResult: Result<Unit>)
+
+/**
+ * Everything one [ManagerRepositories.initialize] pass fetched from the
+ * backend, before the last-known-good merge is applied.
+ */
+internal class ManagerInitData(
+    val services: RepoSync<ServiceRepository>,
+    val appointments: RepoSync<AppointmentRepository>,
+    val specialists: RepoSync<SpecialistRepository>,
+    val customers: RepoSync<CustomerRepository>,
+    val salon: ManagerSalonSummary,
+    val salonId: String,
+    val availabilityRepository: AvailabilityRepository,
+    val dashboardInsights: Result<ManagerDashboardInsights>,
+    val crmInsights: Result<List<ManagerCrmInsight>>,
+)
 
 /**
  * Composition root for the Manager module's repositories.
@@ -201,6 +234,18 @@ object ManagerRepositories {
     var crmInsights: List<ManagerCrmInsight> = emptyList()
         private set
 
+    // 5B5-2 — in-flight de-dup. The shared init runs on [initScope] (a
+    // process-lifetime scope, NOT tied to any one caller's coroutine), so a
+    // caller navigating away and cancelling its own `await()` never cancels
+    // the shared work for the other callers. [initMutex] guards only the
+    // check-or-start of [inFlight]; the sync + merge run outside the mutex.
+    private val initMutex = Mutex()
+    private var initScope: CoroutineScope? = null
+    private var inFlight: Deferred<Result<Unit>>? = null
+
+    private fun scope(): CoroutineScope =
+        initScope ?: CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).also { initScope = it }
+
     /**
      * Resolves the caller's *active* salon (Active Salon Context &
      * Selection Flow -
@@ -212,7 +257,21 @@ object ManagerRepositories {
      * and syncs real Service/Appointment/Specialist/Customer data (in that
      * order - [customerRepo] resolves service/specialist names for its
      * per-customer visit history, so both must exist first), plus
-     * Dashboard Insights. Safe to call again to re-sync.
+     * Dashboard Insights.
+     *
+     * **Freshness contract (unchanged):** every call performs a fresh
+     * backend sync. The *only* reason a call does not start a new sync is
+     * that an equivalent initialization is already **in flight** and can be
+     * joined (5B5-2) — there is no TTL. A call made after a previous one
+     * has completed (success or failure) always starts a new sync.
+     *
+     * **Last-known-good (5B5-1):** a category whose `sync()` fails does not
+     * replace the previously-synced repository — a transient failure in one
+     * category never blanks another category's good data. [dashboardInsights]
+     * / [crmInsights] follow the same rule (a failed fetch keeps the last
+     * good value rather than nulling it). The overall [Result] still reports
+     * the first sync failure, so a future caller can see initialization
+     * failed.
      *
      * Deliberately **not** `GET /api/v1/salons/mine` (RBAC compatibility
      * fix - that endpoint is owner-only, `salonRepository.findByOwnerId`
@@ -222,21 +281,61 @@ object ManagerRepositories {
      * `GET /salons/{salonId}` only requires the salon to exist - not
      * ownership - which is correct here because [activeSalonId] was
      * already resolved from real, authorized salon access (owner,
-     * membership, or specialist link) one layer up; this call is just
-     * fetching that already-authorized salon's display details, not
-     * re-deciding access. Reuses [ai.rojan.designlab.data.remote.SalonApi]
-     * directly (the same Retrofit contract Customer's own
-     * [ai.rojan.designlab.domain.repository.SalonRepository] wraps) rather
-     * than the leaner domain `Salon` model, since that model doesn't carry
-     * `active`/`coverImageUrl` and this call site needs the full DTO.
-     *
-     * Insights failing does not fail the whole call: it's fetched
-     * independently of salon/service/appointment/customer/specialist
-     * sync, so one genuinely-optional card being unavailable doesn't
-     * block the rest of the dashboard (matching `ManagerDashboardScreen`'s
-     * own "swallow the failure, show an empty state" handling).
+     * membership, or specialist link) one layer up.
      */
-    suspend fun initialize(context: Context): Result<Unit> {
+    suspend fun initialize(context: Context): Result<Unit> =
+        joinOrStart { loadFromBackend(context) }
+
+    /** Test entry: same in-flight de-dup + last-known-good merge, with a substituted loader. */
+    @VisibleForTesting
+    internal suspend fun initializeWith(load: suspend () -> Result<ManagerInitData>): Result<Unit> =
+        joinOrStart(load)
+
+    private suspend fun joinOrStart(load: suspend () -> Result<ManagerInitData>): Result<Unit> {
+        val deferred = initMutex.withLock {
+            inFlight?.takeIf { it.isActive }
+                ?: scope().async { runInitialize(load) }.also { inFlight = it }
+        }
+        return deferred.await()
+    }
+
+    private suspend fun runInitialize(load: suspend () -> Result<ManagerInitData>): Result<Unit> {
+        val data = load().getOrElse { return Result.failure(it) }
+
+        // No suspension points below — in production this runs on
+        // Dispatchers.Main.immediate (initScope), so it cannot interleave
+        // with a concurrent reader or a second init's own merge.
+        if (data.services.syncResult.isSuccess) services = data.services.repository
+        if (data.appointments.syncResult.isSuccess) appointments = data.appointments.repository
+        if (data.specialists.syncResult.isSuccess) specialists = data.specialists.repository
+        if (data.customers.syncResult.isSuccess) customers = data.customers.repository
+
+        // The salon fetch already succeeded (otherwise `data` would be a
+        // failure) — its details are valid, so always apply them.
+        _salon.value = data.salon
+        salonId = data.salonId
+        availabilityRepository = data.availabilityRepository
+
+        data.dashboardInsights.onSuccess { dashboardInsights = it }
+
+        // crmInsights is derived from customers + services + appointments;
+        // only refresh it when all three inputs refreshed, so it never
+        // reflects a partial mix (keep the last-known-good otherwise).
+        if (data.services.syncResult.isSuccess &&
+            data.appointments.syncResult.isSuccess &&
+            data.customers.syncResult.isSuccess
+        ) {
+            data.crmInsights.onSuccess { crmInsights = it }
+        }
+
+        return data.services.syncResult
+            .fold(onSuccess = { data.appointments.syncResult }, onFailure = { Result.failure(it) })
+            .fold(onSuccess = { data.specialists.syncResult }, onFailure = { Result.failure(it) })
+            .fold(onSuccess = { data.customers.syncResult }, onFailure = { Result.failure(it) })
+    }
+
+    /** The one network-touching step — resolves the active salon and syncs every category. */
+    private suspend fun loadFromBackend(context: Context): Result<ManagerInitData> {
         val container = BackendApiContainerHolder.get(context)
         val activeSalonId = container.activeSalonContextRepository.observeActiveSalonId().first()
             ?: return Result.failure(IllegalStateException("No active salon selected yet"))
@@ -269,43 +368,65 @@ object ManagerRepositories {
             salonId = salonDto.id,
         )
 
+        // Sequential, same order as before (customerRepo resolves service/
+        // specialist names, so both must sync first).
         val serviceSync = serviceRepo.sync()
         val appointmentSync = appointmentRepo.sync()
         val specialistSync = specialistRepo.sync()
         val customerSync = customerRepo.sync()
-        dashboardInsights = dashboardRepo.fetch().getOrNull()
+        val dashboardResult = dashboardRepo.fetch()
+        val crmResult = runCatching {
+            container.managerCrmInsightProvider.insightsFor(
+                ManagerCrmInsightContext(
+                    salonId = salonDto.id,
+                    customers = customerRepo.getAll(),
+                    services = serviceRepo.getAll(),
+                    appointments = appointmentRepo.getAll(),
+                ),
+            )
+        }
 
-        services = serviceRepo
-        appointments = appointmentRepo
-        specialists = specialistRepo
-        customers = customerRepo
-        _salon.value = ManagerSalonSummary(
-            id = salonDto.id,
-            name = salonDto.name,
-            description = salonDto.description,
-            phone = salonDto.phone,
-            email = salonDto.email,
-            address = salonDto.address,
-            latitude = salonDto.latitude,
-            longitude = salonDto.longitude,
-            active = salonDto.active,
-            logoUrl = salonDto.logoUrl,
-            coverImageUrl = salonDto.coverImageUrl,
-        )
-        salonId = salonDto.id
-        availabilityRepository = container.availabilityRepository
-        crmInsights = container.managerCrmInsightProvider.insightsFor(
-            ManagerCrmInsightContext(
+        return Result.success(
+            ManagerInitData(
+                services = RepoSync(serviceRepo, serviceSync),
+                appointments = RepoSync(appointmentRepo, appointmentSync),
+                specialists = RepoSync(specialistRepo, specialistSync),
+                customers = RepoSync(customerRepo, customerSync),
+                salon = ManagerSalonSummary(
+                    id = salonDto.id,
+                    name = salonDto.name,
+                    description = salonDto.description,
+                    phone = salonDto.phone,
+                    email = salonDto.email,
+                    address = salonDto.address,
+                    latitude = salonDto.latitude,
+                    longitude = salonDto.longitude,
+                    active = salonDto.active,
+                    logoUrl = salonDto.logoUrl,
+                    coverImageUrl = salonDto.coverImageUrl,
+                ),
                 salonId = salonDto.id,
-                customers = customerRepo.getAll(),
-                services = serviceRepo.getAll(),
-                appointments = appointmentRepo.getAll(),
+                availabilityRepository = container.availabilityRepository,
+                dashboardInsights = dashboardResult,
+                crmInsights = crmResult,
             ),
         )
+    }
 
-        return serviceSync
-            .fold(onSuccess = { appointmentSync }, onFailure = { Result.failure(it) })
-            .fold(onSuccess = { specialistSync }, onFailure = { Result.failure(it) })
-            .fold(onSuccess = { customerSync }, onFailure = { Result.failure(it) })
+    /** Resets every field and the in-flight state to a clean slate. Test-only. */
+    @VisibleForTesting
+    internal fun resetForTest() {
+        initScope?.cancel()
+        initScope = null
+        inFlight = null
+        services = EmptyServiceRepository
+        appointments = EmptyAppointmentRepository
+        specialists = EmptySpecialistRepository
+        customers = EmptyCustomerRepository
+        _salon.value = null
+        dashboardInsights = null
+        salonId = null
+        availabilityRepository = null
+        crmInsights = emptyList()
     }
 }
