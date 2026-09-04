@@ -82,4 +82,33 @@ object RollingBookingDates {
 
     /** Display label for [isoDate] within the current rolling window, falling back to the raw key if it's outside it (e.g. a stale/edited selection). */
     fun labelFor(isoDate: String): String = next7Days().find { it.first == isoDate }?.second ?: isoDate
+
+    /**
+     * General-purpose Persian Gregorian-calendar label for any ISO date
+     * (`yyyy-MM-dd`), not limited to the rolling 7-day window [next7Days]
+     * covers — needed for real appointment history (TEAM2-004), which can
+     * be any past or future date, not just a near-term booking selection.
+     * Always renders the full "weekday، day month" form (no "امروز"/"فردا"
+     * special-casing — there's no single "today" reference point that
+     * makes sense for an arbitrary, possibly-past date). Falls back to the
+     * raw [isoDate] if it isn't well-formed, same defensive posture as
+     * [labelFor].
+     */
+    fun fullLabelFor(isoDate: String): String {
+        val parts = isoDate.split("-")
+        if (parts.size != 3) return isoDate
+        val year = parts[0].toIntOrNull() ?: return isoDate
+        val month = parts[1].toIntOrNull() ?: return isoDate
+        val day = parts[2].toIntOrNull() ?: return isoDate
+
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.YEAR, year)
+            set(Calendar.MONTH, month - 1)
+            set(Calendar.DAY_OF_MONTH, day)
+        }
+        val weekday = weekdayNames[calendar.get(Calendar.DAY_OF_WEEK)].orEmpty()
+        val dayLabel = toPersianDigits(calendar.get(Calendar.DAY_OF_MONTH))
+        val monthLabel = monthNames[calendar.get(Calendar.MONTH)].orEmpty()
+        return "$weekday، $dayLabel $monthLabel"
+    }
 }
