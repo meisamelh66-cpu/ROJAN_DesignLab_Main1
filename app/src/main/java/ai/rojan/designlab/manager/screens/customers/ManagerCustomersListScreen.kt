@@ -83,11 +83,16 @@ fun ManagerCustomersListScreen(
 ) {
     var query by remember { mutableStateOf("") }
     var selectedTag by remember { mutableStateOf(initialTagFilter) }
-    val filteredCustomers = remember(query, selectedTag) {
-        ManagerRepositories.customers.search(query).filter { customer ->
-            selectedTag == null || customer.tag == selectedTag
-        }
-    }
+
+    // Deliberately not `remember`-cached: this composable's own NavBackStackEntry
+    // (and therefore its `remember` state) survives a push-then-pop-back round
+    // trip to the profile/edit screens unchanged, so a `remember(query, selectedTag)`
+    // here kept a stale pre-create/pre-edit roster alive whenever those keys
+    // themselves hadn't changed - the same class already found and fixed in
+    // ManagerServicesScreen (P0-2) and ManagerStaffScreen. Plain list filtering
+    // over this list's real size is cheap enough that no memoization is needed.
+    val all = ManagerRepositories.customers.search(query)
+    val filteredCustomers = all.filter { customer -> selectedTag == null || customer.tag == selectedTag }
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         LazyColumn(
