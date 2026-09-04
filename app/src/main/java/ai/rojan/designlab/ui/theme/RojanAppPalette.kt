@@ -10,11 +10,12 @@ import ai.rojan.designlab.screens.customer.hometheme.HomeColors
  * Shared Premium Glass Design System — the one thing allowed to differ
  * between ROJAN apps (Manager, Customer, and future Specialist/Reception/
  * Accountant/Inventory apps) is this palette; every rendering mechanic that
- * consumes it ([ai.rojan.designlab.ui.components.glass.PremiumGlassSurface]
- * first, more to follow) is otherwise identical across apps.
+ * consumes it ([ai.rojan.designlab.ui.components.glass.PremiumGlassSurface],
+ * [ai.rojan.designlab.ui.components.buttons.PremiumButton]) is otherwise
+ * identical across apps.
  *
- * Fields are limited to what the glass engine actually consumes today —
- * no speculative fields for icon accents / CTA gradients that later phases
+ * Fields are limited to what the shared mechanics actually consume today —
+ * no speculative fields for icon accents / card fills that later phases
  * will need; those get added when those phases are built.
  */
 data class RojanAppPalette(
@@ -27,7 +28,36 @@ data class RojanAppPalette(
     val textPrimary: Color,
     val textSecondary: Color,
     val textAccent: Color,
+    /**
+     * Design-system refinement, Phase 3 — which [ai.rojan.designlab.ui.components.buttons.PremiumButton]
+     * material this app's primary CTA renders as by default. Never
+     * hardcoded at a call site; a screen that needs a different style
+     * passes `PremiumButton`'s `style` parameter explicitly instead.
+     */
+    val buttonStyle: RojanButtonStyle,
+    /**
+     * Label color (and glass-wash accent stop) for a [RojanButtonStyle.Glass]
+     * or [RojanButtonStyle.Outline] button. Deliberately separate from
+     * [textAccent] — that field also drives bare-text roles (focus borders,
+     * links) with their own stricter contrast requirements; a button's
+     * label sits on its own bordered surface and can afford a different,
+     * more saturated brand tone. Defaults to [textAccent] where the two
+     * are already the same color (Manager, Customer).
+     */
+    val buttonAccent: Color = textAccent,
 )
+
+/** [RojanAppPalette.buttonStyle]'s three supported CTA materials — see [ai.rojan.designlab.ui.components.buttons.PremiumButton]. */
+enum class RojanButtonStyle {
+    /** Solid brand gradient fill — Customer's bold, high-contrast CTA. */
+    Gradient,
+
+    /** [ai.rojan.designlab.ui.components.glass.PremiumGlassSurface] + a low-alpha accent wash — Manager/Reception's restrained luxury CTA. */
+    Glass,
+
+    /** Transparent fill, accent-colored border and label only — no current app uses this by default; available for a screen that needs a lighter/secondary action in the same shape/typography language. */
+    Outline,
+}
 
 /** No default — a screen rendered without a provided palette should fail loudly, not render mystery colors. */
 val LocalRojanPalette = staticCompositionLocalOf<RojanAppPalette> {
@@ -42,6 +72,11 @@ val ManagerPalette = RojanAppPalette(
     textPrimary = ManagerColors.TextPrimary,
     textSecondary = ManagerColors.TextSecondary,
     textAccent = ManagerColors.Gold,
+    // Glass + Gold: the exact wash ManagerPrimaryButton already rendered
+    // (Turquoise@0.20 -> Gold@0.16) — buttonAccent defaults to textAccent
+    // (Gold), so this reproduces it unchanged now that PremiumButton is
+    // the shared mechanic.
+    buttonStyle = RojanButtonStyle.Glass,
 )
 
 val CustomerPalette = RojanAppPalette(
@@ -53,6 +88,8 @@ val CustomerPalette = RojanAppPalette(
     textPrimary = HomeColors.TextPrimary,
     textSecondary = HomeColors.TextSecondary,
     textAccent = HomeColors.Glow,
+    // Gradient: Customer's existing bold purple->magenta CTA, unchanged.
+    buttonStyle = RojanButtonStyle.Gradient,
 )
 
 /**
@@ -75,6 +112,17 @@ val CustomerPalette = RojanAppPalette(
  * on the existing value — a rose-gold that also clears the 3:1 UI-contrast
  * bar on soft white is not among the current tokens, so choosing that
  * accent needs a designer + a contrast check on-device, not a blind pick.
+ *
+ * **Phase 3 — button system:** [buttonStyle] = [RojanButtonStyle.Glass]
+ * moves Reception's primary CTA off Customer's purple/magenta
+ * [RojanButtonStyle.Gradient] (what every Reception screen rendered before
+ * this pass — `PremiumButton` had no per-app style, so Reception simply
+ * got Customer's) onto its own rose-gold glass identity. [buttonAccent]
+ * is deliberately **not** [textAccent] (still the deferred amber): it uses
+ * [RojanPremiumBorderShadow], the metallic border's darkened-bronze band —
+ * same rose-gold/gold family as the glass edge, and ≈5.9:1 contrast on
+ * [ai.rojan.designlab.ui.background.WarmBackground], comfortably clearing
+ * the bar a primary CTA's label needs.
  */
 val ReceptionPalette = RojanAppPalette(
     name = "Reception",
@@ -85,4 +133,6 @@ val ReceptionPalette = RojanAppPalette(
     textPrimary = RojanTextPrimary,
     textSecondary = RojanTextSecondary,
     textAccent = RojanCategoryMakeupIcon,
+    buttonStyle = RojanButtonStyle.Glass,
+    buttonAccent = RojanPremiumBorderShadow,
 )
