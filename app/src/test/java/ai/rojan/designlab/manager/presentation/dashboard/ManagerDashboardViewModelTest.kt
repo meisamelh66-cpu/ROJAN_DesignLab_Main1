@@ -160,6 +160,7 @@ private class FakeBookingRepository(private val result: Result<PagedResult<Booki
         startTime: String,
         notes: String?,
         idempotencyKey: String?,
+        customerId: String?,
     ): Result<Booking> = error("not used by these tests")
 
     override suspend fun myBookings(page: Int, size: Int, status: BookingStatus?): Result<PagedResult<Booking>> =

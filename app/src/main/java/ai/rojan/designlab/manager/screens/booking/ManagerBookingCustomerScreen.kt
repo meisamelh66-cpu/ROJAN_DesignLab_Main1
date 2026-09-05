@@ -1,11 +1,14 @@
 package ai.rojan.designlab.manager.screens.booking
 
+import ai.rojan.designlab.domain.repository.SalonCustomer
 import ai.rojan.designlab.manager.components.ManagerColors
+import ai.rojan.designlab.manager.components.ManagerEmptyState
+import ai.rojan.designlab.manager.components.ManagerErrorState
 import ai.rojan.designlab.manager.components.ManagerGlassSurface
+import ai.rojan.designlab.manager.components.ManagerLoadingState
 import ai.rojan.designlab.manager.components.ManagerScaffold
-import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
-import ai.rojan.designlab.manager.domain.customer.displayLabel
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel
+import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
@@ -28,6 +31,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,11 +42,18 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
 
 /**
- * Manager Booking Journey Phase 2 — step 1: pick which customer this
- * appointment is for. Sources customers exclusively through
- * [ManagerBookingViewModel.searchCustomers] (backed by
- * [ai.rojan.designlab.manager.domain.repository.CustomerRepository]) —
- * no screen-local sample list.
+ * Manager Booking Journey — step 1: pick which customer this appointment
+ * is for.
+ *
+ * **Manager Booking Creation Integrity follow-up:** searches the salon's
+ * real customer roster (`GET /salons/{salonId}/customers`, via
+ * [ManagerBookingViewModel.searchCustomers]) — only accounts who have
+ * actually booked with this salon before, never a global user directory
+ * and never a fabricated identity. Replaces the previous
+ * `ManagerRepositories.customers` in-memory sample list. A real
+ * [SalonCustomer] carries a name and email, not the old demo model's
+ * name/phone/tag — there is no phone number or customer-tag concept on a
+ * real backend account.
  */
 @Composable
 fun ManagerBookingCustomerScreen(
@@ -51,7 +62,10 @@ fun ManagerBookingCustomerScreen(
     onCustomerSelected: () -> Unit = {},
 ) {
     var query by remember { mutableStateOf("") }
-    val customers = remember(query) { viewModel.searchCustomers(query) }
+
+    LaunchedEffect(query) {
+        viewModel.searchCustomers(query)
+    }
 
     ManagerScaffold(onBackClick = onBackClick) {
         LazyColumn(
@@ -71,18 +85,34 @@ fun ManagerBookingCustomerScreen(
                 BookingSearchField(
                     query = query,
                     onQueryChange = { query = it },
-                    placeholder = "جستجوی نام یا شماره تماس...",
+                    placeholder = "جستجوی نام یا ایمیل...",
                 )
             }
 
-            items(customers) { customer ->
-                BookingCustomerRow(
-                    customer = customer,
-                    onClick = {
-                        viewModel.selectCustomer(customer.id)
-                        onCustomerSelected()
-                    },
-                )
+            when (val searchState = viewModel.customerSearchState) {
+                is UiState.Loading -> item { ManagerLoadingState(message = "در حال جستجو...") }
+                is UiState.Error -> item {
+                    ManagerErrorState(
+                        description = searchState.message,
+                        actionLabel = "تلاش مجدد",
+                        onAction = { viewModel.searchCustomers(query) },
+                    )
+                }
+                is UiState.Empty -> item {
+                    ManagerEmptyState(
+                        title = "مشتری‌ای یافت نشد",
+                        description = "فقط مشتریانی که قبلاً در این سالن نوبت داشته‌اند اینجا نمایش داده می‌شوند.",
+                    )
+                }
+                is UiState.Success -> items(searchState.data) { customer ->
+                    BookingCustomerRow(
+                        customer = customer,
+                        onClick = {
+                            viewModel.selectCustomer(customer.id)
+                            onCustomerSelected()
+                        },
+                    )
+                }
             }
         }
     }
@@ -127,7 +157,7 @@ internal fun BookingSearchField(query: String, onQueryChange: (String) -> Unit, 
 }
 
 @Composable
-private fun BookingCustomerRow(customer: ManagerCustomer, onClick: () -> Unit) {
+private fun BookingCustomerRow(customer: SalonCustomer, onClick: () -> Unit) {
     ManagerGlassSurface(
         modifier = Modifier
             .fillMaxWidth()
@@ -142,13 +172,8 @@ private fun BookingCustomerRow(customer: ManagerCustomer, onClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(text = customer.name, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
-                Text(text = customer.phone, style = RojanTypography.Caption, color = ManagerColors.TextSecondary)
-                Text(
-                    text = customer.tag.displayLabel,
-                    style = RojanTypography.Caption,
-                    color = ManagerColors.GoldLight,
-                )
+                Text(text = customer.fullName, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
+                Text(text = customer.email, style = RojanTypography.Caption, color = ManagerColors.TextSecondary)
             }
         }
     }

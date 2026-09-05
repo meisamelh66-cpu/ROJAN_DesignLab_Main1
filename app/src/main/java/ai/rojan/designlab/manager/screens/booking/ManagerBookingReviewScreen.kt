@@ -1,12 +1,12 @@
 package ai.rojan.designlab.manager.screens.booking
 
+import ai.rojan.designlab.domain.booking.RollingBookingDates
 import ai.rojan.designlab.manager.components.ManagerColors
 import ai.rojan.designlab.manager.components.ManagerErrorState
 import ai.rojan.designlab.manager.components.ManagerGlassSurface
 import ai.rojan.designlab.manager.components.ManagerPrimaryButton
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.data.formatTomanPrice
-import ai.rojan.designlab.manager.domain.appointment.ManagerCalendarWeek
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.text.Text
@@ -26,20 +26,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlin.math.roundToLong
 
 /**
- * Manager Booking Journey Phase 2 — step 5: review the resolved
- * selections (ids -> display entities, via the repositories) before
+ * Manager Booking Journey — step 5: review the resolved selections before
  * confirming.
  *
- * **TEAM2 Booking Creation Integrity follow-up:** [ManagerBookingViewModel.confirm]
- * cannot create a real backend booking yet (see its own doc comment for
- * the exact missing backend contract) and no longer produces a fake
- * local one either — it returns `false` and sets [ai.rojan.designlab.manager.domain.booking.ManagerBookingState.submitError].
- * [onConfirmed] (which leads to the success screen) is only ever called
- * when `confirm()` returns `true` — never unconditionally — so this
- * screen cannot show a false "success" for a booking nothing was ever
- * persisted for.
+ * **Manager Booking Creation Integrity follow-up:** confirming now fires
+ * the real `POST /api/v1/bookings` with the selected real `customerId`
+ * (via [ManagerBookingViewModel.confirm]). [onConfirmed] (which leads to
+ * the success screen) is only ever invoked from `confirm`'s `onSuccess`
+ * callback — never unconditionally — so this screen cannot show a false
+ * "success" for a booking that wasn't actually persisted. A failure
+ * renders [ManagerBookingViewModel.uiState]'s `submitError` via the
+ * existing [ManagerErrorState] component with a real retry action (a
+ * network/validation/slot-taken failure here genuinely can succeed on
+ * retry, unlike the previous, structural block this same field
+ * represented before the backend contract existed).
  */
 @Composable
 fun ManagerBookingReviewScreen(
@@ -51,7 +54,7 @@ fun ManagerBookingReviewScreen(
     val customer = viewModel.customerById(state.customerId)
     val service = viewModel.serviceById(state.serviceId)
     val specialist = viewModel.specialistById(state.specialistId)
-    val dateLabel = state.dateKey?.let { ManagerCalendarWeek.labelFor(it) }
+    val dateLabel = state.dateKey?.let { RollingBookingDates.fullLabelFor(it) }
 
     ManagerScaffold(onBackClick = onBackClick) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -72,12 +75,12 @@ fun ManagerBookingReviewScreen(
                     modifier = Modifier.padding(RojanDimens.SpaceMD),
                     verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
                 ) {
-                    ReviewRow(label = "مشتری", value = customer?.name ?: "—")
+                    ReviewRow(label = "مشتری", value = customer?.fullName ?: "—")
                     ReviewRow(label = "خدمت", value = service?.name ?: "—")
                     if (service != null) {
-                        ReviewRow(label = "قیمت", value = formatTomanPrice(service.price))
+                        ReviewRow(label = "قیمت", value = formatTomanPrice(service.price.roundToLong()))
                     }
-                    ReviewRow(label = "متخصص", value = specialist?.name ?: "—")
+                    ReviewRow(label = "متخصص", value = specialist?.displayName ?: "—")
                     ReviewRow(label = "تاریخ", value = dateLabel ?: "—")
                     ReviewRow(label = "ساعت", value = state.time ?: "—")
                 }
@@ -85,18 +88,17 @@ fun ManagerBookingReviewScreen(
 
             if (state.submitError != null) {
                 Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))
-                // No retry action: this is a structural backend-contract
-                // gap, not a transient failure - offering "تلاش مجدد"
-                // would dishonestly imply trying again might succeed.
-                ManagerErrorState(description = state.submitError!!)
+                ManagerErrorState(
+                    description = state.submitError!!,
+                    actionLabel = "تلاش مجدد",
+                    onAction = { viewModel.confirm(onSuccess = onConfirmed) },
+                )
             }
 
             ManagerPrimaryButton(
-                text = "تایید نهایی",
-                onClick = {
-                    if (viewModel.confirm()) onConfirmed()
-                },
-                enabled = state.isReadyToConfirm,
+                text = if (state.isSubmitting) "در حال ثبت..." else "تایید نهایی",
+                onClick = { viewModel.confirm(onSuccess = onConfirmed) },
+                enabled = state.isReadyToConfirm && !state.isSubmitting,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = RojanDimens.SpaceLG),

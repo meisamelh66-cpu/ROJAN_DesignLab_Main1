@@ -24,6 +24,7 @@ class BookingRepositoryImpl(
         startTime: String,
         notes: String?,
         idempotencyKey: String?,
+        customerId: String?,
     ): Result<Booking> = safeApiCall {
         bookingApi.createBooking(
             request = CreateBookingRequestDto(
@@ -32,6 +33,7 @@ class BookingRepositoryImpl(
                 specialistId = specialistId,
                 startTime = startTime,
                 notes = notes,
+                customerId = customerId,
             ),
             idempotencyKey = idempotencyKey,
         )

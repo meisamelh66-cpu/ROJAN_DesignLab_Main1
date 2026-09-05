@@ -18,6 +18,8 @@ data class CreateBookingRequestDto(
     /** ISO-8601 local date-time, e.g. `"2026-09-01T10:00:00"` — one of the windows returned by the availability endpoint. */
     val startTime: String,
     val notes: String? = null,
+    /** Manager Booking Creation Integrity follow-up: set only when a salon owner is booking on behalf of a customer returned by `GET /salons/{salonId}/customers`. Omitted for the normal self-booking case. */
+    val customerId: String? = null,
 )
 
 /** TEAM2-003: request body for `PUT /api/v1/bookings/{id}/reschedule` — mirrors the backend's `RescheduleBookingRequest`. */

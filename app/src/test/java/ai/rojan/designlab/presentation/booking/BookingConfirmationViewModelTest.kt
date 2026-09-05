@@ -201,6 +201,7 @@ private class FakeBookingRepository(initialResult: Result<Booking>) : BookingRep
         startTime: String,
         notes: String?,
         idempotencyKey: String?,
+        customerId: String?,
     ): Result<Booking> {
         createBookingCalled = true
         return nextResult

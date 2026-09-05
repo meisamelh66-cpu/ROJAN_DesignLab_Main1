@@ -184,6 +184,7 @@ private class FakeBookingRepository(private val myBookingsResult: Result<PagedRe
         startTime: String,
         notes: String?,
         idempotencyKey: String?,
+        customerId: String?,
     ): Result<Booking> = error("not used by AppointmentsViewModel")
 
     override suspend fun myBookings(page: Int, size: Int, status: BookingStatus?): Result<PagedResult<Booking>> {

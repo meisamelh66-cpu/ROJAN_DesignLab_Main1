@@ -235,8 +235,17 @@ private fun managerBookingViewModelFor(
     val parentEntry = remember(backStackEntry) {
         navController.getBackStackEntry(ManagerDestinations.BOOKING_FLOW_GRAPH)
     }
+    val context = LocalContext.current
     return viewModel(
         viewModelStoreOwner = parentEntry,
-        factory = ManagerBookingViewModelFactory(),
+        factory = ManagerBookingViewModelFactory(
+            salonRepository = BackendApiContainerHolder.get(context).salonRepository,
+            salonCustomerRepository = BackendApiContainerHolder.get(context).salonCustomerRepository,
+            serviceCategoryRepository = BackendApiContainerHolder.get(context).serviceCategoryRepository,
+            serviceRepository = BackendApiContainerHolder.get(context).serviceRepository,
+            specialistRepository = BackendApiContainerHolder.get(context).specialistRepository,
+            availabilityRepository = BackendApiContainerHolder.get(context).availabilityRepository,
+            bookingRepository = BackendApiContainerHolder.get(context).bookingRepository,
+        ),
     )
 }

@@ -190,6 +190,7 @@ private class RescheduleFakeBookingRepository(
         startTime: String,
         notes: String?,
         idempotencyKey: String?,
+        customerId: String?,
     ): Result<Booking> = error("not used by RescheduleAppointmentViewModel")
 
     override suspend fun myBookings(page: Int, size: Int, status: BookingStatus?): Result<PagedResult<Booking>> =

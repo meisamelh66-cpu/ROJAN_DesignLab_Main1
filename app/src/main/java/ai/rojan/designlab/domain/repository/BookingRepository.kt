@@ -37,6 +37,8 @@ interface BookingRepository {
         startTime: String,
         notes: String?,
         idempotencyKey: String?,
+        /** Manager Booking Creation Integrity follow-up: set only when the caller is the salon's owner booking on behalf of an existing customer. Backend rejects it (403) for any other caller, and 404s if it doesn't resolve to a real customer account. */
+        customerId: String? = null,
     ): Result<Booking>
 
     suspend fun myBookings(page: Int = 0, size: Int = 20, status: BookingStatus? = null): Result<PagedResult<Booking>>

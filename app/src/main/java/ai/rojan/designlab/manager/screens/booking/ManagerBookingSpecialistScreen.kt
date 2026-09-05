@@ -1,10 +1,14 @@
 package ai.rojan.designlab.manager.screens.booking
 
+import ai.rojan.designlab.domain.repository.Specialist
 import ai.rojan.designlab.manager.components.ManagerColors
+import ai.rojan.designlab.manager.components.ManagerEmptyState
+import ai.rojan.designlab.manager.components.ManagerErrorState
 import ai.rojan.designlab.manager.components.ManagerGlassSurface
+import ai.rojan.designlab.manager.components.ManagerLoadingState
 import ai.rojan.designlab.manager.components.ManagerScaffold
-import ai.rojan.designlab.manager.domain.specialist.Specialist
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel
+import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.text.Text
@@ -20,18 +24,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
- * Manager Booking Journey Phase 2 — step 3: pick the specialist.
- * [ManagerBookingViewModel.specialistsFor] prefers specialists whose
- * skills cover the already-selected service, falling back to the full
- * roster rather than dead-ending on an empty list.
+ * Manager Booking Journey — step 3: pick the specialist.
+ *
+ * **Manager Booking Creation Integrity follow-up:** sources the salon's
+ * real specialist roster via [ManagerBookingViewModel.catalogState]
+ * (`GET /salons/{salonId}/specialists`) — replacing
+ * `ManagerRepositories.specialists`' in-memory sample list. The previous
+ * "specialists whose skills cover the selected service" filter is gone:
+ * a real backend [Specialist] has no skills/services-offered concept to
+ * filter on (disclosed simplification, not a silently dropped feature —
+ * see `TEAM2_RESULT_MANAGER_BOOKING_CREATION_V2.md`). Every specialist at
+ * the salon is shown; the backend itself still rejects a specialist/
+ * service combination that doesn't make sense when the booking is
+ * actually submitted.
  */
 @Composable
 fun ManagerBookingSpecialistScreen(
@@ -39,10 +49,6 @@ fun ManagerBookingSpecialistScreen(
     onBackClick: (() -> Unit)? = null,
     onSpecialistSelected: () -> Unit = {},
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val selectedServiceName = remember(state.serviceId) { viewModel.serviceById(state.serviceId)?.name }
-    val specialists = remember(selectedServiceName) { viewModel.specialistsFor(selectedServiceName) }
-
     ManagerScaffold(onBackClick = onBackClick) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -57,14 +63,37 @@ fun ManagerBookingSpecialistScreen(
                 )
             }
 
-            items(specialists) { specialist ->
-                BookingSpecialistRow(
-                    specialist = specialist,
-                    onClick = {
-                        viewModel.selectSpecialist(specialist.id)
-                        onSpecialistSelected()
-                    },
-                )
+            when (val catalogState = viewModel.catalogState) {
+                is UiState.Loading -> item { ManagerLoadingState(message = "در حال بارگذاری متخصصان...") }
+                is UiState.Error -> item {
+                    ManagerErrorState(
+                        description = catalogState.message,
+                        actionLabel = "تلاش مجدد",
+                        onAction = { viewModel.retryLoadCatalog() },
+                    )
+                }
+                is UiState.Empty -> item {
+                    ManagerEmptyState(
+                        title = "هنوز سالنی ثبت نکرده‌اید",
+                        description = "برای رزرو نوبت، ابتدا باید یک سالن برای حساب کاربری خود ثبت کنید.",
+                    )
+                }
+                is UiState.Success -> {
+                    val specialists = catalogState.data.specialists
+                    if (specialists.isEmpty()) {
+                        item { ManagerEmptyState(title = "هنوز متخصصی ثبت نشده است") }
+                    } else {
+                        items(specialists) { specialist ->
+                            BookingSpecialistRow(
+                                specialist = specialist,
+                                onClick = {
+                                    viewModel.selectSpecialist(specialist.id)
+                                    onSpecialistSelected()
+                                },
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -86,17 +115,14 @@ private fun BookingSpecialistRow(specialist: Specialist, onClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(text = specialist.name, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
-                Text(
-                    text = specialist.skills.joinToString(" · "),
-                    style = RojanTypography.Caption,
-                    color = ManagerColors.TextSecondary,
-                )
-                Text(
-                    text = specialist.workingHours,
-                    style = RojanTypography.Caption,
-                    color = ManagerColors.Gold,
-                )
+                Text(text = specialist.displayName, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
+                if (specialist.bio != null) {
+                    Text(
+                        text = specialist.bio,
+                        style = RojanTypography.Caption,
+                        color = ManagerColors.TextSecondary,
+                    )
+                }
             }
         }
     }

@@ -19,17 +19,17 @@ data class ManagerBookingState(
     val dateKey: String? = null,
     val time: String? = null,
     val isSubmitting: Boolean = false,
+    /** The real backend `Booking.id` once [ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel.confirm] genuinely succeeds — non-null only then, never for a local-only "success." */
     val createdAppointmentId: String? = null,
     /**
-     * TEAM2 Booking Creation Integrity follow-up. Non-null after every
-     * [ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel.confirm]
-     * call — there is currently no backend contract that lets a salon
-     * owner create a booking attributed to a different customer (see that
-     * method's own doc comment), so confirming always fails honestly
-     * rather than ever producing a local-only, silently-vanishing
-     * "success." Kept on [ManagerBookingState] (not a separate
-     * `MutableStateFlow`) — same single-source-of-truth shape every other
-     * field here already follows.
+     * Manager Booking Creation Integrity follow-up. Non-null exactly when
+     * the most recent [ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel.confirm]
+     * attempt did not produce a persisted backend booking — a real
+     * backend/network/validation failure now that the backend contract
+     * for booking on a customer's behalf exists, not a permanent
+     * structural block any more. Kept on [ManagerBookingState] (not a
+     * separate `MutableStateFlow`) — same single-source-of-truth shape
+     * every other field here already follows.
      */
     val submitError: String? = null,
 ) {
