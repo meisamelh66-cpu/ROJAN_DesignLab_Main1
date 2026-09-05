@@ -1,6 +1,5 @@
 package ai.rojan.designlab.manager.presentation.booking
 
-import ai.rojan.designlab.manager.domain.appointment.Appointment
 import ai.rojan.designlab.manager.domain.appointment.AppointmentStatus
 import ai.rojan.designlab.manager.domain.booking.ManagerBookingState
 import ai.rojan.designlab.manager.domain.booking.managerBookingTimeSlots
@@ -99,25 +98,44 @@ class ManagerBookingViewModel(
         return managerBookingTimeSlots.filterNot { it in taken }
     }
 
-    fun confirm(): Appointment? {
+    /**
+     * TEAM2 Booking Creation Integrity follow-up. Does **not** create a
+     * real backend booking, and no longer creates a local-only
+     * [ai.rojan.designlab.manager.domain.appointment.Appointment]
+     * pretending to be one either — that local "success" is exactly the
+     * regression this follow-up fixes: TEAM2-002 made Manager Calendar
+     * read real backend data, so a locally-created appointment would
+     * show a success screen and then silently never appear anywhere.
+     *
+     * The real blocker, confirmed from source, not assumed: the
+     * backend's `POST /api/v1/bookings` always attributes the booking to
+     * the *authenticated caller*
+     * (`BookingController.create`'s `currentUserResolver.resolve(principal)`)
+     * — there is no field on `CreateBookingRequest` and no code path in
+     * `CreateBookingUseCase` for a salon owner to create a booking on
+     * behalf of a different customer. There is also no backend endpoint
+     * at all that lets an owner look up an existing customer
+     * (`UserController` exposes only `GET /users/me`), so even if the
+     * first gap were closed, "select a real customer" still couldn't be
+     * backed by anything real. Per this task's explicit instruction not
+     * to invent a missing API or fake a customer identity, this reports
+     * that honestly via [ManagerBookingState.submitError] instead of
+     * either. See `TEAM2_RESULT_MANAGER_BOOKING_CREATION.md`.
+     *
+     * Returns `false` (always, until that backend contract exists)
+     * rather than `Unit`, so the caller
+     * ([ai.rojan.designlab.manager.screens.booking.ManagerBookingReviewScreen])
+     * has an explicit, unmissable signal to never proceed to the success
+     * screen — the same "only navigate on a real confirmed result"
+     * contract TEAM2-001 established for the Customer booking flow.
+     */
+    fun confirm(): Boolean {
         val state = _uiState.value
-        val customerId = state.customerId ?: return null
-        val serviceId = state.serviceId ?: return null
-        val specialistId = state.specialistId ?: return null
-        val dateKey = state.dateKey ?: return null
-        val time = state.time ?: return null
+        if (!state.isReadyToConfirm) return false
 
-        val appointment = Appointment(
-            id = "apt-${System.currentTimeMillis()}",
-            customerId = customerId,
-            serviceId = serviceId,
-            specialistId = specialistId,
-            date = dateKey,
-            time = time,
-            status = AppointmentStatus.PENDING,
+        _uiState.value = state.copy(
+            submitError = "ثبت نوبت به نام مشتری هنوز از طریق سرور پشتیبانی نمی‌شود. این قابلیت به‌زودی اضافه خواهد شد.",
         )
-        appointmentRepository.create(appointment)
-        _uiState.value = state.copy(createdAppointmentId = appointment.id)
-        return appointment
+        return false
     }
 }

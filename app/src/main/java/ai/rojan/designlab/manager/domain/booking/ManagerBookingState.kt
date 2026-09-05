@@ -20,6 +20,18 @@ data class ManagerBookingState(
     val time: String? = null,
     val isSubmitting: Boolean = false,
     val createdAppointmentId: String? = null,
+    /**
+     * TEAM2 Booking Creation Integrity follow-up. Non-null after every
+     * [ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel.confirm]
+     * call — there is currently no backend contract that lets a salon
+     * owner create a booking attributed to a different customer (see that
+     * method's own doc comment), so confirming always fails honestly
+     * rather than ever producing a local-only, silently-vanishing
+     * "success." Kept on [ManagerBookingState] (not a separate
+     * `MutableStateFlow`) — same single-source-of-truth shape every other
+     * field here already follows.
+     */
+    val submitError: String? = null,
 ) {
     val isReadyToConfirm: Boolean
         get() = customerId != null && serviceId != null && specialistId != null && dateKey != null && time != null
