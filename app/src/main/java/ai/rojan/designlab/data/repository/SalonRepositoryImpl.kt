@@ -26,6 +26,9 @@ class SalonRepositoryImpl(
     override suspend fun getSalon(salonId: String): Result<Salon> =
         safeApiCall { salonApi.getSalon(salonId) }.map { it.toDomain() }
 
+    override suspend fun myOwnedSalons(): Result<List<Salon>> =
+        safeApiCall { salonApi.mySalons() }.map { list -> list.map { it.toDomain() } }
+
     private fun SalonResponseDto.toDomain() = Salon(
         id = id,
         name = name,
@@ -33,5 +36,6 @@ class SalonRepositoryImpl(
         phone = phone,
         email = email,
         address = address,
+        active = active,
     )
 }

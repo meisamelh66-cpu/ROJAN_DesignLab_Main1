@@ -211,6 +211,9 @@ private class RescheduleFakeBookingRepository(
         lastRescheduleNewStartTime = newStartTime
         return rescheduleResult
     }
+
+    override suspend fun salonBookings(salonId: String, page: Int, size: Int, status: BookingStatus?): Result<PagedResult<Booking>> =
+        error("not used by RescheduleAppointmentViewModel")
 }
 
 private class RescheduleFakeAvailabilityRepository(private val result: Result<List<TimeSlot>>) : AvailabilityRepository {
@@ -228,6 +231,7 @@ private class RescheduleFakeSalonRepository(private val result: Result<Salon>) :
         error("not used by these tests")
 
     override suspend fun getSalon(salonId: String): Result<Salon> = result
+    override suspend fun myOwnedSalons(): Result<List<Salon>> = error("not used by these tests")
 }
 
 private class RescheduleFakeSpecialistRepository(private val result: Result<Specialist>) : SpecialistRepository {

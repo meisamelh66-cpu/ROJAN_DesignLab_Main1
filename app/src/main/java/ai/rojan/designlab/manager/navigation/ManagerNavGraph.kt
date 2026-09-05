@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.navigation
 
+import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModelFactory
 import ai.rojan.designlab.manager.screens.booking.ManagerBookingCustomerScreen
@@ -15,8 +16,12 @@ import ai.rojan.designlab.manager.screens.customers.ManagerCustomersListScreen
 import ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen
 import ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen
 import ai.rojan.designlab.manager.screens.splash.ManagerSplashScreen
+import ai.rojan.designlab.presentation.auth.AuthViewModel
+import ai.rojan.designlab.presentation.auth.AuthViewModelFactory
+import ai.rojan.designlab.screens.auth.AuthScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
@@ -43,10 +48,38 @@ import androidx.navigation.navArgument
  */
 fun NavGraphBuilder.managerNavGraph(navController: NavController) {
     composable(ManagerDestinations.SPLASH) {
+        // TEAM2-002: this app has no session at all until now - a stored
+        // access token (from a previous real login) is the only signal
+        // available synchronously here to skip straight past the login
+        // gate. An expired-beyond-refresh token still routes through
+        // Dashboard/Calendar first, which detect the resulting 401 via
+        // requiresReauth and bounce to LOGIN themselves - see those
+        // screens' own onRequireLogin wiring below.
+        val context = LocalContext.current
         ManagerSplashScreen(
             onSplashFinished = {
-                navController.navigate(ManagerDestinations.DASHBOARD) {
+                val hasStoredSession = BackendApiContainerHolder.get(context).tokenRepository.accessToken() != null
+                val destination = if (hasStoredSession) ManagerDestinations.DASHBOARD else ManagerDestinations.LOGIN
+                navController.navigate(destination) {
                     popUpTo(ManagerDestinations.SPLASH) { inclusive = true }
+                }
+            },
+        )
+    }
+
+    composable(ManagerDestinations.LOGIN) {
+        // TEAM2-002: reuses the Customer app's real AuthScreen/AuthViewModel
+        // as-is (same email/password backend login) - no new login UI
+        // designed for this task. See TEAM2_RESULT_MANAGER_DATA_PERSISTENCE.md
+        // for why a dedicated Manager-themed login screen wasn't built here.
+        val context = LocalContext.current
+        val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(context))
+        AuthScreen(
+            authViewModel = authViewModel,
+            onBackClick = { navController.popBackStack() },
+            onExistingUserAuthenticated = {
+                navController.navigate(ManagerDestinations.DASHBOARD) {
+                    popUpTo(ManagerDestinations.LOGIN) { inclusive = true }
                 }
             },
         )
@@ -58,12 +91,14 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController) {
             onCreateAppointmentClick = { navController.navigate(ManagerDestinations.CREATE_APPOINTMENT) },
             onViewCustomersClick = { navController.navigate(ManagerDestinations.CUSTOMERS) },
             onProfileClick = { navController.navigate(ManagerDestinations.PROFILE) },
+            onRequireLogin = { navController.navigateToManagerLogin() },
         )
     }
 
     composable(ManagerDestinations.CALENDAR) {
         ManagerCalendarScreen(
             onBackClick = { navController.popBackStack() },
+            onRequireLogin = { navController.navigateToManagerLogin() },
         )
     }
 
@@ -169,6 +204,19 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController) {
                 },
             )
         }
+    }
+}
+
+/**
+ * TEAM2-002: routes to the login gate and clears the entire back stack —
+ * used when [ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewModel.requiresReauth]/
+ * `ManagerCalendarViewModel`'s equivalent fires (a real 401: the stored
+ * session is genuinely dead, not just retriable), so there is nothing
+ * left behind the login screen worth returning to.
+ */
+private fun NavController.navigateToManagerLogin() {
+    navigate(ManagerDestinations.LOGIN) {
+        popUpTo(0) { inclusive = true }
     }
 }
 

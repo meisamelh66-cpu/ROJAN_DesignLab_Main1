@@ -1,6 +1,7 @@
 package ai.rojan.designlab.data.repository
 
 import ai.rojan.designlab.data.remote.BookingApi
+import ai.rojan.designlab.data.remote.SalonBookingApi
 import ai.rojan.designlab.data.remote.dto.BookingResponseDto
 import ai.rojan.designlab.data.remote.dto.CreateBookingRequestDto
 import ai.rojan.designlab.data.remote.dto.NetworkBookingStatus
@@ -13,6 +14,7 @@ import ai.rojan.designlab.domain.repository.PagedResult
 
 class BookingRepositoryImpl(
     private val bookingApi: BookingApi,
+    private val salonBookingApi: SalonBookingApi,
 ) : BookingRepository {
 
     override suspend fun createBooking(
@@ -62,6 +64,23 @@ class BookingRepositoryImpl(
     override suspend fun rescheduleBooking(bookingId: String, newStartTime: String): Result<Booking> =
         safeApiCall { bookingApi.rescheduleBooking(bookingId, RescheduleBookingRequestDto(newStartTime)) }
             .map { it.toDomain() }
+
+    override suspend fun salonBookings(
+        salonId: String,
+        page: Int,
+        size: Int,
+        status: BookingStatus?,
+    ): Result<PagedResult<Booking>> =
+        safeApiCall { salonBookingApi.bookings(salonId = salonId, page = page, size = size, status = status?.name) }
+            .map { dto ->
+                PagedResult(
+                    content = dto.content.map { it.toDomain() },
+                    page = dto.page,
+                    size = dto.size,
+                    totalElements = dto.totalElements,
+                    totalPages = dto.totalPages,
+                )
+            }
 
     private fun BookingResponseDto.toDomain() = Booking(
         id = id,

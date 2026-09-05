@@ -7,6 +7,7 @@ import ai.rojan.designlab.data.remote.AvailabilityApi
 import ai.rojan.designlab.data.remote.BookingApi
 import ai.rojan.designlab.data.remote.NetworkConfig
 import ai.rojan.designlab.data.remote.SalonApi
+import ai.rojan.designlab.data.remote.SalonBookingApi
 import ai.rojan.designlab.data.remote.ServiceApi
 import ai.rojan.designlab.data.remote.ServiceCategoryApi
 import ai.rojan.designlab.data.remote.SpecialistApi
@@ -84,7 +85,7 @@ class BackendApiContainer(context: Context) {
         AvailabilityRepositoryImpl(retrofit.create(AvailabilityApi::class.java))
 
     val bookingRepository: BookingRepository =
-        BookingRepositoryImpl(retrofit.create(BookingApi::class.java))
+        BookingRepositoryImpl(retrofit.create(BookingApi::class.java), retrofit.create(SalonBookingApi::class.java))
 
     private companion object {
 

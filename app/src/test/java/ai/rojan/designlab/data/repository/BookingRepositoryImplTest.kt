@@ -3,6 +3,7 @@ package ai.rojan.designlab.data.repository
 import ai.rojan.designlab.data.remote.BackendApiException
 import ai.rojan.designlab.data.remote.BookingApi
 import ai.rojan.designlab.data.remote.NetworkUnavailableException
+import ai.rojan.designlab.data.remote.SalonBookingApi
 import ai.rojan.designlab.data.remote.dto.BookingResponseDto
 import ai.rojan.designlab.data.remote.dto.CreateBookingRequestDto
 import ai.rojan.designlab.data.remote.dto.NetworkBookingStatus
@@ -46,7 +47,7 @@ class BookingRepositoryImplTest {
 
     @Test
     fun `confirmBooking success maps the response into a domain Booking`() = runBlocking {
-        val repository = BookingRepositoryImpl(FakeBookingApi(confirm = { sampleResponse }))
+        val repository = bookingRepository(FakeBookingApi(confirm = { sampleResponse }))
 
         val result = repository.confirmBooking("booking-1")
 
@@ -57,7 +58,7 @@ class BookingRepositoryImplTest {
 
     @Test
     fun `confirmBooking failure (409 - booking not pending) becomes a real Result failure, not a swallowed one`() = runBlocking {
-        val repository = BookingRepositoryImpl(FakeBookingApi(confirm = { throw httpException(409) }))
+        val repository = bookingRepository(FakeBookingApi(confirm = { throw httpException(409) }))
 
         val result = repository.confirmBooking("booking-1")
 
@@ -68,7 +69,7 @@ class BookingRepositoryImplTest {
 
     @Test
     fun `completeBooking success maps the response into a domain Booking`() = runBlocking {
-        val repository = BookingRepositoryImpl(
+        val repository = bookingRepository(
             FakeBookingApi(complete = { sampleResponse.copy(status = NetworkBookingStatus.COMPLETED) }),
         )
 
@@ -81,7 +82,7 @@ class BookingRepositoryImplTest {
     @Test
     fun `rescheduleBooking success sends the new start time in the request and maps the response`() = runBlocking {
         var capturedRequest: RescheduleBookingRequestDto? = null
-        val repository = BookingRepositoryImpl(
+        val repository = bookingRepository(
             FakeBookingApi(
                 reschedule = { request ->
                     capturedRequest = request
@@ -98,7 +99,7 @@ class BookingRepositoryImplTest {
 
     @Test
     fun `cancelBooking success maps the response into a domain Booking`() = runBlocking {
-        val repository = BookingRepositoryImpl(
+        val repository = bookingRepository(
             FakeBookingApi(cancel = { sampleResponse.copy(status = NetworkBookingStatus.CANCELLED) }),
         )
 
@@ -110,7 +111,7 @@ class BookingRepositoryImplTest {
 
     @Test
     fun `a 401 on any of the four operations becomes a real BackendApiException, not an empty or fabricated success`() = runBlocking {
-        val repository = BookingRepositoryImpl(FakeBookingApi(reschedule = { throw httpException(401) }))
+        val repository = bookingRepository(FakeBookingApi(reschedule = { throw httpException(401) }))
 
         val result = repository.rescheduleBooking("booking-1", "2026-09-21T14:00:00")
 
@@ -120,13 +121,60 @@ class BookingRepositoryImplTest {
 
     @Test
     fun `a network failure on any of the four operations becomes NetworkUnavailableException`() = runBlocking {
-        val repository = BookingRepositoryImpl(FakeBookingApi(cancel = { throw IOException("offline") }))
+        val repository = bookingRepository(FakeBookingApi(cancel = { throw IOException("offline") }))
 
         val result = repository.cancelBooking("booking-1")
 
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is NetworkUnavailableException)
     }
+
+    // TEAM2-002 (Manager Data Persistence): the salon-owner-facing booking
+    // list (distinct from myBookings, which is the customer's own list).
+
+    @Test
+    fun `salonBookings success maps every booking in the page into a domain Booking`() = runBlocking {
+        val page = PagedResponseDto(content = listOf(sampleResponse), page = 0, size = 20, totalElements = 1, totalPages = 1)
+        val repository = bookingRepository(
+            FakeBookingApi(),
+            salonBookingApi = FakeSalonBookingApi(result = { page }),
+        )
+
+        val result = repository.salonBookings("salon-1")
+
+        assertTrue(result.isSuccess)
+        assertEquals(1, result.getOrNull()?.content?.size)
+        assertEquals("booking-1", result.getOrNull()?.content?.first()?.id)
+    }
+
+    @Test
+    fun `salonBookings backend error (403 - not the owner) becomes a real Result failure`() = runBlocking {
+        val repository = bookingRepository(
+            FakeBookingApi(),
+            salonBookingApi = FakeSalonBookingApi(result = { throw httpException(403) }),
+        )
+
+        val result = repository.salonBookings("salon-1")
+
+        assertTrue(result.isFailure)
+        assertEquals(403, (result.exceptionOrNull() as BackendApiException).statusCode)
+    }
+
+    @Test
+    fun `salonBookings 401 (unauthorized) becomes a real Result failure, not an empty or fabricated success`() = runBlocking {
+        val repository = bookingRepository(
+            FakeBookingApi(),
+            salonBookingApi = FakeSalonBookingApi(result = { throw httpException(401) }),
+        )
+
+        val result = repository.salonBookings("salon-1")
+
+        assertTrue(result.isFailure)
+        assertEquals(401, (result.exceptionOrNull() as BackendApiException).statusCode)
+    }
+
+    private fun bookingRepository(bookingApi: BookingApi, salonBookingApi: SalonBookingApi = FakeSalonBookingApi()) =
+        BookingRepositoryImpl(bookingApi, salonBookingApi)
 
     private fun httpException(code: Int): HttpException =
         HttpException(Response.error<Any>(code, "{}".toResponseBody("application/json".toMediaType())))
@@ -156,4 +204,11 @@ private class FakeBookingApi(
 
     override suspend fun rescheduleBooking(bookingId: String, request: RescheduleBookingRequestDto): BookingResponseDto =
         reschedule(request)
+}
+
+private class FakeSalonBookingApi(
+    private val result: () -> PagedResponseDto<BookingResponseDto> = { error("bookings not used by this test") },
+) : SalonBookingApi {
+    override suspend fun bookings(salonId: String, page: Int, size: Int, status: String?): PagedResponseDto<BookingResponseDto> =
+        result()
 }

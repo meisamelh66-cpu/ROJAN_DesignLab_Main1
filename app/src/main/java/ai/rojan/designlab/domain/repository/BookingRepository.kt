@@ -53,4 +53,12 @@ interface BookingRepository {
 
     /** TEAM2-003. Moves a booking to a new start time — its customer or the salon owner; the backend returns 409 if the specialist has another active booking overlapping the new time. */
     suspend fun rescheduleBooking(bookingId: String, newStartTime: String): Result<Booking>
+
+    /** TEAM2-002. Every booking made against [salonId] — the salon owner's view, not just bookings the caller made themselves (contrast [myBookings]). Owner-only on the backend. */
+    suspend fun salonBookings(
+        salonId: String,
+        page: Int = 0,
+        size: Int = 20,
+        status: BookingStatus? = null,
+    ): Result<PagedResult<Booking>>
 }

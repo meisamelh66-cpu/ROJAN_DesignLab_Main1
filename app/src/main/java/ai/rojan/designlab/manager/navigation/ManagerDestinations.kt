@@ -8,6 +8,8 @@ package ai.rojan.designlab.manager.navigation
  */
 object ManagerDestinations {
     const val SPLASH = "manager_splash"
+    /** TEAM2-002: the Manager app's own login gate — reuses the existing `AuthScreen`/`AuthViewModel` (real email/password login), not a redesigned screen. */
+    const val LOGIN = "manager_login"
     const val DASHBOARD = "manager_dashboard_root"
     const val CALENDAR = "manager_calendar"
     const val CUSTOMERS = "manager_customers"

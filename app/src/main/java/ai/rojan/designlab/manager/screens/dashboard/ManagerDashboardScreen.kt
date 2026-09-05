@@ -1,46 +1,46 @@
 package ai.rojan.designlab.manager.screens.dashboard
 
+import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.manager.components.AIInsightCard
 import ai.rojan.designlab.manager.components.CalendarPreviewSection
+import ai.rojan.designlab.manager.components.ManagerEmptyState
+import ai.rojan.designlab.manager.components.ManagerErrorState
 import ai.rojan.designlab.manager.components.ManagerHeader
+import ai.rojan.designlab.manager.components.ManagerLoadingState
 import ai.rojan.designlab.manager.components.ManagerQuickAction
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.components.QuickActionsSection
 import ai.rojan.designlab.manager.components.SalonIdentityCard
 import ai.rojan.designlab.manager.components.TodayOverviewSection
+import ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewModel
+import ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewModelFactory
+import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.LocalContext
 
 /**
- * Manager App workspace — Dashboard v1.0 UI. Isolated from Customer App
- * v1.0 (frozen): lives entirely under `ai.rojan.designlab.manager`, built
- * only from shared design-system primitives — no Customer screen/
- * component/route is read from or modified. Distinct from the
- * pre-existing, unrelated placeholder at
- * [ai.rojan.designlab.screens.dashboard.ManagerDashboardScreen] (a
- * different package, part of Customer's own role-based dashboards).
+ * Manager App workspace — Dashboard v1.0 UI.
  *
- * Real entry points wired in [ai.rojan.designlab.manager.navigation.ManagerNavGraph]:
- * [onViewCalendarClick] (Calendar Preview CTA), [onCreateAppointmentClick]
- * (Quick Actions' "نوبت جدید", routes into the booking wizard),
- * [onViewCustomersClick] (Quick Actions' "مشتری جدید", routes to
- * [ai.rojan.designlab.manager.screens.customers.ManagerCustomersListScreen]
- * — the only existing customers destination; there is no separate
- * customer-creation screen), and [onProfileClick] (header greeting,
- * routes to [ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen]).
- * All default to no-op so this screen stays navigation-agnostic
- * standalone/in `@Preview`. The remaining Quick Actions
- * (خدمات/کارکنان/تنظیمات) have no implemented screen yet, so
- * [QuickActionsSection] renders them disabled rather than wiring them to
- * a placeholder. [TodayOverviewSection] and [SalonIdentityCard]/
- * [AIInsightCard] still render their own data — see those components for
- * what's real vs. placeholder.
+ * **TEAM2-002 (Manager Data Persistence):** [SalonIdentityCard] and
+ * [TodayOverviewSection] now render the authenticated manager's real
+ * salon and real today's-bookings stats via [ManagerDashboardViewModel]
+ * (`GET /api/v1/salons/mine` + the salon's real bookings) — replacing
+ * `SalonIdentityCard`'s hardcoded default params and
+ * `TodayOverviewSection`'s previous internal
+ * `manager.data.computeManagerDashboardStats()`/`ManagerRepositories`
+ * read. [QuickActionsSection]/[AIInsightCard]/[CalendarPreviewSection]'s
+ * own content is unchanged — this task's scope is data persistence for
+ * dashboard/calendar/status-update, not a rewrite of every section.
+ * [onRequireLogin] fires when a real 401 means the stored session is
+ * genuinely dead (not just retriable) — see
+ * [ManagerDashboardViewModel.requiresReauth]'s doc comment.
  */
 @Composable
 fun ManagerDashboardScreen(
@@ -50,7 +50,21 @@ fun ManagerDashboardScreen(
     onCreateAppointmentClick: () -> Unit = {},
     onViewCustomersClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
+    onRequireLogin: () -> Unit = {},
+    viewModel: ManagerDashboardViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = ManagerDashboardViewModelFactory(
+            salonRepository = BackendApiContainerHolder.get(LocalContext.current).salonRepository,
+            bookingRepository = BackendApiContainerHolder.get(LocalContext.current).bookingRepository,
+            specialistRepository = BackendApiContainerHolder.get(LocalContext.current).specialistRepository,
+            serviceCategoryRepository = BackendApiContainerHolder.get(LocalContext.current).serviceCategoryRepository,
+            serviceRepository = BackendApiContainerHolder.get(LocalContext.current).serviceRepository,
+        ),
+    ),
 ) {
+    LaunchedEffect(viewModel.requiresReauth) {
+        if (viewModel.requiresReauth) onRequireLogin()
+    }
+
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -60,8 +74,35 @@ fun ManagerDashboardScreen(
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSectionToSection),
         ) {
             item { ManagerHeader(onProfileClick = onProfileClick) }
-            item { SalonIdentityCard() }
-            item { TodayOverviewSection() }
+
+            when (val dashboardState = viewModel.state) {
+                is UiState.Loading -> item { ManagerLoadingState(message = "در حال بارگذاری اطلاعات سالن...") }
+                is UiState.Error -> item {
+                    ManagerErrorState(
+                        description = dashboardState.message,
+                        actionLabel = "تلاش مجدد",
+                        onAction = { viewModel.retry() },
+                    )
+                }
+                is UiState.Empty -> item {
+                    ManagerEmptyState(
+                        title = "هنوز سالنی ثبت نکرده‌اید",
+                        description = "برای استفاده از پنل مدیریت، ابتدا باید یک سالن برای حساب کاربری خود ثبت کنید.",
+                    )
+                }
+                is UiState.Success -> {
+                    val data = dashboardState.data
+                    item {
+                        SalonIdentityCard(
+                            salonName = data.salonName,
+                            salonCategory = data.salonDescription ?: "زیبایی و سلامت",
+                            isActive = data.isActive,
+                        )
+                    }
+                    item { TodayOverviewSection(stats = data.stats) }
+                }
+            }
+
             item {
                 QuickActionsSection(
                     onActionClick = { action ->
@@ -76,17 +117,5 @@ fun ManagerDashboardScreen(
             item { AIInsightCard() }
             item { CalendarPreviewSection(onViewCalendarClick = onViewCalendarClick) }
         }
-    }
-}
-
-@Preview(
-    showBackground = true,
-    widthDp = 390,
-    heightDp = 844,
-)
-@Composable
-private fun ManagerDashboardScreenPreview() {
-    RojanTheme {
-        ManagerDashboardScreen()
     }
 }

@@ -18,4 +18,8 @@ interface SalonApi {
 
     @GET("api/v1/salons/{salonId}")
     suspend fun getSalon(@Path("salonId") salonId: String): SalonResponseDto
+
+    /** TEAM2-002: salons owned by the authenticated caller — not paginated on the backend either. */
+    @GET("api/v1/salons/mine")
+    suspend fun mySalons(): List<SalonResponseDto>
 }

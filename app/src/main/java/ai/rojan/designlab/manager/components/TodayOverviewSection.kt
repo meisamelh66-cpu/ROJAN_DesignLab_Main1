@@ -1,8 +1,7 @@
 package ai.rojan.designlab.manager.components
 
-import ai.rojan.designlab.manager.data.ManagerDashboardStats
-import ai.rojan.designlab.manager.data.computeManagerDashboardStats
 import ai.rojan.designlab.manager.data.toPersianDigits
+import ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardStats
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
@@ -17,9 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.EventAvailable
-import androidx.compose.material.icons.filled.Groups
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -32,26 +29,39 @@ private data class OverviewStat(
     val accent: Color,
 )
 
-/** Turquoise + Gold, alternating — matches the reference's KPI row exactly; values come from [stats], not sample data. */
+/**
+ * Turquoise + Gold, alternating — matches the reference's KPI row exactly;
+ * values come from [stats], not sample data.
+ *
+ * TEAM2-002 (Manager Data Persistence): "مشتریان جدید" (new customers) is
+ * gone — it read `manager.data.ManagerRepositories.customers`, which has
+ * no backend equivalent (no endpoint resolves a booking's customer to a
+ * profile at all — see `TEAM2_RESULT_MANAGER_DATA_PERSISTENCE.md`).
+ * Three honest real stats, not four where one would have to be faked.
+ */
 private fun overviewStatsFrom(stats: ManagerDashboardStats): List<OverviewStat> = listOf(
     OverviewStat(Icons.Filled.EventAvailable, "نوبت‌های امروز", stats.todaysAppointmentCount.toPersianDigits(), ManagerColors.Turquoise),
     OverviewStat(Icons.Filled.AttachMoney, "درآمد امروز", stats.todaysRevenueLabel, ManagerColors.Gold),
-    OverviewStat(Icons.Filled.Groups, "مشتریان جدید", stats.newCustomerCount.toPersianDigits(), ManagerColors.Turquoise),
     OverviewStat(Icons.AutoMirrored.Filled.TrendingUp, "نرخ اشغال", "٪${stats.occupancyPercent.toPersianDigits()}", ManagerColors.Gold),
 )
 
 /**
- * Manager App workspace — "today's overview" stat grid. Values come from
- * [computeManagerDashboardStats] (real computation over
- * [ai.rojan.designlab.manager.data.ManagerRepositories], previously
- * built but unused) — no static sample data.
+ * Manager App workspace — "today's overview" stat grid.
+ *
+ * TEAM2-002 (Manager Data Persistence): [stats] now comes from
+ * [ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewModel]
+ * — real computation over the salon's real backend bookings — replacing
+ * this composable's previous internal
+ * `computeManagerDashboardStats()`/`ManagerRepositories` read. Layout
+ * unchanged; this screen no longer computes anything itself, per "no
+ * business logic inside Composables."
  *
  * ROJAN AI Manager Visual Theme Implementation: re-themed for the dark
  * luxury background — content/layout unchanged.
  */
 @Composable
-fun TodayOverviewSection(modifier: Modifier = Modifier) {
-    val overviewStats = remember { overviewStatsFrom(computeManagerDashboardStats()) }
+fun TodayOverviewSection(stats: ManagerDashboardStats, modifier: Modifier = Modifier) {
+    val overviewStats = overviewStatsFrom(stats)
 
     Column(modifier = modifier.fillMaxWidth()) {
         RtlSectionHeader(

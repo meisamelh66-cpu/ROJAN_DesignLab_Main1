@@ -223,6 +223,9 @@ private class FakeBookingRepository(initialResult: Result<Booking>) : BookingRep
 
     override suspend fun rescheduleBooking(bookingId: String, newStartTime: String): Result<Booking> =
         error("not used by BookingConfirmationViewModel")
+
+    override suspend fun salonBookings(salonId: String, page: Int, size: Int, status: BookingStatus?): Result<PagedResult<Booking>> =
+        error("not used by BookingConfirmationViewModel")
 }
 
 private object FakeSalonRepository : SalonRepository {
@@ -230,6 +233,7 @@ private object FakeSalonRepository : SalonRepository {
         error("not used by these tests")
 
     override suspend fun getSalon(salonId: String): Result<Salon> = error("not used by these tests")
+    override suspend fun myOwnedSalons(): Result<List<Salon>> = error("not used by these tests")
 }
 
 private object FakeSpecialistRepository : SpecialistRepository {
