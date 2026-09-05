@@ -20,6 +20,13 @@ data class CreateBookingRequestDto(
     val notes: String? = null,
 )
 
+/** TEAM2-003: request body for `PUT /api/v1/bookings/{id}/reschedule` — mirrors the backend's `RescheduleBookingRequest`. */
+@Serializable
+data class RescheduleBookingRequestDto(
+    /** ISO-8601 local date-time, same format/source as [CreateBookingRequestDto.startTime]. */
+    val newStartTime: String,
+)
+
 @Serializable
 data class BookingResponseDto(
     val id: String,

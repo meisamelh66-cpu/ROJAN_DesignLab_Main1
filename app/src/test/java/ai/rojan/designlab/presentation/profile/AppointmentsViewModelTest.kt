@@ -198,6 +198,11 @@ private class FakeBookingRepository(private val myBookingsResult: Result<PagedRe
         lastCancelledBookingId = bookingId
         return myBookingsResult.map { it.content.first() }
     }
+
+    override suspend fun confirmBooking(bookingId: String): Result<Booking> = error("not used by AppointmentsViewModel")
+    override suspend fun completeBooking(bookingId: String): Result<Booking> = error("not used by AppointmentsViewModel")
+    override suspend fun rescheduleBooking(bookingId: String, newStartTime: String): Result<Booking> =
+        error("not used by AppointmentsViewModel")
 }
 
 private class FakeSalonRepository(private val result: Result<Salon>) : SalonRepository {

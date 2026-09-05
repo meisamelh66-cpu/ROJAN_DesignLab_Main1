@@ -44,4 +44,13 @@ interface BookingRepository {
     suspend fun getBooking(bookingId: String): Result<Booking>
 
     suspend fun cancelBooking(bookingId: String): Result<Booking>
+
+    /** TEAM2-003. Confirms a pending booking — salon owner only; the backend returns 403 for any other caller and 409 if the booking isn't currently PENDING. */
+    suspend fun confirmBooking(bookingId: String): Result<Booking>
+
+    /** TEAM2-003. Marks a confirmed booking completed — salon owner only; the backend returns 403 for any other caller. */
+    suspend fun completeBooking(bookingId: String): Result<Booking>
+
+    /** TEAM2-003. Moves a booking to a new start time — its customer or the salon owner; the backend returns 409 if the specialist has another active booking overlapping the new time. */
+    suspend fun rescheduleBooking(bookingId: String, newStartTime: String): Result<Booking>
 }

@@ -1066,11 +1066,9 @@ fun RojanNavGraph() {
                             authViewModel = authViewModel,
                             onAccessDenied = { navController.popBackStack() },
                         ) {
-                            val ecosystemViewModel = customerEcosystemViewModel
                             val appointmentId = backStackEntry.arguments?.getString("appointmentId") ?: ""
                             RescheduleAppointmentScreen(
                                 appointmentId = appointmentId,
-                                ecosystemViewModel = ecosystemViewModel,
                                 onBackClick = { navController.popBackStack() },
                                 onRescheduled = { navController.popBackStack() },
                             )

@@ -23,6 +23,7 @@ import androidx.compose.material3.Switch
 import ai.rojan.designlab.ui.text.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +32,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.domain.customer.EcosystemEvent
@@ -97,6 +101,26 @@ fun AppointmentsScreen(
     ),
 ) {
     val ecosystemState = ecosystemViewModel.state
+
+    // TEAM2-003: this screen's own ViewModel instance survives navigating
+    // to RescheduleAppointmentScreen and back (Navigation-Compose keeps a
+    // back-stack-scoped ViewModel alive as long as its entry isn't
+    // popped) - without this, a successful reschedule would leave the
+    // list showing the pre-reschedule time until some unrelated event
+    // happened to trigger a reload, which is exactly the kind of "local
+    // state pretending the backend updated" this task rules out. Refresh
+    // on every resume, not just once, so it also covers returning from
+    // cancel/reschedule/any future navigate-away action uniformly.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.load()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     HomeBackgroundTheme {
         LazyColumn(

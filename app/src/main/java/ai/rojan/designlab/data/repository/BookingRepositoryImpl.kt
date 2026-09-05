@@ -4,6 +4,7 @@ import ai.rojan.designlab.data.remote.BookingApi
 import ai.rojan.designlab.data.remote.dto.BookingResponseDto
 import ai.rojan.designlab.data.remote.dto.CreateBookingRequestDto
 import ai.rojan.designlab.data.remote.dto.NetworkBookingStatus
+import ai.rojan.designlab.data.remote.dto.RescheduleBookingRequestDto
 import ai.rojan.designlab.data.remote.safeApiCall
 import ai.rojan.designlab.domain.repository.Booking
 import ai.rojan.designlab.domain.repository.BookingRepository
@@ -51,6 +52,16 @@ class BookingRepositoryImpl(
 
     override suspend fun cancelBooking(bookingId: String): Result<Booking> =
         safeApiCall { bookingApi.cancelBooking(bookingId) }.map { it.toDomain() }
+
+    override suspend fun confirmBooking(bookingId: String): Result<Booking> =
+        safeApiCall { bookingApi.confirmBooking(bookingId) }.map { it.toDomain() }
+
+    override suspend fun completeBooking(bookingId: String): Result<Booking> =
+        safeApiCall { bookingApi.completeBooking(bookingId) }.map { it.toDomain() }
+
+    override suspend fun rescheduleBooking(bookingId: String, newStartTime: String): Result<Booking> =
+        safeApiCall { bookingApi.rescheduleBooking(bookingId, RescheduleBookingRequestDto(newStartTime)) }
+            .map { it.toDomain() }
 
     private fun BookingResponseDto.toDomain() = Booking(
         id = id,

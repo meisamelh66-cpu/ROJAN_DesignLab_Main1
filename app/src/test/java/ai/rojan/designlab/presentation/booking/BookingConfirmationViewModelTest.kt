@@ -214,6 +214,15 @@ private class FakeBookingRepository(initialResult: Result<Booking>) : BookingRep
 
     override suspend fun cancelBooking(bookingId: String): Result<Booking> =
         error("not used by BookingConfirmationViewModel")
+
+    override suspend fun confirmBooking(bookingId: String): Result<Booking> =
+        error("not used by BookingConfirmationViewModel")
+
+    override suspend fun completeBooking(bookingId: String): Result<Booking> =
+        error("not used by BookingConfirmationViewModel")
+
+    override suspend fun rescheduleBooking(bookingId: String, newStartTime: String): Result<Booking> =
+        error("not used by BookingConfirmationViewModel")
 }
 
 private object FakeSalonRepository : SalonRepository {
