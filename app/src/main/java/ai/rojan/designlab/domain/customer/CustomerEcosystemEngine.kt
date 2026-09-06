@@ -225,7 +225,12 @@ class CustomerEcosystemEngine(
         return when (val eligibility = couponEligibilityEngine.check(state, coupon)) {
             is CouponEligibilityResult.Ineligible -> listOf(EcosystemEvent.CouponRejected(eligibility.reason))
             CouponEligibilityResult.Eligible -> {
-                val discount = (referencePrice * coupon.discountPercent) / 100
+                // FIX-005: plain integer division dropped the remainder (up
+                // to 99 Toman lost per redemption). Round half-up on the
+                // exact product instead — still pure integer arithmetic,
+                // same Int result, same currency. `.toLong()` only guards
+                // the intermediate product from Int overflow.
+                val discount = ((referencePrice.toLong() * coupon.discountPercent + 50) / 100).toInt()
                 listOf(EcosystemEvent.CouponRedeemed(coupon.id, discount))
             }
         }

@@ -30,6 +30,8 @@ import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.ui.components.buttons.PremiumButton
+import ai.rojan.designlab.ui.money.formatToman
+import ai.rojan.designlab.ui.money.toTomanLong
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.state.RojanErrorState
@@ -134,7 +136,10 @@ fun ServiceDetailsScreen(
 
                         item {
                             Text(
-                                text = "${service.price.toInt()} تومان",
+                                // FIX-005: was `service.price.toInt()` — truncated the
+                                // fractional Toman from the backend Double. Round once
+                                // via the shared rule and render via the shared formatter.
+                                text = formatToman(service.price.toTomanLong()),
                                 style = RojanTypography.HeroTitle,
                                 color = HomeColors.Glow,
                             )

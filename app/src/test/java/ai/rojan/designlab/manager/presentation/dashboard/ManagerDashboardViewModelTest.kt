@@ -2,6 +2,7 @@ package ai.rojan.designlab.manager.presentation.dashboard
 
 import ai.rojan.designlab.data.remote.BackendApiException
 import ai.rojan.designlab.data.remote.NetworkUnavailableException
+import ai.rojan.designlab.domain.booking.RollingBookingDates
 import ai.rojan.designlab.domain.repository.Booking
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.BookingStatus
@@ -103,6 +104,31 @@ class ManagerDashboardViewModelTest {
         assertEquals("سالن رویان", state.data.salonName)
         assertEquals("salon-1", state.data.salonId)
         assertTrue(state.data.isActive)
+    }
+
+    @Test
+    fun `FIX-005 - today's revenue is accumulated safely as whole Toman`() = runBlocking {
+        val todayIso = RollingBookingDates.next7Days().first().first
+        val todaysBooking = booking.copy(id = "b-today", startTime = "${todayIso}T10:00:00")
+        // Service priced 100_000 (from the shared fake) — three of today's
+        // bookings => 300_000 => label "300ت".
+        val bookingRepository = FakeBookingRepository(
+            Result.success(
+                PagedResult(
+                    listOf(
+                        todaysBooking,
+                        todaysBooking.copy(id = "b-today-2"),
+                        todaysBooking.copy(id = "b-today-3"),
+                    ),
+                    0, 200, 3, 1,
+                ),
+            ),
+        )
+        val viewModel = viewModel(FakeSalonRepository { Result.success(listOf(salon)) }, bookingRepository)
+
+        val stats = (viewModel.state as UiState.Success).data.stats
+        assertEquals(3, stats.todaysAppointmentCount)
+        assertEquals("300ت", stats.todaysRevenueLabel)
     }
 
     @Test

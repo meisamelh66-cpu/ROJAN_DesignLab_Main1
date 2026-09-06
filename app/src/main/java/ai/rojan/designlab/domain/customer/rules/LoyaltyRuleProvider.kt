@@ -1,5 +1,7 @@
 package ai.rojan.designlab.domain.customer.rules
 
+import kotlin.math.roundToInt
+
 /**
  * How many loyalty points an appointment earns — extension point, per
  * "never hardcode business decisions that may later conflict with the
@@ -21,5 +23,7 @@ interface LoyaltyRuleProvider {
  * touching that class or any UI.
  */
 class PlaceholderLoyaltyRuleProvider : LoyaltyRuleProvider {
-    override fun calculatePointsEarned(appointmentPrice: Int): Int = (appointmentPrice * 0.10).toInt()
+    // FIX-005: `.toInt()` truncated; round half-up so the placeholder 10%
+    // doesn't silently lose a point on odd prices. Rate itself unchanged.
+    override fun calculatePointsEarned(appointmentPrice: Int): Int = (appointmentPrice * 0.10).roundToInt()
 }

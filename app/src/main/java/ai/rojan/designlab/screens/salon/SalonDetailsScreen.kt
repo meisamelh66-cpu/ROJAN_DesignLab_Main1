@@ -52,6 +52,8 @@ import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.navigation.GlassBackButton
 import ai.rojan.designlab.ui.components.state.RojanErrorState
 import ai.rojan.designlab.ui.components.state.RojanLoadingState
+import ai.rojan.designlab.ui.money.formatToman
+import ai.rojan.designlab.ui.money.toTomanLong
 import ai.rojan.designlab.ui.theme.RojanAquaMint
 import ai.rojan.designlab.ui.theme.RojanBlushPink
 import ai.rojan.designlab.ui.theme.RojanDimens
@@ -332,7 +334,11 @@ fun SalonDetailsScreen(
                                     titleColor = HomeColors.TextPrimary,
                                     subtitle = "${service.durationMinutes} دقیقه",
                                     subtitleColor = HomeColors.TextSecondary,
-                                    value = "${service.price.toInt()} تومان",
+                                    // FIX-005: was `service.price.toInt()` — truncated the
+                                    // fractional Toman, so the same service could show a
+                                    // different price here than on its details/confirmation
+                                    // screen. Shared round + formatter.
+                                    value = formatToman(service.price.toTomanLong()),
                                     valueColor = HomeColors.Glow,
                                     modifier = Modifier.padding(RojanDimens.SpaceMD),
                                 )

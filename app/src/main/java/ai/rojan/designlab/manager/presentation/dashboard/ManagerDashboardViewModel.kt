@@ -12,6 +12,7 @@ import ai.rojan.designlab.domain.repository.SpecialistRepository
 import ai.rojan.designlab.manager.domain.booking.managerBookingTimeSlots
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.presentation.common.userMessageFor
+import ai.rojan.designlab.ui.money.toTomanLong
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -128,7 +129,12 @@ class ManagerDashboardViewModel(
         val todays = bookings.filter { it.startTime.substringBefore('T') == todayIso }
         val todaysActive = todays.filter { it.status != BookingStatus.CANCELLED }
 
-        val revenue = todaysActive.sumOf { services[it.serviceId]?.price ?: 0.0 }
+        // FIX-005: accumulate revenue as whole Toman (Long), rounding each
+        // service price once at the point it enters the sum, rather than
+        // adding raw Doubles and letting binary-FP error compound across
+        // the day's bookings. No backend "revenue" endpoint exists; this
+        // is still the same client-side computation, just done safely.
+        val revenue: Long = todaysActive.sumOf { (services[it.serviceId]?.price ?: 0.0).toTomanLong() }
         val totalCapacity = (specialists.size * managerBookingTimeSlots.size).coerceAtLeast(1)
         val occupancy = ((todaysActive.size * 100) / totalCapacity).coerceIn(0, 100)
 
@@ -144,7 +150,7 @@ class ManagerDashboardViewModel(
         return categories.flatMap { category -> serviceRepository.getServices(salonId, category.id).getOrNull().orEmpty() }
     }
 
-    private fun formatRevenueLabel(revenue: Double): String =
+    private fun formatRevenueLabel(revenue: Long): String =
         if (revenue >= 1_000_000) "%.1f".format(revenue / 1_000_000.0) + "م" else "${(revenue / 1000).toInt()}ت"
 
     private companion object {
