@@ -1,7 +1,6 @@
 package ai.rojan.designlab.manager.data
 
 import ai.rojan.designlab.manager.domain.repository.AppointmentRepository
-import ai.rojan.designlab.manager.domain.repository.CustomerRepository
 import ai.rojan.designlab.manager.domain.repository.ServiceRepository
 import ai.rojan.designlab.manager.domain.repository.SpecialistRepository
 
@@ -15,7 +14,6 @@ import ai.rojan.designlab.manager.domain.repository.SpecialistRepository
  * repository-interface usage.
  */
 object ManagerRepositories {
-    val customers: CustomerRepository = InMemoryCustomerRepository()
     val appointments: AppointmentRepository = InMemoryAppointmentRepository()
     val services: ServiceRepository = InMemoryServiceRepository()
     val specialists: SpecialistRepository = InMemorySpecialistRepository()

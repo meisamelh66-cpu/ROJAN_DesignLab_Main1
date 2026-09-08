@@ -3,8 +3,12 @@ package ai.rojan.designlab.manager
 import ai.rojan.designlab.manager.navigation.ManagerDestinations
 import ai.rojan.designlab.manager.navigation.managerNavGraph
 import ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen
-import ai.rojan.designlab.manager.screens.customers.ManagerCustomerProfileScreen
+import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
+import ai.rojan.designlab.manager.domain.customer.ManagerCustomerProfile
+import ai.rojan.designlab.manager.screens.customers.ManagerCustomerProfileContent
 import ai.rojan.designlab.manager.screens.customers.ManagerCustomersListScreen
+// ManagerCustomerProfileScreen is now backend-networked; the screenshot test renders its
+// stateless body (ManagerCustomerProfileContent) directly. FIX-006.
 import ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen
 import ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen
 import ai.rojan.designlab.manager.screens.splash.ManagerSplashScreen
@@ -174,7 +178,19 @@ class ManagerDashboardScreenshotTest {
     fun captureManagerCustomerProfile() {
         composeTestRule.setContent {
             RojanTheme {
-                ManagerCustomerProfileScreen(customerId = "c5")
+                ManagerCustomerProfileContent(
+                    profile = ManagerCustomerProfile(
+                        fullName = "مینا صادقی",
+                        phone = "۰۹۱۶۵۶۷۸۹۰۱",
+                        statusLabel = "مشتری فعال · VIP",
+                        totalVisits = 20,
+                        history = listOf(
+                            CustomerServiceHistoryEntry("2026-05-03", "نوبت تکمیل شد", "", ""),
+                            CustomerServiceHistoryEntry("2026-03-20", "نوبت ایجاد شد", "", ""),
+                        ),
+                        notes = "مشتری قدیمی و همیشگی سالن.",
+                    ),
+                )
             }
         }
         composeTestRule.waitForIdle()

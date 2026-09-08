@@ -5,6 +5,7 @@ import ai.rojan.designlab.data.remote.AuthApi
 import ai.rojan.designlab.data.remote.AuthInterceptor
 import ai.rojan.designlab.data.remote.AvailabilityApi
 import ai.rojan.designlab.data.remote.BookingApi
+import ai.rojan.designlab.data.remote.CustomerApi
 import ai.rojan.designlab.data.remote.NetworkConfig
 import ai.rojan.designlab.data.remote.SalonApi
 import ai.rojan.designlab.data.remote.SalonBookingApi
@@ -16,6 +17,7 @@ import ai.rojan.designlab.data.remote.TokenAuthenticator
 import ai.rojan.designlab.data.repository.AvailabilityRepositoryImpl
 import ai.rojan.designlab.data.repository.BackendAuthRepositoryImpl
 import ai.rojan.designlab.data.repository.BookingRepositoryImpl
+import ai.rojan.designlab.data.repository.ManagerCustomerProfileRepositoryImpl
 import ai.rojan.designlab.data.repository.SalonCustomerRepositoryImpl
 import ai.rojan.designlab.data.repository.SalonRepositoryImpl
 import ai.rojan.designlab.data.repository.ServiceCategoryRepositoryImpl
@@ -25,6 +27,7 @@ import ai.rojan.designlab.data.repository.TokenRepositoryImpl
 import ai.rojan.designlab.domain.repository.AvailabilityRepository
 import ai.rojan.designlab.domain.repository.BackendAuthRepository
 import ai.rojan.designlab.domain.repository.BookingRepository
+import ai.rojan.designlab.domain.repository.ManagerCustomerProfileRepository
 import ai.rojan.designlab.domain.repository.SalonCustomerRepository
 import ai.rojan.designlab.domain.repository.SalonRepository
 import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
@@ -92,6 +95,9 @@ class BackendApiContainer(context: Context) {
 
     val salonCustomerRepository: SalonCustomerRepository =
         SalonCustomerRepositoryImpl(retrofit.create(SalonCustomerApi::class.java))
+
+    val managerCustomerProfileRepository: ManagerCustomerProfileRepository =
+        ManagerCustomerProfileRepositoryImpl(retrofit.create(CustomerApi::class.java))
 
     private companion object {
 
