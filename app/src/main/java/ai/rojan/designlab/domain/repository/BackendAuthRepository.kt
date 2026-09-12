@@ -15,6 +15,10 @@ data class AuthenticatedUser(
     val phoneNumber: String? = null,
     val fullName: String,
     val role: String,
+    /** Resolved URL of the user's avatar image, or null. Populated by `/users/me` and the profile-media endpoints (Phase 5B); null on the auth responses. */
+    val avatarUrl: String? = null,
+    /** Resolved URL of the user's profile-cover image, or null. Same population rules as [avatarUrl]. */
+    val coverUrl: String? = null,
 )
 
 /** Domain-facing result of a successful OTP request/resend — mirrors the backend's `OtpIssuedResponse`. */

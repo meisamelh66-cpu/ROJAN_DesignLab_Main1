@@ -1,5 +1,14 @@
 <resources>
-    <string name="app_name">ROJAN_DesignLab</string>
+    <!--
+        Customer app display name (launcher, task switcher, app-info, system
+        permission dialogs). This is the Customer flavor's value; the
+        `manager` / `reception` flavors override it in their own
+        src/<flavor>/res/values/strings.xml ("ROJAN Manager" / "ROJAN
+        Reception"). Renamed from the internal build name "ROJAN_DesignLab"
+        for public release (P0-4). The applicationId (ai.rojan.designlab)
+        is unchanged — that is the immutable package id, not a display name.
+    -->
+    <string name="app_name">ROJAN AI</string>
 
     <!-- Session restore: transient status copy shown during cold-start restore -->
     <string name="status_restoring_session">در حال بازیابی نشست شما…</string>

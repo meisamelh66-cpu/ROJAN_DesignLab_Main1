@@ -1,6 +1,7 @@
 package ai.rojan.designlab.presentation.common
 
 import ai.rojan.designlab.data.remote.BackendApiException
+import ai.rojan.designlab.data.remote.MalformedResponseException
 import ai.rojan.designlab.data.remote.NetworkUnavailableException
 import ai.rojan.designlab.data.remote.RequestTimeoutException
 
@@ -22,6 +23,9 @@ import ai.rojan.designlab.data.remote.RequestTimeoutException
 fun userMessageFor(throwable: Throwable): String = when (throwable) {
     is RequestTimeoutException -> "زمان اتصال به پایان رسید. لطفاً دوباره تلاش کنید."
     is NetworkUnavailableException -> "اتصال اینترنت برقرار نیست. لطفاً دوباره تلاش کنید."
+    // Engineering Cleanup Phase 4 (P2): a contract-drifted / malformed body no
+    // longer crashes — it lands here as a normal, retryable error.
+    is MalformedResponseException -> "پاسخ سرور قابل پردازش نبود. لطفاً بعداً دوباره تلاش کنید."
     is BackendApiException -> when (throwable.statusCode) {
         400 -> "اطلاعات وارد‌شده نامعتبر است. لطفاً دوباره بررسی کنید."
         401 -> "برای این عملیات نیاز به ورود مجدد دارید."

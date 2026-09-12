@@ -1,43 +1,47 @@
 package ai.rojan.designlab.screens.profile
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
-import ai.rojan.designlab.ui.text.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.domain.repository.TimeSlot
 import ai.rojan.designlab.presentation.booking.RescheduleUiState
 import ai.rojan.designlab.presentation.booking.RescheduleViewModel
 import ai.rojan.designlab.presentation.booking.RescheduleViewModelFactory
-import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
-import ai.rojan.designlab.screens.customer.hometheme.HomeColors
-import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
 import ai.rojan.designlab.presentation.common.UiState
-import ai.rojan.designlab.ui.components.buttons.PremiumButton
-import ai.rojan.designlab.ui.components.interaction.rojanPressable
-import ai.rojan.designlab.ui.components.navigation.GlassBackButton
-import ai.rojan.designlab.ui.components.state.RojanEmptyState
-import ai.rojan.designlab.ui.components.state.RojanErrorState
-import ai.rojan.designlab.ui.components.state.RojanLoadingState
+import ai.rojan.designlab.screens.customer.components.CustomerEmptyState
+import ai.rojan.designlab.screens.customer.components.CustomerErrorState
+import ai.rojan.designlab.screens.customer.components.CustomerLoadingState
+import ai.rojan.designlab.screens.customer.components.CustomerScaffold
+import ai.rojan.designlab.screens.customer.components.CustomerScreenMargin
+import ai.rojan.designlab.screens.customer.components.CustomerSectionLabel
+import ai.rojan.designlab.screens.customer.components.RefPrimaryButton
+import ai.rojan.designlab.screens.customer.components.RefSelectableCell
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /** `TimeSlot.start` is a full local ISO datetime — this screen only ever shows/selects a bare "HH:mm". */
@@ -46,13 +50,27 @@ private fun TimeSlot.timeLabel(): String = start.substringAfter('T').take(5)
 /**
  * Reschedule an appointment.
  *
- * Phase 2 (C2): un-gated — `ROJAN_Backend`'s `BookingController` does
- * expose `PUT /bookings/{id}/reschedule` (confirmed by reading the
- * controller directly); Phase 1 gated this screen on the since-corrected
- * assumption that it didn't. Re-uses the exact date-chips + time-grid
- * shape `BookingDateScreen`/`BookingTimeScreen` already use for a new
- * booking, via [RescheduleViewModel] (loads the existing booking's salon/
- * specialist/service first, then the same real `available-slots` calls).
+ * Quiet Luxury pass (visual only). The `GlassBackButton` orb + ad-hoc
+ * `HomeBackgroundTheme` shell + 32sp `HeroTitle`, the `HomeGlassSurface`
+ * date chips + time cells (✦ corners, metallic border, glow; a violet
+ * `HomeColors.Glow` "selected" text with a dead `HomeColors.Primary`
+ * reference), the magenta `HomeColors.Magenta` submit error, the gradient
+ * `PremiumButton`, and the glass `RojanLoadingState` / `RojanErrorState` /
+ * `RojanEmptyState` views are replaced with the [CustomerScaffold] shell and
+ * flat foundation primitives — a rail of [RefSelectableCell] day chips
+ * (weekday / date hierarchy, solid rose-gold when selected), the same
+ * [RefSelectableCell] time grid `BookingTimeScreen` uses, the
+ * [CustomerLoadingState] / [CustomerErrorState] / [CustomerEmptyState]
+ * states, a calm secondary-text submit error, and a pinned solid rose-gold
+ * [RefPrimaryButton] in the scaffold's bottom slot.
+ *
+ * NOTHING about behaviour changed: still [RescheduleViewModel] over
+ * `PUT /bookings/{id}/reschedule` (loads the booking, then the real
+ * `available-slots` calls); `viewModel::selectDate` / `::selectTime` /
+ * `confirm(onRescheduled)` / `retry()` are called in the same places;
+ * `timeLabel()` still yields the bare "HH:mm" `selectTime` /
+ * `"${date}T$time:00"` expect. No ViewModel, repository, API, booking state,
+ * navigation route, callback, or model is touched.
  */
 @Composable
 fun RescheduleAppointmentScreen(
@@ -70,31 +88,51 @@ fun RescheduleAppointmentScreen(
         },
     ),
 ) {
-    HomeBackgroundTheme {
-        Column(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD)) {
-            GlassBackButton(onClick = onBackClick)
-            Text(
-                text = "تغییر زمان نوبت",
-                style = RojanTypography.HeroTitle,
-                color = HomeColors.TextPrimary,
-                modifier = Modifier.padding(vertical = RojanDimens.SpaceMD),
+    val ready = viewModel.state as? RescheduleUiState.Ready
+
+    CustomerScaffold(
+        title = "تغییر زمان رزرو",
+        onBackClick = onBackClick,
+        bottomBar = if (ready != null) {
+            {
+                Column {
+                    ready.submitError?.let {
+                        Text(
+                            it,
+                            style = RojanTypography.Caption,
+                            color = HomeColors.TextSecondary,
+                        )
+                        Spacer(Modifier.height(RojanDimens.SpaceSM))
+                    }
+                    RefPrimaryButton(
+                        label = "تایید زمان جدید",
+                        onClick = { viewModel.confirm(onRescheduled) },
+                        enabled = ready.selectedTime != null && !ready.isSubmitting,
+                    )
+                }
+            }
+        } else {
+            null
+        },
+    ) {
+        when (val state = viewModel.state) {
+            is RescheduleUiState.Loading -> CustomerLoadingState(
+                modifier = Modifier.padding(top = RojanDimens.SpaceLG),
+                count = 5,
+                rowHeight = 56,
             )
 
-            when (val state = viewModel.state) {
-                is RescheduleUiState.Loading -> RojanLoadingState(message = "در حال بارگذاری نوبت...")
-                is RescheduleUiState.Error -> RojanErrorState(
-                    description = state.message,
-                    actionLabel = "تلاش مجدد",
-                    onAction = { viewModel.retry() },
-                )
-                is RescheduleUiState.Ready -> RescheduleContent(
-                    state = state,
-                    onDateSelected = viewModel::selectDate,
-                    onTimeSelected = viewModel::selectTime,
-                    onConfirm = { viewModel.confirm(onRescheduled) },
-                    onRetrySlots = { viewModel.selectDate(state.selectedDate) },
-                )
-            }
+            is RescheduleUiState.Error -> CustomerErrorState(
+                message = state.message,
+                onRetry = { viewModel.retry() },
+            )
+
+            is RescheduleUiState.Ready -> RescheduleContent(
+                state = state,
+                onDateSelected = viewModel::selectDate,
+                onTimeSelected = viewModel::selectTime,
+                onRetrySlots = { viewModel.selectDate(state.selectedDate) },
+            )
         }
     }
 }
@@ -104,85 +142,107 @@ private fun ColumnScope.RescheduleContent(
     state: RescheduleUiState.Ready,
     onDateSelected: (String) -> Unit,
     onTimeSelected: (String) -> Unit,
-    onConfirm: () -> Unit,
     onRetrySlots: () -> Unit,
 ) {
-    Text("انتخاب تاریخ", style = RojanTypography.Body, color = HomeColors.TextPrimary)
-    Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
+    Spacer(Modifier.height(RojanDimens.SpaceLG))
+    CustomerSectionLabel("انتخاب تاریخ")
+    Spacer(Modifier.height(RojanDimens.SpaceSM))
 
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
-        items(state.dates) { (key, label) ->
-            val isSelected = key == state.selectedDate
-            HomeGlassSurface(
-                modifier = Modifier.rojanPressable(onClick = { onDateSelected(key) }),
-                shape = RojanShapes.Small,
-            ) {
-                Text(
-                    text = label,
-                    style = RojanTypography.Caption,
-                    color = if (isSelected) HomeColors.Glow else HomeColors.TextPrimary,
-                    modifier = Modifier.padding(RojanDimens.SpaceSM),
-                )
-            }
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = CustomerScreenMargin),
+        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+        reverseLayout = true,
+    ) {
+        items(state.dates, key = { it.first }) { (key, label) ->
+            DateChip(
+                label = label,
+                selected = key == state.selectedDate,
+                onClick = { onDateSelected(key) },
+            )
         }
     }
 
-    Spacer(modifier = Modifier.height(RojanDimens.SpaceLG))
+    Spacer(Modifier.height(RojanDimens.SpaceLG))
+    CustomerSectionLabel("انتخاب ساعت")
+    Spacer(Modifier.height(RojanDimens.SpaceSM))
 
-    Text("انتخاب ساعت", style = RojanTypography.Body, color = HomeColors.TextPrimary)
-    Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
+    Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+        when (val slots = state.slots) {
+            is UiState.Loading -> CustomerLoadingState(count = 4, rowHeight = 52)
 
-    when (val slots = state.slots) {
-        is UiState.Loading -> RojanLoadingState(message = "در حال بررسی زمان‌های خالی...")
-        is UiState.Error -> RojanErrorState(
-            description = slots.message,
-            actionLabel = "تلاش مجدد",
-            onAction = onRetrySlots,
-        )
-        is UiState.Empty -> RojanEmptyState(title = "زمانی برای این تاریخ موجود نیست")
-        is UiState.Success -> {
-            LazyVerticalGrid(
+            is UiState.Error -> CustomerErrorState(
+                message = slots.message,
+                onRetry = onRetrySlots,
+            )
+
+            is UiState.Empty -> CustomerEmptyState(
+                title = "زمانی برای این تاریخ موجود نیست",
+                body = "لطفاً تاریخ دیگری را انتخاب کنید.",
+                icon = Icons.Outlined.EventBusy,
+            )
+
+            is UiState.Success -> LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = CustomerScreenMargin,
+                    end = CustomerScreenMargin,
+                    top = RojanDimens.SpaceSM,
+                    bottom = RojanDimens.SpaceXL,
+                ),
                 horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
                 verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
-                modifier = Modifier.weight(1f),
             ) {
-                items(slots.data) { slot ->
+                items(slots.data, key = { it.start }) { slot ->
                     val label = slot.timeLabel()
-                    val isSelected = label == state.selectedTime
-                    HomeGlassSurface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onTimeSelected(label) },
-                        shape = RojanShapes.Small,
-                    ) {
+                    RefSelectableCell(
+                        selected = label == state.selectedTime,
+                        onClick = { onTimeSelected(label) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { contentColor ->
                         Text(
-                            text = label,
+                            label,
                             style = RojanTypography.Body,
-                            color = if (isSelected) HomeColors.Glow else HomeColors.TextPrimary,
+                            color = contentColor,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(if (isSelected) HomeColors.Glow.copy(alpha = 0.12f) else HomeColors.Primary.copy(alpha = 0f))
-                                .padding(RojanDimens.SpaceSM),
                         )
                     }
                 }
             }
         }
     }
+}
 
-    Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))
+// --- Day chip (weekday / date hierarchy) --------------------------------
 
-    state.submitError?.let {
-        Text(it, style = RojanTypography.Caption, color = HomeColors.Magenta)
-        Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
+@Composable
+private fun DateChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val parts = label.split("،", limit = 2)
+    val primary = parts.first().trim()
+    val secondary = parts.getOrNull(1)?.trim()
+
+    RefSelectableCell(
+        selected = selected,
+        onClick = onClick,
+        modifier = Modifier.width(112.dp),
+    ) { contentColor ->
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                primary,
+                style = RojanTypography.Body,
+                color = contentColor,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+            )
+            if (secondary != null) {
+                Text(
+                    secondary,
+                    style = RojanTypography.Caption,
+                    color = if (selected) contentColor.copy(alpha = 0.82f) else HomeColors.TextMuted,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                )
+            }
+        }
     }
-
-    PremiumButton(
-        text = "تایید زمان جدید",
-        onClick = onConfirm,
-        enabled = state.selectedTime != null && !state.isSubmitting,
-        loading = state.isSubmitting,
-    )
 }

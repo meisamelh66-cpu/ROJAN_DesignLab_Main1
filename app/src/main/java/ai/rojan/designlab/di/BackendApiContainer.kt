@@ -12,6 +12,7 @@ import ai.rojan.designlab.data.remote.ManagerBookingApi
 import ai.rojan.designlab.data.remote.ManagerCustomerApi
 import ai.rojan.designlab.data.remote.ManagerDashboardApi
 import ai.rojan.designlab.data.remote.ManagerMediaApi
+import ai.rojan.designlab.data.remote.UserMediaApi
 import ai.rojan.designlab.data.remote.ManagerSalonApi
 import ai.rojan.designlab.data.remote.ManagerServiceApi
 import ai.rojan.designlab.data.remote.ManagerSpecialistApi
@@ -39,6 +40,7 @@ import ai.rojan.designlab.data.repository.ServiceCategoryRepositoryImpl
 import ai.rojan.designlab.data.repository.ServiceRepositoryImpl
 import ai.rojan.designlab.data.repository.SpecialistRepositoryImpl
 import ai.rojan.designlab.data.repository.TokenRepositoryImpl
+import ai.rojan.designlab.data.repository.UserProfileRepositoryImpl
 import ai.rojan.designlab.data.repository.WorkingHoursRepositoryImpl
 import ai.rojan.designlab.domain.beauty.BeautyProfileRepository
 import ai.rojan.designlab.domain.beauty.InMemoryBeautyProfileRepository
@@ -56,6 +58,7 @@ import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
 import ai.rojan.designlab.domain.repository.ServiceRepository
 import ai.rojan.designlab.domain.repository.SpecialistRepository
 import ai.rojan.designlab.domain.repository.TokenRepository
+import ai.rojan.designlab.domain.repository.UserProfileRepository
 import ai.rojan.designlab.domain.repository.WorkingHoursRepository
 import ai.rojan.designlab.manager.data.BackendManagerMediaRepository
 import ai.rojan.designlab.manager.data.BackendManagerSalonRepository
@@ -109,6 +112,13 @@ class BackendApiContainer(context: Context) {
 
     val currentUserIdentityContextRepository: CurrentUserIdentityContextRepository =
         CurrentUserIdentityContextRepositoryImpl(authApi = authApi, backendAuthRepository = backendAuthRepository)
+
+    // Customer Profile Personalization Phase 5B: avatar / profile-cover upload
+    // + delete. Uses the same authenticated [retrofit] as everything else -
+    // the endpoints are `/api/v1/users/me/media/{avatar,cover}`, bearer-token scoped, no
+    // salonId (unlike [managerMediaRepository]).
+    val userProfileRepository: UserProfileRepository =
+        UserProfileRepositoryImpl(retrofit.create(UserMediaApi::class.java))
 
     // Active Salon Context & Selection Flow: own DataStore file, separate
     // from authSessionDataStore - same DataStore-per-Context singleton

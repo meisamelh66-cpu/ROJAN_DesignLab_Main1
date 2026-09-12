@@ -1,5 +1,6 @@
 package ai.rojan.designlab.presentation.salon
 
+import ai.rojan.designlab.domain.repository.PublicSalonRepository
 import ai.rojan.designlab.domain.repository.SalonRepository
 import ai.rojan.designlab.domain.usecase.relationship.GetFavoriteSalonsUseCase
 import ai.rojan.designlab.domain.usecase.relationship.GetFollowedSalonsUseCase
@@ -11,9 +12,17 @@ class SalonListViewModelFactory(
     private val salonRepository: SalonRepository,
     private val getFollowedSalonsUseCase: GetFollowedSalonsUseCase? = null,
     private val getFavoriteSalonsUseCase: GetFavoriteSalonsUseCase? = null,
+    private val publicSalonRepository: PublicSalonRepository? = null,
+    private val hasSession: () -> Boolean = { true },
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return SalonListViewModel(salonRepository, getFollowedSalonsUseCase, getFavoriteSalonsUseCase) as T
+        return SalonListViewModel(
+            salonRepository = salonRepository,
+            getFollowedSalonsUseCase = getFollowedSalonsUseCase,
+            getFavoriteSalonsUseCase = getFavoriteSalonsUseCase,
+            publicSalonRepository = publicSalonRepository,
+            hasSession = hasSession,
+        ) as T
     }
 }

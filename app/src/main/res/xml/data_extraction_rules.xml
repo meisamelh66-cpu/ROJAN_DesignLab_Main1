@@ -3,12 +3,23 @@
    device-transfer for the same reason documented in backup_rules.xml —
    this is the API 31+ mechanism (the one that actually applies on most
    current devices; backup_rules.xml is the pre-31 fallback).
+
+   RC-1 Security Audit P1 fix: auth_session_preferences (the current
+   active session-restore DataStore, holding the logged-in person's id —
+   see backup_rules.xml's fuller explanation) and secure_token_preferences
+   (the encrypted access/refresh token SharedPreferences file) are excluded
+   below for the same reason — kept in sync with backup_rules.xml so both
+   the API 31+ mechanism and the pre-31 fallback agree.
 -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="file" path="datastore/role_preferences.preferences_pb"/>
+        <exclude domain="file" path="datastore/auth_session_preferences.preferences_pb"/>
+        <exclude domain="sharedpref" path="secure_token_preferences.xml"/>
     </cloud-backup>
     <device-transfer>
         <exclude domain="file" path="datastore/role_preferences.preferences_pb"/>
+        <exclude domain="file" path="datastore/auth_session_preferences.preferences_pb"/>
+        <exclude domain="sharedpref" path="secure_token_preferences.xml"/>
     </device-transfer>
 </data-extraction-rules>

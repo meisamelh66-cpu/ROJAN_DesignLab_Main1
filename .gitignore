@@ -49,3 +49,7 @@ keystore.properties
 
 # Root UI automation dumps
 /*.xml
+# Claude QA/runtime artifacts
+.claude/*.png
+.claude/*.xml
+.claude/*.pb

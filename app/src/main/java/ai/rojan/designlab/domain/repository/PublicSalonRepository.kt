@@ -45,6 +45,21 @@ data class PublicSpecialist(
  */
 interface PublicSalonRepository {
 
+    /**
+     * Browses the public salon directory (`GET /api/v1/public/salons`) — the
+     * unauthenticated counterpart to [SalonRepository.browseSalons], returning
+     * the [Salon] discovery shape (name + logo; `phone`/`address` are "" — the
+     * public row omits them). Used for guest browsing (first launch, or after
+     * logout) where the authenticated endpoint answers 401. [nameFilter] maps
+     * to the backend's `search` param.
+     */
+    suspend fun browseSalons(
+        page: Int = 0,
+        size: Int = 20,
+        nameFilter: String? = null,
+        sortDirection: String = "ASC",
+    ): Result<PagedResult<Salon>>
+
     suspend fun getSalon(slug: String): Result<PublicSalon>
 
     suspend fun getCategories(slug: String): Result<List<PublicServiceCategory>>

@@ -2,8 +2,14 @@ package ai.rojan.designlab.presentation.salon
 
 import ai.rojan.designlab.data.remote.BackendApiException
 import ai.rojan.designlab.domain.repository.PagedResult
+import ai.rojan.designlab.domain.repository.PublicSalon
+import ai.rojan.designlab.domain.repository.PublicSalonRepository
+import ai.rojan.designlab.domain.repository.PublicService
+import ai.rojan.designlab.domain.repository.PublicServiceCategory
+import ai.rojan.designlab.domain.repository.PublicSpecialist
 import ai.rojan.designlab.domain.repository.Salon
 import ai.rojan.designlab.domain.repository.SalonRepository
+import ai.rojan.designlab.domain.repository.TimeSlot
 import ai.rojan.designlab.presentation.common.UiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -66,6 +72,35 @@ class SalonListViewModelTest {
         }
 
         override suspend fun getSalon(salonId: String): Result<Salon> = error("not used")
+    }
+
+    /** Records browse calls; the by-slug methods are unused by these tests. */
+    private class ScriptedPublicSalonRepository(
+        private val respond: suspend (page: Int, nameFilter: String?) -> Result<PagedResult<Salon>>,
+    ) : PublicSalonRepository {
+        val pagesRequested = mutableListOf<Int>()
+
+        override suspend fun browseSalons(
+            page: Int,
+            size: Int,
+            nameFilter: String?,
+            sortDirection: String,
+        ): Result<PagedResult<Salon>> {
+            pagesRequested += page
+            return respond(page, nameFilter)
+        }
+
+        override suspend fun getSalon(slug: String): Result<PublicSalon> = error("not used")
+        override suspend fun getCategories(slug: String): Result<List<PublicServiceCategory>> = error("not used")
+        override suspend fun getServices(slug: String, categoryId: String): Result<List<PublicService>> = error("not used")
+        override suspend fun getSpecialists(slug: String): Result<List<PublicSpecialist>> = error("not used")
+        override suspend fun getAvailableSlots(
+            slug: String,
+            specialistId: String,
+            serviceId: String,
+            date: String,
+            slotIntervalMinutes: Int,
+        ): Result<List<TimeSlot>> = error("not used")
     }
 
     private fun salon(id: String) =
@@ -305,5 +340,67 @@ class SalonListViewModelTest {
         advanceUntilIdle()
 
         assertEquals("no pagination request off a non-Success state", listOf(0), repo.pagesRequested)
+    }
+
+    // ---- 7. guest vs. authenticated browse routing (Guest Explore fix) ----
+
+    @Test
+    fun `a guest browses the public directory, never the authenticated endpoint`() = runTest(dispatcher) {
+        val authed = ScriptedSalonRepository { _, _ -> error("authenticated endpoint must not be called for a guest") }
+        val public = ScriptedPublicSalonRepository { p, _ -> Result.success(page(salons(1..3), page = p, totalPages = 1)) }
+        val vm = SalonListViewModel(authed, publicSalonRepository = public, hasSession = { false })
+        advanceUntilIdle()
+
+        assertEquals(listOf(0), public.pagesRequested)
+        assertTrue(authed.pagesRequested.isEmpty())
+        assertEquals(3, successData(vm).size)
+        assertFalse(vm.isUnauthorized)
+    }
+
+    @Test
+    fun `an authenticated caller browses the authenticated endpoint, never the public one`() = runTest(dispatcher) {
+        val authed = ScriptedSalonRepository { p, _ -> Result.success(page(salons(1..2), page = p, totalPages = 1)) }
+        val public = ScriptedPublicSalonRepository { _, _ -> error("public directory must not be called when a session exists") }
+        val vm = SalonListViewModel(authed, publicSalonRepository = public, hasSession = { true })
+        advanceUntilIdle()
+
+        assertEquals(listOf(0), authed.pagesRequested)
+        assertTrue(public.pagesRequested.isEmpty())
+        assertEquals(2, successData(vm).size)
+    }
+
+    @Test
+    fun `a guest load leaves follow and favorite state empty`() = runTest(dispatcher) {
+        val authed = ScriptedSalonRepository { _, _ -> error("not for a guest") }
+        val public = ScriptedPublicSalonRepository { p, _ -> Result.success(page(salons(1..2), page = p, totalPages = 1)) }
+        val vm = SalonListViewModel(
+            salonRepository = authed,
+            publicSalonRepository = public,
+            hasSession = { false },
+        )
+        advanceUntilIdle()
+
+        assertTrue(vm.followedSalonIds.isEmpty())
+        assertTrue(vm.favoriteSalonIds.isEmpty())
+        assertTrue(vm.state is UiState.Success)
+    }
+
+    @Test
+    fun `hasSession is re-checked per call - a guest who logs in then retries hits the authenticated endpoint`() = runTest(dispatcher) {
+        var loggedIn = false
+        val authed = ScriptedSalonRepository { p, _ -> Result.success(page(salons(1..5), page = p, totalPages = 1)) }
+        val public = ScriptedPublicSalonRepository { p, _ -> Result.success(page(salons(1..3), page = p, totalPages = 1)) }
+        val vm = SalonListViewModel(authed, publicSalonRepository = public, hasSession = { loggedIn })
+        advanceUntilIdle()
+        assertEquals("first load as a guest", 3, successData(vm).size)
+        assertEquals(listOf(0), public.pagesRequested)
+
+        loggedIn = true
+        vm.retry()
+        advanceUntilIdle()
+
+        assertEquals("retry after login uses the authenticated endpoint", 5, successData(vm).size)
+        assertEquals(listOf(0), authed.pagesRequested)
+        assertEquals("public endpoint not called again", listOf(0), public.pagesRequested)
     }
 }

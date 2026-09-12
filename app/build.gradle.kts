@@ -7,20 +7,42 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-// Release signing: credentials + keystore path live in `keystore.properties`
-// (repo root, gitignored — never commit) rather than here, so this file
-// stays safe to commit with no secrets in it. The keystore itself
-// (keystore/rojan-manager-release.jks) is also gitignored (*.jks, see
-// .gitignore). Both are absent on a fresh checkout that hasn't been given
-// the real signing material, which is why every read below is guarded by
-// `keystorePropertiesFile.exists()` — a release build still succeeds
-// (unsigned, same as before this setup existed) rather than hard-failing
-// for anyone who doesn't have the production keystore.
+// Release signing (Release Blocker P0-2 fix, 2026-09-10). No secret ever
+// lives in this committed file. Credentials + keystore path come from
+// EITHER of two sources, checked in order:
+//   1. `keystore.properties` at the repo root — gitignored (see .gitignore),
+//      for local / workstation release builds. Template: keystore.properties.sample.
+//   2. Environment variables — for CI, where secrets are injected, not filed:
+//      RELEASE_STORE_FILE  RELEASE_STORE_PASSWORD  RELEASE_KEY_ALIAS  RELEASE_KEY_PASSWORD
+//      (RELEASE_STORE_FILE is a path relative to the repo root, or absolute.)
+// The keystore itself (keystore/*.jks) is gitignored too.
+//
+// A fresh checkout with neither source still builds fine: `debug` builds use
+// the auto debug keystore, and a `dev`/`staging` release just comes out
+// unsigned (unchanged behaviour). The one hard rule — enforced by the
+// `gradle.taskGraph.whenReady` guard near the bottom of this file — is that
+// a *production* release (`*CustomerProductionRelease` etc.) will NOT build
+// unsigned: it fails loudly rather than silently emit an unsigned APK/AAB.
 val keystorePropertiesFile = rootProject.file("keystore.properties")
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) {
         FileInputStream(keystorePropertiesFile).use { load(it) }
     }
+}
+
+// Resolve one signing credential: keystore.properties wins, else the env var,
+// else null. Blank counts as absent.
+fun signingCredential(key: String): String? =
+    (keystoreProperties.getProperty(key) ?: System.getenv(key))?.takeIf { it.isNotBlank() }
+
+// True only when all four credentials resolve AND the keystore file actually
+// exists on disk. Drives whether the `release` signingConfig is populated
+// and whether `buildTypes.release` attaches it.
+val releaseSigningReady: Boolean = run {
+    val storeFilePath = signingCredential("RELEASE_STORE_FILE") ?: return@run false
+    val hasAllCreds = listOf("RELEASE_STORE_PASSWORD", "RELEASE_KEY_ALIAS", "RELEASE_KEY_PASSWORD")
+        .all { signingCredential(it) != null }
+    hasAllCreds && rootProject.file(storeFilePath).exists()
 }
 
 // Environment Configuration (ADR-003): DEV_API_BASE_URL is read from
@@ -36,6 +58,23 @@ val localProperties = Properties().apply {
         FileInputStream(localPropertiesFile).use { load(it) }
     }
 }
+
+// Production API endpoint (Release Blocker P0-1 fix, 2026-09-10). ADR-003
+// originally left the `production` flavor's URL blank because there was no
+// confirmed production deployment to point at, which made a production
+// release build hard-fail. That is no longer true: the backend is live and
+// the URL below is the approved one. It is committed here as the default so
+// a production release build needs NO machine-local configuration
+// (local.properties, ~/.gradle props, or -P). An explicit
+// `-PPRODUCTION_API_BASE_URL=https://…/` still overrides it — for a future
+// domain migration or a pre-prod smoke test — and a blank/whitespace
+// override is ignored in favour of the default. `dev` (local.properties)
+// and `staging` (-PSTAGING_API_BASE_URL) are untouched.
+val productionApiBaseUrl: String =
+    (project.findProperty("PRODUCTION_API_BASE_URL") as String?)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?: "https://api.rojanai.ir/"
 
 android {
     namespace = "ai.rojan.designlab"
@@ -126,21 +165,31 @@ android {
         }
         create("production") {
             dimension = "environment"
+            // Approved production backend, committed as the default — see
+            // `productionApiBaseUrl` above. No -P flag required for a
+            // release build; an override is still honoured when passed.
             buildConfigField(
                 "String",
                 "API_BASE_URL",
-                "\"${project.findProperty("PRODUCTION_API_BASE_URL") ?: ""}\"",
+                "\"$productionApiBaseUrl\"",
             )
         }
     }
 
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
-                storeFile = rootProject.file(keystoreProperties.getProperty("RELEASE_STORE_FILE"))
-                storePassword = keystoreProperties.getProperty("RELEASE_STORE_PASSWORD")
-                keyAlias = keystoreProperties.getProperty("RELEASE_KEY_ALIAS")
-                keyPassword = keystoreProperties.getProperty("RELEASE_KEY_PASSWORD")
+            if (releaseSigningReady) {
+                storeFile = rootProject.file(signingCredential("RELEASE_STORE_FILE")!!)
+                storePassword = signingCredential("RELEASE_STORE_PASSWORD")
+                keyAlias = signingCredential("RELEASE_KEY_ALIAS")
+                keyPassword = signingCredential("RELEASE_KEY_PASSWORD")
+                // v1/JAR signing stays off — it only matters below API 24 and
+                // minSdk is 24. v2 is the AGP default; v3 is enabled
+                // explicitly so the artifact carries a rotation-capable
+                // signing block (relevant only for self-managed signing —
+                // Play App Signing handles rotation itself).
+                enableV2Signing = true
+                enableV3Signing = true
             }
         }
     }
@@ -165,7 +214,7 @@ android {
             optimization {
                 enable = false
             }
-            if (keystorePropertiesFile.exists()) {
+            if (releaseSigningReady) {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
@@ -199,37 +248,43 @@ android {
     }
 }
 
-// Production API Configuration Hardening (Phase 10, Step 8): the
-// `production` flavor's buildConfigField above already reads
-// PRODUCTION_API_BASE_URL and NetworkConfig.kt already fails loudly if it's
-// blank - but only the first time BASE_URL is actually accessed at runtime,
-// which is well after a "production" release APK/AAB has already been
-// built, signed, and could be handed out. This closes that gap at build
-// time instead: inspecting the *resolved* task graph (not just the
-// literally-typed task names) means this also catches aggregate
-// invocations like `./gradlew build` that pull in a Production+Release
-// variant indirectly, not only a direct `assembleManagerProductionRelease`.
-// Re-evaluated on every invocation (a `whenReady` listener, unlike plain
-// configuration-phase code, isn't skipped when the configuration cache is
-// reused), so a stale cached "it was fine last time" can't mask a
-// genuinely missing property today. Dev/staging are untouched - dev keeps
-// its hardcoded local URL, staging keeps its own existing
-// STAGING_API_BASE_URL handling exactly as before.
+// Production release hardening — runs at build time (not first runtime
+// access) and inspects the *resolved* task graph, so an aggregate invocation
+// like `./gradlew build` that pulls in a Production+Release variant is
+// covered too, not just a direct `assembleCustomerProductionRelease`. A
+// `whenReady` listener isn't skipped when the configuration cache is reused,
+// so a stale "it was fine last time" can't mask a broken build today.
+// Dev/staging are untouched by both checks.
 gradle.taskGraph.whenReady {
     val buildsProductionRelease = allTasks.any { it.name.contains("ProductionRelease") }
     if (buildsProductionRelease) {
-        val productionUrl = project.findProperty("PRODUCTION_API_BASE_URL") as String?
-        if (productionUrl.isNullOrBlank()) {
+
+        // P0-1 — the API URL that will be compiled in must be well-formed.
+        // (`productionApiBaseUrl` defaults to https://api.rojanai.ir/; this
+        // only fires when a malformed -PPRODUCTION_API_BASE_URL is passed.)
+        if (!(productionApiBaseUrl.startsWith("https://") && productionApiBaseUrl.endsWith("/"))) {
             throw GradleException(
-                "Missing required property: PRODUCTION_API_BASE_URL\n" +
+                "Production API base URL is malformed: \"$productionApiBaseUrl\"\n" +
                     "\n" +
-                    "Production release builds require a real, deployed backend URL - there is no " +
-                    "local fallback or fake endpoint for this environment.\n" +
+                    "It must be an absolute https URL with a trailing slash (e.g. https://api.rojanai.ir/).\n" +
+                    "The build uses https://api.rojanai.ir/ by default; this error means an explicit\n" +
+                    "-PPRODUCTION_API_BASE_URL override was passed and is invalid.",
+            )
+        }
+
+        // P0-2 — never emit an unsigned production APK/AAB. Debug and
+        // dev/staging release builds are unaffected.
+        if (!releaseSigningReady) {
+            throw GradleException(
+                "Production release signing is not configured — refusing to build an UNSIGNED " +
+                    "production APK/AAB.\n" +
                     "\n" +
-                    "Provide it one of these ways:\n" +
-                    "  - Command line:   ./gradlew assembleManagerProductionRelease -PPRODUCTION_API_BASE_URL=https://your-real-backend/\n" +
-                    "  - gradle.properties (local only - never commit a real value): PRODUCTION_API_BASE_URL=https://your-real-backend/\n" +
-                    "  - CI: inject it as a Gradle property or environment-backed property for the release job.",
+                    "Provide the release keystore via ONE of:\n" +
+                    "  • keystore.properties at the repo root (gitignored) — see keystore.properties.sample\n" +
+                    "  • env vars: RELEASE_STORE_FILE, RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD\n" +
+                    "\n" +
+                    "All four values must resolve and RELEASE_STORE_FILE must point to an existing .jks.\n" +
+                    "See SIGNING-SETUP-REPORT.md for the full setup.",
             )
         }
     }

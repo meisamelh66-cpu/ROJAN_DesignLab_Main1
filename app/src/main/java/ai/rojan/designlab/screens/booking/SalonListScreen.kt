@@ -1,29 +1,32 @@
 package ai.rojan.designlab.screens.booking
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalTextStyle
 import ai.rojan.designlab.ui.text.Text
-import ai.rojan.designlab.ui.text.withDirectionFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,6 +36,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -40,50 +46,49 @@ import kotlinx.coroutines.delay
 import ai.rojan.designlab.domain.repository.Salon
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.presentation.salon.SalonListViewModel
-import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.components.CustomerAccent
+import ai.rojan.designlab.screens.customer.components.CustomerCardShape
+import ai.rojan.designlab.screens.customer.components.CustomerEmptyState
+import ai.rojan.designlab.screens.customer.components.CustomerErrorState
+import ai.rojan.designlab.screens.customer.components.CustomerHairline
+import ai.rojan.designlab.screens.customer.components.CustomerLoadingState
+import ai.rojan.designlab.screens.customer.components.CustomerOnAccent
+import ai.rojan.designlab.screens.customer.components.CustomerScaffold
+import ai.rojan.designlab.screens.customer.components.CustomerScreenMargin
+import ai.rojan.designlab.screens.customer.components.CustomerSearchField
+import ai.rojan.designlab.screens.customer.components.CustomerSurfaceFill
+import ai.rojan.designlab.screens.customer.components.RefSurface
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
-import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
-import ai.rojan.designlab.screens.customer.hometheme.HomeTextField
-import ai.rojan.designlab.ui.animation.rojanEnterAnimation
-import ai.rojan.designlab.ui.components.cards.PremiumCardShell
 import ai.rojan.designlab.ui.components.image.RojanRemoteImage
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
-import ai.rojan.designlab.ui.components.interaction.rojanPressedShadow
-import ai.rojan.designlab.ui.components.loading.RojanSkeletonBox
-import ai.rojan.designlab.ui.components.navigation.GlassBackButton
-import ai.rojan.designlab.ui.components.state.RojanEmptyState
-import ai.rojan.designlab.ui.components.state.RojanErrorState
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
-import ai.rojan.designlab.ui.theme.salonAccentColorFor
 
 private const val SEARCH_DEBOUNCE_MS = 350L
 
 /**
- * Booking Experience Refactor, spec section 9 — Salon Cards.
+ * Booking Journey — Salon picker.
  *
- * Salon Discovery completion: real backend search (debounced, replaces the
- * old client-side-only filter of a single fixed batch), pagination
- * ("load more" on scroll, via [SalonListViewModel.loadMore]), skeleton
- * loading, and real logo/favorite/follow indicators on each card.
+ * Quiet Luxury pass (visual only). The `GlassBackButton` orb, the bare
+ * `HeroTitle`, the violet-glow `HomeTextField` search bar, the
+ * `HomeGlassSurface` filter chips + "ورود کسب‌وکار" pill, the
+ * `PremiumCardShell` / `HomeGlassSurface` salon cards + skeletons, the
+ * violet `HomeColors.Glow` follow/favourite tints and spinner, the
+ * `salonAccentColorFor` tile tints, the per-item `rojanEnterAnimation`
+ * stagger, and the glass `RojanEmptyState` / `RojanErrorState` are replaced
+ * with the [CustomerScaffold] shell and the flat foundation primitives:
+ * a rose-gold-cursor search field, quiet filter pills, [RefSurface] cards,
+ * outlined icons, and [CustomerLoadingState] / [CustomerEmptyState] /
+ * [CustomerErrorState].
  *
- * Two real data gaps remain, both deliberate rather than papered over:
- * 1. No rating/review-aggregate exists on the backend (no reviews system
- *    server-side) — never shown, never fabricated.
- * 2. No distance/open-now shown on the card — the backend has no geo-radius
- *    query and this app has no on-device location source to compute a real
- *    distance from; "open now" would need one working-hours call per
- *    salon in the list (an N+1 pattern this pass deliberately avoids -
- *    see [ai.rojan.designlab.screens.salon.SalonDetailsScreen], which
- *    *does* show it, using the one working-hours call it already makes
- *    for a single salon). "نزدیک من" stays visible (removing a control
- *    is its own visible change) but remains a documented no-op.
- * 3. [selectedServiceIds] — the entry point from the booking flow's
- *    services-first path — still can't filter salons by "which salons
- *    offer every one of these services" (no backend equivalent of that
- *    cross-salon lookup exists) — always browses all active salons,
- *    same disclosed gap as before this pass.
+ * NOTHING about behaviour changed: debounced backend search, pagination on
+ * scroll, the `LifecycleResumeEffect` stale-401 retry, `showBackButton`
+ * (still hides the back affordance on the Home-rooted entry), the
+ * `onBusinessLoginClick` guard, and every `on*` callback are called exactly
+ * where they were. `selectedServiceIds` still browses all active salons
+ * (no backend cross-salon "offers all of these" lookup exists — same
+ * disclosed gap as before). No ViewModel, repository, API, or navigation
+ * route is touched.
  */
 @Composable
 fun SalonListScreen(
@@ -100,18 +105,17 @@ fun SalonListScreen(
                 salonRepository = container.salonRepository,
                 getFollowedSalonsUseCase = ai.rojan.designlab.domain.usecase.relationship.GetFollowedSalonsUseCase(container.customerRelationshipRepository),
                 getFavoriteSalonsUseCase = ai.rojan.designlab.domain.usecase.relationship.GetFavoriteSalonsUseCase(container.customerRelationshipRepository),
+                publicSalonRepository = container.publicSalonRepository,
+                hasSession = { container.tokenRepository.accessToken()?.isNotBlank() == true },
             )
         },
     ),
 ) {
     // Protected Route Handling fix: an anonymous customer redirected to AUTH
     // from here returns to this exact NavBackStackEntry - same ViewModel
-    // instance, still holding its stale pre-login 401 error. Without this,
-    // "do not lose user intent" would only be half true: the user is back
-    // on the right screen, but it's still showing "please log in" even
-    // though they just did. Retrying on every resume (guarded by
-    // isUnauthorized, so it's a no-op on the ordinary first-launch resume)
-    // picks the real data back up automatically.
+    // instance, still holding its stale pre-login 401 error. Retrying on every
+    // resume (guarded by isUnauthorized, so it's a no-op on the ordinary
+    // first-launch resume) picks the real data back up automatically.
     androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
         if (viewModel.isUnauthorized) {
             viewModel.retry()
@@ -131,11 +135,8 @@ fun SalonListScreen(
         } else {
             delay(SEARCH_DEBOUNCE_MS)
             viewModel.load(searchQuery.takeIf { it.isNotBlank() })
-            // T2-1: a new search swaps in a fresh page-0 result set while the
-            // previous list can stay mounted (SalonListViewModel.load's
-            // `isSearching` path), so without this the new results would render
-            // from the old scroll offset. loadMore() never changes `searchQuery`,
-            // so pagination keeps the user's position.
+            // T2-1: a new search swaps in a fresh page-0 result set; scroll back
+            // to the top so the new results don't render from the old offset.
             listState.scrollToItem(0)
         }
     }
@@ -150,238 +151,240 @@ fun SalonListScreen(
             }
     }
 
-    HomeBackgroundTheme {
-        Column(modifier = Modifier.fillMaxSize().padding(RojanDimens.SpaceMD)) {
-            if (showBackButton || onBusinessLoginClick != null) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (showBackButton) {
-                        GlassBackButton(onClick = onBackClick)
-                    } else {
-                        Box {}
-                    }
-                    if (onBusinessLoginClick != null) {
-                        HomeGlassSurface(
-                            modifier = Modifier.rojanPressable(onClick = onBusinessLoginClick),
-                            shape = RojanShapes.Small,
-                        ) {
-                            Text(
-                                text = "ورود کسب‌وکار",
-                                style = RojanTypography.Caption,
-                                color = HomeColors.TextSecondary,
-                                modifier = Modifier.padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
-                            )
-                        }
-                    }
-                }
-            }
-
+    CustomerScaffold(
+        title = "انتخاب سالن",
+        onBackClick = onBackClick,
+        showBackButton = showBackButton,
+    ) {
+        if (onBusinessLoginClick != null) {
             Text(
-                text = "انتخاب سالن",
-                style = RojanTypography.HeroTitle,
-                color = HomeColors.TextPrimary,
-                modifier = Modifier.padding(vertical = RojanDimens.SpaceMD),
-            )
-
-            HomeTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("جستجوی سالن...") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = HomeColors.TextSecondary) },
-                singleLine = true,
-                textStyle = LocalTextStyle.current.withDirectionFor(searchQuery),
+                "ورود کسب‌وکار",
+                style = RojanTypography.Caption.copy(fontWeight = FontWeight.SemiBold),
+                color = CustomerAccent,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = RojanDimens.SpaceMD),
+                    .align(Alignment.End)
+                    .padding(horizontal = CustomerScreenMargin)
+                    .padding(top = RojanDimens.SpaceSM)
+                    .rojanPressable(onClick = onBusinessLoginClick, role = Role.Button)
+                    .padding(RojanDimens.SpaceXS),
             )
+        }
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
-                modifier = Modifier.padding(bottom = RojanDimens.SpaceMD),
-            ) {
-                SalonFilterChip(
-                    label = "همه",
-                    selected = sortOption == SalonSortOption.ALL,
-                    onClick = { sortOption = SalonSortOption.ALL },
+        SearchField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            modifier = Modifier
+                .padding(horizontal = CustomerScreenMargin)
+                .padding(top = RojanDimens.SpaceMD),
+        )
+
+        Spacer(Modifier.height(RojanDimens.SpaceMD))
+
+        Row(
+            modifier = Modifier.padding(horizontal = CustomerScreenMargin),
+            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+        ) {
+            FilterPill("همه", sortOption == SalonSortOption.ALL) { sortOption = SalonSortOption.ALL }
+            FilterPill("نزدیک من", sortOption == SalonSortOption.NEAREST) { sortOption = SalonSortOption.NEAREST }
+        }
+
+        Spacer(Modifier.height(RojanDimens.SpaceMD))
+
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+          when (val state = viewModel.state) {
+            is UiState.Loading -> CustomerLoadingState(count = 5, rowHeight = 88)
+
+            is UiState.Error -> if (viewModel.isUnauthorized && onLoginRequired != null) {
+                CustomerErrorState(
+                    message = state.message,
+                    title = "برای مشاهده سالن‌ها وارد شوید",
+                    retryLabel = "ورود",
+                    onRetry = onLoginRequired,
                 )
-                SalonFilterChip(
-                    label = "نزدیک من",
-                    selected = sortOption == SalonSortOption.NEAREST,
-                    onClick = { sortOption = SalonSortOption.NEAREST },
+            } else {
+                CustomerErrorState(
+                    message = state.message,
+                    onRetry = { viewModel.retry() },
                 )
             }
 
-            when (val state = viewModel.state) {
-                is UiState.Loading -> SalonListSkeleton()
-                is UiState.Error -> if (viewModel.isUnauthorized && onLoginRequired != null) {
-                    RojanErrorState(
-                        title = "برای مشاهده سالن‌ها وارد شوید",
-                        description = state.message,
-                        actionLabel = "ورود",
-                        onAction = onLoginRequired,
-                    )
-                } else {
-                    RojanErrorState(
-                        description = state.message,
-                        actionLabel = "تلاش مجدد",
-                        onAction = { viewModel.retry() },
-                    )
-                }
-                is UiState.Empty -> RojanEmptyState(
-                    title = if (searchQuery.isBlank()) "سالنی یافت نشد" else "سالنی با این جستجو یافت نشد",
-                    icon = Icons.Filled.Storefront,
-                )
-                is UiState.Success -> {
-                    LazyColumn(
-                        state = listState,
-                        verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
-                    ) {
-                        itemsIndexed(state.data) { index, salon ->
-                            SalonCard(
-                                salon = salon,
-                                isFollowing = viewModel.followedSalonIds.contains(salon.id),
-                                isFavorite = viewModel.favoriteSalonIds.contains(salon.id),
-                                onClick = { onSalonSelected(salon.id) },
-                                animationDelayMillis = index * 60,
-                            )
-                        }
-                        if (viewModel.isLoadingMore) {
-                            item {
-                                Box(modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = HomeColors.Glow, strokeWidth = 2.dp)
-                                }
+            is UiState.Empty -> CustomerEmptyState(
+                title = if (searchQuery.isBlank()) "سالنی یافت نشد" else "سالنی با این جستجو یافت نشد",
+                icon = Icons.Outlined.Storefront,
+            )
+
+            is UiState.Success -> {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = RojanDimens.SpaceLG),
+                    verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+                ) {
+                    itemsIndexed(state.data, key = { _, salon -> salon.id }) { _, salon ->
+                        SalonCard(
+                            salon = salon,
+                            isFollowing = viewModel.followedSalonIds.contains(salon.id),
+                            isFavorite = viewModel.favoriteSalonIds.contains(salon.id),
+                            onClick = { onSalonSelected(salon.id) },
+                            modifier = Modifier.padding(horizontal = CustomerScreenMargin),
+                        )
+                    }
+                    if (viewModel.isLoadingMore) {
+                        item {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = CustomerAccent,
+                                    strokeWidth = 2.dp,
+                                )
                             }
                         }
                     }
                 }
             }
+          }
         }
     }
 }
 
 private enum class SalonSortOption { ALL, NEAREST }
 
+// --- Search field (rose-gold cursor, flat surface) -------------------------
+
+// Phase 4 (P1): shared with SearchScreen as `CustomerSearchField` — same flat
+// visual, RTL, focus and keyboard behaviour, just no longer copied.
 @Composable
-private fun SalonFilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    HomeGlassSurface(
-        modifier = Modifier.rojanPressable(onClick = onClick),
-        shape = RojanShapes.Small,
-        glassAlpha = if (selected) 0.55f else 0.40f,
+private fun SearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) = CustomerSearchField(
+    value = value,
+    onValueChange = onValueChange,
+    placeholder = "جستجوی سالن...",
+    modifier = modifier,
+)
+
+// --- Quiet filter pill ----------------------------------------------------
+
+@Composable
+private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(if (selected) CustomerAccent else CustomerSurfaceFill)
+            .border(1.dp, if (selected) CustomerAccent else CustomerHairline, RoundedCornerShape(999.dp))
+            .rojanPressable(onClick = onClick, role = Role.Button)
+            .heightIn(min = 36.dp)
+            .padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = label,
+            label,
             style = RojanTypography.Caption,
-            color = if (selected) HomeColors.Glow else HomeColors.TextSecondary,
-            modifier = Modifier.padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
+            color = if (selected) CustomerOnAccent else HomeColors.TextSecondary,
         )
     }
 }
 
-/**
- * Each card shows the salon's real logo (falls back to the existing
- * color-tinted icon when [Salon.logoUrl] is null/fails to load), name,
- * short description, and follow/favorite indicators — no rating/distance
- * (see this file's own doc comment for why).
- */
-/**
- * Design-system refinement, Phase 4C: rendering moved onto the shared
- * [PremiumCardShell] (shell only — content/spacing/behavior unchanged).
- * [PremiumCardShell]'s default `variant = RojanCardVariant.GlassCard`
- * resolves to the exact same fill/border/elevation the previous direct
- * [HomeGlassSurface] call defaulted to, and its default `contentPadding`
- * is [RojanDimens.SpaceMD] — the same value this `Row` applied manually
- * before. [interactionSource] is threaded through explicitly (rather than
- * left to `PremiumCardShell`'s own default) because the salon-name `Text`
- * below reads the same source via `rojanPressedShadow` — the shell and
- * the pressed-state text effect must share one source, not two
- * independently-created ones.
- */
+// --- Salon card ---------------------------------------------------------
+
 @Composable
 private fun SalonCard(
     salon: Salon,
     isFollowing: Boolean,
     isFavorite: Boolean,
     onClick: () -> Unit,
-    animationDelayMillis: Int = 0,
+    modifier: Modifier = Modifier,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    PremiumCardShell(
-        modifier = Modifier.rojanEnterAnimation(delayMillis = animationDelayMillis),
-        shape = RojanShapes.Small,
-        onClick = onClick,
-        interactionSource = interactionSource,
-    ) {
+    RefSurface(modifier = modifier) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .rojanPressable(onClick = onClick, role = Role.Button)
+                .padding(RojanDimens.SpaceMD),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .background(salonAccentColorFor(salon.id).copy(alpha = 0.35f), RojanShapes.Small),
-                contentAlignment = Alignment.Center,
-            ) {
-                RojanRemoteImage(
-                    url = salon.logoUrl,
-                    contentDescription = salon.name,
-                    shape = RojanShapes.Small,
-                    modifier = Modifier.fillMaxSize(),
-                    fallback = { Icon(Icons.Filled.Storefront, contentDescription = null, tint = HomeColors.TextPrimary) },
-                )
+            Icon(
+                Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
+                contentDescription = null,
+                tint = HomeColors.TextMuted,
+                modifier = Modifier.size(20.dp),
+            )
+
+            if (isFollowing || isFavorite) {
+                Spacer(Modifier.width(RojanDimens.SpaceSM))
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
+                ) {
+                    if (isFollowing) {
+                        Icon(
+                            Icons.Outlined.NotificationsActive,
+                            contentDescription = "دنبال‌شده",
+                            tint = CustomerAccent,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                    if (isFavorite) {
+                        Icon(
+                            Icons.Outlined.FavoriteBorder,
+                            contentDescription = "مورد علاقه",
+                            tint = CustomerAccent,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                }
             }
 
-            Column(modifier = Modifier.weight(1f)) {
+            Spacer(Modifier.weight(1f))
+
+            Column(horizontalAlignment = Alignment.End) {
                 Text(
                     salon.name,
-                    style = RojanTypography.Body.rojanPressedShadow(interactionSource),
+                    style = RojanTypography.Body,
                     color = HomeColors.TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 salon.description?.takeIf { it.isNotBlank() }?.let { description ->
+                    Spacer(Modifier.height(RojanDimens.SpaceXS))
                     Text(
                         description,
                         style = RojanTypography.Caption,
-                        color = HomeColors.TextSecondary,
+                        color = HomeColors.TextMuted,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
 
-            if (isFollowing || isFavorite) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS)) {
-                    if (isFollowing) {
-                        Icon(Icons.Filled.NotificationsActive, contentDescription = "دنبال شده", tint = HomeColors.Glow, modifier = Modifier.size(18.dp))
-                    }
-                    if (isFavorite) {
-                        Icon(Icons.Filled.Favorite, contentDescription = "مورد علاقه", tint = HomeColors.Glow, modifier = Modifier.size(18.dp))
-                    }
-                }
-            }
-        }
-    }
-}
+            Spacer(Modifier.width(RojanDimens.SpaceMD))
 
-/** Loading state: a handful of row-shaped shimmer placeholders matching [SalonCard]'s real layout, via the existing (previously unused anywhere) [RojanSkeletonBox] primitive. */
-@Composable
-private fun SalonListSkeleton() {
-    Column(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD)) {
-        repeat(5) {
-            HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
-                ) {
-                    RojanSkeletonBox(modifier = Modifier.size(72.dp), shape = RojanShapes.Small)
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS)) {
-                        RojanSkeletonBox(modifier = Modifier.fillMaxWidth(0.6f).height(16.dp))
-                        RojanSkeletonBox(modifier = Modifier.fillMaxWidth(0.4f).height(12.dp))
-                    }
-                }
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CustomerCardShape)
+                    .background(CustomerSurfaceFill),
+                contentAlignment = Alignment.Center,
+            ) {
+                RojanRemoteImage(
+                    url = salon.logoUrl,
+                    contentDescription = salon.name,
+                    shape = CustomerCardShape,
+                    modifier = Modifier.fillMaxSize(),
+                    fallback = {
+                        Icon(
+                            Icons.Outlined.Storefront,
+                            contentDescription = null,
+                            tint = HomeColors.TextMuted,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    },
+                )
             }
         }
     }

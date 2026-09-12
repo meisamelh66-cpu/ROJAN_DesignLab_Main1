@@ -46,6 +46,15 @@ data class RefreshRequestDto(
  * OTP-registered (phone-only, null email) account's response arrived, and
  * silently dropped a real, already-returned field this app has never read.
  */
+/**
+ * [avatarUrl]/[coverUrl] (Customer Profile Personalization Phase 5B) are the
+ * backend's resolved, ready-to-render URLs for the user's own avatar and
+ * profile-cover image, or `null` when not set. `GET /api/v1/users/me` and the
+ * `/me/media/{avatar,cover}` endpoints populate them; the auth responses
+ * (`login`/`otp/verify`) leave them `null`, so a freshly-authenticated
+ * session shows no image until the next `/users/me` fetch — which
+ * `AuthViewModel.restoreSession` already does on every cold start.
+ */
 @Serializable
 data class UserResponseDto(
     val id: String,
@@ -53,6 +62,8 @@ data class UserResponseDto(
     val phoneNumber: String? = null,
     val fullName: String,
     val role: NetworkUserRole,
+    val avatarUrl: String? = null,
+    val coverUrl: String? = null,
 )
 
 @Serializable

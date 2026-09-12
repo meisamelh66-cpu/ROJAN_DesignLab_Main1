@@ -30,10 +30,9 @@ import ai.rojan.designlab.ui.theme.RojanTypography
  * Integration milestone. Same card shape as [RojanEmptyState]/
  * [RojanErrorState] (sibling components, same [GlassSurface] wrapper) so a
  * screen's loading/empty/error states read as one consistent sequence
- * rather than three unrelated treatments. Fills the gap left by
- * `screens/customer/LoadingState.kt`, which was an empty, unused stub —
- * left in place rather than removed, since deleting it is outside this
- * milestone's data-layer-only scope.
+ * rather than three unrelated treatments. (Superseded the empty
+ * `screens/customer/LoadingState.kt` stub, which was removed in
+ * Engineering Cleanup Phase 4.)
  */
 @Composable
 fun RojanLoadingState(

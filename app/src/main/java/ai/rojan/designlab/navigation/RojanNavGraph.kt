@@ -1,8 +1,10 @@
 package ai.rojan.designlab.navigation
 
 import ai.rojan.designlab.R
-import ai.rojan.designlab.ui.background.PremiumBackground
-import ai.rojan.designlab.components.PremiumLoadingBar
+import ai.rojan.designlab.screens.customer.components.CustomerAccent
+import ai.rojan.designlab.screens.customer.components.CustomerScreenMargin
+import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.domain.booking.BookingIntent
 import ai.rojan.designlab.domain.booking.RollingBookingDates
@@ -26,37 +28,36 @@ import ai.rojan.designlab.screens.bookingflow.BookingTimeScreen
 import ai.rojan.designlab.screens.customer.CustomerDashboardScreen
 import ai.rojan.designlab.screens.customer.CustomerHomeScreen
 import ai.rojan.designlab.screens.customer.CustomerHomeTab
+import ai.rojan.designlab.screens.customer.CustomerMainScaffold
+import ai.rojan.designlab.screens.customer.components.CustomerComingSoonScreen
 import ai.rojan.designlab.screens.profile.AppointmentDetailsScreen
 import ai.rojan.designlab.screens.profile.AppointmentsScreen
 import ai.rojan.designlab.screens.profile.RescheduleAppointmentScreen
-import ai.rojan.designlab.screens.profile.WaitlistScreen
 import ai.rojan.designlab.screens.profile.BeautyDnaScreen
-import ai.rojan.designlab.screens.profile.BeautyTimelineScreen
-import ai.rojan.designlab.screens.profile.CouponsScreen
 import ai.rojan.designlab.screens.profile.FavoritesScreen
 import ai.rojan.designlab.screens.profile.FollowedSalonsScreen
-import ai.rojan.designlab.screens.profile.LoyaltyScreen
-import ai.rojan.designlab.screens.profile.MembershipScreen
-import ai.rojan.designlab.screens.profile.MyReviewsScreen
 import ai.rojan.designlab.screens.profile.ProfileScreen
-import ai.rojan.designlab.screens.profile.WalletScreen
 import ai.rojan.designlab.screens.salon.PublicSalonScreen
 import ai.rojan.designlab.screens.salon.SalonDetailsScreen
 import ai.rojan.designlab.screens.search.SearchScreen
 import ai.rojan.designlab.screens.service.ServiceDetailsScreen
 import ai.rojan.designlab.screens.specialist.SpecialistProfileScreen
 import ai.rojan.designlab.screens.splash.SplashScreen
-import ai.rojan.designlab.ui.theme.RojanLuxuryCaption
+import ai.rojan.designlab.ui.theme.RojanDimens
+import ai.rojan.designlab.ui.theme.RojanTypography
 
 import ai.rojan.designlab.ui.motion.RojanNavTransitions
 import ai.rojan.designlab.ui.motion.rememberReducedMotion
 import ai.rojan.designlab.ui.navigation.navigateHomeAfterBooking
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
 import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -68,10 +69,11 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -193,11 +195,49 @@ fun RojanNavGraph() {
     val restoreState by sessionViewModel.restoreState
         .collectAsStateWithLifecycle()
 
+    // Performance fix (splash/session-restore overlap — see
+    // CUSTOMER-PERFORMANCE-AUDIT.md B.1/B.2 and
+    // CUSTOMER-PERFORMANCE-FIX-REPORT.md): this used to live inside the
+    // `SessionRestoreState.Restored` branch below, reachable only once
+    // `showSplash` had already become `false` — so a returning customer's
+    // real session-validation network work (token refresh -> GET /auth/me
+    // -> GET /users/me/salon-access, see AuthViewModel.restoreSession's own
+    // doc comment) always ran strictly *after* the splash's full display
+    // time, never overlapping with it. Hoisted above the splash gate so it
+    // starts the moment `restoreState` resolves to `Restored` — which
+    // happens within the splash's own entrance animation, well before any
+    // fixed timer would have elapsed. Authentication Session Persistence
+    // fix (unchanged): a stored personId is only a *claim* — it must be
+    // validated against the real backend before this composable decides
+    // where to route, so `restoreSession` is still awaited, never
+    // fire-and-forget. Keyed on `restoreState` itself (not `Unit`), so this
+    // fires exactly once per real state change — once at cold start, and
+    // again the one other time `restoreState` legitimately changes mid-
+    // session (a fresh OTP login) — never duplicated by recomposition, and
+    // never re-triggered while `showSplash` flips from `true` to `false`.
+    var sessionValidationDone by remember { mutableStateOf(false) }
 
+    LaunchedEffect(restoreState) {
+        val state = restoreState
+        if (state is SessionRestoreState.Restored) {
+            val personId = state.personId
+            if (personId != null) {
+                authViewModel.restoreSession(personId)
+            }
+            sessionValidationDone = true
+        }
+    }
+
+    // True exactly when the Customer UI is safe to show: the local restore
+    // finished AND (for a returning user) the real backend validation
+    // above finished too. A guest (no personId) reaches this as soon as
+    // `restoreState` resolves — no network wait at all.
+    val readyToProceed = restoreState is SessionRestoreState.Restored && sessionValidationDone
 
     if (showSplash) {
 
         SplashScreen(
+            ready = readyToProceed,
             onSplashFinished = {
                 showSplash = false
             }
@@ -213,6 +253,10 @@ fun RojanNavGraph() {
 
         SessionRestoreState.Loading -> {
 
+            // Unreachable in practice: `readyToProceed` (and therefore
+            // `showSplash` becoming false) requires `restoreState` to
+            // already be `Restored`. Kept as a cheap, defensive fallback
+            // rather than an unsafe cast on `state`.
             RestoringSessionContent()
 
         }
@@ -221,33 +265,10 @@ fun RojanNavGraph() {
 
         is SessionRestoreState.Restored -> {
 
-            // Authentication Session Persistence fix: a stored personId is
-            // only a *claim* — it must be validated against the real
-            // backend (restoreSession -> GET /api/v1/auth/me, transparently
-            // refreshing the access token first) before this composable
-            // decides where to route. The previous version fired
-            // restoreSession fire-and-forget and computed startDestination
-            // immediately from the raw, unvalidated personId, so a user
-            // whose refresh token had actually expired/been revoked still
-            // got routed straight to CUSTOMER_HOME for a frame before
-            // things silently started failing with no "please log in
-            // again" signal anywhere. This blocks on the real result
-            // first ("Check stored session -> Validate/refresh token ->
-            // Restore authenticated state -> Enter application").
-            var isRestoringSession by remember { mutableStateOf(state.personId != null) }
-
-            LaunchedEffect(state) {
-                val personId = state.personId
-                if (personId != null) {
-                    authViewModel.restoreSession(personId)
-                }
-                isRestoringSession = false
-            }
-
-            if (isRestoringSession) {
-                RestoringSessionContent()
-                return
-            }
+            // Session validation (if this user had a persisted personId)
+            // already ran to completion above, before the splash released
+            // control — `readyToProceed` guarantees it. Nothing left to
+            // await here.
 
             // Bug fix: startDestination must be captured once, at the first
             // cold-start restore, not recomputed on every recomposition of
@@ -285,6 +306,57 @@ fun RojanNavGraph() {
                     }
             }
 
+            // Navigation Standardization Phase 2 — the one place a bottom-bar
+            // tap turns into navigation. The five main sections wrap their
+            // screen in `CustomerMainScaffold` (which renders `CustomerBottomBar`
+            // below the content) and hand it this lambda, exactly the way the
+            // embedded bar used to raise per-screen `on*` callbacks. The stack
+            // is kept one level above the NavHost start destination and never
+            // stacks a duplicate tab, so back is always predictable and the
+            // booking flow / auth / detail routes are untouched.
+            // Performance fix (tab-nav state preservation — see
+            // CUSTOMER-PERFORMANCE-AUDIT.md B.3 and
+            // CUSTOMER-PERFORMANCE-FIX-REPORT.md): `saveState`/`restoreState`
+            // added to this bottom-tab switch ONLY (the standard
+            // Navigation-Compose bottom-nav pattern) — every other
+            // `navigate()` call in this file is untouched. Without these,
+            // switching tabs popped the previous tab's back-stack entry
+            // outright, destroying its scoped ViewModel with it; since
+            // SalonListViewModel/BookingHistoryViewModel/etc. all fetch
+            // eagerly in `init {}`, every tab switch re-fired their startup
+            // network calls from scratch, even when nothing had changed.
+            // `saveState = true` on the pop preserves the popped
+            // destination's back-stack-entry state (ViewModelStore
+            // included) instead of discarding it; `restoreState = true` on
+            // the forward navigate restores that saved state when a
+            // previously-visited tab's route is revisited, instead of
+            // constructing a fresh entry. `launchSingleTop = true` is
+            // unchanged (still prevents a duplicate entry for the tab
+            // already on top). Booking/detail routes, the nested booking
+            // graph, and every guard (`CustomerAccessGuard`) are untouched
+            // — this only changes how five destinations already reached
+            // through this exact lambda restore their own state.
+            val onCustomerTab: (CustomerHomeTab) -> Unit = { tab ->
+                val target = when (tab) {
+                    CustomerHomeTab.HOME -> RojanDestinations.CUSTOMER_HOME
+                    CustomerHomeTab.SEARCH -> RojanDestinations.EXPLORE
+                    CustomerHomeTab.BOOKINGS -> RojanDestinations.APPOINTMENTS
+                    CustomerHomeTab.FAVORITES -> RojanDestinations.FAVORITES
+                    CustomerHomeTab.PROFILE -> RojanDestinations.PROFILE
+                }
+                navController.navigate(target) {
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        saveState = true
+                    }
+                    launchSingleTop = true
+                    // Explicit `this.` — this composable's own outer
+                    // `restoreState` (the SessionRestoreState from
+                    // sessionViewModel) would otherwise shadow
+                    // NavOptionsBuilder's same-named property here.
+                    this.restoreState = true
+                }
+            }
+
             NavHost(
                 navController = navController,
                 // Staff routing (like customer routing) is identity-based —
@@ -308,7 +380,9 @@ fun RojanNavGraph() {
                         showBackButton = false,
                         onBackClick = {},
                         onSalonSelected = { salonId ->
-                            navController.navigate(RojanDestinations.salonDetails(salonId))
+                            navController.navigate(RojanDestinations.salonDetails(salonId)) {
+                                launchSingleTop = true
+                            }
                         },
                         onLoginRequired = { navController.navigate(RojanDestinations.AUTH) },
                         // Android <-> Backend Full Integration milestone: the
@@ -388,6 +462,7 @@ fun RojanNavGraph() {
                                     // never triggers the re-creation.
                                     navController.navigate(targetRoute) {
                                         popUpTo(RojanDestinations.BOOKING_TIME) { inclusive = false }
+                                        launchSingleTop = true
                                     }
                                 }
                                 // Protected Route Handling fix: every
@@ -429,7 +504,9 @@ fun RojanNavGraph() {
                         selectedServiceIds = selectedServiceIds,
                         onBackClick = { navController.popBackStack() },
                         onSalonSelected = { salonId ->
-                            navController.navigate(RojanDestinations.salonDetails(salonId))
+                            navController.navigate(RojanDestinations.salonDetails(salonId)) {
+                                launchSingleTop = true
+                            }
                         },
                         onLoginRequired = { navController.navigate(RojanDestinations.AUTH) },
                     )
@@ -456,7 +533,9 @@ fun RojanNavGraph() {
                         SearchScreen(
                             onBackClick = { navController.popBackStack() },
                             onSalonClick = { salonId ->
-                                navController.navigate(RojanDestinations.salonDetails(salonId))
+                                navController.navigate(RojanDestinations.salonDetails(salonId)) {
+                                    launchSingleTop = true
+                                }
                             },
                             onLoginRequired = { navController.navigate(RojanDestinations.AUTH) },
                         )
@@ -483,21 +562,29 @@ fun RojanNavGraph() {
                             selectedServiceIds = selectedServiceIds,
                             onBackClick = { navController.popBackStack() },
                             onSpecialistClick = { specialistId ->
-                                navController.navigate(RojanDestinations.specialistProfile(specialistId, salonId))
+                                navController.navigate(RojanDestinations.specialistProfile(specialistId, salonId)) {
+                                    launchSingleTop = true
+                                }
                             },
                             onServiceClick = { serviceId ->
                                 bookingViewModel.onSalonSelected(salonId)
                                 bookingViewModel.onIntentDetected(BookingIntent.SALON)
-                                navController.navigate(RojanDestinations.serviceDetails(serviceId))
+                                navController.navigate(RojanDestinations.serviceDetails(serviceId)) {
+                                    launchSingleTop = true
+                                }
                             },
                             onLoginRequired = { navController.navigate(RojanDestinations.AUTH) },
                             onContinueBooking = if (selectedServiceIds != null) { autoSpecialistId ->
                                 bookingViewModel.onSalonSelected(salonId)
                                 if (autoSpecialistId != null) {
                                     bookingViewModel.onSpecialistSelected(autoSpecialistId)
-                                    navController.navigate(RojanDestinations.BOOKING_DATE)
+                                    navController.navigate(RojanDestinations.BOOKING_DATE) {
+                                        launchSingleTop = true
+                                    }
                                 } else {
-                                    navController.navigate(RojanDestinations.specialistSelection(salonId))
+                                    navController.navigate(RojanDestinations.specialistSelection(salonId)) {
+                                        launchSingleTop = true
+                                    }
                                 }
                             } else null,
                         )
@@ -516,7 +603,9 @@ fun RojanNavGraph() {
                             onBackClick = { navController.popBackStack() },
                             onSpecialistSelected = { specialistId ->
                                 bookingViewModel.onSpecialistSelected(specialistId)
-                                navController.navigate(RojanDestinations.BOOKING_DATE)
+                                navController.navigate(RojanDestinations.BOOKING_DATE) {
+                                    launchSingleTop = true
+                                }
                             },
                         )
                     }
@@ -553,7 +642,9 @@ fun RojanNavGraph() {
                                 }
                                 bookingViewModel.onSpecialistSelected(specialistId)
                                 bookingViewModel.onIntentDetected(BookingIntent.SPECIALIST)
-                                navController.navigate(RojanDestinations.serviceDetails(serviceId))
+                                navController.navigate(RojanDestinations.serviceDetails(serviceId)) {
+                                    launchSingleTop = true
+                                }
                             },
                         )
                     }
@@ -613,9 +704,18 @@ fun RojanNavGraph() {
                                             bookingViewModel.onSpecialistSelected(specialists.first().id)
                                         }
                                     }
+                                    // Back-navigation fix: this coroutine can genuinely
+                                    // run twice concurrently on a rapid double-tap of
+                                    // "Book" (each suspends at getSpecialists, so both
+                                    // resume and call navigate()); launchSingleTop makes
+                                    // the second call a no-op once the first has already
+                                    // landed on the same destination, instead of pushing
+                                    // a duplicate entry.
                                     navController.navigate(
                                         routeForBookingStep(bookingViewModel.nextStep(), bookingViewModel.state.salonId)
-                                    )
+                                    ) {
+                                        launchSingleTop = true
+                                    }
                                 }
                             },
                         )
@@ -635,9 +735,21 @@ fun RojanNavGraph() {
                             onBackClick = { navController.popBackStack() },
                             onDateSelected = { dateKey ->
                                 bookingViewModel.onDateSelected(dateKey)
+                                // Back-navigation fix (root cause of the reported
+                                // "Booking Time needs 2 back presses"): DateCell has
+                                // no debounce, and the page-transition fade keeps the
+                                // outgoing screen's row clickable during the ~300ms
+                                // exit animation — a fast double-tap fired this
+                                // callback twice, pushing BOOKING_TIME onto the stack
+                                // twice in a row. A single back press then only
+                                // popped the identical duplicate, so nothing appeared
+                                // to happen. launchSingleTop makes the second push a
+                                // same-destination no-op instead of a real duplicate.
                                 navController.navigate(
                                     routeForBookingStep(bookingViewModel.nextStep(), bookingViewModel.state.salonId)
-                                )
+                                ) {
+                                    launchSingleTop = true
+                                }
                             },
                         )
                     }
@@ -671,9 +783,13 @@ fun RojanNavGraph() {
                                 if (authViewModel.sessionState.value is SessionState.LoggedIn) {
                                     navController.navigate(
                                         routeForBookingStep(bookingViewModel.nextStep(), bookingViewModel.state.salonId)
-                                    )
+                                    ) {
+                                        launchSingleTop = true
+                                    }
                                 } else {
-                                    navController.navigate(RojanDestinations.AUTH)
+                                    navController.navigate(RojanDestinations.AUTH) {
+                                        launchSingleTop = true
+                                    }
                                 }
                             },
                         )
@@ -700,24 +816,39 @@ fun RojanNavGraph() {
                             // — since every other field is already filled, that
                             // resolves straight back to CONFIRMATION with the
                             // one edited field updated.
+                            // Back-navigation fix: every edit link below gets the same
+                            // launchSingleTop guard as the forward flow — a double-tap
+                            // on "ویرایش تاریخ"/"ویرایش ساعت" etc. was the same class of
+                            // bug as BOOKING_TIME's, just entered from Confirmation
+                            // instead of from Date.
                             onEditSalon = {
                                 bookingViewModel.state.salonId?.let {
-                                    navController.navigate(RojanDestinations.salonDetails(it))
+                                    navController.navigate(RojanDestinations.salonDetails(it)) {
+                                        launchSingleTop = true
+                                    }
                                 }
                             },
                             onEditSpecialist = {
                                 bookingViewModel.state.salonId?.let {
-                                    navController.navigate(RojanDestinations.specialistSelection(it))
+                                    navController.navigate(RojanDestinations.specialistSelection(it)) {
+                                        launchSingleTop = true
+                                    }
                                 }
                             },
                             onEditService = {
                                 val salonId = bookingViewModel.state.salonId
                                 navController.navigate(
                                     if (salonId != null) RojanDestinations.salonDetails(salonId) else RojanDestinations.SEARCH
-                                )
+                                ) {
+                                    launchSingleTop = true
+                                }
                             },
-                            onEditDate = { navController.navigate(RojanDestinations.BOOKING_DATE) },
-                            onEditTime = { navController.navigate(RojanDestinations.BOOKING_TIME) },
+                            onEditDate = {
+                                navController.navigate(RojanDestinations.BOOKING_DATE) { launchSingleTop = true }
+                            },
+                            onEditTime = {
+                                navController.navigate(RojanDestinations.BOOKING_TIME) { launchSingleTop = true }
+                            },
                             onConfirmClick = { _, _ ->
                                 // Production Data Integrity Phase 1 (Task 7): the
                                 // real booking already exists on the backend
@@ -728,7 +859,9 @@ fun RojanNavGraph() {
                                 // BookingHistoryRepository, so recording it a
                                 // second time into the local, now-gated
                                 // CustomerEcosystemViewModel is no longer needed.
-                                navController.navigate(RojanDestinations.BOOKING_SUCCESS)
+                                navController.navigate(RojanDestinations.BOOKING_SUCCESS) {
+                                    launchSingleTop = true
+                                }
                             },
                         )
                     }
@@ -780,19 +913,33 @@ fun RojanNavGraph() {
                     // UX Correction (Explore Repositioning): CUSTOMER_HOME is now
                     // the Dashboard, not the marketplace-heavy screen — see
                     // CustomerDashboardScreen's own doc comment.
-                    CustomerDashboardScreen(
-                        authViewModel = authViewModel,
-                        onProfileClick = { navController.navigate(RojanDestinations.PROFILE) },
-                        onBookAppointmentClick = { navController.navigate(RojanDestinations.MEMBER_SALONS_LIST) },
-                        onBookingsClick = { navController.navigate(RojanDestinations.APPOINTMENTS) },
-                        onFavoritesClick = { navController.navigate(RojanDestinations.FAVORITES) },
-                        onExploreClick = { navController.navigate(RojanDestinations.EXPLORE) },
-                        onSearchClick = { navController.navigate(RojanDestinations.SEARCH) },
-                        onSalonClick = { salonId ->
-                            navController.navigate(RojanDestinations.salonDetails(salonId))
-                        },
-                    )
-
+                    // Phase 2: wrapped in the persistent bottom-nav shell. Every
+                    // on* callback below is unchanged (the Dashboard no longer
+                    // renders its own bar, but its signature is preserved).
+                    CustomerMainScaffold(
+                        activeTab = CustomerHomeTab.HOME,
+                        onTabSelected = onCustomerTab,
+                    ) {
+                        CustomerDashboardScreen(
+                            authViewModel = authViewModel,
+                            onProfileClick = { navController.navigate(RojanDestinations.PROFILE) },
+                            onBookAppointmentClick = { navController.navigate(RojanDestinations.MEMBER_SALONS_LIST) },
+                            onBookingsClick = { navController.navigate(RojanDestinations.APPOINTMENTS) },
+                            onFavoritesClick = { navController.navigate(RojanDestinations.FAVORITES) },
+                            onExploreClick = { navController.navigate(RojanDestinations.EXPLORE) },
+                            onSearchClick = { navController.navigate(RojanDestinations.SEARCH) },
+                            onSalonClick = { salonId ->
+                                // Back-navigation fix: launchSingleTop guards every forward
+                                // push in the booking chain (see BOOKING-TIME-UX-REDESIGN-REPORT.md)
+                                // against a rapid double-tap pushing the same destination
+                                // twice — the root cause of "Booking Time needs 2 back
+                                // presses" (the duplicate entry sat directly underneath).
+                                navController.navigate(RojanDestinations.salonDetails(salonId)) {
+                                    launchSingleTop = true
+                                }
+                            },
+                        )
+                    }
                 }
 
                 composable(
@@ -818,6 +965,14 @@ fun RojanNavGraph() {
                     // is, instead of always reading "جستجو" even when this
                     // screen IS the Landing screen.
                     val isLandingEntry = navController.previousBackStackEntry == null
+                    // Phase 2: same "which tab reads active on Explore" rule as
+                    // before (HOME on the guest landing screen, SEARCH when
+                    // reached as the جستجو tab) — now driving the persistent
+                    // shell's bar instead of the screen's own.
+                    CustomerMainScaffold(
+                        activeTab = if (isLandingEntry) CustomerHomeTab.HOME else CustomerHomeTab.SEARCH,
+                        onTabSelected = onCustomerTab,
+                    ) {
                     CustomerHomeScreen(
                         authViewModel = authViewModel,
                         bottomBarActiveTab = if (isLandingEntry) CustomerHomeTab.HOME else CustomerHomeTab.SEARCH,
@@ -838,13 +993,24 @@ fun RojanNavGraph() {
                             }
                         },
                         onSalonClick = { salonId ->
-                            navController.navigate(RojanDestinations.salonDetails(salonId))
+                            // Back-navigation fix: see the matching comment on
+                            // CUSTOMER_HOME's onSalonClick above.
+                            navController.navigate(RojanDestinations.salonDetails(salonId)) {
+                                launchSingleTop = true
+                            }
                         },
                         onViewAllServicesClick = { navController.navigate(RojanDestinations.MEMBER_SALONS_LIST) },
                         onSpecialistClick = { specialistId ->
-                            navController.navigate(RojanDestinations.specialistProfile(specialistId))
+                            navController.navigate(RojanDestinations.specialistProfile(specialistId)) {
+                                launchSingleTop = true
+                            }
                         },
+                        // Guest Explore fix: browsing salons is public now, but
+                        // if an authenticated browse still 401s (revoked token),
+                        // the error state offers login instead of a dead retry.
+                        onLoginClick = { navController.navigate(RojanDestinations.AUTH) },
                     )
+                    }
                 }
 
 
@@ -881,6 +1047,11 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
+                      // Phase 2: Profile is a persistent bottom-nav section.
+                      CustomerMainScaffold(
+                        activeTab = CustomerHomeTab.PROFILE,
+                        onTabSelected = onCustomerTab,
+                      ) {
                         ProfileScreen(
                             authViewModel = authViewModel,
                             onBackClick = { navController.popBackStack() },
@@ -902,6 +1073,7 @@ fun RojanNavGraph() {
                                 }
                             },
                         )
+                      }
                     }
 
 
@@ -916,6 +1088,11 @@ fun RojanNavGraph() {
                             authViewModel = authViewModel,
                             onAccessDenied = { navController.navigate(RojanDestinations.AUTH) },
                         ) {
+                          // Phase 2: Appointments is a persistent bottom-nav section.
+                          CustomerMainScaffold(
+                            activeTab = CustomerHomeTab.BOOKINGS,
+                            onTabSelected = onCustomerTab,
+                          ) {
                             AppointmentsScreen(
                                 onBackClick = { navController.popBackStack() },
                                 onAppointmentClick = { appointmentId ->
@@ -926,6 +1103,7 @@ fun RojanNavGraph() {
                                 },
                                 onWaitlistClick = { navController.navigate(RojanDestinations.WAITLIST) },
                             )
+                          }
                         }
                     }
 
@@ -938,7 +1116,8 @@ fun RojanNavGraph() {
                             authViewModel = authViewModel,
                             onAccessDenied = { navController.navigate(RojanDestinations.AUTH) },
                         ) {
-                            WaitlistScreen(
+                            CustomerComingSoonScreen(
+                                title = "لیست انتظار من",
                                 onBackClick = { navController.popBackStack() },
                             )
                         }
@@ -1012,10 +1191,16 @@ fun RojanNavGraph() {
                             authViewModel = authViewModel,
                             onAccessDenied = { navController.navigate(RojanDestinations.AUTH) },
                         ) {
+                          // Phase 2: Favorites is a persistent bottom-nav section.
+                          CustomerMainScaffold(
+                            activeTab = CustomerHomeTab.FAVORITES,
+                            onTabSelected = onCustomerTab,
+                          ) {
                             FavoritesScreen(
                                 onBackClick = { navController.popBackStack() },
                                 onSalonClick = { salonId -> navController.navigate(RojanDestinations.salonDetails(salonId)) },
                             )
+                          }
                         }
                     }
 
@@ -1043,7 +1228,8 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        WalletScreen(
+                        CustomerComingSoonScreen(
+                            title = "کیف پول",
                             onBackClick = { navController.popBackStack() },
                         )
                     }
@@ -1056,7 +1242,8 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        CouponsScreen(
+                        CustomerComingSoonScreen(
+                            title = "کدهای تخفیف",
                             onBackClick = { navController.popBackStack() },
                         )
                     }
@@ -1069,7 +1256,8 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        MembershipScreen(
+                        CustomerComingSoonScreen(
+                            title = "عضویت",
                             onBackClick = { navController.popBackStack() },
                         )
                     }
@@ -1082,7 +1270,8 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        LoyaltyScreen(
+                        CustomerComingSoonScreen(
+                            title = "امتیازات وفاداری",
                             onBackClick = { navController.popBackStack() },
                         )
                     }
@@ -1095,7 +1284,10 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        MyReviewsScreen(onBackClick = { navController.popBackStack() })
+                        CustomerComingSoonScreen(
+                            title = "نظرات من",
+                            onBackClick = { navController.popBackStack() },
+                        )
                     }
 
 
@@ -1106,7 +1298,10 @@ fun RojanNavGraph() {
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
                     ) { backStackEntry ->
-                        BeautyTimelineScreen(onBackClick = { navController.popBackStack() })
+                        CustomerComingSoonScreen(
+                            title = "تاریخچه زیبایی",
+                            onBackClick = { navController.popBackStack() },
+                        )
                     }
 
 
@@ -1145,45 +1340,42 @@ fun RojanNavGraph() {
 @Composable
 private fun RestoringSessionContent() {
 
-
-    PremiumBackground {
-
-
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+    // Quiet Luxury pass: the full-bleed AI-photo `PremiumBackground` +
+    // `PremiumLoadingBar` (sweeping glow) are replaced with a calm state on the
+    // dark navy ground — the ROJAN monogram, one small rose-gold indeterminate
+    // ring, and the same caption string. No photo, no glow, no gradient, no
+    // card. Presentation only: the SessionRestoreState flow, the
+    // `authViewModel.restoreSession` call, and every route are untouched.
+    HomeBackgroundTheme {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = CustomerScreenMargin),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
         ) {
+            Image(
+                painter = painterResource(id = R.mipmap.ic_launcher_foreground),
+                contentDescription = "ROJAN AI",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.height(56.dp),
+            )
 
+            Spacer(modifier = Modifier.height(RojanDimens.SpaceLG))
 
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                color = CustomerAccent,
+                strokeWidth = 2.dp,
+            )
 
+            Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))
 
-                Text(
-                    text = stringResource(
-                        R.string.status_restoring_session
-                    ),
-                    color = RojanLuxuryCaption,
-                    fontSize = 13.sp
-                )
-
-
-
-                Spacer(
-                    modifier = Modifier.height(12.dp)
-                )
-
-
-
-                PremiumLoadingBar(
-                    modifier = Modifier.width(120.dp)
-                )
-
-            }
-
+            Text(
+                text = stringResource(R.string.status_restoring_session),
+                style = RojanTypography.Caption,
+                color = HomeColors.TextMuted,
+            )
         }
-
     }
-
 }

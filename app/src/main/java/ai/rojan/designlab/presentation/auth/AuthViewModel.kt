@@ -257,6 +257,21 @@ class AuthViewModel(
         _otpStep.value = CustomerOtpStep.EnteringPhone
     }
 
+    /**
+     * Customer Profile Personalization Phase 5B: swap in a freshly-returned
+     * [AuthenticatedUser] after the user edits their own profile media. The
+     * `/api/v1/users/me/media/(avatar|cover)` endpoints already return the updated user,
+     * so no extra `/users/me` round-trip is needed — this just replaces the
+     * in-memory [currentUser] so every screen bound to it (Profile, the
+     * Dashboard/Explore avatar chip, …) re-renders with the new image URL.
+     * No-op unless it is the same logged-in account. Session state, tokens,
+     * and identity context are untouched.
+     */
+    fun applyUpdatedUser(user: AuthenticatedUser) {
+        if (_currentUser.value?.id != user.id) return
+        _currentUser.value = user
+    }
+
 
     private suspend fun onAuthenticated(user: AuthenticatedUser) {
         _currentUser.value = user

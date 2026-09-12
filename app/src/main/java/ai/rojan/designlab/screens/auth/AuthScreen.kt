@@ -1,23 +1,16 @@
 package ai.rojan.designlab.screens.auth
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.TextButton
-import ai.rojan.designlab.ui.text.Text
-import ai.rojan.designlab.ui.text.withDirectionFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,51 +22,46 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import ai.rojan.designlab.ui.theme.RojanErrorText
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 import ai.rojan.designlab.domain.identity.SessionState
 import ai.rojan.designlab.presentation.auth.AuthViewModel
 import ai.rojan.designlab.presentation.auth.CustomerOtpStep
-import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.components.CustomerAccent
+import ai.rojan.designlab.screens.customer.components.CustomerScaffold
+import ai.rojan.designlab.screens.customer.components.CustomerScreenMargin
+import ai.rojan.designlab.screens.customer.components.CustomerTextField
+import ai.rojan.designlab.screens.customer.components.RefPrimaryButton
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
-import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
-import ai.rojan.designlab.screens.customer.hometheme.HomeTextField
-import ai.rojan.designlab.ui.components.buttons.PremiumButton
-import ai.rojan.designlab.ui.components.navigation.GlassBackButton
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
+import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanShapes
+import ai.rojan.designlab.ui.theme.RojanErrorText
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
- * Customer Authentication Migration: the only Customer authentication
- * method is phone number -> OTP -> session, same real backend endpoints
- * ([ai.rojan.designlab.manager.screens.auth.ManagerOtpAuthScreen] already
- * uses for Manager) — `POST /api/v1/auth/otp/request` then
- * `POST /api/v1/auth/otp/verify`. Replaces the previous email/password (+
- * Register toggle + Remember Me checkbox) screen entirely, same visual
- * system ([HomeGlassSurface]/[PremiumButton]/glow effects untouched) — a
- * two-step flow (phone entry, then code entry) instead of a mode toggle,
- * matching Manager's own step shape ([CustomerOtpStep]) while staying on
- * this one screen/composable, same "stay on one screen" spirit the
- * previous mode-toggle followed.
+ * Customer Authentication — phone number → OTP → session
+ * (`POST /api/v1/auth/otp/request` then `POST /api/v1/auth/otp/verify`),
+ * a two-step flow (phone entry, then code entry) on one screen.
  *
- * The optional name field on the code-entry step is the real,
- * backend-compatible replacement for the old (demo-only, unreachable)
- * `FirstTimeNameScreen` — see [AuthViewModel.verifyOtp]'s own doc comment
- * for why a separate post-verify screen isn't possible here.
+ * Quiet Luxury pass (visual only): the `GlassBackButton` orb, the "سلام 🌸"
+ * emoji headline, the 32dp `HomeGlassSurface` card, the violet `HomeTextField`
+ * fields, and the gradient `PremiumButton` sitting inside a blurred violet
+ * glow halo + drop shadow + white sheen are replaced with the [CustomerScaffold]
+ * shell and flat foundation primitives: a plain headline, flat outlined
+ * fields with a rose-gold cursor, an inline calm error line, and a solid
+ * rose-gold [RefPrimaryButton].
  *
- * This screen is navigation-agnostic — it never calls a NavController
- * itself. [onExistingUserAuthenticated] is invoked once, driven by a
- * [LaunchedEffect] watching [AuthViewModel.sessionState], the same
- * callback pattern every other screen in this codebase uses.
+ * NOTHING about the auth flow changed: every read of / call into
+ * [AuthViewModel] — `sessionState`, `otpStep`, `errorMessage`, `isSubmitting`,
+ * `editPhoneNumber`, `requestOtp`, `verifyOtp`, `resendOtp` — is byte-identical,
+ * and the screen is still navigation-agnostic ([onExistingUserAuthenticated]
+ * fires from a `LaunchedEffect` on `sessionState`). No ViewModel, OTP logic,
+ * API call, navigation route, session restore, or repository is touched.
  */
 @Composable
 fun AuthScreen(
@@ -94,29 +82,32 @@ fun AuthScreen(
         if (sessionState is SessionState.LoggedIn) onExistingUserAuthenticated()
     }
 
-    HomeBackgroundTheme {
+    val awaitingCode = otpStep is CustomerOtpStep.AwaitingCode
+
+    CustomerScaffold(
+        title = "ورود به روژان",
+        onBackClick = {
+            if (awaitingCode) {
+                code = ""
+                authViewModel.editPhoneNumber()
+            } else {
+                onBackClick()
+            }
+        },
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                // Sprint 5A-3: HomeBackgroundTheme applies the safeDrawing
-                // inset (status bar + keyboard); the scroll keeps the
-                // fields reachable when that area shrinks for the keyboard.
                 .verticalScroll(rememberScrollState())
-                .padding(RojanDimens.SpaceMD),
+                .imePadding()
+                .padding(horizontal = CustomerScreenMargin, vertical = RojanDimens.SpaceLG),
         ) {
-            GlassBackButton(onClick = {
-                if (otpStep is CustomerOtpStep.AwaitingCode) {
-                    code = ""
-                    authViewModel.editPhoneNumber()
-                } else {
-                    onBackClick()
-                }
-            })
-
-            Spacer(modifier = Modifier.height(RojanDimens.SpaceLG))
-
-            Text("سلام 🌸", style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary)
-            Spacer(modifier = Modifier.height(RojanDimens.SpaceXS))
+            Text(
+                "ورود به روژان",
+                style = RojanTypography.Display.copy(fontSize = 26.sp, lineHeight = 34.sp),
+                color = HomeColors.TextPrimary,
+            )
+            Spacer(Modifier.height(RojanDimens.SpaceXS))
             Text(
                 when (val step = otpStep) {
                     CustomerOtpStep.EnteringPhone -> "برای ادامه، شماره موبایل خود را وارد کنید"
@@ -126,145 +117,115 @@ fun AuthScreen(
                 color = HomeColors.TextSecondary,
             )
 
-            Spacer(modifier = Modifier.height(RojanDimens.SpaceLG))
+            Spacer(Modifier.height(RojanDimens.SpaceXL))
 
-            HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
-                AnimatedContent(targetState = otpStep, label = "auth_otp_step") { step ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(RojanDimens.SpaceMD),
-                        verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
-                    ) {
-                        when (step) {
-                            CustomerOtpStep.EnteringPhone -> {
-                                HomeTextField(
-                                    value = phoneNumber,
-                                    onValueChange = { phoneNumber = it },
-                                    label = { Text("شماره موبایل") },
-                                    placeholder = { Text("09123456789") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                                    enabled = !isSubmitting,
-                                    singleLine = true,
-                                    textStyle = LocalTextStyle.current.withDirectionFor(phoneNumber),
-                                )
-                            }
+            when (otpStep) {
+                CustomerOtpStep.EnteringPhone -> {
+                    AuthField(
+                        value = phoneNumber,
+                        onValueChange = { phoneNumber = it },
+                        label = "شماره موبایل",
+                        placeholder = "09123456789",
+                        keyboardType = KeyboardType.Phone,
+                        enabled = !isSubmitting,
+                    )
+                }
 
-                            is CustomerOtpStep.AwaitingCode -> {
-                                HomeTextField(
-                                    value = code,
-                                    onValueChange = { code = it },
-                                    label = { Text("کد تایید") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                                    enabled = !isSubmitting,
-                                    singleLine = true,
-                                )
-                                HomeTextField(
-                                    value = fullName,
-                                    onValueChange = { fullName = it },
-                                    label = { Text("نام شما (اختیاری)") },
-                                    enabled = !isSubmitting,
-                                    singleLine = true,
-                                    textStyle = LocalTextStyle.current.withDirectionFor(fullName),
-                                )
-                                TextButton(onClick = { authViewModel.resendOtp() }, enabled = !isSubmitting) {
-                                    Text("ارسال مجدد کد", color = HomeColors.Glow)
-                                }
-                            }
-                        }
-
-                        if (errorMessage != null) {
-                            Text(
-                                text = errorMessage.orEmpty(),
-                                style = RojanTypography.Caption,
-                                color = RojanErrorText,
-                                // 5B-2: announce the error when it appears /
-                                // changes even if focus is elsewhere. Text
-                                // and layout unchanged.
-                                modifier = Modifier.semantics {
-                                    liveRegion = LiveRegionMode.Polite
-                                },
-                            )
-                        }
-                    }
+                is CustomerOtpStep.AwaitingCode -> {
+                    AuthField(
+                        value = code,
+                        onValueChange = { code = it },
+                        label = "کد تایید",
+                        keyboardType = KeyboardType.NumberPassword,
+                        enabled = !isSubmitting,
+                    )
+                    Spacer(Modifier.height(RojanDimens.SpaceMD))
+                    AuthField(
+                        value = fullName,
+                        onValueChange = { fullName = it },
+                        label = "نام شما (اختیاری)",
+                        keyboardType = KeyboardType.Text,
+                        enabled = !isSubmitting,
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(RojanDimens.SpaceMD))
+            errorMessage?.let { message ->
+                Spacer(Modifier.height(RojanDimens.SpaceMD))
+                Text(
+                    text = message,
+                    style = RojanTypography.Caption,
+                    color = RojanErrorText,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
+            }
 
-            // Rose Gold ambient glow behind the CTA — same light direction/
-            // color language as the panel above, so the button reads as
-            // "floating" too rather than sitting flat under the card.
-            // `PremiumButton` itself (gradient fill, press state) is
-            // untouched; this only adds elevation around it. Visual
-            // Intensity Correction v2: the first pass's halo (0.38f
-            // alpha, clipped to bounds) barely registered — enlarged,
-            // brightened, and switched to `BlurredEdgeTreatment.Unbounded`
-            // so it visibly bleeds past the button's own silhouette
-            // instead of stopping exactly at its edge. Added a genuine
-            // dark contact shadow beneath (same technique as
-            // [CustomerGlassSurface]) and a soft top-highlight sheen on
-            // top, for "premium shadow and light interaction."
-            Box(contentAlignment = Alignment.Center) {
+            Spacer(Modifier.height(RojanDimens.SpaceXL))
+
+            RefPrimaryButton(
+                label = when (otpStep) {
+                    CustomerOtpStep.EnteringPhone -> "ارسال کد تایید"
+                    is CustomerOtpStep.AwaitingCode -> "تایید و ورود"
+                },
+                onClick = {
+                    when (otpStep) {
+                        CustomerOtpStep.EnteringPhone -> authViewModel.requestOtp(phoneNumber)
+                        is CustomerOtpStep.AwaitingCode -> authViewModel.verifyOtp(code, fullName)
+                    }
+                },
+                enabled = !isSubmitting,
+            )
+
+            if (awaitingCode) {
+                Spacer(Modifier.height(RojanDimens.SpaceSM))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(RojanDimens.ButtonHeight + 24.dp)
-                        .blur(36.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
-                        .background(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    HomeColors.Glow.copy(alpha = 0.65f),
-                                    HomeColors.Glow.copy(alpha = 0f),
-                                ),
-                            ),
-                            shape = RojanShapes.PremiumButton,
+                        .heightIn(min = RojanDimens.MinTouchTarget)
+                        .then(
+                            if (!isSubmitting) {
+                                Modifier.rojanPressable(
+                                    onClick = { authViewModel.resendOtp() },
+                                    role = Role.Button,
+                                )
+                            } else {
+                                Modifier
+                            },
                         ),
-                )
-
-                Box(
-                    modifier = Modifier
-                        .size(width = RojanDimens.ButtonWidth, height = RojanDimens.ButtonHeight)
-                        .shadow(
-                            elevation = 14.dp,
-                            shape = RojanShapes.PremiumButton,
-                            ambientColor = Color.Black.copy(alpha = 0.30f),
-                            spotColor = Color.Black.copy(alpha = 0.26f),
-                        ),
-                )
-
-                PremiumButton(
-                    text = when (otpStep) {
-                        CustomerOtpStep.EnteringPhone -> "ارسال کد تایید"
-                        is CustomerOtpStep.AwaitingCode -> "تایید و ورود"
-                    },
-                    onClick = {
-                        when (otpStep) {
-                            CustomerOtpStep.EnteringPhone -> authViewModel.requestOtp(phoneNumber)
-                            is CustomerOtpStep.AwaitingCode -> authViewModel.verifyOtp(code, fullName)
-                        }
-                    },
-                    enabled = !isSubmitting,
-                )
-
-                // Soft top-highlight sheen — a light-catching cue on top
-                // of the button surface, non-interactive (no click
-                // handling), so `PremiumButton`'s own press behavior
-                // underneath is unaffected.
-                Box(
-                    modifier = Modifier
-                        .size(width = RojanDimens.ButtonWidth, height = RojanDimens.ButtonHeight)
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.30f),
-                                    Color.White.copy(alpha = 0f),
-                                ),
-                            ),
-                            shape = RojanShapes.PremiumButton,
-                        ),
-                )
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "ارسال مجدد کد",
+                        style = RojanTypography.Button,
+                        color = CustomerAccent.copy(alpha = if (isSubmitting) 0.4f else 1f),
+                    )
+                }
             }
         }
     }
 }
+
+// --- Flat outlined field -------------------------------------------------
+
+// Phase 4 (P1): the flat labelled field is now `CustomerTextField` in the
+// design system (extracted from this + the two SearchScreen copies). Same
+// visual, RTL heuristic, focus/keyboard/enabled behaviour; the three call
+// sites below are unchanged.
+@Composable
+private fun AuthField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    placeholder: String? = null,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    enabled: Boolean = true,
+) = CustomerTextField(
+    value = value,
+    onValueChange = onValueChange,
+    modifier = modifier,
+    label = label,
+    placeholder = placeholder,
+    keyboardType = keyboardType,
+    enabled = enabled,
+)

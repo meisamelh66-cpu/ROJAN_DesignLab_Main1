@@ -25,5 +25,8 @@
       "PowerShell(git push*)",
       "PowerShell(Remove-Item*)"
     ]
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true
   }
 }

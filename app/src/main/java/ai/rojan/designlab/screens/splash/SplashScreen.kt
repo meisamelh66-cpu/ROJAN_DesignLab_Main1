@@ -19,10 +19,7 @@ import androidx.compose.foundation.layout.width
 import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -50,24 +47,33 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
 
 
+/**
+ * Performance fix (splash/session-restore overlap, see
+ * `CUSTOMER-PERFORMANCE-AUDIT.md` finding B.1/B.2 and
+ * `CUSTOMER-PERFORMANCE-FIX-REPORT.md`): [ready] used to be computed
+ * internally from an unconditional `delay(2600L)`, so every cold start
+ * paid a flat ~3s tax regardless of whether session restoration was
+ * actually done — and a returning customer's real session-validation
+ * network work only started *after* that fixed wait, rather than
+ * overlapping with it. [ready] is now supplied by the caller
+ * ([ai.rojan.designlab.navigation.RojanNavGraph]), reflecting real
+ * readiness (local session restore resolved, and — for a returning user —
+ * the backend session-validation call also finished) instead of a timer.
+ * The splash fades out the moment [ready] becomes `true`; a guest with no
+ * persisted session reaches that almost immediately (a single fast local
+ * DataStore read), a returning user's splash naturally stays up exactly as
+ * long as their session validation actually takes, no more and no less.
+ * The 400ms fade-out and the logo/wordmark entrance choreography below are
+ * unchanged — this only replaces the internal *gate*, not the visuals.
+ */
 @Composable
 fun SplashScreen(
+    ready: Boolean,
     onSplashFinished: () -> Unit = {},
-    minDisplayMillis: Long = 2600L,
 ) {
-
-    var ready by remember {
-        mutableStateOf(false)
-    }
 
     val alpha = remember {
         Animatable(1f)
-    }
-
-
-    LaunchedEffect(Unit) {
-        delay(minDisplayMillis)
-        ready = true
     }
 
 

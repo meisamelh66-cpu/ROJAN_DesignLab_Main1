@@ -1,6 +1,8 @@
 package ai.rojan.designlab.data.remote
 
+import ai.rojan.designlab.data.remote.dto.PagedResponseDto
 import ai.rojan.designlab.data.remote.dto.PublicSalonResponseDto
+import ai.rojan.designlab.data.remote.dto.PublicSalonSummaryResponseDto
 import ai.rojan.designlab.data.remote.dto.PublicServiceCategoryResponseDto
 import ai.rojan.designlab.data.remote.dto.PublicServiceResponseDto
 import ai.rojan.designlab.data.remote.dto.PublicSpecialistResponseDto
@@ -18,6 +20,20 @@ import retrofit2.http.Query
  * not the authenticated one every other `*Api` in this package uses.
  */
 interface PublicSalonApi {
+
+    /**
+     * The unauthenticated salon directory (`ROJAN_Backend` `PublicSalonDirectoryController`) —
+     * the guest-browsable counterpart to [SalonApi.browseSalons]. Publicly
+     * discoverable salons only, no bearer token required. The free-text filter
+     * param is `search` here (not `name` as on the authenticated endpoint).
+     */
+    @GET("api/v1/public/salons")
+    suspend fun browseSalons(
+        @Query("page") page: Int,
+        @Query("size") size: Int,
+        @Query("search") search: String?,
+        @Query("sortDirection") sortDirection: String,
+    ): PagedResponseDto<PublicSalonSummaryResponseDto>
 
     @GET("api/v1/public/salons/{slug}")
     suspend fun getSalon(@Path("slug") slug: String): PublicSalonResponseDto

@@ -9,15 +9,13 @@ import ai.rojan.designlab.manager.presentation.settings.ManagerSalonMediaViewMod
 import ai.rojan.designlab.manager.presentation.settings.SalonMediaState
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.ui.components.image.RojanRemoteImage
+import ai.rojan.designlab.ui.media.ImageOnlyPickerRequest
+import ai.rojan.designlab.ui.media.decodeResizeAndCompress
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanErrorText
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Matrix
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -54,7 +52,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.exifinterface.media.ExifInterface
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -164,7 +161,7 @@ private fun SalonMediaContent(
             }
         }
     }
-    val imageOnlyRequest = remember { PickVisualMediaImageOnlyRequest }
+    val imageOnlyRequest = remember { ImageOnlyPickerRequest }
 
     Column(
         modifier = Modifier
@@ -341,85 +338,10 @@ private fun gridHeight(itemCount: Int): androidx.compose.ui.unit.Dp {
     return (rows * 120).dp
 }
 
-private val PickVisualMediaImageOnlyRequest =
-    androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-
 private const val LOGO_MAX_DIMENSION = 1024
 private const val COVER_MAX_DIMENSION = 1600
 private const val GALLERY_MAX_DIMENSION = 2048
-private const val JPEG_QUALITY = 80
 
-/**
- * Downscales the picked image to fit within [maxDimension] on its longer
- * side and re-encodes it as JPEG at [JPEG_QUALITY] - standard output for
- * every upload slot, regardless of the source file's format/size. Two-pass
- * decode (bounds first, then a sub-sampled full decode) keeps peak memory
- * bounded for large source photos; EXIF orientation is read and baked into
- * the pixel data since re-encoding drops the original orientation tag.
- */
-private fun decodeResizeAndCompress(
-    uri: Uri,
-    context: android.content.Context,
-    maxDimension: Int,
-    quality: Int = JPEG_QUALITY,
-): Triple<ByteArray, String, String>? = runCatching {
-    val resolver = context.contentResolver
-
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    val boundsStream = resolver.openInputStream(uri) ?: return null
-    boundsStream.use { BitmapFactory.decodeStream(it, null, bounds) }
-    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-
-    val decodeOptions = BitmapFactory.Options().apply {
-        inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, maxDimension)
-    }
-    val sampledBitmap = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, decodeOptions) } ?: return null
-
-    val orientation = resolver.openInputStream(uri)?.use {
-        ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
-    } ?: ExifInterface.ORIENTATION_NORMAL
-
-    val rotatedBitmap = applyExifRotation(sampledBitmap, orientation)
-    val outputBitmap = scaleToMaxDimension(rotatedBitmap, maxDimension)
-
-    val outputStream = java.io.ByteArrayOutputStream()
-    outputBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-
-    if (outputBitmap !== rotatedBitmap) rotatedBitmap.recycle()
-    if (rotatedBitmap !== sampledBitmap) sampledBitmap.recycle()
-    outputBitmap.recycle()
-
-    val fileName = "salon_media_${System.currentTimeMillis()}.jpg"
-    Triple(outputStream.toByteArray(), fileName, "image/jpeg")
-}.getOrNull()
-
-private fun calculateInSampleSize(width: Int, height: Int, maxDimension: Int): Int {
-    var inSampleSize = 1
-    val longerSide = maxOf(width, height)
-    while (longerSide / (inSampleSize * 2) >= maxDimension) {
-        inSampleSize *= 2
-    }
-    return inSampleSize
-}
-
-private fun applyExifRotation(bitmap: Bitmap, orientation: Int): Bitmap {
-    val matrix = Matrix()
-    when (orientation) {
-        ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
-        ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
-        ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
-        ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.postScale(-1f, 1f)
-        ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.postScale(1f, -1f)
-        else -> return bitmap
-    }
-    return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-}
-
-private fun scaleToMaxDimension(bitmap: Bitmap, maxDimension: Int): Bitmap {
-    val longerSide = maxOf(bitmap.width, bitmap.height)
-    if (longerSide <= maxDimension) return bitmap
-    val scale = maxDimension.toFloat() / longerSide
-    val targetWidth = (bitmap.width * scale).toInt().coerceAtLeast(1)
-    val targetHeight = (bitmap.height * scale).toInt().coerceAtLeast(1)
-    return Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true)
-}
+// The pick → downscale → JPEG re-encode pipeline (`decodeResizeAndCompress`,
+// `ImageOnlyPickerRequest`) now lives in `ui/media/ImageDownscale.kt`, shared
+// with the Customer profile avatar/cover flow (Phase 5B).

@@ -12,7 +12,26 @@
    DataStore (Preferences) files live under the "file" domain at
    datastore/<name>.preferences_pb — NOT the "sharedpref" domain the
    default template below shows, which would not have excluded this file.
+
+   RC-1 Security Audit P1 fix: role_preferences (RoleDataStore.kt) has
+   since been retired from the codebase — auth_session_preferences
+   (data/local/AuthSessionDataStore.kt) is the CURRENT active
+   session-restore mechanism (holds the logged-in person's id) and was
+   never added here when it took over that role, leaving it exposed to
+   the exact "stale session silently restored onto a fresh install/new
+   device" risk the exclusion above exists to prevent. secure_token_preferences
+   (data/local/SecureTokenStore.kt) — the AES-256-GCM/Android-Keystore-
+   encrypted access/refresh token store — is excluded too: the ciphertext
+   already can't be decrypted after a restore onto a different Keystore
+   state (the key never leaves Keystore and isn't itself backed up), but
+   a backed-up copy of authentication material shouldn't exist if it can
+   be avoided at all, per standard guidance. The role_preferences line
+   above is left in place — excluding an already-nonexistent file is a
+   harmless no-op, not worth a churn-only removal in a security-focused
+   change.
 -->
 <full-backup-content>
     <exclude domain="file" path="datastore/role_preferences.preferences_pb"/>
+    <exclude domain="file" path="datastore/auth_session_preferences.preferences_pb"/>
+    <exclude domain="sharedpref" path="secure_token_preferences.xml"/>
 </full-backup-content>

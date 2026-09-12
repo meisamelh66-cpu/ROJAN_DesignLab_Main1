@@ -1,9 +1,12 @@
 package ai.rojan.designlab.screens.salon
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,59 +14,71 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.outlined.Phone
+import androidx.compose.material.icons.outlined.Place
+import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material3.Icon
 import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.presentation.salon.PublicSalonData
 import ai.rojan.designlab.presentation.salon.PublicSalonViewModel
 import ai.rojan.designlab.presentation.salon.PublicSalonViewModelFactory
-import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
+import ai.rojan.designlab.screens.customer.components.CustomerAccent
+import ai.rojan.designlab.screens.customer.components.CustomerHairline
+import ai.rojan.designlab.screens.customer.components.CustomerLoadingState
+import ai.rojan.designlab.screens.customer.components.CustomerEmptyState
+import ai.rojan.designlab.screens.customer.components.CustomerErrorState
+import ai.rojan.designlab.screens.customer.components.CustomerScaffold
+import ai.rojan.designlab.screens.customer.components.CustomerScreenMargin
+import ai.rojan.designlab.screens.customer.components.CustomerSectionLabel
+import ai.rojan.designlab.screens.customer.components.CustomerSurfaceFill
+import ai.rojan.designlab.screens.customer.components.RefListRow
+import ai.rojan.designlab.screens.customer.components.RefPrimaryButton
+import ai.rojan.designlab.screens.customer.components.RefRowDivider
+import ai.rojan.designlab.screens.customer.components.RefSurface
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
-import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
-import ai.rojan.designlab.ui.animation.rojanEnterAnimation
-import ai.rojan.designlab.ui.components.buttons.PremiumButton
-import ai.rojan.designlab.ui.components.icon.RojanIconContainer
-import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.components.image.RojanRemoteImage
-import ai.rojan.designlab.ui.components.image.SpecialistAvatar
-import ai.rojan.designlab.ui.components.navigation.GlassBackButton
-import ai.rojan.designlab.ui.components.rtl.RtlInfoRow
-import ai.rojan.designlab.ui.components.rtl.RtlListRow
-import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
-import ai.rojan.designlab.ui.components.state.RojanErrorState
-import ai.rojan.designlab.ui.components.state.RojanLoadingState
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
-import ai.rojan.designlab.ui.theme.salonAccentColorFor
 
 /**
- * ROJAN AI Customer Journey Phase 2 (P0-2): QR-scan/deep-link entry point.
- * Read-only preview of a salon reached via its public `slug` (`ROJAN_Backend`'s
- * `PublicSalonController`, unauthenticated by design) — same visual system
- * as [ai.rojan.designlab.screens.salon.SalonDetailsScreen] (frozen Design
- * Baseline v1.0 primitives), but deliberately not that screen reused as-is:
- * this one's data source is genuinely public
- * ([ai.rojan.designlab.domain.repository.PublicSalonRepository]), so it
- * works before any login exists, whereas [SalonDetailsScreen] is backed by
- * the authenticated [ai.rojan.designlab.domain.repository.SalonRepository].
- * No Follow/Favorite, no service/specialist deep-dive, no booking action —
- * association with a salon still only happens the same way it always has
- * (the customer's first real booking, via the backend's own
- * `EnsureCustomerAssociationUseCase`), not from a bare scan. The one action
- * here is the login CTA.
+ * ROJAN AI Customer Journey — QR-scan / deep-link salon preview.
+ *
+ * Read-only public profile reached via a salon's public `slug`
+ * ([ai.rojan.designlab.domain.repository.PublicSalonRepository], works
+ * before any login). No Follow/Favorite, no service/specialist deep-dive,
+ * no booking action — the one action is the login CTA.
+ *
+ * Quiet Luxury pass (visual only). The `GlassBackButton` orb, the bare
+ * `HeroTitle`, the `HomeGlassSurface` info/specialist/service cards, the
+ * violet `HomeColors.Glow` price, the `RtlInfoRow` / `RtlListRow` /
+ * `RtlSectionHeader` primitives, the `salonAccentColorFor` logo tint, the
+ * `RojanIconContainer` fallback, the glass `RojanLoadingState` /
+ * `RojanErrorState`, and the gradient `PremiumButton` are replaced with the
+ * [CustomerScaffold] shell (pinned rose-gold CTA in `bottomBar`) and the
+ * flat foundation primitives: [RefSurface] cards, [RefListRow] rows,
+ * [CustomerSectionLabel], outlined icons, [RefPrimaryButton], and
+ * [CustomerLoadingState] / [CustomerEmptyState] / [CustomerErrorState].
+ *
+ * NOTHING about behaviour changed: still [PublicSalonViewModel] keyed on
+ * `slug`; `retry()` and `onLoginClick` / `onBackClick` are called exactly
+ * where they were. No ViewModel, repository, API, or navigation route is
+ * touched.
  */
 @Composable
 fun PublicSalonScreen(
@@ -78,45 +93,61 @@ fun PublicSalonScreen(
         },
     ),
 ) {
-    HomeBackgroundTheme {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Box(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
-                GlassBackButton(onClick = onBackClick)
-            }
+    val state = viewModel.state
 
-            when (val loadState = viewModel.state) {
-                is UiState.Loading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    RojanLoadingState(message = "در حال بارگذاری سالن...")
-                }
-                is UiState.Empty -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    RojanErrorState(title = "سالن یافت نشد", actionLabel = "بازگشت", onAction = onBackClick)
-                }
-                is UiState.Error -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    RojanErrorState(description = loadState.message, actionLabel = "تلاش مجدد", onAction = viewModel::retry)
-                }
-                is UiState.Success -> PublicSalonContent(data = loadState.data, onLoginClick = onLoginClick)
-            }
+    CustomerScaffold(
+        title = "سالن",
+        onBackClick = onBackClick,
+        bottomBar = if (state is UiState.Success) {
+            { RefPrimaryButton(label = "ورود و رزرو نوبت", onClick = onLoginClick) }
+        } else {
+            null
+        },
+    ) {
+        when (state) {
+            is UiState.Loading -> CustomerLoadingState(
+                modifier = Modifier.padding(top = RojanDimens.SpaceLG),
+            )
+
+            is UiState.Empty -> CustomerEmptyState(
+                title = "سالن یافت نشد",
+                icon = Icons.Outlined.SearchOff,
+                actionLabel = "بازگشت",
+                onAction = onBackClick,
+            )
+
+            is UiState.Error -> CustomerErrorState(
+                message = state.message,
+                onRetry = viewModel::retry,
+            )
+
+            is UiState.Success -> PublicSalonContent(data = state.data)
         }
     }
 }
 
 @Composable
-private fun PublicSalonContent(data: PublicSalonData, onLoginClick: () -> Unit) {
+private fun PublicSalonContent(data: PublicSalonData) {
     val salon = data.salon
-    val tint = salonAccentColorFor(salon.id)
 
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = RojanDimens.SpaceMD),
-        verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(top = RojanDimens.SpaceLG, bottom = RojanDimens.SpaceXL),
+        verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
     ) {
         item {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = CustomerScreenMargin),
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(86.dp)
-                        .background(tint.copy(alpha = 0.5f), CircleShape),
+                        .size(72.dp)
+                        .clip(CircleShape)
+                        .background(CustomerSurfaceFill)
+                        .border(1.dp, CustomerHairline, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     RojanRemoteImage(
@@ -125,80 +156,119 @@ private fun PublicSalonContent(data: PublicSalonData, onLoginClick: () -> Unit) 
                         shape = CircleShape,
                         modifier = Modifier.fillMaxSize(),
                         fallback = {
-                            RojanIconContainer(
-                                imageVector = Icons.Filled.Storefront,
+                            Icon(
+                                Icons.Outlined.Storefront,
                                 contentDescription = null,
-                                tint = HomeColors.TextPrimary,
-                                size = RojanIconSize.Large,
+                                tint = HomeColors.TextMuted,
+                                modifier = Modifier.size(28.dp),
                             )
                         },
                     )
                 }
-                Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
-                Text(salon.name, style = RojanTypography.HeroTitle, color = HomeColors.TextPrimary)
-                salon.description?.let {
-                    Text(it, style = RojanTypography.Body, color = HomeColors.TextSecondary)
+                Spacer(Modifier.height(RojanDimens.SpaceMD))
+                Text(
+                    salon.name,
+                    style = RojanTypography.Display.copy(fontSize = 26.sp, lineHeight = 34.sp),
+                    color = HomeColors.TextPrimary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                salon.description?.takeIf { it.isNotBlank() }?.let { description ->
+                    Spacer(Modifier.height(RojanDimens.SpaceXS))
+                    Text(
+                        description,
+                        style = RojanTypography.Body,
+                        color = HomeColors.TextSecondary,
+                        textAlign = TextAlign.Center,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }
 
+        item { Spacer(Modifier.height(RojanDimens.SpaceMD)) }
+
         item {
-            HomeGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small, glassAlpha = 0.28f, glassSecondaryAlpha = 0.10f) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = RojanDimens.SpaceLG, vertical = RojanDimens.SpaceMD),
-                    verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
-                    horizontalAlignment = Alignment.End,
-                ) {
-                    RtlInfoRow(Icons.Filled.LocationOn, salon.address, iconTint = HomeColors.TextSecondary, textColor = HomeColors.TextSecondary)
-                    RtlInfoRow(Icons.Filled.Phone, salon.phone, iconTint = HomeColors.TextSecondary, textColor = HomeColors.TextSecondary)
+            RefSurface(modifier = Modifier.padding(horizontal = CustomerScreenMargin)) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    ContactRow(Icons.Outlined.Place, salon.address)
+                    RefRowDivider()
+                    ContactRow(Icons.Outlined.Phone, salon.phone)
                 }
             }
         }
 
         if (data.specialists.isNotEmpty()) {
-            item { RtlSectionHeader("متخصصان", color = HomeColors.TextPrimary) }
-            itemsIndexed(data.specialists, key = { _, specialist -> "specialist-${specialist.id}" }) { index, specialist ->
-                HomeGlassSurface(modifier = Modifier.fillMaxWidth().rojanEnterAnimation(delayMillis = index * 60), shape = RojanShapes.Small) {
-                    Box(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
-                        RtlListRow(
-                            title = specialist.displayName,
-                            titleColor = HomeColors.TextPrimary,
-                            subtitle = specialist.bio,
-                            subtitleColor = HomeColors.TextSecondary,
-                        )
+            item {
+                Spacer(Modifier.height(RojanDimens.SpaceXL))
+                CustomerSectionLabel("متخصصان")
+                Spacer(Modifier.height(RojanDimens.SpaceSM))
+            }
+            item {
+                RefSurface(modifier = Modifier.padding(horizontal = CustomerScreenMargin)) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        data.specialists.forEachIndexed { index, specialist ->
+                            if (index > 0) RefRowDivider()
+                            RefListRow(
+                                title = specialist.displayName,
+                                subtitle = specialist.bio?.takeIf { it.isNotBlank() },
+                                showChevron = false,
+                            )
+                        }
                     }
                 }
             }
         }
 
         data.serviceGroups.filter { it.services.isNotEmpty() }.forEach { group ->
-            item { RtlSectionHeader(group.category.name, color = HomeColors.TextPrimary) }
-            itemsIndexed(group.services, key = { _, service -> "service-${service.id}" }) { index, service ->
-                HomeGlassSurface(modifier = Modifier.fillMaxWidth().rojanEnterAnimation(delayMillis = index * 60), shape = RojanShapes.Small) {
-                    RtlListRow(
-                        title = service.name,
-                        titleColor = HomeColors.TextPrimary,
-                        subtitle = "${service.durationMinutes} دقیقه",
-                        subtitleColor = HomeColors.TextSecondary,
-                        value = "${service.price.toInt()} تومان",
-                        valueColor = HomeColors.Glow,
-                        modifier = Modifier.padding(RojanDimens.SpaceMD),
-                    )
+            item {
+                Spacer(Modifier.height(RojanDimens.SpaceXL))
+                CustomerSectionLabel(group.category.name)
+                Spacer(Modifier.height(RojanDimens.SpaceSM))
+            }
+            item {
+                RefSurface(modifier = Modifier.padding(horizontal = CustomerScreenMargin)) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        group.services.forEachIndexed { index, service ->
+                            if (index > 0) RefRowDivider()
+                            RefListRow(
+                                title = service.name,
+                                subtitle = "${service.durationMinutes} دقیقه",
+                                trailingValue = "${service.price.toInt()} تومان",
+                                trailingValueColor = CustomerAccent,
+                                showChevron = false,
+                            )
+                        }
+                    }
                 }
             }
         }
+    }
+}
 
-        item {
-            PremiumButton(
-                text = "ورود و رزرو نوبت",
-                onClick = onLoginClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = RojanDimens.SpaceMD)
-                    .height(RojanDimens.ButtonHeight),
-            )
-        }
+@Composable
+private fun ContactRow(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceMD),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = HomeColors.TextMuted,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.weight(1f))
+        Text(
+            value,
+            style = RojanTypography.Caption,
+            color = HomeColors.TextSecondary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }

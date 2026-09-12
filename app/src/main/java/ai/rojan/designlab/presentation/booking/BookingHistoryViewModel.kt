@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 private const val PAGE_SIZE = 50
@@ -28,13 +29,17 @@ class BookingHistoryViewModel(
     var state by mutableStateOf<UiState<List<BookingWithDetails>>>(UiState.Loading)
         private set
 
+    /** Guards against a duplicate in-flight request — same pattern as [ai.rojan.designlab.presentation.salon.SalonListViewModel.load]. `retry()` is reachable from a tappable button and is also re-invoked right after a cancel-booking action, so a rapid double-tap (or a cancel racing a manual retry) could otherwise fire two concurrent loads racing to set [state]. */
+    private var loadJob: Job? = null
+
     init {
         load()
     }
 
     fun load() {
+        loadJob?.cancel()
         state = UiState.Loading
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             bookingHistoryRepository.myBookingsWithDetails(page = 0, size = PAGE_SIZE)
                 .onSuccess { paged ->
                     state = if (paged.content.isEmpty()) UiState.Empty else UiState.Success(paged.content)

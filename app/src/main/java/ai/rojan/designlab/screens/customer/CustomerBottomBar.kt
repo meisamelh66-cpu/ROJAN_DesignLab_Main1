@@ -1,43 +1,32 @@
 package ai.rojan.designlab.screens.customer
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredHeight
-import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
@@ -45,50 +34,58 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
-import ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface
-import ai.rojan.designlab.ui.motion.rememberReducedMotion
-import ai.rojan.designlab.ui.components.effects.RojanAmbientGlow
-import ai.rojan.designlab.ui.components.icon.RojanIconContainer
-import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.theme.RojanDimens
-import ai.rojan.designlab.ui.theme.RojanPremiumBorderGold
-import ai.rojan.designlab.ui.theme.RojanPremiumBorderHighlight
 import ai.rojan.designlab.ui.theme.RojanPremiumBorderRoseGold
-import ai.rojan.designlab.ui.theme.RojanPremiumBorderShadow
-import ai.rojan.designlab.ui.theme.RojanPremiumBorderSpecular
-import ai.rojan.designlab.ui.theme.RojanShadows
-import ai.rojan.designlab.ui.theme.RojanShapes
 
 /** Fake, local-only tab identifiers — no navigation graph change, purely this bar's own active-state tracking. */
 enum class CustomerHomeTab { HOME, SEARCH, BOOKINGS, FAVORITES, PROFILE }
 
-private data class TabItem(
+// TalkBack state announcements for each tab (Persian-first).
+private const val TAB_STATE_ACTIVE = "فعال"
+private const val TAB_STATE_INACTIVE = "غیرفعال"
+
+// Quiet-luxury reference tokens (screen-local; match REFERENCE-SPEC-salon-detail
+// / -customer-home — not promoted to the design system until the app-wide phase).
+private val NavAccent = RojanPremiumBorderRoseGold          // #E0A67A — active only
+private val NavHairline = Color.White.copy(alpha = 0.09f)
+
+private data class CustomerNavTab(
     val tab: CustomerHomeTab,
     val icon: ImageVector,
     val label: String,
 )
 
-private val tabs = listOf(
-    TabItem(CustomerHomeTab.PROFILE, Icons.Filled.Person, "پروفایل"),
-    TabItem(CustomerHomeTab.FAVORITES, Icons.Filled.Favorite, "علاقه‌ها"),
-    TabItem(CustomerHomeTab.HOME, Icons.Filled.Home, "خانه"),
-    TabItem(CustomerHomeTab.BOOKINGS, Icons.Filled.CalendarMonth, "نوبت‌ها"),
-    TabItem(CustomerHomeTab.SEARCH, Icons.Filled.Search, "جستجو"),
+// Order unchanged from the previous implementation (Home stays centred), so
+// nothing users have learned about tab positions moves.
+private val customerNavTabs = listOf(
+    CustomerNavTab(CustomerHomeTab.PROFILE, Icons.Outlined.Person, "پروفایل"),
+    CustomerNavTab(CustomerHomeTab.FAVORITES, Icons.Outlined.FavoriteBorder, "علاقه‌ها"),
+    CustomerNavTab(CustomerHomeTab.HOME, Icons.Outlined.Home, "خانه"),
+    CustomerNavTab(CustomerHomeTab.BOOKINGS, Icons.Outlined.CalendarMonth, "نوبت‌ها"),
+    CustomerNavTab(CustomerHomeTab.SEARCH, Icons.Outlined.Search, "جستجو"),
 )
 
-// 5B-1: TalkBack state announcements for each tab (Persian-first).
-private const val TAB_STATE_ACTIVE = "فعال"
-private const val TAB_STATE_INACTIVE = "غیرفعال"
-
 /**
- * Customer Home bottom navigation — Home Visual Language Unification.
+ * Customer bottom navigation — Quiet Luxury / Dark Editorial pass.
  *
- * Same 5 tabs, same active-state tracking, same "no real navigation
- * wiring here" scope as before — dark glass bar per the approved
- * reference, with the Home tab raised into a circular glowing button
- * (a size/shape treatment on an existing item, not a new tab or a new
- * interaction) when it's the active tab, matching the reference's
- * center Home button.
+ * The single visual implementation, shared by [CustomerDashboardScreen]
+ * (Home) and [CustomerHomeScreen] (Explore). Same 5 destinations, same
+ * [CustomerHomeTab] active-state tracking, same "no navigation wiring here —
+ * this bar only raises callbacks" scope as before; the public signature is
+ * byte-identical and both call sites are unchanged in behaviour.
+ *
+ * Replaces the previous treatment — a protruding 64dp filled Home disc with
+ * a rotating metallic ring + [ai.rojan.designlab.ui.components.effects.RojanAmbientGlow],
+ * 20dp filled glyphs for the other four, wrapped in a 78%-width
+ * [ai.rojan.designlab.screens.customer.hometheme.HomeGlassSurface] pill with
+ * a metallic border + corner sparkles — with a flat bar: full width, a 1px
+ * top hairline, five equal `weight(1f)` slots, 24dp **outlined** icons on one
+ * baseline, active = rose-gold `#E0A67A` + a 3dp dot, inactive = muted. No
+ * glass, no glow, no sparkle, no disc, no gradient, no oversized container.
+ *
+ * Each slot is a ≥ 48dp [selectable] target inside one [selectableGroup] with
+ * a Persian `stateDescription`, so TalkBack still announces "tab N of 5" and
+ * active/inactive — unchanged from the previous bar.
  */
 @Composable
 fun CustomerBottomBar(
@@ -96,245 +93,57 @@ fun CustomerBottomBar(
     activeTab: CustomerHomeTab = CustomerHomeTab.HOME,
     onTabSelected: (CustomerHomeTab) -> Unit = {},
 ) {
-    // Home FAB floats outside the glass pill (top overlap + bottom overlap),
-    // per the reference. It's rendered as a SIBLING of HomeGlassSurface
-    // below, not nested inside its content — [Modifier.shadow] (used twice
-    // inside [ai.rojan.designlab.ui.components.glass.PremiumGlassSurface])
-    // defaults `clip = true` whenever `elevation > 0.dp`, which it always is
-    // here, so anything drawn *inside* the glass surface gets clipped flush
-    // to its own (now much shorter) rounded-rect bounds — verified on
-    // device: nesting the button there cut its top/bottom into a flat edge
-    // instead of a floating circle. Rendering it as a sibling sidesteps
-    // that entirely — only the clipping/layering changes here. The
-    // reference box below (padding top = SpaceXS, height = 20dp, offset
-    // -4dp) reproduces the exact same position the button had when it was
-    // still nested in the Row (a 20dp-tall column, top-aligned under the
-    // Row's own SpaceXS padding, biased up 4dp) — same offset, same size,
-    // same position, just unclipped.
-    val homeButtonOuterSize = 88.dp
-
-    Box(
-        // Sprint 5A-3: the pill floats above the gesture / 3-button nav
-        // bar. The caller's onSizeChanged sits left of this padding, so the
-        // measured height it feeds into the list's bottom contentPadding
-        // already includes the nav inset.
-        modifier = modifier
-            .navigationBarsPadding()
-            // 5B-1: one selection group over all 5 tabs (4 in the pill +
-            // the Home FAB) so TalkBack announces "tab N of 5".
-            .selectableGroup(),
-        contentAlignment = Alignment.TopCenter,
-    ) {
-        HomeGlassSurface(
-            // Narrower outer container only (~78% of screen width) — icon
-            // placement relative to the container is untouched. Safe at
-            // this width now that each item below carries
-            // Modifier.weight(1f) (equal, bounded slots instead of
-            // intrinsic-content sizing) and no longer renders a text label
-            // — the earlier breakage at 81-88% was caused by unconstrained
-            // label text competing for space under Arrangement.SpaceEvenly,
-            // not by the container width itself; with that root cause gone,
-            // icon-only content scales cleanly to a narrower pill.
-            modifier = Modifier.fillMaxWidth(0.78f),
-            shape = RojanShapes.GlassCard,
-            // Bottom Navigation refinement: ~14% thinner than the shared
-            // PremiumGlassTheme.BorderStrokeWidth default every card still
-            // uses — scoped to this one container only, same metallic
-            // gradient/reflections/glow/sparkles otherwise unchanged.
-            borderStrokeWidth = 1.55.dp,
-            // Minimal reduction to this instance's outer shadow/glow bleed
-            // only (every other glass surface keeps the 16dp/FloatingElevation
-            // defaults). Glass fill, border rendering, sparkles, and layout
-            // are untouched — only how far the two elevation-based shadows
-            // spread past the container's true edge.
-            glowSpread = 6.dp,
-            elevation = RojanShadows.SoftElevation,
+    Column(modifier = modifier.fillMaxWidth()) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(NavHairline),
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                // Opaque so scrolling content stays behind it and never shows
+                // through the icon row; it sits on ~NavyBase already (the
+                // ground gradient's bottom), so only the hairline delineates it.
+                .background(HomeColors.NavyBase)
+                .navigationBarsPadding()
+                .padding(vertical = RojanDimens.SpaceSM)
+                .selectableGroup(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    // Geometry refinement (matching the reference's slim
-                    // 48dp bar): tightened from 6dp/SpaceMD to hug the icon
-                    // row — less empty glass above/below and to either side
-                    // of the icon group, not a size/spacing change to the
-                    // icons themselves.
-                    .padding(vertical = RojanDimens.SpaceXS, horizontal = RojanDimens.SpaceSM),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                tabs.forEach { item ->
-                    val isActive = item.tab == activeTab
-
-                    if (item.tab == CustomerHomeTab.HOME) {
-                        // Reserves this slot's width (so the other 4 icons'
-                        // spacing/positions are exactly as if Home rendered
-                        // here) with no visual content and no click handler
-                        // — the real, visible Home button is the floating
-                        // sibling below, drawn on top of this reserved gap.
-                        Box(modifier = Modifier.weight(1f))
-                    } else {
-                        val tint = if (isActive) HomeColors.Glow else HomeColors.TextSecondary
-                        val interactionSource = remember { MutableInteractionSource() }
-
-                        // 5B-1: the layout slot keeps the exact slim height
-                        // the icon Column occupied before (RojanIconSize.Medium)
-                        // so the pill geometry does not change...
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(RojanIconSize.Medium.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            // ...while the tap / semantics target is a real
-                            // >= 48dp, overflowing the slim slot into the
-                            // transparent space above and below the icon row.
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .requiredHeight(48.dp)
-                                    .selectable(
-                                        selected = isActive,
-                                        interactionSource = interactionSource,
-                                        indication = LocalIndication.current,
-                                        role = Role.Tab,
-                                        onClick = { onTabSelected(item.tab) },
-                                    )
-                                    .semantics {
-                                        stateDescription =
-                                            if (isActive) TAB_STATE_ACTIVE else TAB_STATE_INACTIVE
-                                    },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                RojanIconContainer(
-                                    imageVector = item.icon,
-                                    contentDescription = item.label,
-                                    tint = tint,
-                                    size = RojanIconSize.Medium,
-                                )
-                            }
-                        }
-                    }
+            customerNavTabs.forEach { item ->
+                val active = item.tab == activeTab
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = RojanDimens.MinTouchTarget)
+                        .selectable(
+                            selected = active,
+                            role = Role.Tab,
+                            onClick = { onTabSelected(item.tab) },
+                        )
+                        .semantics {
+                            stateDescription = if (active) TAB_STATE_ACTIVE else TAB_STATE_INACTIVE
+                        },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Icon(
+                        item.icon,
+                        contentDescription = item.label,
+                        tint = if (active) NavAccent else HomeColors.TextMuted,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    Spacer(Modifier.height(RojanDimens.SpaceXS))
+                    Box(
+                        Modifier
+                            .size(3.dp)
+                            .clip(CircleShape)
+                            .background(if (active) NavAccent else Color.Transparent),
+                    )
                 }
             }
         }
-
-        val homeInteractionSource = remember { MutableInteractionSource() }
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                // Exact same reference geometry the nested Column used to
-                // have: Row's own SpaceXS top padding, a 20dp-tall slot
-                // (RojanIconSize.Medium), then a 4dp upward bias — FAB
-                // offset/size/position unchanged, only unclipped now.
-                // Sprint 5A-3: the click handler moved off this 20dp-tall
-                // layout box onto the visible 64dp circle below, so the
-                // Home tap target is a real 64dp (was ~20dp) — geometry
-                // here is untouched.
-                .padding(top = RojanDimens.SpaceXS)
-                .height(RojanIconSize.Medium.dp)
-                .offset(y = (-4).dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            // requiredSize (not size): the enclosing Box above is
-            // intentionally constrained to a 20dp height so it doesn't
-            // inflate the Row's measured height — but plain `.size()`
-            // still gets clamped to fit whatever incoming constraint an
-            // ancestor imposes, which squished these circles into a
-            // stadium/pill shape (height clamped to 20dp, width untouched).
-            // `.requiredSize()` ignores incoming constraints entirely, so
-            // these stay true circles regardless of the slot they overflow.
-            RojanAmbientGlow(
-                modifier = Modifier.requiredSize(homeButtonOuterSize),
-                color = HomeColors.Glow,
-                alpha = 0.55f,
-            )
-            HomeMetallicRing(modifier = Modifier.requiredSize(72.dp))
-            Box(
-                modifier = Modifier
-                    // Reference spec: center button = 64dp. requiredSize
-                    // ignores the 20dp parent constraint, so this is the
-                    // real hit area — the Home tap target is 64dp.
-                    .requiredSize(64.dp)
-                    .clip(CircleShape)
-                    .background(HomeColors.Glow, CircleShape)
-                    // 5B-1: Home is the 5th tab — selectable (not clickable)
-                    // so it exposes Role.Tab + selected state like the
-                    // others. The 64dp circle is already >= 48dp.
-                    .selectable(
-                        selected = activeTab == CustomerHomeTab.HOME,
-                        interactionSource = homeInteractionSource,
-                        indication = LocalIndication.current,
-                        role = Role.Tab,
-                        onClick = { onTabSelected(CustomerHomeTab.HOME) },
-                    )
-                    .semantics {
-                        stateDescription = if (activeTab == CustomerHomeTab.HOME) {
-                            TAB_STATE_ACTIVE
-                        } else {
-                            TAB_STATE_INACTIVE
-                        }
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                RojanIconContainer(
-                    imageVector = Icons.Filled.Home,
-                    contentDescription = "خانه",
-                    tint = HomeColors.TextPrimary,
-                    // Home is the bar's primary focal point — larger than
-                    // the other four tabs' RojanIconSize.Medium (20dp).
-                    // Icon glyph itself unchanged.
-                    sizeOverride = 24.dp,
-                )
-            }
-        }
     }
-}
-
-/**
- * Thin metallic gold ring around the Home button — same color tokens as
- * the app's shared [ai.rojan.designlab.ui.components.glass.premiumMetallicBorder]
- * (gold/rose-gold/highlight/shadow/specular), arranged as a sweep gradient
- * so continuous rotation reads as light chasing around the ring rather
- * than a static circle (a plain radial/symmetric glow wouldn't show any
- * visible motion when rotated). Rotation only — no pulsing, scaling, or
- * color change.
- */
-@Composable
-private fun HomeMetallicRing(modifier: Modifier = Modifier) {
-    // Reduced motion: a static metallic ring (no continuous rotation).
-    val angle = if (rememberReducedMotion()) {
-        0f
-    } else {
-        val infiniteTransition = rememberInfiniteTransition(label = "homeRingRotation")
-        val animated by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 360f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 5500, easing = LinearEasing),
-            ),
-            label = "homeRingAngle",
-        )
-        animated
-    }
-
-    Box(
-        modifier = modifier
-            .rotate(angle)
-            .border(
-                width = 1.55.dp,
-                brush = Brush.sweepGradient(
-                    colors = listOf(
-                        RojanPremiumBorderShadow,
-                        RojanPremiumBorderGold,
-                        RojanPremiumBorderHighlight,
-                        RojanPremiumBorderRoseGold,
-                        RojanPremiumBorderSpecular,
-                        RojanPremiumBorderRoseGold,
-                        RojanPremiumBorderHighlight,
-                        RojanPremiumBorderGold,
-                        RojanPremiumBorderShadow,
-                    ),
-                ),
-                shape = CircleShape,
-            ),
-    )
 }
