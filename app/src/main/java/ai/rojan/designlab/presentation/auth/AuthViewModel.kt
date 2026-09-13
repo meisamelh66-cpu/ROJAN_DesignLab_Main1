@@ -45,6 +45,20 @@ import kotlinx.coroutines.launch
  * [restoreSession] can survive a cold start. Session persistence is now
  * unconditional (no "Remember Me" concept) — see
  * [AuthSessionRepository]'s own doc comment.
+ *
+ * P1 Auth Audit fix (centralized session invalidation): [authSessionRepository]'s
+ * [AuthSessionRepository.observePersonId] is a live DataStore-backed
+ * [kotlinx.coroutines.flow.Flow] that re-emits the instant anything calls
+ * [AuthSessionRepository.clearPersonId] — including `data/remote/TokenAuthenticator.kt`,
+ * which now calls it only when the backend has genuinely rejected the
+ * refresh token (see that class's own doc comment). This ViewModel
+ * collects it continuously (see the `init` block below) so a session
+ * killed by that data-layer authenticator — not just an explicit
+ * [logout] — reactively resets [currentUser]/[sessionState] immediately,
+ * the same way every screen already observes them. No per-screen 401
+ * handling is added anywhere; every consumer of [sessionState]/[currentUser]
+ * (`CustomerAccessGuard`, the bottom-bar profile chip, `ProfileScreen`, …)
+ * gets this for free through the state it was already reading.
  */
 class AuthViewModel(
     private val sessionProvider: SessionProvider,
@@ -60,6 +74,21 @@ class AuthViewModel(
 
     val sessionState: StateFlow<SessionState> =
         _sessionState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            authSessionRepository.observePersonId().collect { personId ->
+                // Only react to the session having been cleared, and only
+                // when this ViewModel still believes it's logged in — a
+                // guest cold start's first (null) emission, or the
+                // `null` this ViewModel's own logout() already produced
+                // synchronously moments earlier, both correctly no-op here.
+                if (personId == null && _sessionState.value is SessionState.LoggedIn) {
+                    resetToLoggedOutState()
+                }
+            }
+        }
+    }
 
 
     /** The OTP entry screen's own step (phone entry vs. awaiting code) — separate from [sessionState], which only cares about the end result. */
@@ -306,22 +335,31 @@ class AuthViewModel(
     }
 
 
-    /** Discards the real backend session (tokens + persisted identity) and reverts to [SessionState.LoggedOut] / [CustomerOtpStep.EnteringPhone]. */
-    fun logout() {
-
+    /**
+     * Resets every in-memory reactive field this ViewModel exposes to the
+     * logged-out shape. Shared by [logout] (the explicit, user-initiated
+     * path, which also actively clears storage below) and the
+     * [authSessionRepository] collector in `init` above (a forced clear
+     * whose storage-clearing already happened elsewhere — `TokenAuthenticator`
+     * — so only the in-memory re-sync is this ViewModel's job).
+     */
+    private fun resetToLoggedOutState() {
         sessionProvider.logout()
-        tokenRepository.clearTokens()
         _currentUser.value = null
         _errorMessage.value = null
         _otpStep.value = CustomerOtpStep.EnteringPhone
         _identityContext.value = UiState.Loading
+        _sessionState.value = sessionProvider.currentSession()
+    }
+
+    /** Discards the real backend session (tokens + persisted identity) and reverts to [SessionState.LoggedOut] / [CustomerOtpStep.EnteringPhone]. */
+    fun logout() {
+        resetToLoggedOutState()
+        tokenRepository.clearTokens()
 
         viewModelScope.launch {
             authSessionRepository.clearPersonId()
         }
-
-        _sessionState.value =
-            sessionProvider.currentSession()
     }
 
 

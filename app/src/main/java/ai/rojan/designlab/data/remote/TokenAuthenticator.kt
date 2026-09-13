@@ -11,6 +11,9 @@ import okhttp3.Route
 
 private const val MAX_RETRIES = 1
 
+/** Status codes on the refresh-token call itself that mean "the backend explicitly rejected this refresh token" — a genuine session death, not a transport failure. */
+private val GENUINE_REJECTION_STATUS_CODES = setOf(400, 401, 403)
+
 /**
  * On a 401, exchanges the stored refresh token for a new access/refresh
  * pair and retries the original request once. Requires the backend to
@@ -31,6 +34,23 @@ private const val MAX_RETRIES = 1
  * the session was dead. `runBlocking` mirrors the refresh call just above,
  * for the same reason: [Authenticator.authenticate] is a synchronous OkHttp
  * SPI callback with no coroutine scope of its own.
+ *
+ * P1 Auth Audit fix (transient vs. genuine refresh failure): the refresh
+ * call now goes through the same [safeApiCall] classification every other
+ * network call in the app trusts, and only a [BackendApiException] with
+ * status 400/401/403 — the backend explicitly rejecting this refresh
+ * token — clears the session. A [RequestTimeoutException]/
+ * [NetworkUnavailableException]/5xx/[MalformedResponseException] says
+ * nothing about whether the refresh token itself is still good; clearing
+ * on those previously logged a user out over a transient network blip.
+ * This one authenticate() call still fails either way (`return null`, so
+ * the original 401'd request surfaces as a failure this once) — the
+ * difference is only whether the stored session survives for the *next*
+ * attempt. [authSessionRepository]'s resulting `null` emission from
+ * [AuthSessionRepository.observePersonId] is also what centrally notifies
+ * [ai.rojan.designlab.presentation.auth.AuthViewModel] — see that class's
+ * own doc comment — so a genuine clear here now reactively logs the
+ * Customer UI out immediately, not just at the next cold start.
  *
  * Concurrent-refresh guard (C1): OkHttp invokes [authenticate] on each
  * connection's own thread, so N in-flight requests that all 401 at once
@@ -83,10 +103,18 @@ class TokenAuthenticator(
             val refreshToken = tokenRepository.refreshToken() ?: return null
 
             val newTokens = runBlocking {
-                runCatching { plainAuthApi.refresh(RefreshRequestDto(refreshToken)) }
-            }.getOrElse {
-                tokenRepository.clearTokens()
-                runBlocking { authSessionRepository.clearPersonId() }
+                safeApiCall { plainAuthApi.refresh(RefreshRequestDto(refreshToken)) }
+            }.getOrElse { error ->
+                // Only a backend-confirmed rejection of this specific refresh
+                // token means the session is genuinely dead — everything else
+                // (offline, timed out, a 5xx, an unparsable body) is a
+                // transport problem this same refresh token may still recover
+                // from on the next attempt, so it must not clear the session.
+                val isGenuinelyDead = error is BackendApiException && error.statusCode in GENUINE_REJECTION_STATUS_CODES
+                if (isGenuinelyDead) {
+                    tokenRepository.clearTokens()
+                    runBlocking { authSessionRepository.clearPersonId() }
+                }
                 return null
             }
 
