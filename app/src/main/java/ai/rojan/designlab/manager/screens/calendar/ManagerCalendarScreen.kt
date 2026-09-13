@@ -1,18 +1,21 @@
 package ai.rojan.designlab.manager.screens.calendar
 
+import ai.rojan.designlab.di.BackendApiContainerHolder
+import ai.rojan.designlab.domain.booking.RollingBookingDates
+import ai.rojan.designlab.domain.repository.BookingStatus
+import ai.rojan.designlab.domain.repository.Specialist
 import ai.rojan.designlab.manager.components.ManagerColors
+import ai.rojan.designlab.manager.components.ManagerEmptyState
+import ai.rojan.designlab.manager.components.ManagerErrorState
 import ai.rojan.designlab.manager.components.ManagerGlassSurface
 import ai.rojan.designlab.manager.components.ManagerGlassTheme
 import ai.rojan.designlab.manager.components.ManagerIconContainer
+import ai.rojan.designlab.manager.components.ManagerLoadingState
 import ai.rojan.designlab.manager.components.ManagerScaffold
-import ai.rojan.designlab.manager.data.ManagerRepositories
-import ai.rojan.designlab.manager.domain.appointment.Appointment
-import ai.rojan.designlab.manager.domain.appointment.AppointmentStatus as DomainAppointmentStatus
-import ai.rojan.designlab.manager.domain.appointment.CalendarWeekDay
-import ai.rojan.designlab.manager.domain.appointment.ManagerCalendarWeek
-import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
-import ai.rojan.designlab.manager.domain.service.Service
-import ai.rojan.designlab.manager.domain.specialist.Specialist
+import ai.rojan.designlab.manager.presentation.calendar.ManagerCalendarAppointment
+import ai.rojan.designlab.manager.presentation.calendar.ManagerCalendarViewModel
+import ai.rojan.designlab.manager.presentation.calendar.ManagerCalendarViewModelFactory
+import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
@@ -21,9 +24,9 @@ import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanErrorText
 import ai.rojan.designlab.ui.theme.RojanShapes
-import ai.rojan.designlab.ui.theme.RojanTheme
 import ai.rojan.designlab.ui.theme.RojanTypography
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,164 +59,96 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 private enum class ManagerCalendarViewMode { DAILY, WEEKLY }
 
-/** Status indicator — Turquoise/Gold extend naturally into "confirmed/pending"; [RojanErrorText] (existing token) covers "cancelled/no-show." */
-internal enum class AppointmentStatus(val label: String, val color: Color) {
-    CONFIRMED("تایید شده", ManagerColors.Turquoise),
+/**
+ * Status indicator — Turquoise/Gold extend naturally into
+ * "confirmed/pending"; [RojanErrorText] (existing token) covers
+ * "cancelled." TEAM2-002: NO_SHOW is gone — the real backend
+ * [BookingStatus] has no such state (PENDING/CONFIRMED/CANCELLED/COMPLETED
+ * only), so there's nothing real to map it from any more.
+ */
+private enum class AppointmentStatus(val label: String, val color: Color) {
     PENDING("در انتظار", ManagerColors.Gold),
+    CONFIRMED("تایید شده", ManagerColors.Turquoise),
     COMPLETED("انجام شده", ManagerColors.Turquoise),
     CANCELLED("لغو شده", RojanErrorText),
-    NO_SHOW("عدم حضور", RojanErrorText),
 }
 
-private fun DomainAppointmentStatus.toDisplayStatus(): AppointmentStatus = when (this) {
-    DomainAppointmentStatus.PENDING -> AppointmentStatus.PENDING
-    DomainAppointmentStatus.CONFIRMED -> AppointmentStatus.CONFIRMED
-    DomainAppointmentStatus.COMPLETED -> AppointmentStatus.COMPLETED
-    DomainAppointmentStatus.CANCELLED -> AppointmentStatus.CANCELLED
-    DomainAppointmentStatus.NO_SHOW -> AppointmentStatus.NO_SHOW
+private fun BookingStatus.toDisplayStatus(): AppointmentStatus = when (this) {
+    BookingStatus.PENDING -> AppointmentStatus.PENDING
+    BookingStatus.CONFIRMED -> AppointmentStatus.CONFIRMED
+    BookingStatus.COMPLETED -> AppointmentStatus.COMPLETED
+    BookingStatus.CANCELLED -> AppointmentStatus.CANCELLED
 }
 
-/** Display row for one real [Appointment] — customer/service/specialist ids resolved to names. */
-internal data class CalendarAppointment(
+/** Display row for one real [ManagerCalendarAppointment]. */
+private data class CalendarAppointment(
     val id: String,
     val time: String,
     val clientName: String,
     val service: String,
     val specialist: String,
+    val rawStatus: BookingStatus,
     val status: AppointmentStatus,
 )
 
-/**
- * 5B4-1 / 5B4-2: pure transformation for one day's column — filter by the
- * selected specialist (null = all), sort chronologically by [Appointment.time],
- * resolve names via the id-indexed maps the screen snapshots once per refresh
- * (was three `ManagerRepositories.*.getById` linear scans per appointment).
- * Missing ids fall back to `"—"`, exactly as before.
- */
-internal fun calendarDayAppointments(
-    appointmentsForDay: List<Appointment>,
-    selectedSpecialistId: String?,
-    customersById: Map<String, ManagerCustomer>,
-    servicesById: Map<String, Service>,
-    specialistsById: Map<String, Specialist>,
-): List<CalendarAppointment> =
-    appointmentsForDay
-        .filter { selectedSpecialistId == null || it.specialistId == selectedSpecialistId }
-        .sortedBy { it.time }
-        .map { appointment ->
-            CalendarAppointment(
-                id = appointment.id,
-                time = appointment.time,
-                clientName = customersById[appointment.customerId]?.name ?: "—",
-                service = servicesById[appointment.serviceId]?.name ?: "—",
-                specialist = specialistsById[appointment.specialistId]?.name ?: "—",
-                status = appointment.status.toDisplayStatus(),
-            )
-        }
+private fun ManagerCalendarAppointment.toDisplay(): CalendarAppointment = CalendarAppointment(
+    id = id,
+    time = time,
+    clientName = customerLabel,
+    service = serviceName,
+    specialist = specialistName,
+    rawStatus = status,
+    status = status.toDisplayStatus(),
+)
 
 /**
- * Manager App workspace — Calendar MVP. Additive-only: does not modify
- * [ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen]
- * or any of its components.
+ * Manager App workspace — Calendar MVP.
  *
- * ROJAN AI Manager Visual Theme Implementation: re-themed for the dark
- * luxury background ([ManagerScaffold]/[ManagerGlassSurface]/
- * [ManagerIconContainer]) — content/data/navigation unchanged.
+ * **TEAM2-002 (Manager Data Persistence):** now backed end to end by
+ * [ManagerCalendarViewModel] — the salon's real bookings
+ * (`GET /api/v1/salons/{salonId}/bookings`) — replacing the previous
+ * direct reads of `manager.data.ManagerRepositories.appointments`/
+ * `.specialists`. The day selector now uses [RollingBookingDates]' real
+ * rolling 7-day window instead of `ManagerCalendarWeek`'s static
+ * hardcoded reference week. Each row also exposes the two real
+ * booking-lifecycle actions the backend already supports — "تایید"
+ * (confirm, PENDING only) and "تکمیل" (complete, CONFIRMED only) — via
+ * [ManagerCalendarViewModel.confirmAppointment]/`.completeAppointment`,
+ * this task's "Update booking status" priority.
  *
- * Reads [ManagerRepositories.appointments]/`.customers`/`.services`/
- * `.specialists` directly (same in-memory singletons the booking wizard's
- * [ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel.confirm]
- * writes to) instead of a screen-local hardcoded sample set, so a newly
- * booked appointment shows up here as soon as this screen is (re)entered.
+ * [ManagerCalendarAppointment.customerLabel] renders as "—": the backend
+ * has no endpoint that resolves a booking's customer to a name (confirmed
+ * absent — see `TEAM2_RESULT_MANAGER_DATA_PERSISTENCE.md`), so this is an
+ * honest placeholder, not a redesign of the row.
  */
 @Composable
 fun ManagerCalendarScreen(
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
     onAppointmentClick: (String) -> Unit = {},
+    onRequireLogin: () -> Unit = {},
+    viewModel: ManagerCalendarViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = ManagerCalendarViewModelFactory(
+            salonRepository = BackendApiContainerHolder.get(LocalContext.current).salonRepository,
+            bookingRepository = BackendApiContainerHolder.get(LocalContext.current).bookingRepository,
+            specialistRepository = BackendApiContainerHolder.get(LocalContext.current).specialistRepository,
+            serviceCategoryRepository = BackendApiContainerHolder.get(LocalContext.current).serviceCategoryRepository,
+            serviceRepository = BackendApiContainerHolder.get(LocalContext.current).serviceRepository,
+        ),
+    ),
 ) {
+    LaunchedEffect(viewModel.requiresReauth) {
+        if (viewModel.requiresReauth) onRequireLogin()
+    }
+
     var viewMode by remember { mutableStateOf(ManagerCalendarViewMode.DAILY) }
     var selectedDayIndex by remember { mutableIntStateOf(0) }
     var selectedSpecialistId by remember { mutableStateOf<String?>(null) }
-
-    // Manager App Phase 2: syncs real Service/Appointment data on screen entry (same
-    // ManagerRepositories.initialize() as ManagerDashboardScreen - safe to call twice, it just
-    // re-syncs). refreshTrigger's only purpose is being read below so Compose recomposes this
-    // screen once the sync completes and picks up the real data the same way it already picks up
-    // a locally-created appointment.
-    val context = LocalContext.current
-    var refreshTrigger by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) {
-        ManagerRepositories.initialize(context)
-        refreshTrigger++
-    }
-
-    // 5B4-1 / 5B4-2: snapshot the in-memory repository caches once per
-    // refresh. `refreshTrigger` (bumped by the LaunchedEffect above once
-    // ManagerRepositories.initialize() completes) is now a real remember key,
-    // and re-entering this screen creates a fresh composition — so a booking
-    // wizard write still shows up on (re)entry, exactly as before, just
-    // without re-deriving the whole chain on every unrelated recomposition.
-    // Name resolution uses id-indexed maps instead of repeated O(n) getById
-    // scans.
-    val specialists = remember(refreshTrigger) { ManagerRepositories.specialists.getAll() }
-    val appointmentsByDayKey = remember(refreshTrigger) {
-        ManagerRepositories.appointments.getAll().groupBy { it.date }
-    }
-    val customersById = remember(refreshTrigger) {
-        ManagerRepositories.customers.getAll().associateBy { it.id }
-    }
-    val servicesById = remember(refreshTrigger) {
-        ManagerRepositories.services.getAll().associateBy { it.id }
-    }
-    val specialistsById = remember(refreshTrigger) {
-        ManagerRepositories.specialists.getAll().associateBy { it.id }
-    }
-
-    // 5B4-3: capture the rolling 7-day window once for this composition.
-    val week = ManagerCalendarWeek.days
-    val selectedDayKey = week[selectedDayIndex].key
-
-    val dayAppointments = remember(
-        appointmentsByDayKey,
-        customersById,
-        servicesById,
-        specialistsById,
-        selectedSpecialistId,
-        selectedDayKey,
-    ) {
-        calendarDayAppointments(
-            appointmentsForDay = appointmentsByDayKey[selectedDayKey] ?: emptyList(),
-            selectedSpecialistId = selectedSpecialistId,
-            customersById = customersById,
-            servicesById = servicesById,
-            specialistsById = specialistsById,
-        )
-    }
-
-    val weeklyAppointmentsByDayKey = remember(
-        appointmentsByDayKey,
-        customersById,
-        servicesById,
-        specialistsById,
-        selectedSpecialistId,
-        week,
-    ) {
-        week.associate { day ->
-            day.key to calendarDayAppointments(
-                appointmentsForDay = appointmentsByDayKey[day.key] ?: emptyList(),
-                selectedSpecialistId = selectedSpecialistId,
-                customersById = customersById,
-                servicesById = servicesById,
-                specialistsById = specialistsById,
-            )
-        }
-    }
+    val dates = remember { RollingBookingDates.next7Days() }
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         LazyColumn(
@@ -229,53 +164,86 @@ fun ManagerCalendarScreen(
                 )
             }
 
-            item {
-                ViewModeToggle(
-                    viewMode = viewMode,
-                    onViewModeChange = { viewMode = it },
-                )
-            }
-
-            item {
-                SpecialistFilterRow(
-                    specialists = specialists,
-                    selectedSpecialistId = selectedSpecialistId,
-                    onSpecialistSelected = { selectedSpecialistId = it },
-                )
-            }
-
-            when (viewMode) {
-                ManagerCalendarViewMode.DAILY -> {
-                    item {
-                        DaySelectorRow(
-                            week = week,
-                            selectedDayIndex = selectedDayIndex,
-                            onDaySelected = { selectedDayIndex = it },
-                        )
-                    }
-
-                    if (dayAppointments.isEmpty()) {
-                        item { EmptyDayNotice() }
-                    } else {
-                        items(dayAppointments) { appointment ->
-                            AppointmentRow(
-                                appointment = appointment,
-                                onClick = { onAppointmentClick(appointment.id) },
-                            )
-                        }
-                    }
+            when (val calendarState = viewModel.state) {
+                is UiState.Loading -> item { ManagerLoadingState(message = "در حال بارگذاری نوبت‌های سالن...") }
+                is UiState.Error -> item {
+                    ManagerErrorState(
+                        description = calendarState.message,
+                        actionLabel = "تلاش مجدد",
+                        onAction = { viewModel.retry() },
+                    )
                 }
+                is UiState.Empty -> item {
+                    ManagerEmptyState(
+                        title = "نوبتی ثبت نشده است",
+                        description = "نوبت‌های ثبت‌شده برای سالن شما اینجا نمایش داده می‌شوند.",
+                    )
+                }
+                is UiState.Success -> {
+                    val calendarData = calendarState.data
 
-                ManagerCalendarViewMode.WEEKLY -> {
                     item {
-                        WeeklyOverview(
-                            week = week,
-                            appointmentsByDayKey = weeklyAppointmentsByDayKey,
-                            onDayClick = { dayIndex ->
-                                selectedDayIndex = dayIndex
-                                viewMode = ManagerCalendarViewMode.DAILY
-                            },
+                        ViewModeToggle(
+                            viewMode = viewMode,
+                            onViewModeChange = { viewMode = it },
                         )
+                    }
+
+                    item {
+                        SpecialistFilterRow(
+                            specialists = calendarData.specialists,
+                            selectedSpecialistId = selectedSpecialistId,
+                            onSpecialistSelected = { selectedSpecialistId = it },
+                        )
+                    }
+
+                    when (viewMode) {
+                        ManagerCalendarViewMode.DAILY -> {
+                            item {
+                                DaySelectorRow(
+                                    dates = dates,
+                                    selectedDayIndex = selectedDayIndex,
+                                    onDaySelected = { selectedDayIndex = it },
+                                )
+                            }
+
+                            val dayKey = dates[selectedDayIndex].first
+                            val dayAppointments = calendarData.appointments
+                                .filter {
+                                    it.dateKey == dayKey &&
+                                        (selectedSpecialistId == null || it.specialistId == selectedSpecialistId)
+                                }
+                                .sortedBy { it.time }
+                                .map { it.toDisplay() }
+
+                            if (dayAppointments.isEmpty()) {
+                                item { EmptyDayNotice() }
+                            } else {
+                                items(dayAppointments) { appointment ->
+                                    AppointmentRow(
+                                        appointment = appointment,
+                                        onClick = { onAppointmentClick(appointment.id) },
+                                        isUpdating = viewModel.updatingBookingId == appointment.id,
+                                        onConfirm = { viewModel.confirmAppointment(appointment.id) },
+                                        onComplete = { viewModel.completeAppointment(appointment.id) },
+                                    )
+                                }
+                            }
+                        }
+
+                        ManagerCalendarViewMode.WEEKLY -> {
+                            item {
+                                WeeklyOverview(
+                                    dates = dates,
+                                    appointmentsByDayKey = calendarData.appointments.groupBy { it.dateKey },
+                                    selectedSpecialistId = selectedSpecialistId,
+                                    onDayClick = { dayIndex ->
+                                        selectedDayIndex = dayIndex
+                                        viewMode = ManagerCalendarViewMode.DAILY
+                                    },
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -360,7 +328,7 @@ private fun SpecialistFilterRow(
         }
         items(specialists) { specialist ->
             SpecialistChip(
-                label = specialist.name,
+                label = specialist.displayName,
                 selected = selectedSpecialistId == specialist.id,
                 onClick = { onSpecialistSelected(specialist.id) },
             )
@@ -399,18 +367,14 @@ private fun SpecialistChip(label: String, selected: Boolean, onClick: () -> Unit
 }
 
 @Composable
-private fun DaySelectorRow(
-    week: List<CalendarWeekDay>,
-    selectedDayIndex: Int,
-    onDaySelected: (Int) -> Unit,
-) {
+private fun DaySelectorRow(dates: List<Pair<String, String>>, selectedDayIndex: Int, onDaySelected: (Int) -> Unit) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
-        items(week.indices.toList()) { index ->
-            val day = week[index]
+        items(dates.indices.toList()) { index ->
+            val (_, label) = dates[index]
             val selected = index == selectedDayIndex
             ManagerGlassSurface(
                 modifier = Modifier
-                    .size(width = 64.dp, height = 72.dp)
+                    .size(width = 88.dp, height = 56.dp)
                     .rojanPressable(onClick = { onDaySelected(index) }),
                 shape = RojanShapes.Small,
                 fillAlpha = if (selected) ManagerGlassTheme.FillAlpha else ManagerGlassTheme.FillAlpha * 0.5f,
@@ -422,16 +386,10 @@ private fun DaySelectorRow(
                     verticalArrangement = Arrangement.Center,
                 ) {
                     Text(
-                        text = day.label,
+                        text = label,
                         style = RojanTypography.Caption,
                         color = if (selected) ManagerColors.TextPrimary else ManagerColors.TextSecondary,
                         textAlign = TextAlign.Center,
-                    )
-                    Text(
-                        text = day.dayNumber,
-                        style = RojanTypography.CardTitle,
-                        color = if (selected) ManagerColors.Turquoise else ManagerColors.TextPrimary,
-                        modifier = Modifier.padding(top = RojanDimens.SpaceXS),
                     )
                 }
             }
@@ -440,52 +398,84 @@ private fun DaySelectorRow(
 }
 
 @Composable
-private fun AppointmentRow(appointment: CalendarAppointment, onClick: () -> Unit) {
+private fun AppointmentRow(
+    appointment: CalendarAppointment,
+    onClick: () -> Unit,
+    isUpdating: Boolean,
+    onConfirm: () -> Unit,
+    onComplete: () -> Unit,
+) {
     ManagerGlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .rojanPressable(onClick = onClick),
         shape = RojanShapes.Small,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(RojanDimens.SpaceMD),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
-        ) {
-            ManagerIconContainer(
-                imageVector = Icons.Filled.AccessTime,
-                contentDescription = null,
-                containerSize = 36.dp,
-            )
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = appointment.clientName, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
-                Text(
-                    text = "${appointment.service} · ${appointment.specialist}",
-                    style = RojanTypography.Caption,
-                    color = ManagerColors.TextSecondary,
+        Column(modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+            ) {
+                ManagerIconContainer(
+                    imageVector = Icons.Filled.AccessTime,
+                    contentDescription = null,
+                    containerSize = 36.dp,
                 )
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = appointment.clientName, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
+                    Text(
+                        text = "${appointment.service} · ${appointment.specialist}",
+                        style = RojanTypography.Caption,
+                        color = ManagerColors.TextSecondary,
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(text = appointment.time, style = RojanTypography.Caption, color = ManagerColors.TextSecondary)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
+                        modifier = Modifier.padding(top = RojanDimens.SpaceXS),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(appointment.status.color, CircleShape),
+                        )
+                        Text(
+                            text = appointment.status.label,
+                            style = RojanTypography.Caption,
+                            color = appointment.status.color,
+                        )
+                    }
+                }
             }
 
-            Column(horizontalAlignment = Alignment.End) {
-                Text(text = appointment.time, style = RojanTypography.Caption, color = ManagerColors.TextSecondary)
+            // TEAM2-002: real PATCH /confirm and /complete calls, the two
+            // lifecycle transitions the backend already supports.
+            if (appointment.rawStatus == BookingStatus.PENDING || appointment.rawStatus == BookingStatus.CONFIRMED) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
-                    modifier = Modifier.padding(top = RojanDimens.SpaceXS),
+                    modifier = Modifier.padding(top = RojanDimens.SpaceSM),
+                    horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(appointment.status.color, CircleShape),
-                    )
-                    Text(
-                        text = appointment.status.label,
-                        style = RojanTypography.Caption,
-                        color = appointment.status.color,
-                    )
+                    if (appointment.rawStatus == BookingStatus.PENDING) {
+                        Text(
+                            text = if (isUpdating) "در حال تایید..." else "تایید نوبت",
+                            style = RojanTypography.Caption,
+                            color = ManagerColors.Turquoise,
+                            modifier = Modifier.clickable(enabled = !isUpdating, onClick = onConfirm),
+                        )
+                    }
+                    if (appointment.rawStatus == BookingStatus.CONFIRMED) {
+                        Text(
+                            text = if (isUpdating) "در حال تکمیل..." else "تکمیل نوبت",
+                            style = RojanTypography.Caption,
+                            color = ManagerColors.Gold,
+                            modifier = Modifier.clickable(enabled = !isUpdating, onClick = onComplete),
+                        )
+                    }
                 }
             }
         }
@@ -512,14 +502,18 @@ private fun EmptyDayNotice() {
 
 @Composable
 private fun WeeklyOverview(
-    week: List<CalendarWeekDay>,
-    appointmentsByDayKey: Map<String, List<CalendarAppointment>>,
+    dates: List<Pair<String, String>>,
+    appointmentsByDayKey: Map<String, List<ManagerCalendarAppointment>>,
+    selectedSpecialistId: String?,
     onDayClick: (Int) -> Unit,
 ) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD)) {
-        items(week.indices.toList()) { index ->
-            val day = week[index]
-            val dayAppointments = appointmentsByDayKey[day.key] ?: emptyList()
+        items(dates.indices.toList()) { index ->
+            val (dateKey, label) = dates[index]
+            val dayAppointments = (appointmentsByDayKey[dateKey] ?: emptyList())
+                .filter { selectedSpecialistId == null || it.specialistId == selectedSpecialistId }
+                .sortedBy { it.time }
+                .map { it.toDisplay() }
 
             ManagerGlassSurface(
                 modifier = Modifier
@@ -530,7 +524,7 @@ private fun WeeklyOverview(
             ) {
                 Column(modifier = Modifier.padding(RojanDimens.SpaceSM)) {
                     Text(
-                        text = "${day.label} ${day.dayNumber}",
+                        text = label,
                         style = RojanTypography.Caption,
                         color = ManagerColors.TextPrimary,
                     )
@@ -574,17 +568,5 @@ private fun WeeklyOverview(
                 }
             }
         }
-    }
-}
-
-@Preview(
-    showBackground = true,
-    widthDp = 390,
-    heightDp = 844,
-)
-@Composable
-private fun ManagerCalendarScreenPreview() {
-    RojanTheme {
-        ManagerCalendarScreen()
     }
 }

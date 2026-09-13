@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.navigation
 
+import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.manager.domain.auth.ActiveSalonUiState
 import ai.rojan.designlab.manager.domain.customer.CustomerTag
 import ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel
@@ -38,12 +39,12 @@ import ai.rojan.designlab.manager.screens.staff.ManagerStaffScreen
 import ai.rojan.designlab.ui.navigation.navigateHomeAfterBooking
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
-import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
@@ -60,13 +61,13 @@ import androidx.navigation.navArgument
  * (Customer Edit Flow, Phase 9 Step 1), [ManagerDestinations.SERVICES]/
  * [ManagerDestinations.SERVICE_EDIT] (Manager Operational Foundation, Phase
  * 6 Steps 1 and 3), [ManagerDestinations.STAFF]/[ManagerDestinations.STAFF_EDIT]
- * (Phase 6 Step 2), [ManagerDestinations.PROFILE],
- * and the [ManagerDestinations.BOOKING_FLOW_GRAPH] nested graph
- * (settings is still a foundation folder only, no screen yet). This is
- * the real entry graph for the separately
- * installable ROJAN Manager app (`ManagerActivity`, `manager` product
- * flavor) — the shared `RojanNavGraph.kt`/Customer app are untouched
- * and unaffected.
+ * (Phase 6 Step 2), [ManagerDestinations.SETTINGS]/[ManagerDestinations.WORKING_HOURS]/
+ * [ManagerDestinations.SALON_MEDIA] (First Salon Pilot, Phase A + Central
+ * Salon Management), [ManagerDestinations.PROFILE], and the
+ * [ManagerDestinations.BOOKING_FLOW_GRAPH] nested graph. This is the real
+ * entry graph for the separately installable ROJAN Manager app
+ * (`ManagerActivity`, `manager` product flavor) — the shared
+ * `RojanNavGraph.kt`/Customer app are untouched and unaffected.
  *
  * OTP Authentication Entry Flow Integration: splash is no longer a route
  * in this graph — it's shown by `ManagerRootGraph.kt`, the composable that
@@ -78,6 +79,27 @@ import androidx.navigation.navArgument
  * through from that same wrapper (constructed once, not per-screen) so the
  * OTP screen and the Profile screen's logout affordance share one instance
  * with the gate itself.
+ *
+ * **TEAM2-002 (Manager Data Persistence) reconciliation:** [DASHBOARD] and
+ * [CALENDAR] now render real backend data
+ * ([ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewModel]/
+ * `ManagerCalendarViewModel`, both built via [BackendApiContainerHolder]) and
+ * the whole [ManagerDestinations.BOOKING_FLOW_GRAPH] wizard is now backed by a
+ * real, backend-constructed [ManagerBookingViewModel] rather than the object
+ * singleton `ManagerBookingViewModelFactory` this graph used before. `onRequireLogin`
+ * on both screens fires only on a real, unrefreshable 401 (see
+ * `ManagerDashboardViewModel.requiresReauth`'s doc comment) — routed to
+ * [ManagerDestinations.OTP_AUTH] (the one real, live-wired login gate; see
+ * `ManagerRootGraph.kt`), not a separate `SPLASH`/`LOGIN` pair. TEAM2-002's
+ * original commits added their own `SPLASH`/`LOGIN` routes wrapping the
+ * Customer app's email/password `AuthScreen`, on the assumption this graph's
+ * `NavHost` picked its own `startDestination` unconditionally — but
+ * `ManagerRootGraph.kt` (HANDOFF, untouched by TEAM2-002's commits) already
+ * gates entry into this whole graph on [ManagerAuthViewModel]'s real,
+ * validated OTP session *before* this `NavHost` is even created, so those
+ * two routes could never actually be reached in the real app and are
+ * dropped rather than kept as a second, unreachable auth path in the same
+ * graph.
  */
 fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel: ManagerAuthViewModel) {
     composable(ManagerDestinations.OTP_AUTH) {
@@ -147,6 +169,7 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
             onViewStaffClick = { navController.navigate(ManagerDestinations.STAFF) },
             onProfileClick = { navController.navigate(ManagerDestinations.PROFILE) },
             onSettingsClick = { navController.navigate(ManagerDestinations.SETTINGS) },
+            onRequireLogin = { navController.navigateToManagerLogin() },
         )
     }
 
@@ -243,6 +266,7 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
         ManagerCalendarScreen(
             onBackClick = { navController.popBackStack() },
             onAppointmentClick = { appointmentId -> navController.navigate(ManagerDestinations.appointmentDetail(appointmentId)) },
+            onRequireLogin = { navController.navigateToManagerLogin() },
         )
     }
 
@@ -387,11 +411,33 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
 }
 
 /**
+ * TEAM2-002: routes to the real OTP login gate and clears the entire back
+ * stack — used when
+ * [ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewModel.requiresReauth]/
+ * `ManagerCalendarViewModel`'s equivalent fires (a real 401: the stored
+ * session is genuinely dead, not just retriable), so there is nothing left
+ * behind the login screen worth returning to. Targets [ManagerDestinations.OTP_AUTH]
+ * rather than a separate email/password screen — see this file's own doc
+ * comment for why a second auth route was dropped as unreachable.
+ */
+private fun NavController.navigateToManagerLogin() {
+    navigate(ManagerDestinations.OTP_AUTH) {
+        popUpTo(0) { inclusive = true }
+    }
+}
+
+/**
  * Obtains the single [ManagerBookingViewModel] instance shared by every
  * screen inside the [ManagerDestinations.BOOKING_FLOW_GRAPH] sub-graph,
  * scoped to that sub-graph's own back-stack entry rather than any
  * individual screen's — same pattern as Customer's `bookingViewModelFor`
  * in `RojanNavGraph.kt`.
+ *
+ * TEAM2-002 (Manager Data Persistence): the wizard's ViewModel is now
+ * constructed from real backend repositories via [BackendApiContainerHolder]
+ * — replacing the previous stateless `ManagerBookingViewModelFactory` object
+ * (which built [ManagerBookingViewModel] over in-memory demo data with no
+ * constructor arguments at all).
  */
 @Composable
 private fun managerBookingViewModelFor(
@@ -401,9 +447,18 @@ private fun managerBookingViewModelFor(
     val parentEntry = remember(backStackEntry) {
         navController.getBackStackEntry(ManagerDestinations.BOOKING_FLOW_GRAPH)
     }
+    val context = LocalContext.current
     return viewModel(
         viewModelStoreOwner = parentEntry,
-        factory = ManagerBookingViewModelFactory,
+        factory = ManagerBookingViewModelFactory(
+            salonRepository = BackendApiContainerHolder.get(context).salonRepository,
+            salonCustomerRepository = BackendApiContainerHolder.get(context).salonCustomerRepository,
+            serviceCategoryRepository = BackendApiContainerHolder.get(context).serviceCategoryRepository,
+            serviceRepository = BackendApiContainerHolder.get(context).serviceRepository,
+            specialistRepository = BackendApiContainerHolder.get(context).specialistRepository,
+            availabilityRepository = BackendApiContainerHolder.get(context).availabilityRepository,
+            bookingRepository = BackendApiContainerHolder.get(context).bookingRepository,
+        ),
         // 5B6-1: the extras Navigation-Compose restores SavedStateHandle through.
         extras = parentEntry.defaultViewModelCreationExtras,
     )

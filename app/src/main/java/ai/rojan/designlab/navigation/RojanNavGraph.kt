@@ -859,6 +859,16 @@ fun RojanNavGraph() {
                                 // BookingHistoryRepository, so recording it a
                                 // second time into the local, now-gated
                                 // CustomerEcosystemViewModel is no longer needed.
+                                //
+                                // Pre-release reconciliation note: System2's side of
+                                // this merge conflict called
+                                // `customerEcosystemViewModel.bookAppointment(...)` —
+                                // that class (and its whole supporting engine:
+                                // CustomerEcosystemEngine/State/EcosystemEvent/
+                                // EcosystemEventReducer/ViewModelFactory) was removed
+                                // entirely by Handoff's commits and does not exist
+                                // anywhere in this merged tree, so that call site was
+                                // provably dead on arrival, not a real second option.
                                 navController.navigate(RojanDestinations.BOOKING_SUCCESS) {
                                     launchSingleTop = true
                                 }

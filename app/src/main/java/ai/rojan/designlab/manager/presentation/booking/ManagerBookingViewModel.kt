@@ -1,32 +1,41 @@
 package ai.rojan.designlab.manager.presentation.booking
 
-import ai.rojan.designlab.data.remote.BackendApiException
+import ai.rojan.designlab.domain.repository.AvailabilityRepository
+import ai.rojan.designlab.domain.repository.BookingRepository
+import ai.rojan.designlab.domain.repository.SalonCustomer
+import ai.rojan.designlab.domain.repository.SalonCustomerRepository
+import ai.rojan.designlab.domain.repository.SalonRepository
+import ai.rojan.designlab.domain.repository.Service
+import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
+import ai.rojan.designlab.domain.repository.ServiceRepository
+import ai.rojan.designlab.domain.repository.Specialist
+import ai.rojan.designlab.domain.repository.SpecialistRepository
 import ai.rojan.designlab.domain.repository.TimeSlot
-import ai.rojan.designlab.manager.data.ManagerRepositories
-import ai.rojan.designlab.manager.domain.appointment.Appointment
-import ai.rojan.designlab.manager.domain.appointment.ManagerCalendarWeek
 import ai.rojan.designlab.manager.domain.booking.ManagerBookingState
-import ai.rojan.designlab.manager.domain.repository.AppointmentRepository
-import ai.rojan.designlab.manager.domain.repository.CustomerRepository
-import ai.rojan.designlab.manager.domain.repository.ServiceRepository
-import ai.rojan.designlab.manager.domain.repository.SpecialistRepository
-import ai.rojan.designlab.manager.domain.specialist.Specialist
+import ai.rojan.designlab.presentation.common.UiState
+import ai.rojan.designlab.presentation.common.userMessageFor
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import java.util.UUID
+
+/** The manager's own salon's real bookable catalog — everything [ManagerBookingViewModel]'s service/specialist steps need, loaded once per wizard session. */
+data class ManagerBookingCatalog(
+    val salonId: String,
+    val services: List<Service>,
+    val specialists: List<Specialist>,
+)
 
 /**
- * Manager Booking Journey Phase 2 — owns the in-progress
- * [ManagerBookingState] for the whole 7-screen wizard and every piece of
- * business logic the wizard needs (available-time computation,
- * appointment creation). Screens read [uiState] and call these methods;
- * none of them touch a repository or compute anything themselves, per
- * "no business logic inside Composables."
+ * Manager Booking Journey — owns the in-progress [ManagerBookingState]
+ * for the whole 7-screen wizard.
  *
  * Scoped to the wizard's own back-stack lifetime (shared across all 7
  * screens via `navController.getBackStackEntry(ManagerDestinations.CREATE_APPOINTMENT)`,
@@ -34,46 +43,66 @@ import kotlinx.coroutines.flow.asStateFlow
  * app-lifetime singleton, so it's naturally cleared when the wizard
  * completes or is abandoned.
  *
- * Availability/salon-id (Final Release Validation — Real Booking
- * Calendar Integration) are read live from [ManagerRepositories] in
- * [availableTimes]/[confirm], not snapshotted at construction like the
- * four repositories above: this ViewModel is built once, synchronously,
- * the moment the wizard's first screen composes — well before the user
- * has picked a customer/service/specialist and reached the date/time
- * step, [ManagerRepositories.initialize] (re-triggered on wizard entry by
- * [ai.rojan.designlab.manager.screens.booking.ManagerBookingStartScreen])
- * has realistically had time to resolve `salonId` by then, and reading it
- * live means this doesn't matter either way.
+ * **Manager Booking Creation Integrity follow-up:** every selection step
+ * sources real backend data for the manager's own salon (`GET
+ * /salons/mine` to resolve it, then the same
+ * [ServiceRepository]/[SpecialistRepository]/[AvailabilityRepository] the
+ * Customer booking flow already uses) instead of
+ * `manager.data.ManagerRepositories`' in-memory catalog, and [confirm]
+ * fires the real `POST /api/v1/bookings` with a real `customerId` —
+ * resolved via the salon-scoped [SalonCustomerRepository] search, never a
+ * fabricated identity. [confirm]'s `onSuccess` callback fires if and only
+ * if the backend genuinely returns a persisted booking id — the exact "no
+ * fake success" contract TEAM2-001 established for the Customer flow.
  *
- * **Process-death fix (5B6-1):** the wizard's selections previously lived
- * only in [MutableStateFlow], so a manager who backgrounded the app
- * mid-wizard (an ordinary interruption on a shared salon device) returned
- * — via the nested graph's restored back-stack entry — into an empty
- * wizard. Ported from the Customer [ai.rojan.designlab.presentation.booking.BookingViewModel]
- * pattern: [savedStateHandle] persists the five selection fields on every
- * mutation and [restoreState] rebuilds them on construction. The
+ * Real backend [Specialist]/[SalonCustomer] carry no "skills"/"phone tag"
+ * concept the old in-memory `manager.domain.specialist.Specialist`/
+ * `manager.domain.customer.ManagerCustomer` models had — the specialist
+ * step no longer filters by service (there is nothing real to filter on)
+ * and the customer step shows a real name/email, not a name/phone/tag.
+ * Disclosed simplifications, not silently dropped features: see
+ * `TEAM2_RESULT_MANAGER_BOOKING_CREATION_V2.md`.
+ *
+ * **Process-death fix (5B6-1, preserved from Handoff):** the wizard's five
+ * selection fields previously lived only in [MutableStateFlow], so a
+ * manager who backgrounded the app mid-wizard (an ordinary interruption on
+ * a shared salon device) returned — via the nested graph's restored
+ * back-stack entry — into an empty wizard. [savedStateHandle] persists
+ * `customerId`/`serviceId`/`specialistId`/`dateKey`/`time` on every
+ * mutation via [setState] and [restoreState] rebuilds them on
+ * construction; every other field (`isSubmitting`/`createdAppointmentId`/
+ * `submitError`) is deliberately transient and not persisted. The
  * [SavedStateHandle] is sourced from the nested graph's
- * `NavBackStackEntry` extras at the `managerBookingViewModelFor` call site
- * — the API Navigation-Compose is built to restore through. Transient
- * fields (isSubmitting / confirmError / createdAppointmentId) are
- * deliberately not persisted.
+ * `NavBackStackEntry` extras at the `managerBookingViewModelFor` call
+ * site — the API Navigation-Compose is built to restore through.
  */
 class ManagerBookingViewModel(
-    private val savedStateHandle: SavedStateHandle,
-    private val customerRepository: CustomerRepository,
+    private val salonRepository: SalonRepository,
+    private val salonCustomerRepository: SalonCustomerRepository,
+    private val serviceCategoryRepository: ServiceCategoryRepository,
     private val serviceRepository: ServiceRepository,
     private val specialistRepository: SpecialistRepository,
-    private val appointmentRepository: AppointmentRepository,
+    private val availabilityRepository: AvailabilityRepository,
+    private val bookingRepository: BookingRepository,
+    /** Defaults to a fresh, unattached handle so every existing positional/named call site (including this ViewModel's own non-SavedState-focused unit tests) keeps compiling unchanged; the real navigation call site always supplies the graph-restored one — see this class's own doc comment. */
+    private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(restoreState())
     val uiState: StateFlow<ManagerBookingState> = _uiState.asStateFlow()
 
-    var isSubmitting by mutableStateOf(false)
+    var catalogState by mutableStateOf<UiState<ManagerBookingCatalog>>(UiState.Loading)
         private set
 
-    var submitError by mutableStateOf<String?>(null)
+    var customerSearchState by mutableStateOf<UiState<List<SalonCustomer>>>(UiState.Empty)
         private set
+
+    var slotsState by mutableStateOf<UiState<List<TimeSlot>>>(UiState.Empty)
+        private set
+
+    init {
+        loadCatalog()
+    }
 
     private fun restoreState(): ManagerBookingState = ManagerBookingState(
         customerId = savedStateHandle[KEY_CUSTOMER_ID],
@@ -83,7 +112,7 @@ class ManagerBookingViewModel(
         time = savedStateHandle[KEY_TIME],
     )
 
-    /** Single write path — updates the flow and persists the five selection fields. */
+    /** Single write path — updates the flow and persists the five real selection fields (not the transient submit-status ones). */
     private fun setState(newState: ManagerBookingState) {
         _uiState.value = newState
         savedStateHandle[KEY_CUSTOMER_ID] = newState.customerId
@@ -93,8 +122,53 @@ class ManagerBookingViewModel(
         savedStateHandle[KEY_TIME] = newState.time
     }
 
+    /** Fresh state for a new booking session (also re-fetches the catalog, in case it failed or is stale from a previous attempt). */
     fun reset() {
         setState(ManagerBookingState())
+        customerSearchState = UiState.Empty
+        slotsState = UiState.Empty
+        loadCatalog()
+    }
+
+    fun retryLoadCatalog() = loadCatalog()
+
+    private fun loadCatalog() {
+        catalogState = UiState.Loading
+        viewModelScope.launch {
+            salonRepository.myOwnedSalons()
+                .onSuccess { salons ->
+                    val salon = salons.firstOrNull()
+                    if (salon == null) {
+                        catalogState = UiState.Empty
+                        return@launch
+                    }
+                    val specialists = specialistRepository.getSpecialists(salon.id).getOrElse {
+                        catalogState = UiState.Error(userMessageFor(it))
+                        return@launch
+                    }
+                    val services = allServices(salon.id)
+                    catalogState = UiState.Success(ManagerBookingCatalog(salon.id, services, specialists))
+                }
+                .onFailure { catalogState = UiState.Error(userMessageFor(it)) }
+        }
+    }
+
+    private suspend fun allServices(salonId: String): List<Service> {
+        val categories = serviceCategoryRepository.getCategories(salonId).getOrNull().orEmpty()
+        return categories.flatMap { category -> serviceRepository.getServices(salonId, category.id).getOrNull().orEmpty() }
+    }
+
+    /** [query] blank/empty is a valid search — the salon's whole customer roster. */
+    fun searchCustomers(query: String) {
+        val salonId = (catalogState as? UiState.Success)?.data?.salonId ?: return
+        customerSearchState = UiState.Loading
+        viewModelScope.launch {
+            salonCustomerRepository.searchCustomers(salonId, query)
+                .onSuccess { customers ->
+                    customerSearchState = if (customers.isEmpty()) UiState.Empty else UiState.Success(customers)
+                }
+                .onFailure { customerSearchState = UiState.Error(userMessageFor(it)) }
+        }
     }
 
     fun selectCustomer(customerId: String) {
@@ -109,99 +183,93 @@ class ManagerBookingViewModel(
         setState(_uiState.value.copy(specialistId = specialistId))
     }
 
+    /** Changing the date invalidates a previously chosen time and re-fetches this specialist's real availability for the new date. */
     fun selectDate(dateKey: String) {
-        // Changing the date invalidates a previously chosen time — the
-        // slot may not even exist/be free on the new date.
         setState(_uiState.value.copy(dateKey = dateKey, time = null))
+        loadSlots()
     }
 
-    /** [time] must be a raw ISO-8601 `start` value from a real [availableTimes] result — see [ManagerBookingState.time]'s doc comment for why. */
+    /** [time] must be a raw ISO-8601 `start` value from a real [availableTimes]-equivalent result — see [ManagerBookingState.time]'s doc comment for why. */
     fun selectTime(time: String) {
         setState(_uiState.value.copy(time = time))
     }
 
-    fun searchCustomers(query: String) = customerRepository.search(query)
+    fun retryLoadSlots() = loadSlots()
 
-    fun activeServices() = serviceRepository.getAll().filter { it.active }
-
-    fun activeSpecialists() = specialistRepository.getAll().filter { it.active }
-
-    /**
-     * Specialists whose declared skills cover [serviceName], falling
-     * back to the full active roster if none match — a genuine filter,
-     * but one that never dead-ends the wizard with an empty list. Every
-     * real specialist's `skills` is currently an empty list (no such
-     * field on the backend — see [ai.rojan.designlab.manager.data.BackendSpecialistRepository]),
-     * so this always falls back to the full roster for now; the filter
-     * stays in place for if/when a real skills field exists.
-     */
-    fun specialistsFor(serviceName: String?): List<Specialist> {
-        val active = activeSpecialists()
-        if (serviceName == null) return active
-        val matching = active.filter { specialist -> specialist.skills.any { it == serviceName } }
-        return matching.ifEmpty { active }
-    }
-
-    fun customerById(id: String?) = id?.let { customerRepository.getById(it) }
-    fun serviceById(id: String?) = id?.let { serviceRepository.getById(it) }
-    fun specialistById(id: String?) = id?.let { specialistRepository.getById(it) }
-
-    /**
-     * Real bookable windows for [specialistId] on [dateKey], computed by
-     * the backend (`AvailabilityController` — considers the specialist's
-     * schedule and existing bookings) — replaces the previous fixed-grid-
-     * minus-taken-slots local approximation entirely. Requires a service
-     * to already be selected, which the wizard's screen order (service
-     * before specialist before date/time) guarantees by the time this is
-     * reachable.
-     */
-    suspend fun availableTimes(specialistId: String, dateKey: String): Result<List<TimeSlot>> {
-        val repository = ManagerRepositories.availabilityRepository
-            ?: return Result.failure(IllegalStateException("Availability is not ready yet — ManagerRepositories.initialize() has not completed"))
-        val salon = ManagerRepositories.salonId
-            ?: return Result.failure(IllegalStateException("Salon is not resolved yet — ManagerRepositories.initialize() has not completed"))
-        val serviceId = _uiState.value.serviceId
-            ?: return Result.failure(IllegalStateException("No service selected"))
-        return repository.getAvailableSlots(
-            salonId = salon,
-            specialistId = specialistId,
-            serviceId = serviceId,
-            date = ManagerCalendarWeek.isoDateFor(dateKey),
-        )
-    }
-
-    /**
-     * Confirms the in-progress booking against the real backend
-     * ([AppointmentRepository.createForCustomer], `POST
-     * /api/v1/salons/{salonId}/bookings`). [ManagerBookingState.time] is
-     * sent verbatim as `startTime` — it can only have been set via
-     * [selectTime] with a value that came from a real [availableTimes]
-     * result, so this call is only ever made with a real, backend-
-     * confirmed-free slot, never a reconstructed or guessed one.
-     */
-    suspend fun confirm(): Result<Appointment> {
+    private fun loadSlots() {
+        val salonId = (catalogState as? UiState.Success)?.data?.salonId
         val state = _uiState.value
-        val customerId = state.customerId ?: return Result.failure(IllegalStateException("No customer selected"))
-        val serviceId = state.serviceId ?: return Result.failure(IllegalStateException("No service selected"))
-        val specialistId = state.specialistId ?: return Result.failure(IllegalStateException("No specialist selected"))
-        val startTime = state.time ?: return Result.failure(IllegalStateException("No time selected"))
+        val specialistId = state.specialistId
+        val serviceId = state.serviceId
+        val dateKey = state.dateKey
+        if (salonId == null || specialistId == null || serviceId == null || dateKey == null) return
 
-        setState(state.copy(isSubmitting = true, confirmError = null))
-        val result = appointmentRepository.createForCustomer(
-            customerId = customerId,
-            serviceId = serviceId,
-            specialistId = specialistId,
-            startTime = startTime,
-            notes = null,
-        )
-        setState(
-            _uiState.value.copy(
-                isSubmitting = false,
-                createdAppointmentId = result.getOrNull()?.id,
-                confirmError = result.exceptionOrNull()?.let(::confirmErrorMessage),
-            ),
-        )
-        return result
+        slotsState = UiState.Loading
+        viewModelScope.launch {
+            availabilityRepository.getAvailableSlots(salonId, specialistId, serviceId, dateKey)
+                .onSuccess { slots -> slotsState = if (slots.isEmpty()) UiState.Empty else UiState.Success(slots) }
+                .onFailure { slotsState = UiState.Error(userMessageFor(it)) }
+        }
+    }
+
+    fun customerById(id: String?): SalonCustomer? = id?.let { target ->
+        (customerSearchState as? UiState.Success)?.data?.find { it.id == target }
+    }
+
+    fun serviceById(id: String?): Service? = id?.let { target ->
+        (catalogState as? UiState.Success)?.data?.services?.find { it.id == target }
+    }
+
+    fun specialistById(id: String?): Specialist? = id?.let { target ->
+        (catalogState as? UiState.Success)?.data?.specialists?.find { it.id == target }
+    }
+
+    /**
+     * Real `POST /api/v1/bookings` with the selected real `customerId` —
+     * the backend attributes the booking to that customer, not to the
+     * manager (owner-only, enforced server-side; see
+     * `SalonCustomerController`/`BookingController.resolveBookingCustomerId`
+     * in `ROJAN_Backend`). [onSuccess] fires if and only if this call
+     * genuinely succeeds and returns a persisted booking id — never
+     * unconditionally. Any failure (network, validation, a slot taken in
+     * the meantime, an inactive/deleted service or specialist) sets
+     * [ManagerBookingState.submitError] instead and [onSuccess] is never
+     * called — no local-only fallback of any kind.
+     */
+    fun confirm(onSuccess: () -> Unit) {
+        val salonId = (catalogState as? UiState.Success)?.data?.salonId
+        val state = _uiState.value
+        if (state.isSubmitting) return
+
+        val customerId = state.customerId
+        val serviceId = state.serviceId
+        val specialistId = state.specialistId
+        val dateKey = state.dateKey
+        val time = state.time
+        if (salonId == null || customerId == null || serviceId == null || specialistId == null || dateKey == null || time == null) {
+            setState(state.copy(submitError = "اطلاعات نوبت کامل نیست. لطفاً همه موارد را انتخاب کنید."))
+            return
+        }
+
+        setState(state.copy(isSubmitting = true, submitError = null))
+        viewModelScope.launch {
+            bookingRepository.createBooking(
+                salonId = salonId,
+                serviceId = serviceId,
+                specialistId = specialistId,
+                startTime = "${dateKey}T$time:00",
+                notes = null,
+                idempotencyKey = UUID.randomUUID().toString(),
+                customerId = customerId,
+            )
+                .onSuccess { booking ->
+                    setState(_uiState.value.copy(isSubmitting = false, createdAppointmentId = booking.id))
+                    onSuccess()
+                }
+                .onFailure { error ->
+                    setState(_uiState.value.copy(isSubmitting = false, submitError = userMessageFor(error)))
+                }
+        }
     }
 
     private companion object {
@@ -210,23 +278,5 @@ class ManagerBookingViewModel(
         const val KEY_SPECIALIST_ID = "manager_booking_specialist_id"
         const val KEY_DATE_KEY = "manager_booking_date_key"
         const val KEY_TIME = "manager_booking_time"
-    }
-}
-
-/**
- * Maps a real [confirm] failure to Persian, user-facing copy. Distinguishes
- * the specific backend error codes worth explaining differently (a customer
- * with no linked account can't be booked this way; the slot was taken by
- * someone else between selection and confirm) from a generic failure —
- * see [ai.rojan.designlab.data.remote.dto.ApiErrorDto.errorCode]'s doc
- * comment for where these codes come from.
- */
-private fun confirmErrorMessage(error: Throwable): String {
-    val apiError = (error as? BackendApiException)?.apiError
-    return when (apiError?.errorCode) {
-        "CUSTOMER_NOT_LINKED_TO_ACCOUNT" -> "این مشتری به حساب کاربری متصل نیست و امکان ثبت نوبت برای او وجود ندارد."
-        "BOOKING_CONFLICT" -> "این بازه زمانی دیگر در دسترس نیست. لطفاً ساعت دیگری را انتخاب کنید."
-        "SPECIALIST_NOT_FOUND", "SERVICE_NOT_FOUND", "CUSTOMER_NOT_FOUND" -> "اطلاعات انتخاب‌شده دیگر معتبر نیست. لطفاً دوباره تلاش کنید."
-        else -> apiError?.message ?: "ثبت نوبت با خطا مواجه شد. لطفاً دوباره تلاش کنید."
     }
 }

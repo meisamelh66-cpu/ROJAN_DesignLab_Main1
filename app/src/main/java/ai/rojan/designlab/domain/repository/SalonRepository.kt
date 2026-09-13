@@ -40,6 +40,13 @@ data class Salon(
     val logoUrl: String? = null,
     val latitude: Double? = null,
     val longitude: Double? = null,
+    // TEAM2-002 (Manager Data Persistence): defaulted so every existing
+    // Salon(...) construction (production and test) stays source-compatible.
+    // Customer-facing discovery (browseSalons/getSalon) is unaffected by
+    // this field — the backend's own query already scopes those to active
+    // salons; this is exposed so Manager-side reads (myOwnedSalons, the
+    // Dashboard identity card) can tell an active salon from a draft one.
+    val active: Boolean = true,
 ) {
     val location: SalonLocation get() = SalonLocation(latitude = latitude, longitude = longitude, address = address)
 }
@@ -63,4 +70,7 @@ interface SalonRepository {
     ): Result<PagedResult<Salon>>
 
     suspend fun getSalon(salonId: String): Result<Salon>
+
+    /** TEAM2-002. Salons owned by the currently authenticated account — `GET /api/v1/salons/mine`. Not paginated (an owner's own salon count is always small). */
+    suspend fun myOwnedSalons(): Result<List<Salon>>
 }

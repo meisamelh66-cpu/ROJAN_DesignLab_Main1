@@ -19,6 +19,8 @@ import ai.rojan.designlab.data.remote.ManagerSpecialistApi
 import ai.rojan.designlab.data.remote.NetworkConfig
 import ai.rojan.designlab.data.remote.PublicSalonApi
 import ai.rojan.designlab.data.remote.SalonApi
+import ai.rojan.designlab.data.remote.SalonBookingApi
+import ai.rojan.designlab.data.remote.SalonCustomerApi
 import ai.rojan.designlab.data.remote.SalonMembershipApi
 import ai.rojan.designlab.data.remote.SalonRelationshipApi
 import ai.rojan.designlab.data.remote.ServiceApi
@@ -35,6 +37,7 @@ import ai.rojan.designlab.data.repository.BookingRepositoryImpl
 import ai.rojan.designlab.data.repository.CurrentUserIdentityContextRepositoryImpl
 import ai.rojan.designlab.data.repository.CustomerRelationshipRepositoryImpl
 import ai.rojan.designlab.data.repository.PublicSalonRepositoryImpl
+import ai.rojan.designlab.data.repository.SalonCustomerRepositoryImpl
 import ai.rojan.designlab.data.repository.SalonRepositoryImpl
 import ai.rojan.designlab.data.repository.ServiceCategoryRepositoryImpl
 import ai.rojan.designlab.data.repository.ServiceRepositoryImpl
@@ -53,6 +56,7 @@ import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.CurrentUserIdentityContextRepository
 import ai.rojan.designlab.domain.repository.CustomerRelationshipRepository
 import ai.rojan.designlab.domain.repository.PublicSalonRepository
+import ai.rojan.designlab.domain.repository.SalonCustomerRepository
 import ai.rojan.designlab.domain.repository.SalonRepository
 import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
 import ai.rojan.designlab.domain.repository.ServiceRepository
@@ -152,10 +156,14 @@ class BackendApiContainer(context: Context) {
         )
 
     val bookingRepository: BookingRepository =
-        BookingRepositoryImpl(
-            retrofit.create(BookingApi::class.java)
-        )
+        BookingRepositoryImpl(retrofit.create(BookingApi::class.java), retrofit.create(SalonBookingApi::class.java))
 
+    // Manager Booking Creation Integrity: salon-scoped customer search for
+    // the booking wizard's "book on behalf of an existing customer" step -
+    // distinct from [managerCustomerApi]/CRM below, which is the full
+    // customer-profile surface, not a lightweight search-to-select list.
+    val salonCustomerRepository: SalonCustomerRepository =
+        SalonCustomerRepositoryImpl(retrofit.create(SalonCustomerApi::class.java))
 
     // -----------------------------
     // Manager APIs

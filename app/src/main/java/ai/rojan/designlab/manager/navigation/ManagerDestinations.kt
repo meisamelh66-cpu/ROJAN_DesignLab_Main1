@@ -13,6 +13,19 @@ import ai.rojan.designlab.manager.domain.customer.CustomerTag
  * (the top-level gate composable) directly, not inside [managerNavGraph]
  * itself — it is reached only before a session exists, never navigated to
  * from within the authenticated app.
+ *
+ * Pre-release reconciliation note: this file previously lost every route
+ * below [DASHBOARD] except the ones System2's own 6 commits happened to
+ * touch (System2 never edited Customers/Services/Staff/Settings/Profile —
+ * so a same-named merge pass earlier in this reconciliation, before the
+ * gap was noticed, took a plain `--theirs`/System2 copy of the *whole*
+ * file and silently deleted everything System2's diff simply didn't
+ * mention). Restored here as the real, live-wired set — see
+ * [ai.rojan.designlab.manager.navigation.ManagerRootGraph], the actual
+ * `ManagerActivity` entry point, which gates on [OTP_AUTH]/[SALON_SELECTION]/
+ * [ACCESS_ERROR] directly and never reaches System2's `SPLASH`/`LOGIN`
+ * (dropped as unreachable dead code in [ManagerNavGraph.kt] for the same
+ * reason).
  */
 object ManagerDestinations {
     /** OTP Authentication Entry Flow Integration — the gate's "not authenticated" destination. Splash is no longer a NavHost route (see `ManagerRootGraph.kt`): it's shown by the gate itself, before this NavHost is even created, so its startDestination can be chosen correctly (Dashboard vs. this) instead of always starting at a splash route. */

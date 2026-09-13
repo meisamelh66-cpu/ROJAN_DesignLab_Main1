@@ -1,6 +1,7 @@
 package ai.rojan.designlab.data.repository
 
 import ai.rojan.designlab.data.remote.BookingApi
+import ai.rojan.designlab.data.remote.SalonBookingApi
 import ai.rojan.designlab.data.remote.dto.CreateBookingRequestDto
 import ai.rojan.designlab.data.remote.dto.RescheduleBookingRequestDto
 import ai.rojan.designlab.data.remote.dto.toDomain
@@ -12,6 +13,7 @@ import ai.rojan.designlab.domain.repository.PagedResult
 
 class BookingRepositoryImpl(
     private val bookingApi: BookingApi,
+    private val salonBookingApi: SalonBookingApi,
 ) : BookingRepository {
 
     override suspend fun createBooking(
@@ -21,6 +23,7 @@ class BookingRepositoryImpl(
         startTime: String,
         notes: String?,
         idempotencyKey: String?,
+        customerId: String?,
     ): Result<Booking> = safeApiCall {
         bookingApi.createBooking(
             request = CreateBookingRequestDto(
@@ -29,6 +32,7 @@ class BookingRepositoryImpl(
                 specialistId = specialistId,
                 startTime = startTime,
                 notes = notes,
+                customerId = customerId,
             ),
             idempotencyKey = idempotencyKey,
         )
@@ -62,4 +66,22 @@ class BookingRepositoryImpl(
         safeApiCall {
             bookingApi.rescheduleBooking(bookingId, RescheduleBookingRequestDto(newStartTime = newStartTime))
         }.map { it.toDomain() }
+
+    /** TEAM2-002 (Manager Dashboard/Calendar): every booking made against [salonId] — the salon owner's view, not just bookings the caller made themselves (contrast [myBookings]). Uses the shared [toDomain] mapper so the enrichment fields ([Booking.service]/[Booking.specialist]/[Booking.customer]) populate identically to every other booking read path. */
+    override suspend fun salonBookings(
+        salonId: String,
+        page: Int,
+        size: Int,
+        status: BookingStatus?,
+    ): Result<PagedResult<Booking>> =
+        safeApiCall { salonBookingApi.bookings(salonId = salonId, page = page, size = size, status = status?.name) }
+            .map { dto ->
+                PagedResult(
+                    content = dto.content.map { it.toDomain() },
+                    page = dto.page,
+                    size = dto.size,
+                    totalElements = dto.totalElements,
+                    totalPages = dto.totalPages,
+                )
+            }
 }

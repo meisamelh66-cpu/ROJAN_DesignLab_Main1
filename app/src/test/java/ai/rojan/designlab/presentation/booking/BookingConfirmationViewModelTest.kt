@@ -73,6 +73,7 @@ class BookingConfirmationViewModelTest {
             startTime: String,
             notes: String?,
             idempotencyKey: String?,
+            customerId: String?,
         ): Result<Booking> {
             createCalls += CreateArgs(salonId, serviceId, specialistId, startTime, idempotencyKey)
             return onCreate()
@@ -84,6 +85,7 @@ class BookingConfirmationViewModelTest {
         override suspend fun confirmBooking(bookingId: String): Result<Booking> = error("unused")
         override suspend fun completeBooking(bookingId: String): Result<Booking> = error("unused")
         override suspend fun rescheduleBooking(bookingId: String, newStartTime: String): Result<Booking> = error("unused")
+        override suspend fun salonBookings(salonId: String, page: Int, size: Int, status: BookingStatus?): Result<PagedResult<Booking>> = error("unused")
     }
 
     private class FakeSalonRepository(private val salon: Salon?) : SalonRepository {
@@ -93,6 +95,7 @@ class BookingConfirmationViewModelTest {
             getSalonCalls++
             return salon?.let { Result.success(it) } ?: Result.failure(IOException("no salon"))
         }
+        override suspend fun myOwnedSalons(): Result<List<Salon>> = error("unused")
     }
 
     private class FakeSpecialistRepository(private val specialist: Specialist?) : SpecialistRepository {

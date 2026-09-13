@@ -1,34 +1,68 @@
 package ai.rojan.designlab.manager.presentation.booking
 
-import ai.rojan.designlab.manager.domain.appointment.Appointment
-import ai.rojan.designlab.manager.domain.appointment.AppointmentStatus
-import ai.rojan.designlab.manager.domain.customer.CustomerNote
-import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
-import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
-import ai.rojan.designlab.manager.domain.repository.AppointmentRepository
-import ai.rojan.designlab.manager.domain.repository.CustomerRepository
-import ai.rojan.designlab.manager.domain.repository.ServiceRepository
-import ai.rojan.designlab.manager.domain.repository.SpecialistRepository
-import ai.rojan.designlab.manager.domain.service.Service
-import ai.rojan.designlab.manager.domain.specialist.Specialist
+import ai.rojan.designlab.domain.repository.AvailabilityRepository
+import ai.rojan.designlab.domain.repository.BookingRepository
+import ai.rojan.designlab.domain.repository.BookingStatus
+import ai.rojan.designlab.domain.repository.PagedResult
+import ai.rojan.designlab.domain.repository.Salon
+import ai.rojan.designlab.domain.repository.SalonCustomer
+import ai.rojan.designlab.domain.repository.SalonCustomerRepository
+import ai.rojan.designlab.domain.repository.SalonRepository
+import ai.rojan.designlab.domain.repository.Service
+import ai.rojan.designlab.domain.repository.ServiceCategory
+import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
+import ai.rojan.designlab.domain.repository.ServiceRepository
+import ai.rojan.designlab.domain.repository.Specialist
+import ai.rojan.designlab.domain.repository.SpecialistRepository
+import ai.rojan.designlab.domain.repository.TimeSlot
 import androidx.lifecycle.SavedStateHandle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Before
 import org.junit.Test
 
 /**
- * Sprint 5B-6 (5B6-1) — the Manager booking wizard's selections now
- * persist through [SavedStateHandle], so a process death mid-wizard no
- * longer returns the manager to an empty flow.
+ * Sprint 5B-6 (5B6-1), preserved through the Manager Booking Creation
+ * Integrity follow-up's real-backend rewrite of [ManagerBookingViewModel]:
+ * the wizard's five selections still persist through [SavedStateHandle],
+ * so a process death mid-wizard no longer returns the manager to an empty
+ * flow — now proven against the real backend-repository constructor
+ * shape rather than the retired `manager.data.ManagerRepositories`
+ * in-memory one.
+ *
+ * The merged [ManagerBookingViewModel] also eagerly loads its catalog in
+ * `init {}` (System2's real-backend contribution) — unlike either original
+ * side alone, so a real `Dispatchers.Main` must be installed before every
+ * construction below, same as [ManagerBookingViewModelTest]'s setup.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class ManagerBookingViewModelSavedStateTest {
 
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
     private fun viewModel(handle: SavedStateHandle) = ManagerBookingViewModel(
+        salonRepository = FakeSalonRepository,
+        salonCustomerRepository = FakeSalonCustomerRepository,
+        serviceCategoryRepository = FakeServiceCategoryRepository,
+        serviceRepository = FakeServiceRepository,
+        specialistRepository = FakeSpecialistRepository,
+        availabilityRepository = FakeAvailabilityRepository,
+        bookingRepository = FakeBookingRepository,
         savedStateHandle = handle,
-        customerRepository = StubCustomerRepo,
-        serviceRepository = StubServiceRepo,
-        specialistRepository = StubSpecialistRepo,
-        appointmentRepository = StubAppointmentRepo,
     )
 
     @Test
@@ -39,8 +73,8 @@ class ManagerBookingViewModelSavedStateTest {
         first.selectCustomer("cust-1")
         first.selectService("svc-1")
         first.selectSpecialist("spec-1")
-        first.selectDate("2026/09/01")
-        first.selectTime("2026-09-01T10:00:00")
+        first.selectDate("2026-09-01")
+        first.selectTime("10:00")
 
         // simulate process death: a brand-new instance from the restored handle
         val restored = viewModel(handle).uiState.value
@@ -48,12 +82,12 @@ class ManagerBookingViewModelSavedStateTest {
         assertEquals("cust-1", restored.customerId)
         assertEquals("svc-1", restored.serviceId)
         assertEquals("spec-1", restored.specialistId)
-        assertEquals("2026/09/01", restored.dateKey)
-        assertEquals("2026-09-01T10:00:00", restored.time)
+        assertEquals("2026-09-01", restored.dateKey)
+        assertEquals("10:00", restored.time)
         assertEquals(true, restored.isReadyToConfirm)
         // transient fields are not persisted
         assertEquals(false, restored.isSubmitting)
-        assertNull(restored.confirmError)
+        assertNull(restored.submitError)
         assertNull(restored.createdAppointmentId)
     }
 
@@ -61,12 +95,12 @@ class ManagerBookingViewModelSavedStateTest {
     fun `picking a new date clears the previously chosen time in the persisted state`() {
         val handle = SavedStateHandle()
         val vm = viewModel(handle)
-        vm.selectDate("2026/09/01")
-        vm.selectTime("2026-09-01T10:00:00")
-        vm.selectDate("2026/09/02")
+        vm.selectDate("2026-09-01")
+        vm.selectTime("10:00")
+        vm.selectDate("2026-09-02")
 
         assertNull(viewModel(handle).uiState.value.time)
-        assertEquals("2026/09/02", viewModel(handle).uiState.value.dateKey)
+        assertEquals("2026-09-02", viewModel(handle).uiState.value.dateKey)
     }
 
     @Test
@@ -92,52 +126,61 @@ class ManagerBookingViewModelSavedStateTest {
         assertNull(restored.time)
     }
 
-    // ---- stubs (the selection methods touch no repository) ----------
+    // ---- fakes (the selection methods under test touch no repository) ----
 
-    private object StubServiceRepo : ServiceRepository {
-        override fun getAll() = emptyList<Service>()
-        override fun getById(id: String): Service? = null
-        override suspend fun create(service: Service) = error("unused")
-        override suspend fun update(service: Service) = error("unused")
-        override suspend fun delete(id: String) = error("unused")
-        override fun getCategoryNames() = emptyList<String>()
+    private object FakeSalonRepository : SalonRepository {
+        override suspend fun browseSalons(page: Int, size: Int, nameFilter: String?, sortDirection: String): Result<PagedResult<Salon>> =
+            error("not used by these tests")
+        override suspend fun getSalon(salonId: String): Result<Salon> = error("not used by these tests")
+        override suspend fun myOwnedSalons(): Result<List<Salon>> = Result.success(emptyList())
     }
 
-    private object StubSpecialistRepo : SpecialistRepository {
-        override fun getAll() = emptyList<Specialist>()
-        override fun getById(id: String): Specialist? = null
-        override suspend fun create(specialist: Specialist) = error("unused")
-        override suspend fun update(specialist: Specialist) = error("unused")
-        override suspend fun delete(id: String) = error("unused")
+    private object FakeSalonCustomerRepository : SalonCustomerRepository {
+        override suspend fun searchCustomers(salonId: String, query: String?): Result<List<SalonCustomer>> =
+            Result.success(emptyList())
     }
 
-    private object StubCustomerRepo : CustomerRepository {
-        override fun getAll() = emptyList<ManagerCustomer>()
-        override fun getById(id: String): ManagerCustomer? = null
-        override fun search(query: String) = emptyList<ManagerCustomer>()
-        override suspend fun create(customer: ManagerCustomer) = error("unused")
-        override suspend fun update(customer: ManagerCustomer) = error("unused")
-        override fun getServiceHistory(customerId: String) = emptyList<CustomerServiceHistoryEntry>()
-        override fun getNoteHistory(customerId: String) = emptyList<CustomerNote>()
-        override suspend fun loadDetail(customerId: String) = error("unused")
+    private object FakeServiceCategoryRepository : ServiceCategoryRepository {
+        override suspend fun getCategories(salonId: String): Result<List<ServiceCategory>> = Result.success(emptyList())
     }
 
-    private object StubAppointmentRepo : AppointmentRepository {
-        override fun getAll() = emptyList<Appointment>()
-        override fun getById(id: String): Appointment? = null
-        override fun getByCustomerId(customerId: String) = emptyList<Appointment>()
-        override suspend fun create(appointment: Appointment) = error("unused")
-        override fun update(appointment: Appointment): Appointment? = null
-        override fun updateStatus(id: String, status: AppointmentStatus): Appointment? = null
-        override fun cancel(id: String): Appointment? = null
-        override suspend fun createForCustomer(
-            customerId: String,
+    private object FakeServiceRepository : ServiceRepository {
+        override suspend fun getServices(salonId: String, categoryId: String): Result<List<Service>> = Result.success(emptyList())
+    }
+
+    private object FakeSpecialistRepository : SpecialistRepository {
+        override suspend fun getSpecialists(salonId: String): Result<List<Specialist>> = Result.success(emptyList())
+        override suspend fun getSpecialist(salonId: String, specialistId: String): Result<Specialist> =
+            error("not used by these tests")
+    }
+
+    private object FakeAvailabilityRepository : AvailabilityRepository {
+        override suspend fun getAvailableSlots(
+            salonId: String,
+            specialistId: String,
+            serviceId: String,
+            date: String,
+            slotIntervalMinutes: Int,
+        ): Result<List<TimeSlot>> = Result.success(emptyList())
+    }
+
+    private object FakeBookingRepository : BookingRepository {
+        override suspend fun createBooking(
+            salonId: String,
             serviceId: String,
             specialistId: String,
             startTime: String,
             notes: String?,
-        ) = error("unused")
-        override suspend fun confirm(id: String) = error("unused")
-        override suspend fun complete(id: String) = error("unused")
+            idempotencyKey: String?,
+            customerId: String?,
+        ): Result<ai.rojan.designlab.domain.repository.Booking> = error("not used by these tests")
+        override suspend fun myBookings(page: Int, size: Int, status: BookingStatus?) = error("not used by these tests")
+        override suspend fun getBooking(bookingId: String) = error("not used by these tests")
+        override suspend fun cancelBooking(bookingId: String) = error("not used by these tests")
+        override suspend fun confirmBooking(bookingId: String) = error("not used by these tests")
+        override suspend fun completeBooking(bookingId: String) = error("not used by these tests")
+        override suspend fun rescheduleBooking(bookingId: String, newStartTime: String) = error("not used by these tests")
+        override suspend fun salonBookings(salonId: String, page: Int, size: Int, status: BookingStatus?) =
+            error("not used by these tests")
     }
 }

@@ -61,6 +61,8 @@ interface BookingRepository {
         startTime: String,
         notes: String?,
         idempotencyKey: String?,
+        /** Manager Booking Creation Integrity follow-up: set only when the caller is the salon's owner booking on behalf of an existing customer. Backend rejects it (403) for any other caller, and 404s if it doesn't resolve to a real customer account. */
+        customerId: String? = null,
     ): Result<Booking>
 
     suspend fun myBookings(page: Int = 0, size: Int = 20, status: BookingStatus? = null): Result<PagedResult<Booking>>
@@ -74,10 +76,12 @@ interface BookingRepository {
      * needs `MANAGE_BOOKINGS`, not yet broadened backend-side (see
      * `ROJAN_System1_Backend_Decision_v2.md` §4 item 6). The endpoint
      * itself already existed backend-side — only this binding was missing.
+     * Backend returns 403 for any other caller, 409 if the booking isn't
+     * currently PENDING.
      */
     suspend fun confirmBooking(bookingId: String): Result<Booking>
 
-    /** `PATCH /bookings/{bookingId}/complete` — same status as [confirmBooking]. */
+    /** `PATCH /bookings/{bookingId}/complete` — same status as [confirmBooking]; salon owner only, backend returns 403 for any other caller. */
     suspend fun completeBooking(bookingId: String): Result<Booking>
 
     /**
@@ -85,7 +89,21 @@ interface BookingRepository {
      * one of the windows returned by the availability endpoint — same
      * shape [createBooking]'s [startTime] already expects). Its own
      * customer or the salon owner/manager/receptionist may call this;
-     * the backend re-checks the new time for conflicts.
+     * the backend re-checks the new time for conflicts (409 if the
+     * specialist has another active booking overlapping the new time).
      */
     suspend fun rescheduleBooking(bookingId: String, newStartTime: String): Result<Booking>
+
+    /**
+     * Every booking made against [salonId] — the salon owner's view, not
+     * just bookings the caller made themselves (contrast [myBookings]).
+     * Owner-only on the backend. Used by the Manager Dashboard/Calendar
+     * (TEAM2-002).
+     */
+    suspend fun salonBookings(
+        salonId: String,
+        page: Int = 0,
+        size: Int = 20,
+        status: BookingStatus? = null,
+    ): Result<PagedResult<Booking>>
 }
