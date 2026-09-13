@@ -23,6 +23,19 @@ import kotlinx.coroutines.launch
  * are separate so one section's in-flight upload never disables the
  * others.
  */
+/**
+ * P1 Manager Media Audit fix (same architecture as the Customer avatar/
+ * cover fix, commit 29d5503): [logoUpdatedAt]/[coverUpdatedAt] are stamped
+ * on a successful [ManagerSalonMediaViewModel.uploadLogo]/[uploadCover]
+ * only, and passed to `RojanRemoteImage`'s existing `cacheKey` parameter
+ * by `ManagerSalonMediaScreen` — no new image-loading mechanism, reusing
+ * the one already added for Customer. The gallery deliberately doesn't
+ * get this treatment: each gallery image is its own asset ([ManagerMediaAsset.id]),
+ * added or deleted, never re-uploaded into an existing displayed slot —
+ * unlike LOGO/COVER (one identity slot, reassigned via
+ * [ManagerMediaRepository.assignIdentity] on every change), there is no
+ * "same URL, new content" case for a gallery thumbnail to begin with.
+ */
 data class SalonMediaState(
     val logoUrl: String?,
     val coverUrl: String?,
@@ -31,6 +44,8 @@ data class SalonMediaState(
     val isUploadingCover: Boolean = false,
     val uploadingGalleryCount: Int = 0,
     val errorMessage: String? = null,
+    val logoUpdatedAt: Long? = null,
+    val coverUpdatedAt: Long? = null,
 )
 
 /**
@@ -106,7 +121,9 @@ class ManagerSalonMediaViewModel(
                 .onSuccess { salon ->
                     ManagerRepositories.updateSalon(salon)
                     updateState {
-                        it.copy(logoUrl = salon.logoUrl, coverUrl = salon.coverImageUrl).markUploading(slot, false)
+                        it.copy(logoUrl = salon.logoUrl, coverUrl = salon.coverImageUrl)
+                            .markUploading(slot, false)
+                            .withUpdatedNow(slot)
                     }
                 }
                 .onFailure { error ->
@@ -146,6 +163,12 @@ class ManagerSalonMediaViewModel(
     private fun SalonMediaState.markUploading(slot: ManagerIdentitySlot, value: Boolean): SalonMediaState = when (slot) {
         ManagerIdentitySlot.LOGO -> copy(isUploadingLogo = value)
         ManagerIdentitySlot.COVER -> copy(isUploadingCover = value)
+    }
+
+    /** P1 Manager Media Audit fix: stamps the slot's `*UpdatedAt` on a successful identity upload — see [SalonMediaState]'s own doc comment for why. */
+    private fun SalonMediaState.withUpdatedNow(slot: ManagerIdentitySlot): SalonMediaState = when (slot) {
+        ManagerIdentitySlot.LOGO -> copy(logoUpdatedAt = System.currentTimeMillis())
+        ManagerIdentitySlot.COVER -> copy(coverUpdatedAt = System.currentTimeMillis())
     }
 
     private fun currentState(): SalonMediaState? = (_loadState.value as? UiState.Success)?.data

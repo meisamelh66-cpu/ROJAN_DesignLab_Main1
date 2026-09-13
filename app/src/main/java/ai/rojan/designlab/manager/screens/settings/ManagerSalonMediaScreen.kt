@@ -179,6 +179,7 @@ private fun SalonMediaContent(
         IdentityMediaCard(
             title = "لوگو",
             url = state.logoUrl,
+            cacheKey = state.logoUpdatedAt?.toString(),
             placeholderIcon = Icons.Filled.Store,
             aspectRatio = 1f,
             isUploading = state.isUploadingLogo,
@@ -188,6 +189,7 @@ private fun SalonMediaContent(
         IdentityMediaCard(
             title = "تصویر کاور",
             url = state.coverUrl,
+            cacheKey = state.coverUpdatedAt?.toString(),
             placeholderIcon = Icons.Filled.Image,
             aspectRatio = 16f / 9f,
             isUploading = state.isUploadingCover,
@@ -207,6 +209,7 @@ private fun SalonMediaContent(
 private fun IdentityMediaCard(
     title: String,
     url: String?,
+    cacheKey: String?,
     placeholderIcon: ImageVector,
     aspectRatio: Float,
     isUploading: Boolean,
@@ -231,6 +234,7 @@ private fun IdentityMediaCard(
                     contentDescription = title,
                     modifier = Modifier.fillMaxSize(),
                     shape = RojanShapes.Small,
+                    cacheKey = cacheKey,
                     fallback = { Icon(imageVector = placeholderIcon, contentDescription = null, tint = ManagerColors.TextSecondary) },
                 )
                 if (isUploading) {
