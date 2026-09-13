@@ -84,6 +84,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import java.time.Duration
 
 /**
  * Manual composition root for backend networking dependencies.
@@ -280,7 +281,7 @@ class BackendApiContainer(context: Context) {
     private fun buildPlainRetrofit(): Retrofit =
         Retrofit.Builder()
             .baseUrl(NetworkConfig.BASE_URL)
-            .client(OkHttpClient.Builder().addInterceptor(loggingInterceptor).build())
+            .client(baseOkHttpClientBuilder().addInterceptor(loggingInterceptor).build())
             .addConverterFactory(jsonConverterFactory)
             .build()
 
@@ -300,17 +301,39 @@ class BackendApiContainer(context: Context) {
             level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.NONE
         }
 
+        // Customer OTP Timeout Audit fix: every OkHttpClient below used to
+        // rely on OkHttp's un-set implicit default (10s connect/read/
+        // write). Live on-device reproduction (Logcat's `okhttp.OkHttpClient`
+        // BASIC lines) measured a real, successful `POST .../auth/otp/request`
+        // taking ~7.5s against the actual backend - close enough to that
+        // implicit 10s ceiling that ordinary network/backend jitter (this
+        // endpoint's likely synchronous SMS-gateway dispatch) pushed some
+        // attempts over it, surfacing as an intermittent, genuine
+        // `SocketTimeoutException` -> `RequestTimeoutException` ("زمان
+        // اتصال به پایان رسید") even though the backend itself always
+        // answered successfully. A deliberate, reviewed timeout replaces
+        // the implicit one everywhere - not a per-endpoint special case,
+        // since nothing here distinguishes fast reads from slower
+        // dispatch-behind-the-scenes writes at the client level.
+        val NETWORK_TIMEOUT: Duration = Duration.ofSeconds(30)
+
+        fun baseOkHttpClientBuilder(): OkHttpClient.Builder =
+            OkHttpClient.Builder()
+                .connectTimeout(NETWORK_TIMEOUT)
+                .readTimeout(NETWORK_TIMEOUT)
+                .writeTimeout(NETWORK_TIMEOUT)
+
         fun buildAuthenticatedRetrofit(tokenRepository: TokenRepository, authSessionRepository: AuthSessionRepository): Retrofit {
             // Used only for the refresh call itself inside TokenAuthenticator,
             // so refreshing never recurses back into itself.
             val plainAuthApi: AuthApi = Retrofit.Builder()
                 .baseUrl(NetworkConfig.BASE_URL)
-                .client(OkHttpClient.Builder().addInterceptor(loggingInterceptor).build())
+                .client(baseOkHttpClientBuilder().addInterceptor(loggingInterceptor).build())
                 .addConverterFactory(jsonConverterFactory)
                 .build()
                 .create(AuthApi::class.java)
 
-            val authenticatedClient = OkHttpClient.Builder()
+            val authenticatedClient = baseOkHttpClientBuilder()
                 .addInterceptor(loggingInterceptor)
                 .addInterceptor(AuthInterceptor(tokenRepository))
                 .authenticator(TokenAuthenticator(tokenRepository, plainAuthApi, authSessionRepository))
