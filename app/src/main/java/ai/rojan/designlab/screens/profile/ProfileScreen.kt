@@ -201,7 +201,9 @@ fun ProfileScreen(
             ProfileHeader(
                 name = displayName,
                 avatarUrl = currentUser?.avatarUrl,
+                avatarCacheKey = mediaState.avatarUpdatedAt?.toString(),
                 coverUrl = currentUser?.coverUrl,
+                coverCacheKey = mediaState.coverUpdatedAt?.toString(),
                 phoneNumber = currentUser?.phoneNumber,
                 editable = !isGuest,
                 isUploadingAvatar = mediaState.isUploadingAvatar,
@@ -338,7 +340,9 @@ private val AvatarOverhang = 44.dp
 private fun ProfileHeader(
     name: String,
     avatarUrl: String?,
+    avatarCacheKey: String?,
     coverUrl: String?,
+    coverCacheKey: String?,
     phoneNumber: String?,
     editable: Boolean,
     isUploadingAvatar: Boolean,
@@ -366,6 +370,7 @@ private fun ProfileHeader(
                     contentDescription = "تصویر کاور",
                     shape = RectangleShape,
                     modifier = Modifier.fillMaxSize(),
+                    cacheKey = coverCacheKey,
                     fallback = { Box(Modifier.fillMaxSize().background(CustomerSurfaceFill)) },
                 )
                 // Calm fade toward the page ground so the avatar and name sit on a settled base.
@@ -416,6 +421,7 @@ private fun ProfileHeader(
                         contentDescription = "عکس نمایه",
                         shape = CircleShape,
                         modifier = Modifier.fillMaxSize(),
+                        cacheKey = avatarCacheKey,
                         fallback = { AvatarInitial(name) },
                     )
                 }
