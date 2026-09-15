@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -231,6 +232,13 @@ fun RefPrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    // Root-cause fix (Customer Regression Pass): a disabled button gave no
+    // visual difference between "processing" (e.g. OTP request in flight)
+    // and "just disabled" — a real, bounded network wait (see
+    // BackendApiContainer's NETWORK_TIMEOUT) read as a frozen/hung button.
+    // Optional and defaulted `false` so every existing call site (booking
+    // CTAs, dialogs, etc.) is unaffected unless it opts in.
+    loading: Boolean = false,
 ) {
     Box(
         modifier = modifier
@@ -239,16 +247,24 @@ fun RefPrimaryButton(
             .clip(RoundedCornerShape(CustomerButtonRadius))
             .background(CustomerAccent.copy(alpha = if (enabled) 1f else 0.4f))
             .then(
-                if (enabled) Modifier.rojanPressable(onClick = onClick, role = Role.Button)
+                if (enabled && !loading) Modifier.rojanPressable(onClick = onClick, role = Role.Button)
                 else Modifier,
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            label,
-            style = RojanTypography.Button,
-            color = CustomerOnAccent.copy(alpha = if (enabled) 1f else 0.6f),
-        )
+        if (loading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(22.dp),
+                color = CustomerOnAccent,
+                strokeWidth = 2.5.dp,
+            )
+        } else {
+            Text(
+                label,
+                style = RojanTypography.Button,
+                color = CustomerOnAccent.copy(alpha = if (enabled) 1f else 0.6f),
+            )
+        }
     }
 }
 

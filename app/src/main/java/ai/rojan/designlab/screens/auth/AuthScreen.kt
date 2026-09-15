@@ -195,6 +195,11 @@ fun AuthScreen(
                     }
                 },
                 enabled = !isSubmitting,
+                // Root-cause fix: this button previously gave no feedback while
+                // a real (bounded, but multi-second) OTP request/verify call was
+                // in flight — just a slightly dimmed, inert button, indistinguishable
+                // from a genuine hang. See RefPrimaryButton's own doc comment.
+                loading = isSubmitting,
             )
 
             if (awaitingCode) {
