@@ -2,6 +2,7 @@ package ai.rojan.designlab.screens.profile
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -51,7 +53,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.liveRegion
@@ -65,6 +69,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+import ai.rojan.designlab.R
 import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.presentation.auth.AuthViewModel
 import ai.rojan.designlab.presentation.profile.ProfileMediaViewModel
@@ -113,6 +118,13 @@ private data class ProfileMenuItem(
  * three [ProfileMenuItem] groups, and the [CustomerConfirmDialog]-gated
  * logout — is unchanged.
  *
+ * Brand consistency pass: the cover band's *no-real-cover-yet* fallback now
+ * shows the same brand portrait Home's hero card uses (identical asset,
+ * `R.drawable.hero_customer_portrait`) instead of an empty tinted box, so a
+ * fresh profile reads as the same product as Home. Purely the fallback
+ * visual — [RojanRemoteImage] still renders the real uploaded `coverUrl`
+ * whenever one exists, and the real avatar-initial identity is untouched.
+ *
  * NOTHING else about behaviour changed: displayed name still comes from
  * [AuthViewModel.currentDisplayName], contact fields from
  * [AuthViewModel.currentUser], and every navigation callback — including
@@ -136,6 +148,7 @@ fun ProfileScreen(
     onLoyaltyClick: () -> Unit,
     onReviewsClick: () -> Unit,
     onBeautyTimelineClick: () -> Unit,
+    onLoginClick: () -> Unit,
     onLogoutClick: () -> Unit,
 ) {
     val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
@@ -284,7 +297,11 @@ fun ProfileScreen(
             MenuGroup("امکانات حساب", accountItems)
 
             Spacer(Modifier.height(RojanDimens.SpaceXL))
-            LogoutRow(onClick = { showLogoutConfirm = true })
+            SessionActionRow(
+                isGuest = isGuest,
+                onLoginClick = onLoginClick,
+                onLogoutClick = { showLogoutConfirm = true },
+            )
 
             Spacer(Modifier.height(RojanDimens.SpaceLG))
         }
@@ -371,7 +388,17 @@ private fun ProfileHeader(
                     shape = RectangleShape,
                     modifier = Modifier.fillMaxSize(),
                     cacheKey = coverCacheKey,
-                    fallback = { Box(Modifier.fillMaxSize().background(CustomerSurfaceFill)) },
+                    // No real cover uploaded yet: same brand portrait Home's hero
+                    // card uses (identical asset, not a new/fabricated photo) —
+                    // replaced the moment the customer uploads a real cover.
+                    fallback = {
+                        Image(
+                            painter = painterResource(R.drawable.hero_customer_portrait),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                        )
+                    },
                 )
                 // Calm fade toward the page ground so the avatar and name sit on a settled base.
                 Box(
@@ -587,10 +614,34 @@ private fun RowIcon(icon: ImageVector) {
     )
 }
 
-// --- Logout (unchanged) -----------------------------------------------
+// --- Session action: "ورود" for a guest, "خروج از حساب" once authenticated ---
+// Root-cause fix (Pre-Release Audit): this row used to render unconditionally
+// as "خروج از حساب", so a logged-out guest saw a Logout affordance with
+// nothing to log out of. Driven by the same [isGuest] (== currentUser == null)
+// every other conditional affordance on this screen already uses - never a
+// separate/stale flag.
 
 @Composable
-private fun LogoutRow(onClick: () -> Unit) {
+private fun SessionActionRow(isGuest: Boolean, onLoginClick: () -> Unit, onLogoutClick: () -> Unit) {
+    if (isGuest) {
+        AuthActionRow(
+            label = "ورود",
+            icon = Icons.AutoMirrored.Outlined.Login,
+            tint = CustomerAccent,
+            onClick = onLoginClick,
+        )
+    } else {
+        AuthActionRow(
+            label = "خروج از حساب",
+            icon = Icons.AutoMirrored.Outlined.Logout,
+            tint = RojanErrorText,
+            onClick = onLogoutClick,
+        )
+    }
+}
+
+@Composable
+private fun AuthActionRow(label: String, icon: ImageVector, tint: Color, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -605,13 +656,13 @@ private fun LogoutRow(onClick: () -> Unit) {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                Icons.AutoMirrored.Outlined.Logout,
+                icon,
                 contentDescription = null,
-                tint = RojanErrorText,
+                tint = tint,
                 modifier = Modifier.size(20.dp),
             )
             Spacer(Modifier.width(RojanDimens.SpaceSM))
-            Text("خروج از حساب", style = RojanTypography.Button, color = RojanErrorText)
+            Text(label, style = RojanTypography.Button, color = tint)
         }
     }
 }

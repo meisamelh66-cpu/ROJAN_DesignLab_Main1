@@ -457,9 +457,13 @@ private fun HomeHeroCard(
 /**
  * Reserved portrait area — see [HomeHeroCard]'s doc comment. Intentionally a
  * quiet radial glow on the existing dark ground, not a fabricated photo.
+ *
+ * `internal` (not `private`): reused as-is by [ai.rojan.designlab.screens.auth.AuthScreen]
+ * for the same brand portrait on the Login/entry screen — same asset, same
+ * treatment, no duplicated composable.
  */
 @Composable
-private fun HomeHeroPortraitSlot() {
+internal fun HomeHeroPortraitSlot() {
     val portraitShape = RoundedCornerShape(20.dp)
     Box(
         modifier = Modifier

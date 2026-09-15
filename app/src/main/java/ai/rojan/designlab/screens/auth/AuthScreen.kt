@@ -1,7 +1,10 @@
 package ai.rojan.designlab.screens.auth
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -19,10 +23,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,9 +37,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ai.rojan.designlab.domain.identity.SessionState
 import ai.rojan.designlab.presentation.auth.AuthViewModel
 import ai.rojan.designlab.presentation.auth.CustomerOtpStep
+import ai.rojan.designlab.screens.customer.HomeHeroPortraitSlot
 import ai.rojan.designlab.screens.customer.components.CustomerAccent
+import ai.rojan.designlab.screens.customer.components.CustomerCardShape
+import ai.rojan.designlab.screens.customer.components.CustomerHairline
 import ai.rojan.designlab.screens.customer.components.CustomerScaffold
 import ai.rojan.designlab.screens.customer.components.CustomerScreenMargin
+import ai.rojan.designlab.screens.customer.components.CustomerSurfaceFill
 import ai.rojan.designlab.screens.customer.components.CustomerTextField
 import ai.rojan.designlab.screens.customer.components.RefPrimaryButton
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
@@ -55,6 +65,13 @@ import ai.rojan.designlab.ui.theme.RojanTypography
  * shell and flat foundation primitives: a plain headline, flat outlined
  * fields with a rose-gold cursor, an inline calm error line, and a solid
  * rose-gold [RefPrimaryButton].
+ *
+ * Brand consistency pass: a flat bordered header (same [CustomerCardShape] /
+ * [CustomerSurfaceFill] / [CustomerHairline] treatment as the Home hero card)
+ * carries the "ROJAN AI" wordmark, the approved slogan, and the shared
+ * [HomeHeroPortraitSlot] — the exact same composable and drawable Home uses,
+ * not a new asset — so Login/entry reads as the same product as Home instead
+ * of an orphaned plain form.
  *
  * NOTHING about the auth flow changed: every read of / call into
  * [AuthViewModel] — `sessionState`, `otpStep`, `errorMessage`, `isSubmitting`,
@@ -102,6 +119,10 @@ fun AuthScreen(
                 .imePadding()
                 .padding(horizontal = CustomerScreenMargin, vertical = RojanDimens.SpaceLG),
         ) {
+            AuthBrandHeader()
+
+            Spacer(Modifier.height(RojanDimens.SpaceLG))
+
             Text(
                 "ورود به روژان",
                 style = RojanTypography.Display.copy(fontSize = 26.sp, lineHeight = 34.sp),
@@ -202,6 +223,38 @@ fun AuthScreen(
                 }
             }
         }
+    }
+}
+
+// --- Brand header (same treatment as the Home hero card) -----------------
+
+@Composable
+private fun AuthBrandHeader() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(CustomerCardShape)
+            .background(CustomerSurfaceFill)
+            .border(1.dp, CustomerHairline, CustomerCardShape)
+            .padding(RojanDimens.SpaceMD),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "ROJAN AI",
+                style = RojanTypography.SectionTitle.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                color = HomeColors.TextPrimary,
+            )
+            Spacer(Modifier.height(RojanDimens.SpaceXS))
+            // Approved slogan, exact text — same string as the Home hero card.
+            Text(
+                "هوشمندتر مدیریت کن، زیباتر رشد کن",
+                style = RojanTypography.Body,
+                color = HomeColors.TextSecondary,
+            )
+        }
+        Spacer(Modifier.width(RojanDimens.SpaceMD))
+        HomeHeroPortraitSlot()
     }
 }
 
