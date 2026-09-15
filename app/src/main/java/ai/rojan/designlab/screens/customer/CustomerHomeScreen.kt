@@ -1,5 +1,10 @@
 package ai.rojan.designlab.screens.customer
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +35,7 @@ import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -421,6 +427,21 @@ private fun ExploreSalonCard(
 
 @Composable
 private fun ExploreSalonSkeleton(modifier: Modifier = Modifier) {
+    // Root-cause fix (Customer QA pass): this was a flat, static box (fixed
+    // 0.6f alpha, no motion) - indistinguishable from an empty/broken
+    // container during a real (correctly-bounded, but multi-second) network
+    // wait. Reuses the exact pulse mechanic already established by
+    // CustomerSkeletonRows (CustomerRefComponents.kt) - same alpha range/
+    // timing, no new visual system - so this reads as "loading" rather than
+    // "stuck." The underlying data fetch (SalonListViewModel) was verified
+    // correct on-device; this only fixes the loading state's own feedback.
+    val transition = rememberInfiniteTransition(label = "explore-salon-skeleton")
+    val pulse by transition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 0.85f,
+        animationSpec = infiniteRepeatable(tween(1100), RepeatMode.Reverse),
+        label = "pulse",
+    )
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -428,7 +449,7 @@ private fun ExploreSalonSkeleton(modifier: Modifier = Modifier) {
             .clip(RefCardShape)
             .background(RefSurfaceFill)
             .border(1.dp, RefHairline, RefCardShape)
-            .alpha(0.6f),
+            .alpha(pulse),
     )
 }
 

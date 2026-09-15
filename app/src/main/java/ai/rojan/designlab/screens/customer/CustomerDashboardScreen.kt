@@ -1,5 +1,10 @@
 package ai.rojan.designlab.screens.customer
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -43,6 +48,7 @@ import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -793,6 +799,18 @@ private fun HomeSalonCard(salon: Salon, onClick: () -> Unit) {
 
 @Composable
 private fun HomeSalonSkeleton() {
+    // Root-cause fix (Customer QA pass): see ExploreSalonSkeleton's identical
+    // fix in CustomerHomeScreen.kt - this was a flat, static box with no
+    // motion, reading as an empty/broken container during a real network
+    // wait rather than an active loading state. Same pulse mechanic already
+    // established by CustomerSkeletonRows, no new visual system.
+    val transition = rememberInfiniteTransition(label = "home-salon-skeleton")
+    val pulse by transition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 0.85f,
+        animationSpec = infiniteRepeatable(tween(1100), RepeatMode.Reverse),
+        label = "pulse",
+    )
     Box(
         modifier = Modifier
             .width(220.dp)
@@ -800,7 +818,7 @@ private fun HomeSalonSkeleton() {
             .clip(RefCardShape)
             .background(RefSurfaceFill)
             .border(1.dp, RefHairline, RefCardShape)
-            .alpha(0.6f),
+            .alpha(pulse),
     )
 }
 

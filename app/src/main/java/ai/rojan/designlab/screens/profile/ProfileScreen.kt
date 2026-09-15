@@ -118,12 +118,13 @@ private data class ProfileMenuItem(
  * three [ProfileMenuItem] groups, and the [CustomerConfirmDialog]-gated
  * logout — is unchanged.
  *
- * Brand consistency pass: the cover band's *no-real-cover-yet* fallback now
- * shows the same brand portrait Home's hero card uses (identical asset,
- * `R.drawable.hero_customer_portrait`) instead of an empty tinted box, so a
- * fresh profile reads as the same product as Home. Purely the fallback
- * visual — [RojanRemoteImage] still renders the real uploaded `coverUrl`
- * whenever one exists, and the real avatar-initial identity is untouched.
+ * Brand consistency pass, root-cause fix (Customer QA pass): the cover
+ * band's *no-real-cover-yet* fallback now shows the existing, official
+ * `R.drawable.rojan_ai_logo` mark (used as-is, no crop/recolor/distortion —
+ * `ContentScale.Fit` at a fixed 96dp on the app's own dark ground) instead
+ * of the female brand portrait it showed before. Purely the fallback visual
+ * — [RojanRemoteImage] still renders the real uploaded `coverUrl` whenever
+ * one exists, and the real avatar-initial identity is untouched.
  *
  * NOTHING else about behaviour changed: displayed name still comes from
  * [AuthViewModel.currentDisplayName], contact fields from
@@ -388,16 +389,25 @@ private fun ProfileHeader(
                     shape = RectangleShape,
                     modifier = Modifier.fillMaxSize(),
                     cacheKey = coverCacheKey,
-                    // No real cover uploaded yet: same brand portrait Home's hero
-                    // card uses (identical asset, not a new/fabricated photo) —
+                    // No real cover uploaded yet: the existing official ROJAN AI
+                    // logo mark, not the female brand portrait used before —
                     // replaced the moment the customer uploads a real cover.
+                    // ContentScale.Fit (not Crop): the logo is shown exactly as
+                    // it exists, never cropped/stretched/recolored.
                     fallback = {
-                        Image(
-                            painter = painterResource(R.drawable.hero_customer_portrait),
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(HomeColors.NavyBase),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.rojan_ai_logo),
+                                contentDescription = null,
+                                modifier = Modifier.size(96.dp),
+                                contentScale = ContentScale.Fit,
+                            )
+                        }
                     },
                 )
                 // Calm fade toward the page ground so the avatar and name sit on a settled base.
