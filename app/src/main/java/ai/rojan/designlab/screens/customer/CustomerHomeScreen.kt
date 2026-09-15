@@ -50,7 +50,6 @@ import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.presentation.salon.SalonListViewModel
 import ai.rojan.designlab.presentation.salon.SalonListViewModelFactory
 import ai.rojan.designlab.screens.customer.components.CustomerAccent as RefAccent
-import ai.rojan.designlab.screens.customer.components.CustomerCardRadius as RefCardRadius
 import ai.rojan.designlab.screens.customer.components.CustomerCardShape as RefCardShape
 import ai.rojan.designlab.screens.customer.components.CustomerHairline as RefHairline
 import ai.rojan.designlab.screens.customer.components.CustomerOnAccent as RefOnAccent
