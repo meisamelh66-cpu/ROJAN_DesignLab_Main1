@@ -1,5 +1,6 @@
 package ai.rojan.designlab.screens.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -12,8 +13,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,6 +27,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -34,10 +40,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
+import ai.rojan.designlab.R
 import ai.rojan.designlab.domain.identity.SessionState
 import ai.rojan.designlab.presentation.auth.AuthViewModel
 import ai.rojan.designlab.presentation.auth.CustomerOtpStep
-import ai.rojan.designlab.screens.customer.HomeHeroPortraitSlot
 import ai.rojan.designlab.screens.customer.components.CustomerAccent
 import ai.rojan.designlab.screens.customer.components.CustomerCardShape
 import ai.rojan.designlab.screens.customer.components.CustomerHairline
@@ -68,10 +74,16 @@ import ai.rojan.designlab.ui.theme.RojanTypography
  *
  * Brand consistency pass: a flat bordered header (same [CustomerCardShape] /
  * [CustomerSurfaceFill] / [CustomerHairline] treatment as the Home hero card)
- * carries the "ROJAN AI" wordmark, the approved slogan, and the shared
- * [HomeHeroPortraitSlot] — the exact same composable and drawable Home uses,
- * not a new asset — so Login/entry reads as the same product as Home instead
- * of an orphaned plain form.
+ * carries the "ROJAN AI" wordmark, the approved slogan, and [AuthBrandLogoSlot].
+ *
+ * Login-screen brand mark fix: the portrait image ([AuthBrandLogoSlot], this
+ * screen only) was replaced with the existing `R.drawable.rojan_ai_logo`
+ * asset, shown via `ContentScale.Fit` (its own true aspect ratio, never
+ * cropped/stretched) in the same 104x132dp slot the portrait occupied. Home's
+ * hero card and Profile's cover fallback still use the original
+ * [ai.rojan.designlab.screens.customer.HomeHeroPortraitSlot] portrait,
+ * unchanged — this is a Login/entry-screen-only swap, not a shared-asset
+ * change.
  *
  * NOTHING about the auth flow changed: every read of / call into
  * [AuthViewModel] — `sessionState`, `otpStep`, `errorMessage`, `isSubmitting`,
@@ -259,7 +271,44 @@ private fun AuthBrandHeader() {
             )
         }
         Spacer(Modifier.width(RojanDimens.SpaceMD))
-        HomeHeroPortraitSlot()
+        AuthBrandLogoSlot()
+    }
+}
+
+/**
+ * Login/entry-screen-only brand mark: the existing `R.drawable.rojan_ai_logo`
+ * asset, used exactly as-is (no crop/recolor/distortion — `ContentScale.Fit`
+ * preserves its own true aspect ratio inside this slot rather than filling
+ * it). Same footprint, shape, glow-tint background, and hairline border
+ * [ai.rojan.designlab.screens.customer.HomeHeroPortraitSlot] used here
+ * before, so the container/"premium sizing" of this header is unchanged —
+ * only the image inside it changed. Deliberately local to this file, not a
+ * change to the shared `HomeHeroPortraitSlot` (Home's hero card and
+ * Profile's cover fallback still show the original portrait, untouched).
+ */
+@Composable
+private fun AuthBrandLogoSlot() {
+    val logoShape = RoundedCornerShape(20.dp)
+    Box(
+        modifier = Modifier
+            .size(width = 104.dp, height = 132.dp)
+            .clip(logoShape)
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(HomeColors.Glow.copy(alpha = 0.35f), HomeColors.Magenta.copy(alpha = 0.12f)),
+                ),
+            )
+            .border(1.dp, CustomerHairline, logoShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.rojan_ai_logo),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(RojanDimens.SpaceSM),
+            contentScale = ContentScale.Fit,
+        )
     }
 }
 
