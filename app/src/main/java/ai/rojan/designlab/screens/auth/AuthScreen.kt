@@ -263,9 +263,9 @@ private fun AuthBrandHeader() {
                 color = HomeColors.TextPrimary,
             )
             Spacer(Modifier.height(RojanDimens.SpaceXS))
-            // Approved slogan, exact text — same string as the Home hero card.
+            // Approved Customer slogan — same string as the Home hero card.
             Text(
-                "هوشمندتر مدیریت کن، زیباتر رشد کن",
+                "راحت‌تر رزرو کن، زیباتر بدرخش",
                 style = RojanTypography.Body,
                 color = HomeColors.TextSecondary,
             )

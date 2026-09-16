@@ -433,15 +433,18 @@ private fun HomeHeroCard(
                             color = HomeColors.TextPrimary,
                         )
                         Spacer(Modifier.height(RojanDimens.SpaceXS))
-                        // Approved slogan, exact text, as ONE logical string —
-                        // no manual mid-sentence line break. A hard-coded `\n`
-                        // inside an RTL-directed string previously rendered
-                        // with the two halves visually out of order; letting
-                        // Compose's own soft-wrap break the line (same as
-                        // every other multi-word Persian string in this app)
-                        // avoids that class of bug entirely.
+                        // Approved Customer slogan (replaces the previous
+                        // Manager-oriented line — "مدیریت کن"/"رشد کن" are
+                        // business-management verbs, not customer-facing).
+                        // Exact text, as ONE logical string — no manual
+                        // mid-sentence line break. A hard-coded `\n` inside
+                        // an RTL-directed string previously rendered with the
+                        // two halves visually out of order; letting Compose's
+                        // own soft-wrap break the line (same as every other
+                        // multi-word Persian string in this app) avoids that
+                        // class of bug entirely.
                         Text(
-                            "هوشمندتر مدیریت کن، زیباتر رشد کن",
+                            "راحت‌تر رزرو کن، زیباتر بدرخش",
                             style = RojanTypography.Body,
                             color = HomeColors.TextSecondary,
                         )
