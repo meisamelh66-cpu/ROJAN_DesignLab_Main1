@@ -2,6 +2,8 @@ package ai.rojan.designlab.presentation.auth
 
 import ai.rojan.designlab.data.identity.DemoIdentityProvider
 import ai.rojan.designlab.data.identity.DemoSessionProvider
+import ai.rojan.designlab.data.remote.BackendApiException
+import ai.rojan.designlab.data.remote.NetworkUnavailableException
 import ai.rojan.designlab.domain.identity.SessionState
 import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.AuthenticatedUser
@@ -215,7 +217,11 @@ class AuthViewModelTest {
         val tokenRepository = FakeTokenRepository()
         tokenRepository.saveTokens("stale-access", "stale-refresh")
         val backendAuthRepository = FakeBackendAuthRepository(
-            currentUserResult = Result.failure(IllegalStateException("401 - refresh token also invalid")),
+            // A genuine, backend-confirmed rejection - the real shape
+            // `GET /users/me` returns when the refresh token itself is dead
+            // (see safeApiCall's HttpException -> BackendApiException
+            // mapping), not a generic exception type.
+            currentUserResult = Result.failure(BackendApiException(401, null)),
         )
         val viewModel = newViewModel(authSessionRepository = authSessionRepository, backendAuthRepository = backendAuthRepository, tokenRepository = tokenRepository)
 
@@ -225,6 +231,28 @@ class AuthViewModelTest {
         assertNull(tokenRepository.accessToken())
         assertNull(tokenRepository.refreshToken())
         assertEquals(1, authSessionRepository.clearPersonIdCallCount)
+    }
+
+    @Test
+    fun `a transient restore failure (offline, timeout, 5xx) does not clear the persisted session`() = runTest {
+        // Persistent Session root-cause fix: this is the exact scenario the
+        // old unconditional-clear behavior got wrong - a restore attempt
+        // that fails for a reason unrelated to whether the refresh token is
+        // still good must not force the next cold start into a fresh
+        // phone/OTP login.
+        val authSessionRepository = FakeAuthSessionRepository()
+        val tokenRepository = FakeTokenRepository()
+        tokenRepository.saveTokens("still-good-access", "still-good-refresh")
+        val backendAuthRepository = FakeBackendAuthRepository(
+            currentUserResult = Result.failure(NetworkUnavailableException(java.io.IOException("offline"))),
+        )
+        val viewModel = newViewModel(authSessionRepository = authSessionRepository, backendAuthRepository = backendAuthRepository, tokenRepository = tokenRepository)
+
+        viewModel.restoreSession("some-persisted-id")
+
+        assertEquals("still-good-access", tokenRepository.accessToken())
+        assertEquals("still-good-refresh", tokenRepository.refreshToken())
+        assertEquals(0, authSessionRepository.clearPersonIdCallCount)
     }
 
     @Test

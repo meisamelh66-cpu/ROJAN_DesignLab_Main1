@@ -1,5 +1,6 @@
 package ai.rojan.designlab.presentation.auth
 
+import ai.rojan.designlab.data.remote.BackendApiException
 import ai.rojan.designlab.domain.identity.IdentityProvider
 import ai.rojan.designlab.domain.identity.MutableSessionProvider
 import ai.rojan.designlab.domain.identity.PersonRole
@@ -380,14 +381,39 @@ class AuthViewModel(
      * before this resolves (the confirmed bug this fixes: an expired/
      * revoked refresh token used to still land the user on the Dashboard
      * for one frame before things silently started failing).
+     *
+     * Persistent Session root-cause fix: a failure here used to clear the
+     * persisted session (tokens + personId) unconditionally, for *any*
+     * failure type — including a transient one (offline, a timeout, a 5xx)
+     * that says nothing about whether the stored refresh token is still
+     * good. That forced a fresh phone/OTP login on the *next* cold start
+     * simply because this one restore attempt happened to run while
+     * offline or mid-network-hiccup — the persisted session was wiped even
+     * though it may still have been perfectly valid. This now applies the
+     * same "genuine vs. transient" classification `data/remote/TokenAuthenticator.kt`
+     * already uses for the identical decision on a refresh failure (see
+     * that class's own doc comment): only a backend-confirmed rejection
+     * (400/401/403) means the session is genuinely dead. Everything else
+     * leaves the persisted session intact for the next restore attempt to
+     * retry. [_identityContext]'s own failure handling is unchanged either
+     * way (stays [UiState.Loading], exactly as before this fix) - that
+     * state is a separate concern from whether the session itself survives.
      */
     suspend fun restoreSession(personId: String) {
         backendAuthRepository.currentUser()
             .onSuccess { user -> onAuthenticated(user) }
-            .onFailure {
-                tokenRepository.clearTokens()
-                authSessionRepository.clearPersonId()
+            .onFailure { error ->
+                val isGenuinelyDead = error is BackendApiException && error.statusCode in GENUINE_REJECTION_STATUS_CODES
+                if (isGenuinelyDead) {
+                    tokenRepository.clearTokens()
+                    authSessionRepository.clearPersonId()
+                }
                 _identityContext.value = UiState.Loading
             }
+    }
+
+    private companion object {
+        /** Same set `data/remote/TokenAuthenticator.kt` uses for the identical "is this session genuinely dead" decision. */
+        val GENUINE_REJECTION_STATUS_CODES = setOf(400, 401, 403)
     }
 }
