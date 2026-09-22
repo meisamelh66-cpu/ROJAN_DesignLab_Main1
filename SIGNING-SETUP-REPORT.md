@@ -3,6 +3,57 @@
 **Date:** 2026-09-10 · **Scope:** P0-2 (release signing) only. No business logic, screen, ViewModel,
 repository, or manifest touched. **Not committed.**
 
+> ## ⚠️ SIGNING IDENTITY UPDATE — 2026-09-14
+>
+> **The keystore documented in §3 below (SHA-1 `D8:EA:4E:...`) is HISTORICAL /
+> RETIRED. It is no longer the active Customer production signing identity.**
+> That file could not be located anywhere in this project, its git history, or
+> other project-local ROJAN backup/archive directories when searched — the
+> keystore currently present at `keystore/rojan-customer-upload.jks` carries a
+> **different** certificate, first noticed on 2026-09-14 (its filesystem
+> creation timestamp is 2026-09-14 09:57:01, four days after this report's own
+> 2026-09-10 generation date — how it arrived in this checkout is unknown; no
+> git evidence exists either way, since the keystore path was never tracked).
+> No Google Play publishing history could be found for either identity (no
+> project record of an actual Play Console upload for `ai.rojan.designlab`,
+> and no Play Console access was available to check independently), so this
+> change does not break an existing Play App Signing relationship — none is
+> recorded as ever having existed.
+>
+> **After investigation, the user explicitly decided to adopt the currently
+> available keystore as the official Customer production signing identity
+> going forward**, rather than continue searching for the original file.
+>
+> ### CURRENT OFFICIAL CUSTOMER PRODUCTION SIGNING IDENTITY (adopted 2026-09-14)
+>
+> | Property | Value |
+> |---|---|
+> | File | `keystore/rojan-customer-upload.jks` (unchanged path) |
+> | Alias | `rojan-customer-upload` (unchanged) |
+> | Key | RSA, 4096-bit |
+> | Certificate DN | `CN=ROJAN AI Customer, OU=ROJAN Customer, O=ROJAN AI, L=Tehran, ST=Tehran, C=IR` |
+> | SHA-1 | `E3:6D:40:E6:CC:AA:07:A9:56:F5:01:D9:CF:A3:64:CE:7A:B6:37:67` |
+> | SHA-256 | `0B:B8:DE:3D:48:E6:7F:AC:00:23:CB:EA:72:67:A7:65:51:E9:F6:26:BB:C3:FC:6B:6A:AE:35:08:DA:DC:BC:DD` |
+> | Valid until | Friday, January 30, 2054 |
+>
+> Verified live on 2026-09-14: `signingReport` resolves the `customerProductionRelease`
+> variant to this exact file/alias/fingerprint; a real signed APK
+> (`app-customer-production-release.apk`) and AAB (`.aab`) were built and
+> `apksigner verify --print-certs` confirmed the APK's certificate fingerprint
+> matches this table exactly (v2 + v3 schemes verified).
+>
+> Application identity unchanged throughout: `applicationId = ai.rojan.designlab`,
+> `versionName = 1.0.0`, `versionCode = 1`.
+>
+> No password or private-key material is recorded here or anywhere in this
+> update — none was requested, printed, or exposed at any point in this
+> investigation.
+>
+> **Everything below this notice (§3's key table and the rest of this
+> document) describes the 2026-09-10 setup as it was at the time and is kept
+> for history — do not treat the SHA-1/SHA-256 in §3 as the current signing
+> identity.**
+
 > Note: the requested helpers `rojan-release-manager` / `android-build-signing` are not registered
 > skills or agents in this environment (`Unknown skill` / `Agent type … not found`). The work was
 > done directly using standard Android release-signing practice.
@@ -59,7 +110,7 @@ allowed to be unsigned — unchanged), all Kotlin/resource/manifest, `BuildConfi
 `git status` after all changes shows **only** `keystore.properties.sample` and the doc/report files
 as new — no secret is stageable.
 
-## 3. The keystore
+## 3. The keystore (HISTORICAL — see the 2026-09-14 update notice at the top of this document; this table describes the original 2026-09-10 key, since retired)
 
 | Property | Value |
 |---|---|

@@ -59,6 +59,17 @@ class BookingConfirmationViewModel(
     var submitError by mutableStateOf<String?>(null)
         private set
 
+    /**
+     * Set when [loadSummary] genuinely fails to reach the backend (network/
+     * server error), as opposed to a field simply not resolving (e.g. no
+     * specialist chosen yet). Previously this class used `getOrNull()`
+     * everywhere and threw the error away, so a load failure rendered as
+     * permanent "—" placeholders with no way to tell the customer or let
+     * them retry.
+     */
+    var summaryError by mutableStateOf<String?>(null)
+        private set
+
     var summary by mutableStateOf(BookingSummary())
         private set
 
@@ -82,24 +93,39 @@ class BookingConfirmationViewModel(
             return
         }
         isLoadingSummary = true
+        summaryError = null
         viewModelScope.launch {
-            val loadedSalon = salonRepository.getSalon(salonId).getOrNull()
-            val loadedSpecialist = specialistId?.let {
-                specialistRepository.getSpecialist(salonId, it).getOrNull()
-            }
-            val loadedService = serviceId?.let { resolveService(salonId, it) }
-            summary = BookingSummary(salon = loadedSalon, specialist = loadedSpecialist, service = loadedService)
+            val salonResult = salonRepository.getSalon(salonId)
+            val specialistResult = specialistId?.let { specialistRepository.getSpecialist(salonId, it) }
+            val serviceResult = serviceId?.let { resolveService(salonId, it) }
+            summary = BookingSummary(
+                salon = salonResult.getOrNull(),
+                specialist = specialistResult?.getOrNull(),
+                service = serviceResult?.getOrNull(),
+            )
+            summaryError = (salonResult.exceptionOrNull()
+                ?: specialistResult?.exceptionOrNull()
+                ?: serviceResult?.exceptionOrNull())
+                ?.let { userMessageFor(it) }
             isLoadingSummary = false
         }
     }
 
-    private suspend fun resolveService(salonId: String, serviceId: String): Service? {
-        val categories = serviceCategoryRepository.getCategories(salonId).getOrNull() ?: return null
+    /** Retries the most recent [loadSummary] request after a failure. */
+    fun retryLoadSummary(salonId: String?, specialistId: String?, serviceId: String?) {
+        loadedForKey = null
+        loadSummary(salonId, specialistId, serviceId)
+    }
+
+    private suspend fun resolveService(salonId: String, serviceId: String): Result<Service?> {
+        val categoriesResult = serviceCategoryRepository.getCategories(salonId)
+        val categories = categoriesResult.getOrNull()
+            ?: return categoriesResult.exceptionOrNull()?.let { Result.failure(it) } ?: Result.success(null)
         for (category in categories) {
             val services = serviceRepository.getServices(salonId, category.id).getOrNull() ?: continue
-            services.firstOrNull { it.id == serviceId }?.let { return it }
+            services.firstOrNull { it.id == serviceId }?.let { return Result.success(it) }
         }
-        return null
+        return Result.success(null)
     }
 
     fun confirmBooking(

@@ -70,11 +70,12 @@ private enum class DnaSection {
  * (no backend endpoint yet) — disclosed to the user in the note under the
  * title rather than implying it is saved to their account.
  *
- * **UX redesign pass (2026-09-10):** the three domains (hair/skin/nails) are
- * now [AccordionSection]s — collapsed by default except the first, opening
- * one closes the others, and each header shows a rose-gold summary of that
- * domain's current selections even while collapsed, so nothing selected is
- * ever hidden. This replaces the earlier "everything expanded, fills the
+ * **UX redesign pass (2026-09-10, corrected in the Pre-Release Audit):** the
+ * three domains (hair/skin/nails) are [AccordionSection]s — all collapsed by
+ * default, opening one closes the others, and each header shows a rose-gold
+ * summary of that domain's current selections even while collapsed, so
+ * nothing selected is ever hidden. This replaces the earlier "everything
+ * expanded, fills the
  * page" layout. Visual language (title "DNA" instead of the transliterated
  * Persian "دی‌ان‌ای", [CustomerScaffold]/[RefSurface] shell, rose-gold
  * selected-check rows, RTL composition) is unchanged from the prior Quiet
@@ -96,9 +97,12 @@ fun BeautyDnaScreen(
     ),
 ) {
     val profile = viewModel.profile
-    var expandedSection by remember { mutableStateOf<DnaSection?>(DnaSection.HAIR) }
+    // Pre-Release Audit fix: all three sections collapsed by default (none
+    // pre-expanded) - the prior default of DnaSection.HAIR contradicted this
+    // screen's own doc comment and the required "collapsed by default" UX.
+    var expandedSection by remember { mutableStateOf<DnaSection?>(null) }
 
-    CustomerScaffold(title = "بیوتی DNA", onBackClick = onBackClick) {
+    CustomerScaffold(title = "DNA", onBackClick = onBackClick) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(top = RojanDimens.SpaceLG, bottom = RojanDimens.SpaceXXL),
@@ -106,7 +110,7 @@ fun BeautyDnaScreen(
         ) {
             item {
                 Text(
-                    "این اطلاعات فقط روی همین دستگاه ذخیره می‌شود.",
+                    "این اطلاعات فقط تا زمانی که برنامه باز است نگه‌داشته می‌شود و پس از بستن برنامه پاک می‌شود.",
                     style = RojanTypography.Caption,
                     color = HomeColors.TextSecondary,
                     modifier = Modifier

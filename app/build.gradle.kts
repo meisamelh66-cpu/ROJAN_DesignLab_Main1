@@ -1,5 +1,6 @@
 import java.io.FileInputStream
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 
 plugins {
     alias(libs.plugins.android.application)
@@ -245,6 +246,38 @@ android {
         checkDependencies = true
         warningsAsErrors = false
         disable += "NewerVersionAvailable"
+    }
+}
+
+// AGP 9.3.1 lint-classpath KMP-variant fix (2026-09-14 investigation,
+// corrected): every `*LintChecksClasspath` configuration AGP builds (per
+// variant, backing the `lintChecks` dependency bucket / `lintRuleJars`,
+// unconditionally, independent of `checkDependencies` above) never
+// requests a value for `org.jetbrains.kotlin.platform.type`, unlike this
+// project's real compile/runtime classpaths. For the Kotlin-Multiplatform-
+// published artifacts this app depends on (`androidx.datastore:datastore-preferences`,
+// `androidx.compose.material:material-icons-extended`), that missing
+// request lets Gradle land on their `jvm`/`desktop`-tagged variant, which
+// redirects to a coordinate confirmed not to exist. This requests the
+// real, public `KotlinPlatformType.attribute` (not a synthetic
+// same-name-different-type stand-in) with value `androidJvm` — the exact
+// object the Kotlin Gradle Plugin already registers its own
+// `CompatibilityRule`/`DisambiguationRule` against project-wide (proven:
+// the real runtime classpath already resolves `kotlin-stdlib`'s plain
+// `jvm`-tagged variant against this same `androidJvm` request via that
+// rule). Using the correctly-typed attribute means datastore-preferences/
+// material-icons-extended get their exact `androidJvm` variant while
+// kotlin-stdlib (which has no `androidJvm` variant at all) still resolves
+// via the existing jvm-is-compatible-with-androidJvm rule, instead of
+// failing outright the way an untyped string attribute did.
+configurations.matching {
+    it.name.endsWith("LintChecksClasspath")
+}.configureEach {
+    attributes {
+        attribute(
+            KotlinPlatformType.attribute,
+            KotlinPlatformType.androidJvm,
+        )
     }
 }
 

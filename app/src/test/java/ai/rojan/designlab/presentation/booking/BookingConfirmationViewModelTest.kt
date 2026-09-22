@@ -88,7 +88,7 @@ class BookingConfirmationViewModelTest {
         override suspend fun salonBookings(salonId: String, page: Int, size: Int, status: BookingStatus?): Result<PagedResult<Booking>> = error("unused")
     }
 
-    private class FakeSalonRepository(private val salon: Salon?) : SalonRepository {
+    private class FakeSalonRepository(var salon: Salon?) : SalonRepository {
         var getSalonCalls = 0
         override suspend fun browseSalons(page: Int, size: Int, nameFilter: String?, sortDirection: String) = error("unused")
         override suspend fun getSalon(salonId: String): Result<Salon> {
@@ -311,6 +311,53 @@ class BookingConfirmationViewModelTest {
 
         advanceUntilIdle()
         assertFalse("settled", vm.isLoadingSummary)
+    }
+
+    // ---- loadSummary: real failure must not be silently swallowed ----
+
+    @Test
+    fun `loadSummary surfaces summaryError when the salon fetch genuinely fails`() = runTest(dispatcher) {
+        val vm = viewModel(salon = null)
+
+        vm.loadSummary("salon-1", "spec-1", "svc-1")
+        advanceUntilIdle()
+
+        assertTrue("a genuine backend failure must be surfaced, not silently swallowed", vm.summaryError != null)
+        assertFalse(vm.isLoadingSummary)
+    }
+
+    @Test
+    fun `loadSummary sets no summaryError on a fully successful resolve`() = runTest(dispatcher) {
+        val vm = viewModel(salon = salon("salon-1"), specialist = specialist("spec-1"))
+
+        vm.loadSummary("salon-1", "spec-1", "svc-1")
+        advanceUntilIdle()
+
+        assertNull(vm.summaryError)
+    }
+
+    @Test
+    fun `retryLoadSummary re-fetches after a failure and clears summaryError once it succeeds`() = runTest(dispatcher) {
+        val salonRepo = FakeSalonRepository(salon = null)
+        val vm = BookingConfirmationViewModel(
+            bookingRepository = FakeBookingRepository(),
+            salonRepository = salonRepo,
+            specialistRepository = FakeSpecialistRepository(specialist("spec-1")),
+            serviceCategoryRepository = FakeServiceCategoryRepository(listOf(category("cat-1"))),
+            serviceRepository = FakeServiceRepository(mapOf("cat-1" to listOf(service("svc-1")))),
+        )
+
+        vm.loadSummary("salon-1", "spec-1", "svc-1")
+        advanceUntilIdle()
+        assertTrue(vm.summaryError != null)
+
+        salonRepo.salon = salon("salon-1")
+        vm.retryLoadSummary("salon-1", "spec-1", "svc-1")
+        advanceUntilIdle()
+
+        assertNull("a successful retry must clear the earlier summaryError", vm.summaryError)
+        assertEquals("salon-1", vm.summary.salon?.id)
+        assertEquals("retry must actually re-fetch, not be treated as the same cached key", 2, salonRepo.getSalonCalls)
     }
 
     @Test

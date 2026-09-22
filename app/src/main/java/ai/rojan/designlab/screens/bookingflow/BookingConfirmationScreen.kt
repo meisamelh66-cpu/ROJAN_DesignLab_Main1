@@ -53,6 +53,7 @@ import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
+import ai.rojan.designlab.ui.theme.RojanErrorText
 import ai.rojan.designlab.ui.theme.RojanTypography
 import kotlin.math.roundToInt
 
@@ -129,7 +130,7 @@ fun BookingConfirmationScreen(
                     Text(
                         message,
                         style = RojanTypography.Caption,
-                        color = HomeColors.TextSecondary,
+                        color = RojanErrorText,
                     )
                     Spacer(Modifier.height(RojanDimens.SpaceSM))
                 }
@@ -161,6 +162,33 @@ fun BookingConfirmationScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(vertical = RojanDimens.SpaceLG),
         ) {
+            confirmationViewModel.summaryError?.let { message ->
+                RefSurface(modifier = Modifier.padding(horizontal = BookingScreenMargin)) {
+                    Column(Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD)) {
+                        Text(message, style = RojanTypography.Body, color = RojanErrorText)
+                        Spacer(Modifier.height(RojanDimens.SpaceSM))
+                        Text(
+                            "تلاش مجدد",
+                            style = RojanTypography.Body,
+                            color = BookingAccent,
+                            modifier = Modifier
+                                .heightIn(min = RojanDimens.MinTouchTarget)
+                                .rojanPressable(
+                                    onClick = {
+                                        confirmationViewModel.retryLoadSummary(
+                                            salonId = bookingViewModel.state.salonId,
+                                            specialistId = bookingViewModel.state.specialistId,
+                                            serviceId = bookingViewModel.state.serviceId,
+                                        )
+                                    },
+                                    role = Role.Button,
+                                ),
+                        )
+                    }
+                }
+                Spacer(Modifier.height(RojanDimens.SpaceLG))
+            }
+
             RefSurface(modifier = Modifier.padding(horizontal = BookingScreenMargin)) {
                 Column(Modifier.fillMaxWidth()) {
                     if (salon != null) {

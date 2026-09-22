@@ -151,7 +151,6 @@ private fun ColumnScope.RescheduleContent(
     LazyRow(
         contentPadding = PaddingValues(horizontal = CustomerScreenMargin),
         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
-        reverseLayout = true,
     ) {
         items(state.dates, key = { it.first }) { (key, label) ->
             DateChip(
