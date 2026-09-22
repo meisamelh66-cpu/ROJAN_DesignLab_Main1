@@ -168,7 +168,11 @@ fun CustomerDashboardScreen(
     onFavoritesClick: () -> Unit = {},
     onExploreClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
-    onSalonClick: (String) -> Unit = {},
+    // Guest Salon Detail fix: slug is the tapped Salon's own (nullable) slug
+    // field — always null for the booking-history call site (a Booking
+    // record carries no Salon/slug), which is fine since booking history is
+    // authenticated-only and never needs the guest path.
+    onSalonClick: (salonId: String, slug: String?) -> Unit = { _, _ -> },
     onNotificationsClick: () -> Unit = {},
 ) {
     val container = BackendApiContainerHolder.get(LocalContext.current)
@@ -673,7 +677,7 @@ private fun HomePromoBanner(onPrimaryClick: () -> Unit, modifier: Modifier = Mod
 private fun HomeSalonSection(
     loading: Boolean,
     salons: List<Salon>,
-    onSalonClick: (String) -> Unit,
+    onSalonClick: (salonId: String, slug: String?) -> Unit,
     onViewAllClick: () -> Unit,
 ) {
     Column {
@@ -702,7 +706,7 @@ private fun HomeSalonSection(
                 horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
             ) {
                 items(salons, key = { it.id }) { salon ->
-                    HomeSalonCard(salon, onClick = { onSalonClick(salon.id) })
+                    HomeSalonCard(salon, onClick = { onSalonClick(salon.id, salon.slug) })
                 }
             }
         }
@@ -820,7 +824,7 @@ private fun HomeSalonSkeleton() {
 private fun HomeBookingSection(
     label: String,
     items: List<BookingWithDetails>,
-    onSalonClick: (String) -> Unit,
+    onSalonClick: (salonId: String, slug: String?) -> Unit,
 ) {
     Column {
         RefSectionLabel(label)
@@ -830,7 +834,9 @@ private fun HomeBookingSection(
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {
             items.forEach { item ->
-                HomeBookingRow(item) { onSalonClick(item.booking.salonId) }
+                // A Booking record carries no Salon/slug — this path is
+                // authenticated-only anyway (a guest has no booking history).
+                HomeBookingRow(item) { onSalonClick(item.booking.salonId, null) }
             }
         }
     }

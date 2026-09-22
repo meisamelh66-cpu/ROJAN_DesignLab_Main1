@@ -101,6 +101,7 @@ class PublicSalonRepositoryImpl(
         logoUrl = logoUrl,
         latitude = latitude,
         longitude = longitude,
+        slug = slug,
     )
 
     private fun PublicServiceCategoryResponseDto.toDomain() = PublicServiceCategory(

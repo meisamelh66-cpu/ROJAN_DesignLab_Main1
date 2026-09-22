@@ -94,7 +94,9 @@ private const val SEARCH_DEBOUNCE_MS = 350L
 fun SalonListScreen(
     selectedServiceIds: List<String>,
     onBackClick: () -> Unit,
-    onSalonSelected: (String) -> Unit,
+    // Guest Salon Detail fix: slug is the tapped Salon's own (nullable —
+    // only real for a PublicSalonRepository-sourced item) slug field.
+    onSalonSelected: (salonId: String, slug: String?) -> Unit,
     showBackButton: Boolean = true,
     onBusinessLoginClick: (() -> Unit)? = null,
     onLoginRequired: (() -> Unit)? = null,
@@ -225,7 +227,7 @@ fun SalonListScreen(
                             salon = salon,
                             isFollowing = viewModel.followedSalonIds.contains(salon.id),
                             isFavorite = viewModel.favoriteSalonIds.contains(salon.id),
-                            onClick = { onSalonSelected(salon.id) },
+                            onClick = { onSalonSelected(salon.id, salon.slug) },
                             modifier = Modifier.padding(horizontal = CustomerScreenMargin),
                         )
                     }

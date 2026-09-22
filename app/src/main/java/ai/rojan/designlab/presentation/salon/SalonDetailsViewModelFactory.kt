@@ -1,5 +1,6 @@
 package ai.rojan.designlab.presentation.salon
 
+import ai.rojan.designlab.domain.repository.PublicSalonRepository
 import ai.rojan.designlab.domain.repository.SalonRepository
 import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
 import ai.rojan.designlab.domain.repository.ServiceRepository
@@ -16,6 +17,10 @@ class SalonDetailsViewModelFactory(
     private val serviceRepository: ServiceRepository,
     private val specialistRepository: SpecialistRepository,
     private val workingHoursRepository: WorkingHoursRepository,
+    /** Guest Salon Detail fix — see [SalonDetailsViewModel]'s own doc comment. */
+    private val slug: String? = null,
+    private val publicSalonRepository: PublicSalonRepository? = null,
+    private val hasSession: () -> Boolean = { true },
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -26,6 +31,9 @@ class SalonDetailsViewModelFactory(
             serviceRepository = serviceRepository,
             specialistRepository = specialistRepository,
             workingHoursRepository = workingHoursRepository,
+            slug = slug,
+            publicSalonRepository = publicSalonRepository,
+            hasSession = hasSession,
         ) as T
     }
 }

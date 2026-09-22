@@ -47,6 +47,13 @@ data class Salon(
     // salons; this is exposed so Manager-side reads (myOwnedSalons, the
     // Dashboard identity card) can tell an active salon from a draft one.
     val active: Boolean = true,
+    // Guest Salon Detail fix: only ever populated for salons discovered via
+    // PublicSalonRepository.browseSalons (the public directory always
+    // returns a real slug — non-null on the backend's own Salon entity).
+    // The authenticated SalonResponseDto carries no slug field at all, so
+    // an authenticated-sourced Salon always leaves this null — that's fine,
+    // authenticated detail fetches never need it.
+    val slug: String? = null,
 ) {
     val location: SalonLocation get() = SalonLocation(latitude = latitude, longitude = longitude, address = address)
 }

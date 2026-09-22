@@ -119,7 +119,8 @@ fun CustomerHomeScreen(
     onBookingsClick: () -> Unit = {},
     onFavoritesClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
-    onSalonClick: (String) -> Unit = {},
+    // Guest Salon Detail fix: slug is the tapped Salon's own (nullable) slug field.
+    onSalonClick: (salonId: String, slug: String?) -> Unit = { _, _ -> },
     onHomeClick: () -> Unit = {},
     onViewAllServicesClick: () -> Unit = {},
     onSpecialistClick: (String) -> Unit = {},
@@ -179,7 +180,7 @@ fun CustomerHomeScreen(
                             ExploreSalonCard(
                                 salon = salon,
                                 modifier = Modifier.padding(horizontal = RefScreenMargin),
-                                onClick = { onSalonClick(salon.id) },
+                                onClick = { onSalonClick(salon.id, salon.slug) },
                             )
                         }
                     }

@@ -196,6 +196,10 @@ fun SalonDetailsScreen(
     onLoginRequired: () -> Unit = {},
     selectedServiceIds: List<String>? = null,
     onContinueBooking: ((autoSelectedSpecialistId: String?) -> Unit)? = null,
+    // Guest Salon Detail fix: only non-null when reached from a guest-visible
+    // list (see RojanNavGraph's salon-tap call sites) — same slug the salon's
+    // own PublicSalonRepository-sourced Salon.slug already carried.
+    slug: String? = null,
     viewModel: SalonDetailsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = run {
             val container = BackendApiContainerHolder.get(LocalContext.current)
@@ -206,6 +210,9 @@ fun SalonDetailsScreen(
                 serviceRepository = container.serviceRepository,
                 specialistRepository = container.specialistRepository,
                 workingHoursRepository = container.workingHoursRepository,
+                slug = slug,
+                publicSalonRepository = container.publicSalonRepository,
+                hasSession = { container.tokenRepository.accessToken()?.isNotBlank() == true },
             )
         },
     ),

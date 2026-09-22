@@ -376,8 +376,8 @@ fun RojanNavGraph() {
                         selectedServiceIds = emptyList(),
                         showBackButton = false,
                         onBackClick = {},
-                        onSalonSelected = { salonId ->
-                            navController.navigate(RojanDestinations.salonDetails(salonId)) {
+                        onSalonSelected = { salonId, slug ->
+                            navController.navigate(RojanDestinations.salonDetails(salonId, slug)) {
                                 launchSingleTop = true
                             }
                         },
@@ -500,8 +500,8 @@ fun RojanNavGraph() {
                     SalonListScreen(
                         selectedServiceIds = selectedServiceIds,
                         onBackClick = { navController.popBackStack() },
-                        onSalonSelected = { salonId ->
-                            navController.navigate(RojanDestinations.salonDetails(salonId)) {
+                        onSalonSelected = { salonId, slug ->
+                            navController.navigate(RojanDestinations.salonDetails(salonId, slug)) {
                                 launchSingleTop = true
                             }
                         },
@@ -529,8 +529,8 @@ fun RojanNavGraph() {
                     ) { backStackEntry ->
                         SearchScreen(
                             onBackClick = { navController.popBackStack() },
-                            onSalonClick = { salonId ->
-                                navController.navigate(RojanDestinations.salonDetails(salonId)) {
+                            onSalonClick = { salonId, slug ->
+                                navController.navigate(RojanDestinations.salonDetails(salonId, slug)) {
                                     launchSingleTop = true
                                 }
                             },
@@ -546,6 +546,7 @@ fun RojanNavGraph() {
                         arguments = listOf(
                             navArgument("salonId") { type = NavType.StringType },
                             navArgument("selectedServiceIds") { type = NavType.StringType; nullable = true },
+                            navArgument("slug") { type = NavType.StringType; nullable = true },
                         ),
                         enterTransition = { motionEnter },
                         exitTransition = { motionExit },
@@ -554,9 +555,11 @@ fun RojanNavGraph() {
                         val salonId = backStackEntry.arguments?.getString("salonId") ?: ""
                         val selectedServiceIds = backStackEntry.arguments?.getString("selectedServiceIds")
                             ?.split(",")?.filter { it.isNotBlank() }
+                        val slug = backStackEntry.arguments?.getString("slug")
                         SalonDetailsScreen(
                             salonId = salonId,
                             selectedServiceIds = selectedServiceIds,
+                            slug = slug,
                             onBackClick = { navController.popBackStack() },
                             onSpecialistClick = { specialistId ->
                                 navController.navigate(RojanDestinations.specialistProfile(specialistId, salonId)) {
@@ -935,13 +938,13 @@ fun RojanNavGraph() {
                             onFavoritesClick = { navController.navigate(RojanDestinations.FAVORITES) },
                             onExploreClick = { navController.navigate(RojanDestinations.EXPLORE) },
                             onSearchClick = { navController.navigate(RojanDestinations.SEARCH) },
-                            onSalonClick = { salonId ->
+                            onSalonClick = { salonId, slug ->
                                 // Back-navigation fix: launchSingleTop guards every forward
                                 // push in the booking chain (see BOOKING-TIME-UX-REDESIGN-REPORT.md)
                                 // against a rapid double-tap pushing the same destination
                                 // twice — the root cause of "Booking Time needs 2 back
                                 // presses" (the duplicate entry sat directly underneath).
-                                navController.navigate(RojanDestinations.salonDetails(salonId)) {
+                                navController.navigate(RojanDestinations.salonDetails(salonId, slug)) {
                                     launchSingleTop = true
                                 }
                             },
@@ -999,10 +1002,10 @@ fun RojanNavGraph() {
                                 popUpTo(RojanDestinations.CUSTOMER_HOME) { inclusive = false }
                             }
                         },
-                        onSalonClick = { salonId ->
+                        onSalonClick = { salonId, slug ->
                             // Back-navigation fix: see the matching comment on
                             // CUSTOMER_HOME's onSalonClick above.
-                            navController.navigate(RojanDestinations.salonDetails(salonId)) {
+                            navController.navigate(RojanDestinations.salonDetails(salonId, slug)) {
                                 launchSingleTop = true
                             }
                         },

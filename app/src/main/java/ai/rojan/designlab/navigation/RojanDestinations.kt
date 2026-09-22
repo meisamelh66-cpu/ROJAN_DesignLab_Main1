@@ -54,9 +54,12 @@ object RojanDestinations {
     // BookingConfirmationScreen instead, per "Do NOT increase the
     // number of booking steps."
 
-    const val SALON_DETAILS = "salon_details/{salonId}?selectedServiceIds={selectedServiceIds}"
+    const val SALON_DETAILS = "salon_details/{salonId}?selectedServiceIds={selectedServiceIds}&slug={slug}"
 
-    fun salonDetails(salonId: String) = "salon_details/$salonId"
+    // Guest Salon Detail fix: slug is only ever passed by a guest-visible
+    // list's own Salon.slug — see PublicSalonRepositoryImpl.
+    fun salonDetails(salonId: String, slug: String? = null) =
+        "salon_details/$salonId" + if (slug != null) "?slug=$slug" else ""
     fun salonDetailsWithServices(salonId: String, selectedServiceIds: List<String>) =
         "salon_details/$salonId?selectedServiceIds=${selectedServiceIds.joinToString(",")}"
     fun specialistProfile(specialistId: String, salonId: String? = null) =

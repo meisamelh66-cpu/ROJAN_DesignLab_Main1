@@ -88,7 +88,8 @@ private const val SEARCH_DEBOUNCE_MS = 350L
 @Composable
 fun SearchScreen(
     onBackClick: () -> Unit,
-    onSalonClick: (String) -> Unit,
+    // Guest Salon Detail fix: slug is the tapped Salon's own (nullable) slug field.
+    onSalonClick: (salonId: String, slug: String?) -> Unit,
     onLoginRequired: (() -> Unit)? = null,
     viewModel: SalonListViewModel = viewModel(
         factory = run {
@@ -197,7 +198,7 @@ fun SearchScreen(
                                 salon = salon,
                                 isFollowing = viewModel.followedSalonIds.contains(salon.id),
                                 isFavorite = viewModel.favoriteSalonIds.contains(salon.id),
-                                onClick = { onSalonClick(salon.id) },
+                                onClick = { onSalonClick(salon.id, salon.slug) },
                                 modifier = Modifier.padding(horizontal = CustomerScreenMargin),
                             )
                         }
