@@ -282,13 +282,14 @@ fun RojanNavGraph() {
             // (up to and including a just-reached BOOKING_CONFIRMATION) and
             // landing on CUSTOMER_HOME instead. `remember` with no keys
             // freezes this to the value from the initial composition only.
-            // UX Flow correction: an unauthenticated (first-time or logged-out)
-            // customer now lands on EXPLORE (the marketplace: search,
-            // services, salons, specialists) instead of MEMBER_SALONS_LIST —
-            // login only happens once they act on a booking intent, per the
-            // existing "login only when booking" gate on the booking flow.
-            // Authenticated customers still land on CUSTOMER_HOME (the
-            // Dashboard), unchanged.
+            // TARGETED FIX (Customer Home launch correction): CUSTOMER_HOME
+            // (the Dashboard) is now the first screen for every non-staff
+            // customer session, authenticated or guest — EXPLORE (the
+            // marketplace) is reached only via the bottom bar's SEARCH tab,
+            // never as the landing screen. "login only when booking" is
+            // untouched: EXPLORE's own login gate on the booking flow still
+            // applies exactly as before, this only changes what launches
+            // first.
             // UI Polish Sprint 2: local (not top-level) so they can read the
             // reduced-motion setting; every `enterTransition = { motionEnter }`
             // / `exitTransition = { motionExit }` in the NavHost below
@@ -299,11 +300,7 @@ fun RojanNavGraph() {
 
             val startDestination = remember {
                 RojanDestinations.routeForPersonRoles(state.personRoles)
-                    ?: if (state.personId != null) {
-                        RojanDestinations.CUSTOMER_HOME
-                    } else {
-                        RojanDestinations.EXPLORE
-                    }
+                    ?: RojanDestinations.CUSTOMER_HOME
             }
 
             // Navigation Standardization Phase 2 — the one place a bottom-bar
