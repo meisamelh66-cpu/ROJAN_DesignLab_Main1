@@ -427,42 +427,22 @@ private fun HomeHeroCard(
 
                 Spacer(Modifier.height(RojanDimens.SpaceLG))
 
-                // Text block (start side) + portrait area (end side), matching
-                // the reference's two-column hero split — see this file's
-                // header doc comment for the portrait asset's provenance.
-                Row(verticalAlignment = Alignment.Top) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "ROJAN AI",
-                            style = RojanTypography.SectionTitle.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp,
-                            ),
-                            color = HomeColors.TextPrimary,
-                        )
-                        Spacer(Modifier.height(RojanDimens.SpaceXS))
-                        // Approved slogan, exact text, as ONE logical string —
-                        // no manual mid-sentence line break. A hard-coded `\n`
-                        // inside an RTL-directed string previously rendered
-                        // with the two halves visually out of order; letting
-                        // Compose's own soft-wrap break the line (same as
-                        // every other multi-word Persian string in this app)
-                        // avoids that class of bug entirely.
-                        Text(
-                            "هوشمندتر مدیریت کن، زیباتر رشد کن",
-                            style = RojanTypography.Body,
-                            color = HomeColors.TextSecondary,
-                        )
-                        Spacer(Modifier.height(RojanDimens.SpaceMD))
-                        Text(
-                            "سلام $firstName جان، خوش برگشتی",
-                            style = RojanTypography.Caption,
-                            color = HomeColors.TextMuted,
-                        )
-                    }
-                    Spacer(Modifier.width(RojanDimens.SpaceMD))
-                    HomeHeroPortraitSlot()
-                }
+                // Top Hero Banner Replacement: the text block (ROJAN AI
+                // wordmark, slogan, greeting) + portrait split is replaced by
+                // one wide hero image — the asset itself already carries the
+                // ROJAN AI branding/composition. `fillMaxWidth` with no fixed
+                // height + `ContentScale.FillWidth` sizes strictly from the
+                // image's own aspect ratio, so it's never destructively
+                // cropped (unlike `HomePromoBanner`'s fixed `aspectRatio(1.9f)`
+                // + `Crop`, which is why this asset didn't fit there).
+                Image(
+                    painter = painterResource(R.drawable.rojan_customer_home_hero_banner_v3),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(PromoShape),
+                    contentScale = ContentScale.FillWidth,
+                )
             }
         }
     }
