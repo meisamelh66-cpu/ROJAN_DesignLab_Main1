@@ -43,6 +43,7 @@ import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -59,10 +60,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 import ai.rojan.designlab.R
 import ai.rojan.designlab.di.BackendApiContainerHolder
+import ai.rojan.designlab.domain.identity.SessionState
 import ai.rojan.designlab.domain.repository.BookingStatus
 import ai.rojan.designlab.domain.repository.BookingWithDetails
 import ai.rojan.designlab.domain.repository.Salon
@@ -181,6 +184,13 @@ fun CustomerDashboardScreen(
     val firstName = authViewModel.currentDisplayName
         ?.trim()?.substringBefore(" ")?.takeIf { it.isNotBlank() } ?: "کاربر"
 
+    // Guest/no-session customers hit real 401s on the auth-required sections
+    // below (booking history, and any future ones) — those must be skipped
+    // entirely rather than showing an error/retry card for a call a guest
+    // was never going to be allowed to make.
+    val sessionState by authViewModel.sessionState.collectAsStateWithLifecycle()
+    val isGuest = sessionState !is SessionState.LoggedIn
+
     val salonState = salonListViewModel.state
     val salons = (salonState as? UiState.Success)?.data.orEmpty()
 
@@ -238,7 +248,7 @@ fun CustomerDashboardScreen(
                             onViewAllClick = onExploreClick,
                         )
                     }
-                } else if (salonState is UiState.Error) {
+                } else if (salonState is UiState.Error && !isGuest) {
                     item {
                         HomeSectionErrorRow(message = salonState.message, onRetry = salonListViewModel::retry)
                     }
@@ -264,7 +274,7 @@ fun CustomerDashboardScreen(
                 }
             }
 
-            if (bookingHistoryViewModel.state is UiState.Error && upcoming.isEmpty() && recent.isEmpty()) {
+            if (bookingHistoryViewModel.state is UiState.Error && upcoming.isEmpty() && recent.isEmpty() && !isGuest) {
                 item {
                     HomeSectionErrorRow(
                         message = (bookingHistoryViewModel.state as UiState.Error).message,
