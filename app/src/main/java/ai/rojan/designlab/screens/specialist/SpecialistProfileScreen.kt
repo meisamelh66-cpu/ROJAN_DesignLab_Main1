@@ -76,6 +76,9 @@ fun SpecialistProfileScreen(
     salonId: String?,
     onBackClick: () -> Unit,
     onServiceClick: (String) -> Unit,
+    // Guest Booking Flow fix: the salon's public slug, threaded from the
+    // shared BookingViewModel (see RojanNavGraph.kt).
+    slug: String? = null,
     viewModel: SpecialistProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = run {
             val container = BackendApiContainerHolder.get(LocalContext.current)
@@ -85,6 +88,9 @@ fun SpecialistProfileScreen(
                 specialistRepository = container.specialistRepository,
                 serviceCategoryRepository = container.serviceCategoryRepository,
                 serviceRepository = container.serviceRepository,
+                publicSalonRepository = container.publicSalonRepository,
+                slug = slug,
+                hasSession = { container.tokenRepository.accessToken()?.isNotBlank() == true },
             )
         },
     ),

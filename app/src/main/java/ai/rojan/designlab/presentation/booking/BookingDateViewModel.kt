@@ -2,6 +2,8 @@ package ai.rojan.designlab.presentation.booking
 
 import ai.rojan.designlab.domain.booking.RollingBookingDates
 import ai.rojan.designlab.domain.repository.AvailabilityRepository
+import ai.rojan.designlab.domain.repository.PublicSalonRepository
+import ai.rojan.designlab.domain.repository.TimeSlot
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.presentation.common.userMessageFor
 import androidx.compose.runtime.getValue
@@ -37,6 +39,16 @@ class BookingDateViewModel(
     private val serviceId: String?,
     private val skipAutoSkip: Boolean,
     private val availabilityRepository: AvailabilityRepository,
+    // Guest Booking Flow fix: `AvailabilityRepository` (the authenticated
+    // `GET .../available-slots`) had no guest branch at all — this is the
+    // deepest, last-fixed link in the guest booking chain. The real login
+    // gate (this app's documented "login only when booking" policy) stays
+    // exactly where it already is, at BOOKING_TIME's onTimeSelected — this
+    // only lets a guest see availability, same as they can already see
+    // services/specialists.
+    private val publicSalonRepository: PublicSalonRepository? = null,
+    private val slug: String? = null,
+    private val hasSession: () -> Boolean = { true },
 ) : ViewModel() {
 
     var state by mutableStateOf<UiState<Unit>>(UiState.Loading)
@@ -68,8 +80,7 @@ class BookingDateViewModel(
 
             val dates = RollingBookingDates.next7Days()
             val today = dates.first()
-            val todaySlots = availabilityRepository
-                .getAvailableSlots(resolvedSalonId, resolvedSpecialistId, resolvedServiceId, today.first)
+            val todaySlots = getSlots(resolvedSalonId, resolvedSpecialistId, resolvedServiceId, today.first)
                 .getOrElse {
                     state = UiState.Error(userMessageFor(it))
                     return@launch
@@ -77,8 +88,7 @@ class BookingDateViewModel(
 
             if (todaySlots.isEmpty()) {
                 for (dateEntry in dates.drop(1)) {
-                    val slots = availabilityRepository
-                        .getAvailableSlots(resolvedSalonId, resolvedSpecialistId, resolvedServiceId, dateEntry.first)
+                    val slots = getSlots(resolvedSalonId, resolvedSpecialistId, resolvedServiceId, dateEntry.first)
                         .getOrElse {
                             state = UiState.Error(userMessageFor(it))
                             return@launch
@@ -91,6 +101,16 @@ class BookingDateViewModel(
             }
 
             state = UiState.Success(Unit)
+        }
+    }
+
+    /** Guest branch mirrors every other ViewModel in this chain — public/slug-based when there's no session, authenticated otherwise. */
+    private suspend fun getSlots(salonId: String, specialistId: String, serviceId: String, date: String): Result<List<TimeSlot>> {
+        val publicRepo = publicSalonRepository
+        return if (publicRepo != null && slug != null && !hasSession()) {
+            publicRepo.getAvailableSlots(slug, specialistId, serviceId, date)
+        } else {
+            availabilityRepository.getAvailableSlots(salonId, specialistId, serviceId, date)
         }
     }
 

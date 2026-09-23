@@ -66,13 +66,19 @@ fun BookingDateScreen(
     onBackClick: () -> Unit,
     onDateSelected: (String) -> Unit,
     viewModel: BookingDateViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = BookingDateViewModelFactory(
-            salonId = bookingViewModel.state.salonId,
-            specialistId = bookingViewModel.state.specialistId,
-            serviceId = bookingViewModel.state.serviceId,
-            skipAutoSkip = bookingViewModel.state.selectedDateKey != null,
-            availabilityRepository = BackendApiContainerHolder.get(LocalContext.current).availabilityRepository,
-        ),
+        factory = run {
+            val container = BackendApiContainerHolder.get(LocalContext.current)
+            BookingDateViewModelFactory(
+                salonId = bookingViewModel.state.salonId,
+                specialistId = bookingViewModel.state.specialistId,
+                serviceId = bookingViewModel.state.serviceId,
+                skipAutoSkip = bookingViewModel.state.selectedDateKey != null,
+                availabilityRepository = container.availabilityRepository,
+                publicSalonRepository = container.publicSalonRepository,
+                slug = bookingViewModel.salonSlug,
+                hasSession = { container.tokenRepository.accessToken()?.isNotBlank() == true },
+            )
+        },
     ),
 ) {
     val dates = remember { RollingBookingDates.next7Days() }

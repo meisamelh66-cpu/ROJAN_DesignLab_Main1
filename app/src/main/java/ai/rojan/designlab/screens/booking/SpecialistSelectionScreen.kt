@@ -77,11 +77,20 @@ fun SpecialistSelectionScreen(
     salonId: String,
     onBackClick: () -> Unit,
     onSpecialistSelected: (String) -> Unit,
+    // Guest Booking Flow fix: the salon's public slug, threaded from the
+    // shared BookingViewModel (see RojanNavGraph.kt).
+    slug: String? = null,
     viewModel: SpecialistSelectionViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = SpecialistSelectionViewModelFactory(
-            salonId = salonId,
-            specialistRepository = BackendApiContainerHolder.get(LocalContext.current).specialistRepository,
-        ),
+        factory = run {
+            val container = BackendApiContainerHolder.get(LocalContext.current)
+            SpecialistSelectionViewModelFactory(
+                salonId = salonId,
+                specialistRepository = container.specialistRepository,
+                publicSalonRepository = container.publicSalonRepository,
+                slug = slug,
+                hasSession = { container.tokenRepository.accessToken()?.isNotBlank() == true },
+            )
+        },
     ),
 ) {
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }

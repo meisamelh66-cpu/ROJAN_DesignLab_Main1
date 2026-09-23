@@ -1,5 +1,6 @@
 package ai.rojan.designlab.presentation.specialist
 
+import ai.rojan.designlab.domain.repository.PublicSalonRepository
 import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
 import ai.rojan.designlab.domain.repository.ServiceRepository
 import ai.rojan.designlab.domain.repository.SpecialistRepository
@@ -13,6 +14,9 @@ class SpecialistProfileViewModelFactory(
     private val specialistRepository: SpecialistRepository,
     private val serviceCategoryRepository: ServiceCategoryRepository,
     private val serviceRepository: ServiceRepository,
+    private val publicSalonRepository: PublicSalonRepository? = null,
+    private val slug: String? = null,
+    private val hasSession: () -> Boolean = { true },
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -22,6 +26,9 @@ class SpecialistProfileViewModelFactory(
             specialistRepository = specialistRepository,
             serviceCategoryRepository = serviceCategoryRepository,
             serviceRepository = serviceRepository,
+            publicSalonRepository = publicSalonRepository,
+            slug = slug,
+            hasSession = hasSession,
         ) as T
     }
 }

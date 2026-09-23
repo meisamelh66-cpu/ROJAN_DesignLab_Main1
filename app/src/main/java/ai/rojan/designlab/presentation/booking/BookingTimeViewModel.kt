@@ -1,6 +1,7 @@
 package ai.rojan.designlab.presentation.booking
 
 import ai.rojan.designlab.domain.repository.AvailabilityRepository
+import ai.rojan.designlab.domain.repository.PublicSalonRepository
 import ai.rojan.designlab.domain.repository.TimeSlot
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.presentation.common.userMessageFor
@@ -26,6 +27,10 @@ class BookingTimeViewModel(
     private val serviceId: String?,
     private val date: String,
     private val availabilityRepository: AvailabilityRepository,
+    // Guest Booking Flow fix: same guest/authenticated branch as BookingDateViewModel.
+    private val publicSalonRepository: PublicSalonRepository? = null,
+    private val slug: String? = null,
+    private val hasSession: () -> Boolean = { true },
 ) : ViewModel() {
 
     var state by mutableStateOf<UiState<List<TimeSlot>>>(UiState.Loading)
@@ -46,7 +51,14 @@ class BookingTimeViewModel(
                 return@launch
             }
 
-            availabilityRepository.getAvailableSlots(resolvedSalonId, resolvedSpecialistId, resolvedServiceId, date)
+            val publicRepo = publicSalonRepository
+            val result = if (publicRepo != null && slug != null && !hasSession()) {
+                publicRepo.getAvailableSlots(slug, resolvedSpecialistId, resolvedServiceId, date)
+            } else {
+                availabilityRepository.getAvailableSlots(resolvedSalonId, resolvedSpecialistId, resolvedServiceId, date)
+            }
+
+            result
                 .onSuccess { slots ->
                     state = if (slots.isEmpty()) UiState.Empty else UiState.Success(slots)
                 }

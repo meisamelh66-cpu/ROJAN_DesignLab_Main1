@@ -1,5 +1,6 @@
 package ai.rojan.designlab.presentation.specialist
 
+import ai.rojan.designlab.domain.repository.PublicSalonRepository
 import ai.rojan.designlab.domain.repository.Specialist
 import ai.rojan.designlab.domain.repository.SpecialistRepository
 import ai.rojan.designlab.presentation.common.UiState
@@ -31,6 +32,13 @@ import kotlinx.coroutines.launch
 class SpecialistSelectionViewModel(
     private val salonId: String,
     private val specialistRepository: SpecialistRepository,
+    // Guest Booking Flow fix: same hasSession/publicSalonRepository/slug
+    // branch already proven in SalonDetailsViewModel/ServiceDetailsViewModel.
+    // `GET /api/v1/salons/{salonId}/specialists` requires auth
+    // unconditionally, so a guest always 401ed here before this fix.
+    private val publicSalonRepository: PublicSalonRepository? = null,
+    private val slug: String? = null,
+    private val hasSession: () -> Boolean = { true },
 ) : ViewModel() {
 
     var state by mutableStateOf<UiState<List<Specialist>>>(UiState.Loading)
@@ -43,7 +51,24 @@ class SpecialistSelectionViewModel(
     fun load() {
         state = UiState.Loading
         viewModelScope.launch {
-            specialistRepository.getSpecialists(salonId)
+            val publicRepo = publicSalonRepository
+            val result = if (publicRepo != null && slug != null && !hasSession()) {
+                publicRepo.getSpecialists(slug).map { list ->
+                    list.map { specialist ->
+                        Specialist(
+                            id = specialist.id,
+                            salonId = salonId,
+                            displayName = specialist.displayName,
+                            bio = specialist.bio,
+                            photoUrl = specialist.photoUrl,
+                        )
+                    }
+                }
+            } else {
+                specialistRepository.getSpecialists(salonId)
+            }
+
+            result
                 .onSuccess { specialists ->
                     state = if (specialists.isEmpty()) UiState.Empty else UiState.Success(specialists)
                 }

@@ -68,6 +68,23 @@ class BookingViewModel(
     var state by mutableStateOf(restoreState())
         private set
 
+    // Guest Booking Flow fix: the salon's public slug, known as soon as
+    // Salon Details composes (whether the guest arrived via a guest-visible
+    // list or an authenticated one — harmlessly null in the latter case).
+    // Deliberately NOT part of BookingState/BookingEvent/the SavedStateHandle
+    // persistence pipeline below: it's a technical routing detail for
+    // anonymous network calls, not user-entered booking data, so it doesn't
+    // need this class's process-death durability guarantee — on a real
+    // process kill mid-flow, a guest simply needs to re-open Salon Details
+    // once more to keep browsing as a guest, same recovery as before this
+    // fix existed at all.
+    var salonSlug: String? = null
+        private set
+
+    fun onSalonSlugKnown(slug: String?) {
+        if (slug != null) salonSlug = slug
+    }
+
     private fun restoreState(): BookingState {
         return BookingState(
             intent = savedStateHandle.get<String>(KEY_INTENT)

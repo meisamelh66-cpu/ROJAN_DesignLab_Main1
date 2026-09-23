@@ -110,13 +110,19 @@ fun BookingTimeScreen(
     onBackClick: () -> Unit,
     onTimeSelected: (String) -> Unit,
     viewModel: BookingTimeViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = BookingTimeViewModelFactory(
-            salonId = bookingViewModel.state.salonId,
-            specialistId = bookingViewModel.state.specialistId,
-            serviceId = bookingViewModel.state.serviceId,
-            date = dateKey,
-            availabilityRepository = BackendApiContainerHolder.get(LocalContext.current).availabilityRepository,
-        ),
+        factory = run {
+            val container = BackendApiContainerHolder.get(LocalContext.current)
+            BookingTimeViewModelFactory(
+                salonId = bookingViewModel.state.salonId,
+                specialistId = bookingViewModel.state.specialistId,
+                serviceId = bookingViewModel.state.serviceId,
+                date = dateKey,
+                availabilityRepository = container.availabilityRepository,
+                publicSalonRepository = container.publicSalonRepository,
+                slug = bookingViewModel.salonSlug,
+                hasSession = { container.tokenRepository.accessToken()?.isNotBlank() == true },
+            )
+        },
     ),
 ) {
     BookingScaffold(

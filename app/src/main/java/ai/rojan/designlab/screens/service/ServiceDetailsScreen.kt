@@ -70,6 +70,10 @@ fun ServiceDetailsScreen(
     salonId: String?,
     onBackClick: () -> Unit,
     onBookClick: (String) -> Unit,
+    // Guest Booking Flow fix: the salon's public slug, threaded from the
+    // shared BookingViewModel (see RojanNavGraph.kt) — non-null only when
+    // this booking session's salon was reached via a guest-visible list.
+    slug: String? = null,
     viewModel: ServiceDetailsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = run {
             val container = BackendApiContainerHolder.get(LocalContext.current)
@@ -78,6 +82,9 @@ fun ServiceDetailsScreen(
                 serviceId = serviceId,
                 serviceCategoryRepository = container.serviceCategoryRepository,
                 serviceRepository = container.serviceRepository,
+                publicSalonRepository = container.publicSalonRepository,
+                slug = slug,
+                hasSession = { container.tokenRepository.accessToken()?.isNotBlank() == true },
             )
         },
     ),

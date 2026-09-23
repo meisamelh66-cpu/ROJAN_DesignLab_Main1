@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.Brush
@@ -174,6 +175,9 @@ fun CustomerDashboardScreen(
     // authenticated-only and never needs the guest path.
     onSalonClick: (salonId: String, slug: String?) -> Unit = { _, _ -> },
     onNotificationsClick: () -> Unit = {},
+    // Guest Booking Flow fix: navigates straight to AUTH, bypassing the
+    // Account-screen detour onProfileClick goes through.
+    onLoginClick: () -> Unit = {},
 ) {
     val container = BackendApiContainerHolder.get(LocalContext.current)
 
@@ -224,6 +228,8 @@ fun CustomerDashboardScreen(
                         firstName = firstName,
                         onProfileClick = onProfileClick,
                         onNotificationsClick = onNotificationsClick,
+                        isGuest = isGuest,
+                        onLoginClick = onLoginClick,
                     )
                 }
 
@@ -355,6 +361,13 @@ private fun HomeHeroCard(
     firstName: String,
     onProfileClick: () -> Unit,
     onNotificationsClick: () -> Unit,
+    // Guest Booking Flow fix: small persistent login affordance — visible
+    // only for guest sessions, does not cover any content (it's laid out
+    // inline in the existing header row, same as the notification/profile
+    // chips beside it), navigates straight to AUTH rather than the
+    // Account-screen detour.
+    isGuest: Boolean = false,
+    onLoginClick: () -> Unit = {},
 ) {
     Box(
         modifier = Modifier
@@ -423,6 +436,10 @@ private fun HomeHeroCard(
                         contentDescription = "پروفایل",
                         onClick = onProfileClick,
                     )
+                    if (isGuest) {
+                        Spacer(Modifier.width(RojanDimens.SpaceSM))
+                        HomeLoginPill(onClick = onLoginClick)
+                    }
                 }
 
                 Spacer(Modifier.height(RojanDimens.SpaceLG))
@@ -491,6 +508,36 @@ private fun HomeIconChip(icon: ImageVector, contentDescription: String, onClick:
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = contentDescription, tint = HomeColors.TextPrimary, modifier = Modifier.size(20.dp))
+    }
+}
+
+/**
+ * Guest Booking Flow fix: small, premium, non-intrusive login affordance —
+ * same accent-filled pill shape/tokens `HomePromoBanner`'s "مشاهده سالن‌ها"
+ * CTA already uses elsewhere in this file (`RojanShapes.PremiumButton` +
+ * `RefAccent`/`RefOnAccent`), just sized down to sit inline in the header
+ * icon row next to the notification/profile chips — no new visual language,
+ * only ever shown for a guest session, never covers any content.
+ */
+@Composable
+private fun HomeLoginPill(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .height(RojanDimens.MinTouchTarget)
+            .clip(RojanShapes.PremiumButton)
+            .background(RefAccent)
+            .rojanPressable(onClick = onClick, role = Role.Button)
+            .padding(horizontal = RojanDimens.SpaceMD),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.AutoMirrored.Outlined.Login,
+            contentDescription = null,
+            tint = RefOnAccent,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(RojanDimens.SpaceXS))
+        Text("ورود", style = RojanTypography.Caption.copy(fontWeight = FontWeight.SemiBold), color = RefOnAccent)
     }
 }
 

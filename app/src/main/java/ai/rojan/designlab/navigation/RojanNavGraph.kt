@@ -556,6 +556,13 @@ fun RojanNavGraph() {
                         val selectedServiceIds = backStackEntry.arguments?.getString("selectedServiceIds")
                             ?.split(",")?.filter { it.isNotBlank() }
                         val slug = backStackEntry.arguments?.getString("slug")
+                        // Guest Booking Flow fix: record slug on the shared
+                        // BookingViewModel once, here, so every downstream
+                        // screen in this booking session (Service Details,
+                        // Specialist Selection/Profile, Date, Time) can reach
+                        // it without a new nav argument on each of their own
+                        // routes.
+                        bookingViewModel.onSalonSlugKnown(slug)
                         SalonDetailsScreen(
                             salonId = salonId,
                             selectedServiceIds = selectedServiceIds,
@@ -600,6 +607,7 @@ fun RojanNavGraph() {
                         val salonId = backStackEntry.arguments?.getString("salonId") ?: ""
                         SpecialistSelectionScreen(
                             salonId = salonId,
+                            slug = bookingViewModel.salonSlug,
                             onBackClick = { navController.popBackStack() },
                             onSpecialistSelected = { specialistId ->
                                 bookingViewModel.onSpecialistSelected(specialistId)
@@ -628,6 +636,7 @@ fun RojanNavGraph() {
                         SpecialistProfileScreen(
                             specialistId = specialistId,
                             salonId = salonIdForSpecialist,
+                            slug = bookingViewModel.salonSlug,
                             onBackClick = { navController.popBackStack() },
                             onServiceClick = { serviceId ->
                                 // P0 fix: this path (Salon Details → a specific
@@ -678,6 +687,7 @@ fun RojanNavGraph() {
                         ServiceDetailsScreen(
                             serviceId = serviceId,
                             salonId = bookingViewModel.state.salonId,
+                            slug = bookingViewModel.salonSlug,
                             onBackClick = { navController.popBackStack() },
                             onBookClick = {
                                 bookingViewModel.onServiceSelected(serviceId)
@@ -938,6 +948,7 @@ fun RojanNavGraph() {
                             onFavoritesClick = { navController.navigate(RojanDestinations.FAVORITES) },
                             onExploreClick = { navController.navigate(RojanDestinations.EXPLORE) },
                             onSearchClick = { navController.navigate(RojanDestinations.SEARCH) },
+                            onLoginClick = { navController.navigate(RojanDestinations.AUTH) },
                             onSalonClick = { salonId, slug ->
                                 // Back-navigation fix: launchSingleTop guards every forward
                                 // push in the booking chain (see BOOKING-TIME-UX-REDESIGN-REPORT.md)
