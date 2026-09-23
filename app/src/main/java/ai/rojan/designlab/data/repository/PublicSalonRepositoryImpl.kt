@@ -1,6 +1,7 @@
 package ai.rojan.designlab.data.repository
 
 import ai.rojan.designlab.data.remote.PublicSalonApi
+import ai.rojan.designlab.data.remote.dto.PublicMediaAssetResponseDto
 import ai.rojan.designlab.data.remote.dto.PublicSalonResponseDto
 import ai.rojan.designlab.data.remote.dto.PublicSalonSummaryResponseDto
 import ai.rojan.designlab.data.remote.dto.PublicServiceCategoryResponseDto
@@ -15,6 +16,7 @@ import ai.rojan.designlab.domain.repository.PublicServiceCategory
 import ai.rojan.designlab.domain.repository.PublicSalonRepository
 import ai.rojan.designlab.domain.repository.PublicSpecialist
 import ai.rojan.designlab.domain.repository.Salon
+import ai.rojan.designlab.domain.repository.SalonGalleryImage
 import ai.rojan.designlab.domain.repository.TimeSlot
 
 class PublicSalonRepositoryImpl(
@@ -56,6 +58,9 @@ class PublicSalonRepositoryImpl(
     override suspend fun getSpecialists(slug: String): Result<List<PublicSpecialist>> =
         safeApiCall { publicSalonApi.getSpecialists(slug) }.map { list -> list.map { it.toDomain() } }
 
+    override suspend fun getGallery(slug: String): Result<List<SalonGalleryImage>> =
+        safeApiCall { publicSalonApi.getGallery(slug) }.map { list -> list.map { it.toDomain() } }
+
     override suspend fun getAvailableSlots(
         slug: String,
         specialistId: String,
@@ -80,6 +85,7 @@ class PublicSalonRepositoryImpl(
         phone = phone,
         address = address,
         logoUrl = logoUrl,
+        coverImageUrl = coverImageUrl,
         latitude = latitude,
         longitude = longitude,
     )
@@ -99,6 +105,7 @@ class PublicSalonRepositoryImpl(
         email = email,
         address = address.orEmpty(),
         logoUrl = logoUrl,
+        coverImageUrl = coverUrl,
         latitude = latitude,
         longitude = longitude,
         slug = slug,
@@ -127,4 +134,6 @@ class PublicSalonRepositoryImpl(
     )
 
     private fun TimeSlotResponseDto.toDomain() = TimeSlot(start = start, end = end)
+
+    private fun PublicMediaAssetResponseDto.toDomain() = SalonGalleryImage(id = id, url = url)
 }

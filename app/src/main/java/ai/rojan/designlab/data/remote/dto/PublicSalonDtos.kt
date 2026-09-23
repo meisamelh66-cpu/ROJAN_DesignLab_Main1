@@ -7,17 +7,31 @@ import kotlinx.serialization.Serializable
  * mirrors `ROJAN_Backend`'s own `PublicSalonResponse` family, which
  * carries no `ownerId`/`userId` linkage fields since any unauthenticated
  * caller can request these.
+ *
+ * Data Parity Audit: [coverImageUrl] is a real field on the backend's
+ * `PublicSalonResponse` that this DTO never captured before (confirmed on
+ * the live wire — a distinct media asset from any gallery photo, backend's
+ * `spring.jackson.default-property-inclusion: non_null` omits the key
+ * entirely when unset, same as every other nullable field here).
+ *
+ * Every nullable field now has a `null` default (Salon Guest Detail
+ * MalformedResponseException investigation): a nullable Kotlin type alone
+ * does not make a kotlinx.serialization key optional-on-absence, only an
+ * explicit default does — without one, a salon missing any of these (e.g.
+ * no coordinates set) 404s the whole guest detail screen with a decode
+ * crash instead of just rendering that field as absent.
  */
 @Serializable
 data class PublicSalonResponseDto(
     val id: String,
     val name: String,
-    val description: String?,
+    val description: String? = null,
     val phone: String,
     val address: String,
-    val logoUrl: String?,
-    val latitude: Double?,
-    val longitude: Double?,
+    val logoUrl: String? = null,
+    val coverImageUrl: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
 )
 
 /**
@@ -47,11 +61,15 @@ data class PublicSalonSummaryResponseDto(
     val distanceKm: Double? = null,
 )
 
+// Data Parity Audit / Guest Detail MalformedResponseException investigation:
+// `= null` on every nullable field below, same reasoning as
+// PublicSalonResponseDto's own doc comment above.
+
 @Serializable
 data class PublicServiceCategoryResponseDto(
     val id: String,
     val name: String,
-    val description: String?,
+    val description: String? = null,
 )
 
 @Serializable
@@ -59,7 +77,7 @@ data class PublicServiceResponseDto(
     val id: String,
     val categoryId: String,
     val name: String,
-    val description: String?,
+    val description: String? = null,
     val durationMinutes: Int,
     val price: Double,
 )
@@ -68,6 +86,14 @@ data class PublicServiceResponseDto(
 data class PublicSpecialistResponseDto(
     val id: String,
     val displayName: String,
-    val bio: String?,
-    val photoUrl: String?,
+    val bio: String? = null,
+    val photoUrl: String? = null,
+)
+
+/** Mirrors `ROJAN_Backend`'s `PublicMediaAssetResponse` (`PublicSalonController.gallery`) — real, publicly-servable GALLERY/PORTFOLIO images only, server-side filtered. */
+@Serializable
+data class PublicMediaAssetResponseDto(
+    val id: String,
+    val mediaType: String,
+    val url: String,
 )

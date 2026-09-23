@@ -8,6 +8,8 @@ data class PublicSalon(
     val phone: String,
     val address: String,
     val logoUrl: String?,
+    /** Data Parity Audit: real field, distinct media asset from any gallery photo. */
+    val coverImageUrl: String?,
     val latitude: Double?,
     val longitude: Double?,
 )
@@ -67,6 +69,9 @@ interface PublicSalonRepository {
     suspend fun getServices(slug: String, categoryId: String): Result<List<PublicService>>
 
     suspend fun getSpecialists(slug: String): Result<List<PublicSpecialist>>
+
+    /** Salon Gallery, guest path — real GALLERY/PORTFOLIO images only, server-side filtered. Authenticated equivalent: [SalonGalleryRepository.getGallery]. */
+    suspend fun getGallery(slug: String): Result<List<SalonGalleryImage>>
 
     suspend fun getAvailableSlots(
         slug: String,

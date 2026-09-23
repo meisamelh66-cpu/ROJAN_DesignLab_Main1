@@ -2,6 +2,7 @@ package ai.rojan.designlab.screens.salon
 
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,43 +27,57 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Phone
+import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text as Material3Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.domain.repository.Salon
+import ai.rojan.designlab.domain.repository.SalonGalleryImage
 import ai.rojan.designlab.domain.repository.SalonWorkingHours
 import ai.rojan.designlab.domain.repository.Service
 import ai.rojan.designlab.domain.repository.Specialist
@@ -111,6 +127,16 @@ import java.util.Calendar
  * Kept: ROJAN identity, the dark navy ground (`HomeBackgroundTheme`), rose gold
  * (`RojanPremiumBorderRoseGold` #E0A67A) as the single accent, glass only as a
  * ~4.5% translucent lift (no border, no glow), RTL, and every backend field.
+ *
+ * Salon Gallery: the backend's real `GALLERY`-type media (`MediaController`
+ * authenticated, `PublicSalonController.gallery` for guests) was never wired
+ * into this screen before — the file's own prior doc comment listed "photo
+ * gallery" alongside ratings/facilities as backend-unmodelled, which was
+ * true for ratings/facilities but not, in fact, for gallery photos. Hero +
+ * grid + full-screen viewer below render [SalonDetailsData.galleryImages]
+ * exactly as fetched — absent entirely (no section rendered) for any salon
+ * with none, same "never faked or rendered empty" rule as every other
+ * section in this file.
  * ========================================================================== */
 
 // Phase 4 (P1) token consolidation: RefScreenMargin / RefCardRadius /
@@ -125,6 +151,12 @@ private val RefLogoSize = 72.dp
 private val RefAvatarSize = 64.dp
 private val RefSalonNameStyle = RojanTypography.Display.copy(fontSize = 26.sp, lineHeight = 34.sp)
 private val RefPriceStyle = RojanTypography.Caption.copy(fontWeight = FontWeight.SemiBold)
+
+// Salon Gallery tokens — local to this screen, same reasoning as the four
+// above (RefCardShape/RefScreenMargin etc. are still reused for the grid).
+private val RefGalleryHeroShape = RoundedCornerShape(RefCardRadius)
+private val RefGalleryHeroAspectRatio = 16f / 10f
+private val RefGalleryGridSpacing = RojanDimens.SpaceXS
 
 // --- Backend-day / open-now helpers (unchanged behaviour) --------------------
 
@@ -210,6 +242,7 @@ fun SalonDetailsScreen(
                 serviceRepository = container.serviceRepository,
                 specialistRepository = container.specialistRepository,
                 workingHoursRepository = container.workingHoursRepository,
+                salonGalleryRepository = container.salonGalleryRepository,
                 slug = slug,
                 publicSalonRepository = container.publicSalonRepository,
                 hasSession = { container.tokenRepository.accessToken()?.isNotBlank() == true },
@@ -240,6 +273,11 @@ fun SalonDetailsScreen(
     }
 
     val loadState = viewModel.state
+
+    // Salon Gallery full-screen viewer: which image index is open, or null
+    // when closed. A Dialog (own window) rather than an in-tree overlay, so
+    // it needs no extra Box wrapping the rest of this composable.
+    var galleryViewerIndex by remember { mutableStateOf<Int?>(null) }
 
     HomeBackgroundTheme {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -287,6 +325,27 @@ fun SalonDetailsScreen(
                             bottom = RojanDimens.SpaceXXL,
                         ),
                     ) {
+                        // Data Parity Audit: the hero uses the salon's real,
+                        // dedicated cover image (Salon.coverImageUrl — a
+                        // distinct media asset from any gallery photo, now
+                        // actually mapped through) rather than reusing the
+                        // first gallery photo as a stand-in. Falls back to
+                        // the first gallery photo only when no cover is set,
+                        // so a salon with a gallery but no cover still gets a
+                        // hero — never fabricated, never blank when a real
+                        // image exists somewhere.
+                        val heroImageUrl = salon.coverImageUrl ?: data.galleryImages.firstOrNull()?.url
+                        if (heroImageUrl != null) {
+                            item {
+                                RefGalleryHero(
+                                    salonName = salon.name,
+                                    imageUrl = heroImageUrl,
+                                    modifier = Modifier.padding(horizontal = RefScreenMargin),
+                                    onClick = { if (data.galleryImages.isNotEmpty()) galleryViewerIndex = 0 },
+                                )
+                            }
+                        }
+
                         item {
                             RefHeader(
                                 salon = salon,
@@ -296,6 +355,17 @@ fun SalonDetailsScreen(
                                     runCatching { context.startActivity(i) }
                                 },
                             )
+                        }
+
+                        if (data.galleryImages.size > 1) {
+                            item { RefSectionSpacer(); RefSectionLabel("تصاویر سالن") }
+                            item {
+                                RefGalleryGrid(
+                                    images = data.galleryImages,
+                                    modifier = Modifier.padding(horizontal = RefScreenMargin, vertical = RojanDimens.SpaceSM),
+                                    onImageClick = { index -> galleryViewerIndex = index },
+                                )
+                            }
                         }
 
                         if (onContinueBooking != null) {
@@ -371,12 +441,32 @@ fun SalonDetailsScreen(
                         item { RefSectionSpacer(); RefSectionLabel("تماس") }
                         item {
                             RefSurface(Modifier.padding(horizontal = RefScreenMargin, vertical = RojanDimens.SpaceSM)) {
-                                RefContactRow(phone = salon.phone) {
-                                    val i = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${salon.phone}"))
-                                    runCatching { context.startActivity(i) }
+                                Column(Modifier.fillMaxWidth()) {
+                                    RefContactRow(value = salon.phone, icon = Icons.Outlined.Phone, contentDescription = "تماس با سالن") {
+                                        val i = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${salon.phone}"))
+                                        runCatching { context.startActivity(i) }
+                                    }
+                                    // Data Parity Audit: salon.email is a real backend
+                                    // field, already mapped through, just never shown
+                                    // on this screen before — added only when present.
+                                    salon.email?.takeIf { it.isNotBlank() }?.let { email ->
+                                        RefRowDivider()
+                                        RefContactRow(value = email, icon = Icons.Outlined.Email, contentDescription = "ایمیل سالن") {
+                                            val i = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$email"))
+                                            runCatching { context.startActivity(i) }
+                                        }
+                                    }
                                 }
                             }
                         }
+                    }
+
+                    galleryViewerIndex?.let { startIndex ->
+                        RefGalleryViewer(
+                            images = data.galleryImages,
+                            startIndex = startIndex,
+                            onDismiss = { galleryViewerIndex = null },
+                        )
                     }
                 }
             }
@@ -568,7 +658,11 @@ private fun RefHeader(
 
         Spacer(Modifier.height(RojanDimens.SpaceSM))
         RefMetaRow(
-            address = salon.address,
+            // Data Parity Audit: city is a real backend field (authenticated
+            // path only — see SalonLocation's doc comment for the guest-path
+            // asymmetry), appended to the address line when present rather
+            // than a separate row, since it's the same "where" concept.
+            address = salon.city?.takeIf { it.isNotBlank() }?.let { "${salon.address}، $it" } ?: salon.address,
             openStatus = remember(workingHours) { openStatusLabel(workingHours) },
             onAddressClick = onAddressClick,
         )
@@ -621,6 +715,183 @@ private fun RefMetaRow(
                 style = RojanTypography.Caption,
                 color = if (open) RefAccent else HomeColors.TextMuted,
             )
+        }
+    }
+}
+
+// --- Salon Gallery: hero (featured image), grid (all images), full-screen
+// viewer (swipeable pager). Real backend photos only — absent entirely for
+// any salon with none, matching every other section's "never faked" rule.
+// No rating overlay: [Salon] carries no rating/review-aggregate field (see
+// [RefHeader]'s doc comment precedent), so none is shown here either.
+
+@Composable
+private fun RefGalleryHero(
+    salonName: String,
+    imageUrl: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(RefGalleryHeroAspectRatio)
+            .clip(RefGalleryHeroShape)
+            .border(1.dp, RefHairline, RefGalleryHeroShape)
+            .rojanPressable(onClick = onClick, role = Role.Button),
+    ) {
+        RojanRemoteImage(
+            url = imageUrl,
+            contentDescription = salonName,
+            shape = RefGalleryHeroShape,
+            modifier = Modifier.fillMaxSize(),
+            fallback = {
+                Box(
+                    modifier = Modifier.fillMaxSize().background(RefSurfaceFill),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Outlined.Storefront, contentDescription = null, tint = HomeColors.TextMuted, modifier = Modifier.size(32.dp))
+                }
+            },
+        )
+        // Bottom gradient scrim — same technique as HomePromoBanner's
+        // horizontalGradient on Customer Home, just vertical here for a
+        // bottom-anchored title over a landscape photo.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            HomeColors.NavyBase.copy(alpha = 0.75f),
+                        ),
+                        startY = 0.4f,
+                    ),
+                ),
+        )
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(RojanDimens.SpaceMD),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Outlined.PhotoCamera,
+                contentDescription = null,
+                tint = HomeColors.TextPrimary,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(RojanDimens.SpaceXS))
+            Text(
+                salonName,
+                style = RojanTypography.CardTitle.copy(fontWeight = FontWeight.Bold),
+                color = HomeColors.TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RefGalleryGrid(
+    images: List<SalonGalleryImage>,
+    onImageClick: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(RefGalleryGridSpacing),
+    ) {
+        images.chunked(2).forEachIndexed { rowIndex, row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(RefGalleryGridSpacing),
+            ) {
+                row.forEachIndexed { columnIndex, image ->
+                    val index = rowIndex * 2 + columnIndex
+                    RojanRemoteImage(
+                        url = image.url,
+                        contentDescription = null,
+                        shape = RefCardShape,
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(1f)
+                            .clip(RefCardShape)
+                            .border(1.dp, RefHairline, RefCardShape)
+                            .rojanPressable(onClick = { onImageClick(index) }, role = Role.Button),
+                        fallback = {
+                            Box(Modifier.fillMaxSize().background(RefSurfaceFill))
+                        },
+                    )
+                }
+                // Odd image count on the last row: a same-size empty spacer
+                // keeps the single remaining tile at grid width, not full width.
+                if (row.size == 1) {
+                    Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RefGalleryViewer(
+    images: List<SalonGalleryImage>,
+    startIndex: Int,
+    onDismiss: () -> Unit,
+) {
+    BackHandler(onBack = onDismiss)
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        val pagerState = rememberPagerState(initialPage = startIndex) { images.size }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black),
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+            ) { page ->
+                RojanRemoteImage(
+                    url = images[page].url,
+                    contentDescription = null,
+                    shape = RectangleShape,
+                    modifier = Modifier.fillMaxSize(),
+                    fallback = {},
+                )
+            }
+            RefIconButton(
+                icon = Icons.Outlined.Close,
+                contentDescription = "بستن",
+                tint = Color.White,
+                onClick = onDismiss,
+            )
+            if (images.size > 1) {
+                // Real-device bug found during verification: "2 / 5" rendered
+                // as "5 / 2". Root cause: this app's global Text wrapper
+                // (ui/text/RojanText.kt) auto-detects RTL-vs-LTR per string
+                // and — by design, documented there — defaults a string with
+                // no letters at all (pure digits, same bucket as a price) to
+                // RTL. A page counter isn't language content, so it needs to
+                // opt out of that auto-detection entirely, which the wrapper
+                // exposes no parameter for — using the underlying Material 3
+                // Text directly with an explicit TextDirection.Ltr is the
+                // correct, minimal fix, scoped to just this one label.
+                Material3Text(
+                    "${pagerState.currentPage + 1} / ${images.size}",
+                    style = RojanTypography.Caption.copy(textDirection = TextDirection.Ltr, textAlign = TextAlign.Center),
+                    color = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = RojanDimens.SpaceLG),
+                )
+            }
         }
     }
 }
@@ -830,7 +1101,7 @@ private fun RefHoursCard(
 // --- Contact row -------------------------------------------------
 
 @Composable
-private fun RefContactRow(phone: String, onClick: () -> Unit) {
+private fun RefContactRow(value: String, icon: ImageVector, contentDescription: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -839,11 +1110,11 @@ private fun RefContactRow(phone: String, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.End,
     ) {
-        Text(phone, style = RojanTypography.Body, color = HomeColors.TextPrimary)
+        Text(value, style = RojanTypography.Body, color = HomeColors.TextPrimary)
         Spacer(Modifier.width(RojanDimens.SpaceSM))
         Icon(
-            Icons.Outlined.Phone,
-            contentDescription = "تماس با سالن",
+            icon,
+            contentDescription = contentDescription,
             tint = RefAccent,
             modifier = Modifier.size(20.dp),
         )

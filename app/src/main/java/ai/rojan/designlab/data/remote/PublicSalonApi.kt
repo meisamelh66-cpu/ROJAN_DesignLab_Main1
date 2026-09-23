@@ -1,6 +1,7 @@
 package ai.rojan.designlab.data.remote
 
 import ai.rojan.designlab.data.remote.dto.PagedResponseDto
+import ai.rojan.designlab.data.remote.dto.PublicMediaAssetResponseDto
 import ai.rojan.designlab.data.remote.dto.PublicSalonResponseDto
 import ai.rojan.designlab.data.remote.dto.PublicSalonSummaryResponseDto
 import ai.rojan.designlab.data.remote.dto.PublicServiceCategoryResponseDto
@@ -49,6 +50,10 @@ interface PublicSalonApi {
 
     @GET("api/v1/public/salons/{slug}/specialists")
     suspend fun getSpecialists(@Path("slug") slug: String): List<PublicSpecialistResponseDto>
+
+    /** Real, publicly-servable GALLERY/PORTFOLIO images only (`PublicSalonController.PUBLIC_GALLERY_TYPES`, backend-filtered). */
+    @GET("api/v1/public/salons/{slug}/gallery")
+    suspend fun getGallery(@Path("slug") slug: String): List<PublicMediaAssetResponseDto>
 
     @GET("api/v1/public/salons/{slug}/specialists/{specialistId}/available-slots")
     suspend fun getAvailableSlots(

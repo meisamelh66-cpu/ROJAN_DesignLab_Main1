@@ -2,6 +2,8 @@ package ai.rojan.designlab.presentation.salon
 
 import ai.rojan.designlab.domain.repository.PublicSalonRepository
 import ai.rojan.designlab.domain.repository.Salon
+import ai.rojan.designlab.domain.repository.SalonGalleryImage
+import ai.rojan.designlab.domain.repository.SalonGalleryRepository
 import ai.rojan.designlab.domain.repository.SalonRepository
 import ai.rojan.designlab.domain.repository.SalonWorkingHours
 import ai.rojan.designlab.domain.repository.Service
@@ -26,6 +28,8 @@ data class SalonDetailsData(
     val services: List<Service>,
     val specialists: List<Specialist>,
     val workingHours: List<SalonWorkingHours>,
+    /** Salon Gallery: real backend photos only — empty when the salon has none (never faked). */
+    val galleryImages: List<SalonGalleryImage> = emptyList(),
 )
 
 /**
@@ -43,6 +47,9 @@ class SalonDetailsViewModel(
     private val serviceRepository: ServiceRepository,
     private val specialistRepository: SpecialistRepository,
     private val workingHoursRepository: WorkingHoursRepository,
+    // Salon Gallery: authenticated path only — the guest path's gallery
+    // comes from publicSalonRepository.getGallery(slug) below instead.
+    private val salonGalleryRepository: SalonGalleryRepository,
     // Guest Salon Detail fix: mirrors SalonListViewModel's established
     // guest/authenticated branch (see that class's own doc comment,
     // "Guest Explore fix"). GET /api/v1/salons/{salonId} (and its
@@ -93,7 +100,10 @@ class SalonDetailsViewModel(
         // applies to Salon): a working-hours fetch failure shouldn't take down the
         // whole salon page, so it degrades to an empty list instead of getOrThrow().
         val workingHours = workingHoursRepository.getWorkingHours(salonId).getOrDefault(emptyList())
-        SalonDetailsData(salon, categories, services, specialists, workingHours)
+        // Enrichment, not a hard gate — same principle as workingHours above:
+        // a gallery-fetch failure shouldn't take down the whole salon page.
+        val gallery = salonGalleryRepository.getGallery(salonId).getOrDefault(emptyList())
+        SalonDetailsData(salon, categories, services, specialists, workingHours, gallery)
     }
 
     /**
@@ -118,6 +128,7 @@ class SalonDetailsViewModel(
             email = null,
             address = publicSalon.address,
             logoUrl = publicSalon.logoUrl,
+            coverImageUrl = publicSalon.coverImageUrl,
             latitude = publicSalon.latitude,
             longitude = publicSalon.longitude,
             slug = slug,
@@ -148,7 +159,8 @@ class SalonDetailsViewModel(
                 photoUrl = specialist.photoUrl,
             )
         }
-        SalonDetailsData(salon, categories, services, specialists, workingHours = emptyList())
+        val gallery = publicRepo.getGallery(slug).getOrDefault(emptyList())
+        SalonDetailsData(salon, categories, services, specialists, workingHours = emptyList(), galleryImages = gallery)
     }
 
     fun retry() = load()

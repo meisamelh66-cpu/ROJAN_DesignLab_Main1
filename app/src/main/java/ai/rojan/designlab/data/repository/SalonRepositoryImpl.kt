@@ -44,8 +44,10 @@ class SalonRepositoryImpl(
         email = email,
         address = address,
         logoUrl = logoUrl,
+        coverImageUrl = coverImageUrl,
         latitude = latitude,
         longitude = longitude,
+        city = city,
         active = active,
     )
 }

@@ -26,6 +26,8 @@ data class SalonResponseDto(
     val coverImageUrl: String? = null,
     val latitude: Double? = null,
     val longitude: Double? = null,
+    /** Data Parity Audit: real backend field (`Salon.city`), free-text, present on the authenticated response — never captured on this DTO before. */
+    val city: String? = null,
     val active: Boolean,
     val createdAt: String,
     val updatedAt: String,

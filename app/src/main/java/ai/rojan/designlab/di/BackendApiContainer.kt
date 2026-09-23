@@ -38,6 +38,7 @@ import ai.rojan.designlab.data.repository.CurrentUserIdentityContextRepositoryIm
 import ai.rojan.designlab.data.repository.CustomerRelationshipRepositoryImpl
 import ai.rojan.designlab.data.repository.PublicSalonRepositoryImpl
 import ai.rojan.designlab.data.repository.SalonCustomerRepositoryImpl
+import ai.rojan.designlab.data.repository.SalonGalleryRepositoryImpl
 import ai.rojan.designlab.data.repository.SalonRepositoryImpl
 import ai.rojan.designlab.data.repository.ServiceCategoryRepositoryImpl
 import ai.rojan.designlab.data.repository.ServiceRepositoryImpl
@@ -57,6 +58,7 @@ import ai.rojan.designlab.domain.repository.CurrentUserIdentityContextRepository
 import ai.rojan.designlab.domain.repository.CustomerRelationshipRepository
 import ai.rojan.designlab.domain.repository.PublicSalonRepository
 import ai.rojan.designlab.domain.repository.SalonCustomerRepository
+import ai.rojan.designlab.domain.repository.SalonGalleryRepository
 import ai.rojan.designlab.domain.repository.SalonRepository
 import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
 import ai.rojan.designlab.domain.repository.ServiceRepository
@@ -204,6 +206,13 @@ class BackendApiContainer(context: Context) {
 
     val managerMediaRepository: ManagerMediaRepository =
         BackendManagerMediaRepository(managerMediaApi, managerSalonApi)
+
+    // Salon Gallery (Customer app): the same Media Foundation contract as
+    // managerMediaRepository above, GET-only and filtered to GALLERY —
+    // list() is not owner-restricted (verified against MediaController
+    // source), so any authenticated customer can view any salon's gallery.
+    val salonGalleryRepository: SalonGalleryRepository =
+        SalonGalleryRepositoryImpl(managerMediaApi)
 
 
     // Raw APIs exposed for manager repositories
