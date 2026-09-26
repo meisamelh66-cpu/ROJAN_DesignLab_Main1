@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
 import ai.rojan.designlab.navigation.RojanNavGraph
+import ai.rojan.designlab.ui.components.update.AppUpdateGate
 import ai.rojan.designlab.ui.theme.CustomerPalette
 import ai.rojan.designlab.ui.theme.LocalRojanPalette
 import ai.rojan.designlab.ui.theme.RojanTheme
@@ -22,7 +23,9 @@ class MainActivity : ComponentActivity() {
             CompositionLocalProvider(LocalRojanPalette provides CustomerPalette) {
                 RojanTheme {
 
-                    RojanNavGraph()
+                    AppUpdateGate {
+                        RojanNavGraph()
+                    }
 
                 }
             }

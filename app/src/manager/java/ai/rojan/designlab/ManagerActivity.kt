@@ -1,6 +1,7 @@
 package ai.rojan.designlab
 
 import ai.rojan.designlab.manager.navigation.ManagerRootGraph
+import ai.rojan.designlab.ui.components.update.AppUpdateGate
 import ai.rojan.designlab.ui.theme.LocalRojanPalette
 import ai.rojan.designlab.ui.theme.ManagerPalette
 import ai.rojan.designlab.ui.theme.RojanTheme
@@ -32,7 +33,9 @@ class ManagerActivity : ComponentActivity() {
         setContent {
             CompositionLocalProvider(LocalRojanPalette provides ManagerPalette) {
                 RojanTheme {
-                    ManagerRootGraph()
+                    AppUpdateGate {
+                        ManagerRootGraph()
+                    }
                 }
             }
         }

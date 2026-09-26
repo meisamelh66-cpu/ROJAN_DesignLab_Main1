@@ -4,6 +4,7 @@ import ai.rojan.designlab.BuildConfig
 import ai.rojan.designlab.data.local.activeSalonDataStore
 import ai.rojan.designlab.data.local.authSessionDataStore
 import ai.rojan.designlab.data.local.createTokenPreferences
+import ai.rojan.designlab.data.remote.AppReleaseApi
 import ai.rojan.designlab.data.remote.AuthApi
 import ai.rojan.designlab.data.remote.AuthInterceptor
 import ai.rojan.designlab.data.remote.AvailabilityApi
@@ -29,6 +30,7 @@ import ai.rojan.designlab.data.remote.SpecialistApi
 import ai.rojan.designlab.data.remote.TokenAuthenticator
 import ai.rojan.designlab.data.remote.WorkingHoursApi
 import ai.rojan.designlab.data.repository.ActiveSalonContextRepositoryImpl
+import ai.rojan.designlab.data.repository.AppUpdateRepositoryImpl
 import ai.rojan.designlab.data.repository.AuthSessionRepositoryImpl
 import ai.rojan.designlab.data.repository.AvailabilityRepositoryImpl
 import ai.rojan.designlab.data.repository.BackendAuthRepositoryImpl
@@ -48,6 +50,7 @@ import ai.rojan.designlab.data.repository.WorkingHoursRepositoryImpl
 import ai.rojan.designlab.domain.beauty.BeautyProfileRepository
 import ai.rojan.designlab.domain.beauty.InMemoryBeautyProfileRepository
 import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
+import ai.rojan.designlab.domain.repository.AppUpdateRepository
 import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.AvailabilityRepository
 import ai.rojan.designlab.domain.repository.BackendAuthRepository
@@ -253,6 +256,20 @@ class BackendApiContainer(context: Context) {
     // same reasoning as plainAuthApi below.
     val publicSalonRepository: PublicSalonRepository =
         PublicSalonRepositoryImpl(buildPlainRetrofit().create(PublicSalonApi::class.java))
+
+    // Android App Update Client, Phase 2B: same "deliberately NOT built on
+    // [retrofit]" reasoning as publicSalonRepository above — the update
+    // check is unauthenticated by design (ROJAN_Backend's
+    // PublicAppReleaseController) and must work even for a fully logged-out
+    // caller on first launch. applicationId/versionCode are this exact
+    // running flavor's own real BuildConfig values, resolved once here —
+    // never hardcoded, never passed by a screen/ViewModel call site.
+    val appUpdateRepository: AppUpdateRepository =
+        AppUpdateRepositoryImpl(
+            buildPlainRetrofit().create(AppReleaseApi::class.java),
+            BuildConfig.APPLICATION_ID,
+            BuildConfig.VERSION_CODE,
+        )
 
     // Manager-only, owner-authenticated, but exposed fully wrapped here
     // (unlike the raw manager*Api section above) - unlike

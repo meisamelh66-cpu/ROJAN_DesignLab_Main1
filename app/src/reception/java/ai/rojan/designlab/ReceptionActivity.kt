@@ -1,6 +1,7 @@
 package ai.rojan.designlab
 
 import ai.rojan.designlab.reception.navigation.ReceptionRootGraph
+import ai.rojan.designlab.ui.components.update.AppUpdateGate
 import ai.rojan.designlab.ui.theme.LocalRojanPalette
 import ai.rojan.designlab.ui.theme.ReceptionPalette
 import ai.rojan.designlab.ui.theme.RojanTheme
@@ -30,7 +31,9 @@ class ReceptionActivity : ComponentActivity() {
         setContent {
             CompositionLocalProvider(LocalRojanPalette provides ReceptionPalette) {
                 RojanTheme {
-                    ReceptionRootGraph()
+                    AppUpdateGate {
+                        ReceptionRootGraph()
+                    }
                 }
             }
         }
