@@ -1075,6 +1075,7 @@ fun RojanNavGraph() {
                             onLoyaltyClick = { navController.navigate(RojanDestinations.LOYALTY) },
                             onReviewsClick = { navController.navigate(RojanDestinations.MY_REVIEWS) },
                             onBeautyTimelineClick = { navController.navigate(RojanDestinations.BEAUTY_TIMELINE) },
+                            onLoginClick = { navController.navigate(RojanDestinations.AUTH) },
                             onLogoutClick = {
                                 authViewModel.logout()
                                 navController.navigate(RojanDestinations.EXPLORE) {
