@@ -37,6 +37,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
+/** The real Manager OTP contract: a 4-digit code (distinct from [RojanOtpField]'s own 6-digit default, which no current flow actually uses). */
+private const val MANAGER_OTP_LENGTH = 4
+
 /**
  * OTP Authentication Entry Flow Integration — the Manager App's phone +
  * OTP entry screen. Navigation-agnostic like Customer's `AuthScreen`: it
@@ -172,7 +175,7 @@ private fun CodeEntryStep(
     RojanOtpField(
         value = code,
         onValueChange = { code = it },
-        length = 6,
+        length = MANAGER_OTP_LENGTH,
         enabled = !isSubmitting,
         isError = isError,
     )
@@ -192,7 +195,7 @@ private fun CodeEntryStep(
     ManagerPrimaryButton(
         text = "تایید و ورود",
         onClick = { onVerify(code) },
-        enabled = code.length == 6,
+        enabled = code.length == MANAGER_OTP_LENGTH,
         loading = isSubmitting,
     )
 }
