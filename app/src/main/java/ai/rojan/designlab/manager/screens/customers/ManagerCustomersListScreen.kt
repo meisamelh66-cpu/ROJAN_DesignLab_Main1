@@ -1,13 +1,19 @@
 package ai.rojan.designlab.manager.screens.customers
 
+import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.manager.components.ManagerColors
+import ai.rojan.designlab.manager.components.ManagerErrorState
 import ai.rojan.designlab.manager.components.ManagerGlassSurface
 import ai.rojan.designlab.manager.components.ManagerGlassTheme
+import ai.rojan.designlab.manager.components.ManagerLoadingState
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.domain.customer.CustomerTag
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
 import ai.rojan.designlab.manager.domain.customer.displayLabel
+import ai.rojan.designlab.manager.presentation.customers.ManagerCustomersViewModel
+import ai.rojan.designlab.manager.presentation.customers.ManagerCustomersViewModelFactory
+import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.ui.components.cards.PremiumCardShell
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
@@ -43,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -73,7 +80,21 @@ import androidx.compose.ui.unit.dp
  * that same filter state from the caller (e.g. the Dashboard's inactive-
  * customer summary linking straight to the pre-filtered list) — a manager
  * can still change or clear it afterward exactly as before, since it's
- * only the initial value, not a locked/controlled one.
+ * only the initial value, not a locked/controlled one. Tag filtering
+ * remains a pure client-side filter over whatever [viewModel]'s current
+ * [ManagerCustomersViewModel.state] already holds — it was never part of
+ * the search query itself, and still isn't.
+ *
+ * Phase D (Customers ViewModel migration — UI wiring): this screen now
+ * observes [ManagerCustomersViewModel] instead of reading
+ * [ManagerRepositories.customers] directly. [query] changes call
+ * [ManagerCustomersViewModel.searchCustomers] (which owns its own
+ * debounce/cancellation/phone-normalization — unchanged from before,
+ * just no longer duplicated here); [viewModel]'s `init` already issues
+ * the initial unfiltered load, so no extra effect is needed for that.
+ * Loading/Error states are new here (this screen never rendered them
+ * before wiring) — a direct, required consequence of observing the
+ * ViewModel's real state contract, not a redesign.
  */
 @Composable
 fun ManagerCustomersListScreen(
@@ -81,14 +102,15 @@ fun ManagerCustomersListScreen(
     onBackClick: (() -> Unit)? = null,
     onCustomerClick: (String) -> Unit = {},
     initialTagFilter: CustomerTag? = null,
+    viewModel: ManagerCustomersViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = ManagerCustomersViewModelFactory(
+            customerRepository = ManagerRepositories.customers,
+            currentUserIdentityContextRepository = BackendApiContainerHolder.get(LocalContext.current).currentUserIdentityContextRepository,
+        ),
+    ),
 ) {
     var query by remember { mutableStateOf("") }
     var selectedTag by remember { mutableStateOf(initialTagFilter) }
-    val filteredCustomers = remember(query, selectedTag) {
-        ManagerRepositories.customers.search(query).filter { customer ->
-            selectedTag == null || customer.tag == selectedTag
-        }
-    }
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         LazyColumn(
@@ -107,7 +129,10 @@ fun ManagerCustomersListScreen(
             item {
                 CustomerSearchField(
                     query = query,
-                    onQueryChange = { query = it },
+                    onQueryChange = { newQuery ->
+                        query = newQuery
+                        viewModel.searchCustomers(newQuery)
+                    },
                 )
             }
 
@@ -118,14 +143,35 @@ fun ManagerCustomersListScreen(
                 )
             }
 
-            if (filteredCustomers.isEmpty()) {
-                item { EmptyCustomersNotice() }
-            } else {
-                items(filteredCustomers, key = { it.id }) { customer ->
-                    CustomerCard(
-                        customer = customer,
-                        onClick = { onCustomerClick(customer.id) },
+            when (val listState = viewModel.state) {
+                is UiState.Loading -> item {
+                    ManagerLoadingState(message = "در حال بارگذاری مشتریان...")
+                }
+
+                is UiState.Error -> item {
+                    ManagerErrorState(
+                        description = listState.message,
+                        actionLabel = "تلاش مجدد",
+                        onAction = { viewModel.retry() },
                     )
+                }
+
+                is UiState.Empty -> item { EmptyCustomersNotice() }
+
+                is UiState.Success -> {
+                    val filteredCustomers = listState.data.filter { customer ->
+                        selectedTag == null || customer.tag == selectedTag
+                    }
+                    if (filteredCustomers.isEmpty()) {
+                        item { EmptyCustomersNotice() }
+                    } else {
+                        items(filteredCustomers, key = { it.id }) { customer ->
+                            CustomerCard(
+                                customer = customer,
+                                onClick = { onCustomerClick(customer.id) },
+                            )
+                        }
+                    }
                 }
             }
         }

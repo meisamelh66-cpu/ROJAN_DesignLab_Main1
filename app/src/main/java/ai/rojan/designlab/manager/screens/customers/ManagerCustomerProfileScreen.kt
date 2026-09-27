@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.screens.customers
 
+import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.manager.components.ManagerColors
 import ai.rojan.designlab.manager.components.ManagerEmptyState
 import ai.rojan.designlab.manager.components.ManagerErrorState
@@ -14,6 +15,9 @@ import ai.rojan.designlab.manager.domain.customer.CustomerNote
 import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
 import ai.rojan.designlab.manager.domain.customer.displayLabel
+import ai.rojan.designlab.manager.presentation.customers.ManagerCustomerProfileViewModel
+import ai.rojan.designlab.manager.presentation.customers.ManagerCustomerProfileViewModelFactory
+import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.presentation.common.userMessageFor
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
@@ -45,11 +49,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
@@ -112,15 +111,31 @@ import androidx.compose.ui.unit.dp
  * P0 Safety Fix (Manager Completeness Audit v1, finding P0-1): this screen
  * used to resolve [customerId] via `getById(customerId) ?: getAll().firstOrNull()`
  * — on a lookup miss it silently substituted a *different* customer, and
- * [onEditClick] would then act on the wrong customer's real id. [customerId]
- * is now the sole source of truth: [resolveCustomerProfileState] only ever
- * produces [CustomerProfileLookupState.Found] for that exact id, never a
- * fallback. The screen renders one of four explicit states — Loading (while
- * [ManagerRepositories.customers]'s `loadDetail` is in flight), Found, NotFound
- * (a real "customer not found" card with a way back to the list), or Error
- * (a real repository/network failure, via the same [ManagerErrorState] +
- * "تلاش مجدد" retry convention already used by Dashboard/Calendar/the booking
- * screens) — never a blank or partially-substituted profile.
+ * [onEditClick] would then act on the wrong customer's real id.
+ *
+ * Phase D (Customers ViewModel migration — UI wiring): the screen-local
+ * `CustomerProfileLookupState`/`resolveCustomerProfileState` resolver that fixed
+ * P0-1 has been superseded by observing [ManagerCustomerProfileViewModel]
+ * directly — [ManagerCustomerProfileViewModel.load] independently upholds the
+ * exact same contract (verified by its own Phase C tests): [customerId] is the
+ * only identity source passed into the ViewModel's constructor and every
+ * repository call it makes; a lookup miss is [UiState.Empty], never a
+ * substitute customer; a real [ai.rojan.designlab.manager.domain.repository.CustomerRepository.loadDetail]
+ * failure is always [UiState.Error], never silently reinterpreted as
+ * not-found. `CustomerProfileLookupState`/`resolveCustomerProfileState` are kept
+ * below, unused by this composable, solely because
+ * `ManagerCustomerProfileScreenStateTest.kt` (committed with the original P0
+ * fix, outside this phase's authorized files) still exercises them directly;
+ * removing them would break that test's compilation, which this phase is
+ * explicitly not authorized to modify.
+ *
+ * The screen still renders the same four visual states as before — Loading
+ * (while [ManagerCustomerProfileViewModel] is loading), NotFound (mapped from
+ * [UiState.Empty] — a real "customer not found" card with a way back to the
+ * list), Error (via the same [ManagerErrorState] + "تلاش مجدد" retry
+ * convention, now calling [ManagerCustomerProfileViewModel.retry]), or the
+ * full profile (mapped from [UiState.Success]) — never a blank or
+ * partially-substituted profile.
  */
 @Composable
 fun ManagerCustomerProfileScreen(
@@ -128,31 +143,25 @@ fun ManagerCustomerProfileScreen(
     onBackClick: (() -> Unit)? = null,
     customerId: String = "c1",
     onEditClick: () -> Unit = {},
+    viewModel: ManagerCustomerProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        key = customerId,
+        factory = ManagerCustomerProfileViewModelFactory(
+            customerRepository = ManagerRepositories.customers,
+            currentUserIdentityContextRepository = BackendApiContainerHolder.get(LocalContext.current).currentUserIdentityContextRepository,
+            customerId = customerId,
+        ),
+    ),
 ) {
-    var retryTick by remember(customerId) { mutableStateOf(0) }
-    var lookupState by remember(customerId) {
-        mutableStateOf<CustomerProfileLookupState>(CustomerProfileLookupState.Loading)
-    }
-
-    LaunchedEffect(customerId, retryTick) {
-        lookupState = CustomerProfileLookupState.Loading
-        val detailResult = ManagerRepositories.customers.loadDetail(customerId)
-        lookupState = resolveCustomerProfileState(
-            loadDetailResult = detailResult,
-            resolvedCustomer = ManagerRepositories.customers.getById(customerId),
-        )
-    }
-
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
-        when (val state = lookupState) {
-            is CustomerProfileLookupState.Loading -> {
+        when (val state = viewModel.state) {
+            is UiState.Loading -> {
                 ManagerLoadingState(
                     modifier = Modifier.padding(RojanDimens.SpaceMD),
                     message = "در حال بارگذاری اطلاعات مشتری...",
                 )
             }
 
-            is CustomerProfileLookupState.NotFound -> {
+            is UiState.Empty -> {
                 Column(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
                     ManagerEmptyState(
                         title = "مشتری یافت نشد",
@@ -168,19 +177,19 @@ fun ManagerCustomerProfileScreen(
                 }
             }
 
-            is CustomerProfileLookupState.Error -> {
+            is UiState.Error -> {
                 ManagerErrorState(
                     modifier = Modifier.padding(RojanDimens.SpaceMD),
                     description = state.message,
                     actionLabel = "تلاش مجدد",
-                    onAction = { retryTick++ },
+                    onAction = { viewModel.retry() },
                 )
             }
 
-            is CustomerProfileLookupState.Found -> {
-                val customer = state.customer
-                val history = ManagerRepositories.customers.getServiceHistory(customerId)
-                val noteHistory = ManagerRepositories.customers.getNoteHistory(customerId)
+            is UiState.Success -> {
+                val customer = state.data.customer
+                val history = state.data.history
+                val noteHistory = state.data.notes
                 val customerInsights = ManagerRepositories.crmInsights.filter { it.customerId == customerId }
 
                 LazyColumn(
@@ -199,7 +208,14 @@ fun ManagerCustomerProfileScreen(
     }
 }
 
-/** The four honest outcomes of resolving [ManagerCustomerProfileScreen]'s `customerId` — see [resolveCustomerProfileState]. `internal` (not `private`) solely so the pure resolver below is unit-testable from `screens.customers` test sources. */
+/**
+ * The four honest outcomes of resolving `ManagerCustomerProfileScreen`'s `customerId` prior to
+ * Phase D's ViewModel wiring — see [resolveCustomerProfileState]. No longer used by the screen
+ * itself (superseded by observing [ManagerCustomerProfileViewModel]'s own, independently-tested
+ * [UiState] contract); kept only so `ManagerCustomerProfileScreenStateTest.kt` (committed with the
+ * original P0 fix, outside Phase D's authorized files) keeps compiling. `internal` (not `private`)
+ * for that same test-visibility reason.
+ */
 internal sealed interface CustomerProfileLookupState {
     data object Loading : CustomerProfileLookupState
     data class Found(val customer: ManagerCustomer) : CustomerProfileLookupState
@@ -208,12 +224,10 @@ internal sealed interface CustomerProfileLookupState {
 }
 
 /**
- * Pure decision function (P0 Safety Fix) — the entire fix's correctness contract lives here,
- * isolated from Compose so it's directly unit-testable: a failed [loadDetailResult] is ALWAYS
- * [CustomerProfileLookupState.Error], never silently reinterpreted as "not found"; a successful
- * result with no matching [resolvedCustomer] is ALWAYS [CustomerProfileLookupState.NotFound];
- * [CustomerProfileLookupState.Found] only ever wraps the exact [resolvedCustomer] passed in —
- * there is no code path here (or anywhere else in this file) that can substitute a different one.
+ * Pure decision function from the original P0 Safety Fix — retained only for
+ * `ManagerCustomerProfileScreenStateTest.kt`'s sake (see [CustomerProfileLookupState]'s doc
+ * comment); [ManagerCustomerProfileViewModel.load] is the real, live equivalent this screen now
+ * actually uses.
  */
 internal fun resolveCustomerProfileState(
     loadDetailResult: Result<Unit>,
