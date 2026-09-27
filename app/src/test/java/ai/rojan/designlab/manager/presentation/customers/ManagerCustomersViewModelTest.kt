@@ -49,6 +49,13 @@ import org.junit.Test
  * [CurrentUserIdentityContextRepository]/`availableSalons()` (ownership OR membership OR
  * specialist), and [ManagerCustomersViewModel.noAccessibleSalon] disambiguates "no salon reachable"
  * from "this salon has no customers".
+ *
+ * Phase F2 Timing Fix (initialization-race audit): [ManagerCustomersViewModel] now takes
+ * `customerRepositoryProvider: () -> CustomerRepository` instead of a captured [CustomerRepository]
+ * instance. Every existing test below wraps its fake in a constant-returning lambda (`{ repository
+ * }`), which is behaviorally identical to before - only [TEST A/stale-repository-recovery] test
+ * actually varies what the provider returns between calls, since that's the exact scenario the fix
+ * addresses.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ManagerCustomersViewModelTest {
@@ -79,9 +86,9 @@ class ManagerCustomersViewModelTest {
 
     private fun viewModel(
         identityContextRepository: CurrentUserIdentityContextRepository = FakeIdentityContextRepository { Result.success(ownedContext) },
-        customerRepository: CustomerRepository = FakeCustomerRepository(default = listOf(customer)),
+        customerRepositoryProvider: () -> CustomerRepository = { FakeCustomerRepository(default = listOf(customer)) },
     ) = ManagerCustomersViewModel(
-        customerRepository = customerRepository,
+        customerRepositoryProvider = customerRepositoryProvider,
         currentUserIdentityContextRepository = identityContextRepository,
     )
 
@@ -96,7 +103,7 @@ class ManagerCustomersViewModelTest {
 
     @Test
     fun `a salon with no customers is Empty with noAccessibleSalon false`() = runBlocking {
-        val viewModel = viewModel(customerRepository = FakeCustomerRepository(default = emptyList()))
+        val viewModel = viewModel(customerRepositoryProvider = { FakeCustomerRepository(default = emptyList()) })
 
         assertEquals(UiState.Empty, viewModel.state)
         assertFalse("a resolved salon with zero customers is not a no-access state", viewModel.noAccessibleSalon)
@@ -132,7 +139,7 @@ class ManagerCustomersViewModelTest {
     @Test
     fun `retry re-searches with the last query`() = runBlocking {
         val repository = FakeCustomerRepository(default = listOf(customer))
-        val viewModel = viewModel(customerRepository = repository)
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
         assertEquals(1, repository.queries.size)
 
         viewModel.retry()
@@ -152,7 +159,7 @@ class ManagerCustomersViewModelTest {
     @Test
     fun `a local-format phone query is normalized to E164 before reaching the repository`() = runBlocking {
         val repository = FakeCustomerRepository(default = listOf(customer))
-        val viewModel = viewModel(customerRepository = repository)
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
 
         viewModel.searchCustomers("09160669660", debounce = false)
 
@@ -162,7 +169,7 @@ class ManagerCustomersViewModelTest {
     @Test
     fun `an already E164 phone query is sent unchanged`() = runBlocking {
         val repository = FakeCustomerRepository(default = listOf(customer))
-        val viewModel = viewModel(customerRepository = repository)
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
 
         viewModel.searchCustomers("+989160669660", debounce = false)
 
@@ -185,7 +192,7 @@ class ManagerCustomersViewModelTest {
     @Test
     fun `an international-dialing 0098 phone query is normalized to E164`() = runBlocking {
         val repository = FakeCustomerRepository(default = listOf(customer))
-        val viewModel = viewModel(customerRepository = repository)
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
 
         viewModel.searchCustomers("00989160669660", debounce = false)
 
@@ -195,7 +202,7 @@ class ManagerCustomersViewModelTest {
     @Test
     fun `a normal name search is sent unchanged, not mistaken for a phone number`() = runBlocking {
         val repository = FakeCustomerRepository(default = listOf(customer))
-        val viewModel = viewModel(customerRepository = repository)
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
 
         viewModel.searchCustomers("سارا احمدی", debounce = false)
 
@@ -212,7 +219,7 @@ class ManagerCustomersViewModelTest {
     fun `rapid successive searches within the debounce window issue only one real request, for the final query`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val repository = FakeCustomerRepository(default = listOf(customer))
-        val viewModel = viewModel(customerRepository = repository)
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
         advanceUntilIdle() // let the debounce-free init search settle first
         val queriesBeforeTyping = repository.queries.size
 
@@ -245,7 +252,7 @@ class ManagerCustomersViewModelTest {
                 "fast" to listOf(customer.copy(id = "new-customer", name = "نتیجه جدید")),
             ),
         )
-        val viewModel = viewModel(customerRepository = repository)
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
         advanceUntilIdle() // let the debounce-free init search settle first (and cache salon access)
         val queriesBeforeTyping = repository.queries.size
 
@@ -273,7 +280,7 @@ class ManagerCustomersViewModelTest {
     @Test
     fun `retry reflects a customer update that happened after the initial load, the same way returning from Edit does`() = runBlocking {
         val repository = FakeCustomerRepository(default = listOf(customer))
-        val viewModel = viewModel(customerRepository = repository)
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
         assertEquals(listOf(customer), (viewModel.state as UiState.Success).data)
 
         val updated = customer.copy(name = "نام ویرایش‌شده")
@@ -282,6 +289,37 @@ class ManagerCustomersViewModelTest {
 
         val refreshedState = viewModel.state as UiState.Success
         assertEquals("نام ویرایش‌شده", refreshedState.data.single().name)
+    }
+
+    /**
+     * TEST A (Phase F2 Timing Fix) — the exact bug this phase fixes. Constructs the ViewModel while
+     * the provider only has the empty placeholder available (matching a ViewModel built before
+     * [ai.rojan.designlab.manager.data.ManagerRepositories.initialize] finishes, when
+     * `ManagerRepositories.customers` is still `EmptyCustomerRepository`), then changes what the
+     * *same* provider returns (matching `initialize()` later replacing the singleton with the real
+     * [ai.rojan.designlab.manager.data.BackendCustomerRepository]) and calls [retry]. Before this
+     * fix, the ViewModel captured the repository once at construction and `retry()` could never
+     * recover; this proves it now does, without leaving and re-entering the screen.
+     */
+    @Test
+    fun `retry after the provider starts returning a different repository uses that new repository, not the one captured at construction`() = runBlocking {
+        val emptyRepository = FakeCustomerRepository(default = emptyList())
+        val realRepository = FakeCustomerRepository(default = listOf(customer))
+        var currentRepository: CustomerRepository = emptyRepository
+        val viewModel = viewModel(customerRepositoryProvider = { currentRepository })
+
+        // Constructed while only the empty placeholder was available.
+        assertEquals(UiState.Empty, viewModel.state)
+
+        // ManagerRepositories.initialize() finishes and replaces the singleton - modeled here as the
+        // provider now returning a different repository instance, exactly as `{ ManagerRepositories.customers }`
+        // would after that reassignment.
+        currentRepository = realRepository
+
+        viewModel.retry()
+
+        val state = viewModel.state as UiState.Success
+        assertEquals(listOf(customer), state.data)
     }
 }
 

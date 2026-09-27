@@ -55,9 +55,21 @@ import kotlinx.coroutines.launch
  * **Pre-release fix (P1 follow-up — phone-format search miss, preserved):** [query] is run through
  * [ai.rojan.designlab.domain.phone.normalizeIranianPhoneNumber] before reaching the repository, so a
  * manager typing the local `0912...` format still matches a customer stored as `+98912...`.
+ *
+ * **Phase F2 Timing Fix (initialization-race audit):** [customerRepository] used to be a plain,
+ * permanently-captured [CustomerRepository] instance — if this ViewModel was constructed while
+ * [ai.rojan.designlab.manager.data.ManagerRepositories.customers] was still the placeholder
+ * `EmptyCustomerRepository` (a real, reproducible race: Dashboard's Quick Actions are clickable
+ * before `ManagerRepositories.initialize()`'s multi-call backend sync completes), it stayed bound to
+ * that empty instance forever — [retry] re-ran against the same stale reference and could never
+ * recover. `customerRepository` is now `() -> CustomerRepository`, resolved fresh at the start of
+ * each [searchCustomers] call (not cached across calls), so a `retry()` after `initialize()` finally
+ * replaces the singleton picks up the real, synced repository without leaving and re-entering the
+ * screen. Nothing else changed — debounce, cancellation, phone normalization, and salon-access
+ * resolution are byte-for-byte the same logic as before this fix.
  */
 class ManagerCustomersViewModel(
-    private val customerRepository: CustomerRepository,
+    private val customerRepositoryProvider: () -> CustomerRepository,
     private val currentUserIdentityContextRepository: CurrentUserIdentityContextRepository,
 ) : ViewModel() {
 
@@ -86,7 +98,9 @@ class ManagerCustomersViewModel(
         searchJob = viewModelScope.launch {
             if (debounce) delay(SEARCH_DEBOUNCE_MS)
             if (!resolveSalonAccess()) return@launch
-            val customers = customerRepository.search(normalizeIranianPhoneNumber(query))
+            // Resolved now, not cached from construction - picks up a real repository that
+            // ManagerRepositories.initialize() may have only just finished swapping in.
+            val customers = customerRepositoryProvider().search(normalizeIranianPhoneNumber(query))
             state = if (customers.isEmpty()) UiState.Empty else UiState.Success(customers)
         }
     }

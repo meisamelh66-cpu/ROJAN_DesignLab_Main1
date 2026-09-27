@@ -117,7 +117,9 @@ fun ManagerCustomersListScreen(
     initialTagFilter: CustomerTag? = null,
     viewModel: ManagerCustomersViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = ManagerCustomersViewModelFactory(
-            customerRepository = ManagerRepositories.customers,
+            // Phase F2 Timing Fix: a lambda, not the value itself - ManagerRepositories.customers is
+            // read fresh every time the ViewModel invokes this, never evaluated once here.
+            customerRepositoryProvider = { ManagerRepositories.customers },
             currentUserIdentityContextRepository = BackendApiContainerHolder.get(LocalContext.current).currentUserIdentityContextRepository,
         ),
     ),

@@ -167,7 +167,9 @@ fun ManagerCustomerProfileScreen(
     viewModel: ManagerCustomerProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         key = customerId,
         factory = ManagerCustomerProfileViewModelFactory(
-            customerRepository = ManagerRepositories.customers,
+            // Phase F2 Timing Fix: a lambda, not the value itself - ManagerRepositories.customers is
+            // read fresh every time the ViewModel invokes this, never evaluated once here.
+            customerRepositoryProvider = { ManagerRepositories.customers },
             currentUserIdentityContextRepository = BackendApiContainerHolder.get(LocalContext.current).currentUserIdentityContextRepository,
             customerId = customerId,
         ),

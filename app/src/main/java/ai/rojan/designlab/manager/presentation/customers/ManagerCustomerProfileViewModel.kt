@@ -63,9 +63,22 @@ data class ManagerCustomerProfileData(
  * specialist check [ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewModel]
  * uses. [state] is [UiState.Empty] both when no salon is reachable at all and on a genuine
  * customer-not-found; [noAccessibleSalon] disambiguates which.
+ *
+ * **Phase F2 Timing Fix (initialization-race audit):** [customerRepository] used to be a plain,
+ * permanently-captured [CustomerRepository] instance, exposing the same stale-capture race as
+ * [ManagerCustomersViewModel] (see its own doc comment) — if constructed while
+ * [ai.rojan.designlab.manager.data.ManagerRepositories.customers] was still `EmptyCustomerRepository`,
+ * [retry] could never recover. `customerRepository` is now `() -> CustomerRepository`, resolved
+ * exactly once per [load] call - not once per individual repository method - into a local `val` at
+ * the top of the customer-detail work, so [loadDetail]/[getById]/[getServiceHistory]/[getNoteHistory]
+ * within one load pass all read the *same* repository instance (avoiding a worse inconsistency: a
+ * mid-flight singleton swap making `getById` land on a different instance than the one `loadDetail`
+ * had just populated). A subsequent [retry] calls [load] again, re-resolving the provider fresh at
+ * that later point. The P0 identity contract is unaffected: [customerId] is still the only value
+ * passed to every call on that resolved instance.
  */
 class ManagerCustomerProfileViewModel(
-    private val customerRepository: CustomerRepository,
+    private val customerRepositoryProvider: () -> CustomerRepository,
     private val currentUserIdentityContextRepository: CurrentUserIdentityContextRepository,
     private val customerId: String,
 ) : ViewModel() {
@@ -97,13 +110,19 @@ class ManagerCustomerProfileViewModel(
                 return@launch
             }
 
-            customerRepository.loadDetail(customerId).onFailure { error ->
+            // Resolved once for this whole load pass (not per call, and not cached from
+            // construction) - picks up a real repository ManagerRepositories.initialize() may have
+            // only just finished swapping in, while keeping loadDetail/getById/getServiceHistory/
+            // getNoteHistory internally consistent against the one instance loadDetail populated.
+            val repository = customerRepositoryProvider()
+
+            repository.loadDetail(customerId).onFailure { error ->
                 state = UiState.Error(userMessageFor(error))
                 return@launch
             }
 
             // customerId is the only identity source below - never a substitute customer.
-            val customer = customerRepository.getById(customerId)
+            val customer = repository.getById(customerId)
             if (customer == null) {
                 state = UiState.Empty
                 return@launch
@@ -112,8 +131,8 @@ class ManagerCustomerProfileViewModel(
             state = UiState.Success(
                 ManagerCustomerProfileData(
                     customer = customer,
-                    history = customerRepository.getServiceHistory(customerId),
-                    notes = customerRepository.getNoteHistory(customerId),
+                    history = repository.getServiceHistory(customerId),
+                    notes = repository.getNoteHistory(customerId),
                 ),
             )
         }

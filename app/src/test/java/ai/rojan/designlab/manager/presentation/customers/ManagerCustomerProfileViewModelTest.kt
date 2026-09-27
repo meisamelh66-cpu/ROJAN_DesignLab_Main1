@@ -51,6 +51,13 @@ import org.junit.Test
  * [CurrentUserIdentityContextRepository]/`availableSalons()` (ownership OR membership OR
  * specialist); [ManagerCustomerProfileViewModel.noAccessibleSalon] disambiguates "no salon
  * reachable" from a genuine customer not-found.
+ *
+ * Phase F2 Timing Fix (initialization-race audit): [ManagerCustomerProfileViewModel] now takes
+ * `customerRepositoryProvider: () -> CustomerRepository` instead of a captured [CustomerRepository]
+ * instance. Every existing test below wraps its fake in a constant-returning lambda (`{ repository
+ * }`), which is behaviorally identical to before - only [TEST B/stale-repository-recovery] test
+ * actually varies what the provider returns between calls, since that's the exact scenario the fix
+ * addresses.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ManagerCustomerProfileViewModelTest {
@@ -87,13 +94,15 @@ class ManagerCustomerProfileViewModelTest {
 
     private fun viewModel(
         identityContextRepository: CurrentUserIdentityContextRepository = ProfileFakeIdentityContextRepository { Result.success(ownedContext) },
-        customerRepository: CustomerRepository = ProfileFakeCustomerRepository(
-            customers = mapOf(customer.id to customer),
-            history = listOf(historyEntry),
-        ),
+        customerRepositoryProvider: () -> CustomerRepository = {
+            ProfileFakeCustomerRepository(
+                customers = mapOf(customer.id to customer),
+                history = listOf(historyEntry),
+            )
+        },
         customerId: String = "customer-1",
     ) = ManagerCustomerProfileViewModel(
-        customerRepository = customerRepository,
+        customerRepositoryProvider = customerRepositoryProvider,
         currentUserIdentityContextRepository = identityContextRepository,
         customerId = customerId,
     )
@@ -111,11 +120,12 @@ class ManagerCustomerProfileViewModelTest {
     @Test
     fun `the requested customerId resolves to that exact customer, never another one in the same salon`() = runBlocking {
         val other = customer.copy(id = "customer-2", name = "مشتری دیگر")
+        val repository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer, other.id to other),
+            history = listOf(historyEntry),
+        )
         val viewModel = viewModel(
-            customerRepository = ProfileFakeCustomerRepository(
-                customers = mapOf(customer.id to customer, other.id to other),
-                history = listOf(historyEntry),
-            ),
+            customerRepositoryProvider = { repository },
             customerId = customer.id,
         )
 
@@ -127,11 +137,12 @@ class ManagerCustomerProfileViewModelTest {
     @Test
     fun `a customer id with no match after a successful loadDetail is Empty - never a substitute customer`() = runBlocking {
         val other = customer.copy(id = "customer-2", name = "مشتری دیگر")
+        val repository = ProfileFakeCustomerRepository(
+            // "customer-1" is genuinely absent - only a *different* customer exists in this salon.
+            customers = mapOf(other.id to other),
+        )
         val viewModel = viewModel(
-            customerRepository = ProfileFakeCustomerRepository(
-                // "customer-1" is genuinely absent - only a *different* customer exists in this salon.
-                customers = mapOf(other.id to other),
-            ),
+            customerRepositoryProvider = { repository },
             customerId = "customer-1",
         )
 
@@ -141,12 +152,11 @@ class ManagerCustomerProfileViewModelTest {
 
     @Test
     fun `a loadDetail failure is Error, even when the customer would have resolved - never silently reinterpreted as not found`() = runBlocking {
-        val viewModel = viewModel(
-            customerRepository = ProfileFakeCustomerRepository(
-                customers = mapOf(customer.id to customer), // would resolve if getById were ever reached
-                loadDetailResult = Result.failure(NetworkUnavailableException(Exception("offline"))),
-            ),
+        val repository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer), // would resolve if getById were ever reached
+            loadDetailResult = Result.failure(NetworkUnavailableException(Exception("offline"))),
         )
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
 
         assertTrue(viewModel.state is UiState.Error)
     }
@@ -195,7 +205,7 @@ class ManagerCustomerProfileViewModelTest {
             customers = mapOf(customer.id to customer),
             history = listOf(),
         )
-        val viewModel = viewModel(customerRepository = repository)
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
         assertEquals(customer.name, (viewModel.state as UiState.Success).data.customer.name)
 
         val updated = customer.copy(name = "نام ویرایش‌شده", phone = "+989121111111")
@@ -205,6 +215,40 @@ class ManagerCustomerProfileViewModelTest {
         val refreshedState = viewModel.state as UiState.Success
         assertEquals("نام ویرایش‌شده", refreshedState.data.customer.name)
         assertEquals("+989121111111", refreshedState.data.customer.phone)
+    }
+
+    /**
+     * TEST B (Phase F2 Timing Fix) — the exact bug this phase fixes, for Profile. Constructs the
+     * ViewModel while the provider only has the empty placeholder available (matching a ViewModel
+     * built before [ai.rojan.designlab.manager.data.ManagerRepositories.initialize] finishes, when
+     * `ManagerRepositories.customers` is still `EmptyCustomerRepository`), then changes what the
+     * *same* provider returns (matching `initialize()` later replacing the singleton with the real
+     * [ai.rojan.designlab.manager.data.BackendCustomerRepository]) and calls [retry]. Before this
+     * fix, the ViewModel captured the repository once at construction and `retry()` could never
+     * recover; this proves it now does, without leaving and re-entering the screen.
+     */
+    @Test
+    fun `retry after the provider starts returning a different repository uses that new repository, not the one captured at construction`() = runBlocking {
+        val emptyRepository = ProfileFakeCustomerRepository() // no customers at all - models EmptyCustomerRepository
+        val realRepository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer),
+            history = listOf(historyEntry),
+        )
+        var currentRepository: CustomerRepository = emptyRepository
+        val viewModel = viewModel(customerRepositoryProvider = { currentRepository })
+
+        // Constructed while only the empty placeholder was available - a genuine miss, not a substitute.
+        assertEquals(UiState.Empty, viewModel.state)
+
+        // ManagerRepositories.initialize() finishes and replaces the singleton - modeled here as the
+        // provider now returning a different repository instance, exactly as `{ ManagerRepositories.customers }`
+        // would after that reassignment.
+        currentRepository = realRepository
+
+        viewModel.retry()
+
+        val state = viewModel.state as UiState.Success
+        assertEquals(customer, state.data.customer)
     }
 }
 
