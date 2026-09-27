@@ -45,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -95,6 +96,18 @@ import androidx.compose.ui.unit.dp
  * Loading/Error states are new here (this screen never rendered them
  * before wiring) — a direct, required consequence of observing the
  * ViewModel's real state contract, not a redesign.
+ *
+ * Phase F1-C Refresh Fix (Phase E audit finding): returning here after
+ * editing a customer (List → Profile → Edit → Save → back → back) used to
+ * show the pre-edit name/phone/tag, since [viewModel]'s cached `state` is a
+ * snapshot from the last search, not a live view of the underlying cache
+ * [ai.rojan.designlab.manager.data.BackendCustomerRepository.update] already
+ * mutated correctly. The `LifecycleResumeEffect` below re-uses the existing
+ * [ManagerCustomersViewModel.retry] (a cheap, synchronous local-cache
+ * re-read, not a network call) on every resume after the first one — same
+ * pattern, same [hasEnteredBefore] first-entry guard, as
+ * [ai.rojan.designlab.manager.screens.customers.ManagerCustomerProfileScreen]'s
+ * matching fix.
  */
 @Composable
 fun ManagerCustomersListScreen(
@@ -111,6 +124,14 @@ fun ManagerCustomersListScreen(
 ) {
     var query by remember { mutableStateOf("") }
     var selectedTag by remember { mutableStateOf(initialTagFilter) }
+    var hasEnteredBefore by rememberSaveable { mutableStateOf(false) }
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        if (hasEnteredBefore) {
+            viewModel.retry()
+        }
+        hasEnteredBefore = true
+        onPauseOrDispose { }
+    }
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         LazyColumn(

@@ -258,6 +258,31 @@ class ManagerCustomersViewModelTest {
         val state = viewModel.state as UiState.Success
         assertEquals("new-customer", state.data.single().id)
     }
+
+    /**
+     * Phase F1-C Refresh Fix (Phase E audit finding) regression coverage. The screen's own fix (a
+     * `LifecycleResumeEffect` calling [ManagerCustomersViewModel.retry] on return from Edit) is not
+     * unit-testable without Compose/Robolectric infrastructure this phase does not introduce; what
+     * IS directly testable, and is the real mechanism that fix depends on, is that
+     * [ManagerCustomersViewModel.retry] correctly re-reads whatever the injected
+     * [ai.rojan.designlab.manager.domain.repository.CustomerRepository] currently returns — exactly
+     * as it would after [ai.rojan.designlab.manager.data.BackendCustomerRepository.update] mutates
+     * its cache in place. [FakeCustomerRepository.updateDefault] models that same in-place mutation
+     * (not a new repository instance), matching production shape.
+     */
+    @Test
+    fun `retry reflects a customer update that happened after the initial load, the same way returning from Edit does`() = runBlocking {
+        val repository = FakeCustomerRepository(default = listOf(customer))
+        val viewModel = viewModel(customerRepository = repository)
+        assertEquals(listOf(customer), (viewModel.state as UiState.Success).data)
+
+        val updated = customer.copy(name = "نام ویرایش‌شده")
+        repository.updateDefault(listOf(updated))
+        viewModel.retry()
+
+        val refreshedState = viewModel.state as UiState.Success
+        assertEquals("نام ویرایش‌شده", refreshedState.data.single().name)
+    }
 }
 
 private fun identityContext(
@@ -290,10 +315,16 @@ private class FakeIdentityContextRepository(
  * test); anything not in [results] falls back to [default].
  */
 private class FakeCustomerRepository(
-    private val default: List<ManagerCustomer>,
+    default: List<ManagerCustomer>,
     private val results: Map<String, List<ManagerCustomer>> = emptyMap(),
 ) : CustomerRepository {
+    private var default: List<ManagerCustomer> = default
     val queries = mutableListOf<String>()
+
+    /** Models [ai.rojan.designlab.manager.data.BackendCustomerRepository.update]/`.sync()` mutating its cache in place (Phase F1-C regression coverage) - a mutable `var`, not a new repository instance. */
+    fun updateDefault(updated: List<ManagerCustomer>) {
+        default = updated
+    }
 
     override fun getAll(): List<ManagerCustomer> = default
     override fun getById(id: String): ManagerCustomer? = default.find { it.id == id }

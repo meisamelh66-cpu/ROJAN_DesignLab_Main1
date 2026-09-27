@@ -177,6 +177,35 @@ class ManagerCustomerProfileViewModelTest {
 
         assertTrue(viewModel.state is UiState.Error)
     }
+
+    /**
+     * Phase F1-B Refresh Fix (Phase E audit finding) regression coverage. The screen's own fix
+     * (a `LifecycleResumeEffect` calling [ManagerCustomerProfileViewModel.retry] on return from
+     * Edit) is not unit-testable without Compose/Robolectric infrastructure this phase does not
+     * introduce; what IS directly testable, and is the real mechanism that fix depends on, is that
+     * [ManagerCustomerProfileViewModel.retry] correctly re-reads whatever the injected
+     * [ai.rojan.designlab.manager.domain.repository.CustomerRepository] currently returns — exactly
+     * as it would after [ai.rojan.designlab.manager.data.BackendCustomerRepository.update] mutates
+     * its cache in place. [ProfileFakeCustomerRepository.setCustomer] models that same in-place
+     * mutation (not a new repository instance), matching production shape.
+     */
+    @Test
+    fun `retry reflects a customer update that happened after the initial load, the same way returning from Edit does`() = runBlocking {
+        val repository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer),
+            history = listOf(),
+        )
+        val viewModel = viewModel(customerRepository = repository)
+        assertEquals(customer.name, (viewModel.state as UiState.Success).data.customer.name)
+
+        val updated = customer.copy(name = "نام ویرایش‌شده", phone = "+989121111111")
+        repository.setCustomer(updated)
+        viewModel.retry()
+
+        val refreshedState = viewModel.state as UiState.Success
+        assertEquals("نام ویرایش‌شده", refreshedState.data.customer.name)
+        assertEquals("+989121111111", refreshedState.data.customer.phone)
+    }
 }
 
 private fun identityContext(
@@ -204,13 +233,23 @@ private class ProfileFakeIdentityContextRepository(
  * lookup [ManagerCustomerProfileViewModel] ever calls, so there is no code path here (or in the
  * ViewModel) that could substitute a different entry. [loadDetailResult] lets a test force a real
  * fetch failure independently of whether the requested id would otherwise resolve.
+ *
+ * [setCustomer] models [ai.rojan.designlab.manager.data.BackendCustomerRepository.update] mutating
+ * its cache in place (Phase F1-B regression coverage) - a mutable `var`, not a new repository
+ * instance, matching production shape exactly.
  */
 private class ProfileFakeCustomerRepository(
-    private val customers: Map<String, ManagerCustomer> = emptyMap(),
+    customers: Map<String, ManagerCustomer> = emptyMap(),
     private val history: List<CustomerServiceHistoryEntry> = emptyList(),
     private val notes: List<CustomerNote> = emptyList(),
     private val loadDetailResult: Result<Unit> = Result.success(Unit),
 ) : CustomerRepository {
+    private var customers: Map<String, ManagerCustomer> = customers
+
+    fun setCustomer(customer: ManagerCustomer) {
+        customers = customers + (customer.id to customer)
+    }
+
     override fun getAll(): List<ManagerCustomer> = customers.values.toList()
     override fun getById(id: String): ManagerCustomer? = customers[id]
     override fun search(query: String): List<ManagerCustomer> = customers.values.toList()

@@ -1,12 +1,14 @@
 package ai.rojan.designlab.manager.screens.customers
 
 import ai.rojan.designlab.manager.components.ManagerColors
+import ai.rojan.designlab.manager.components.ManagerEmptyState
 import ai.rojan.designlab.manager.components.ManagerGlassSurface
 import ai.rojan.designlab.manager.components.ManagerGlassTheme
 import ai.rojan.designlab.manager.components.ManagerPrimaryButton
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.domain.customer.CustomerTag
+import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
 import ai.rojan.designlab.manager.domain.customer.displayLabel
 import ai.rojan.designlab.presentation.common.userMessageFor
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
@@ -70,6 +72,14 @@ import kotlinx.coroutines.launch
  *
  * [onSaved] fires after a successful save; the caller returns to the
  * customer profile.
+ *
+ * Phase F1-A Safety Fix (Phase E audit finding): [customerId] resolving to no local record used to
+ * silently `return@ManagerScaffold` — a blank screen with no indication anything was wrong.
+ * [resolveCustomerEditLookupState] makes that branch explicit and testable, exactly mirroring the
+ * pattern [ai.rojan.designlab.manager.screens.customers.ManagerCustomerProfileScreen]'s own P0 fix
+ * already established: a genuine miss renders [ManagerEmptyState] + a real back action, never a
+ * blank scaffold and never a fabricated customer. [customerId] remains the only identity source —
+ * this only changes what renders when the lookup fails, not the lookup itself.
  */
 @Composable
 fun ManagerCustomerEditScreen(
@@ -79,79 +89,116 @@ fun ManagerCustomerEditScreen(
     onSaved: () -> Unit = {},
 ) {
     val existing = remember(customerId) { ManagerRepositories.customers.getById(customerId) }
+    val lookupState = resolveCustomerEditLookupState(existing)
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
-        if (existing == null) {
-            return@ManagerScaffold
-        }
-
-        var name by remember(customerId) { mutableStateOf(existing.name) }
-        var phone by remember(customerId) { mutableStateOf(existing.phone) }
-        var selectedTag by remember(customerId) { mutableStateOf(existing.tag) }
-        var isSubmitting by remember { mutableStateOf(false) }
-        var errorMessage by remember { mutableStateOf<String?>(null) }
-        val scope = rememberCoroutineScope()
-
-        Column(
-            // Sprint 5A-3: scrollable so the form stays reachable when
-            // ManagerScaffold's safeDrawing inset shrinks the area for the
-            // keyboard.
-            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(RojanDimens.SpaceMD),
-            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
-        ) {
-            Text(
-                text = "ویرایش مشتری",
-                style = RojanTypography.ScreenTitle,
-                color = ManagerColors.TextPrimary,
-            )
-
-            ManagerGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD),
-                    verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
-                ) {
-                    CustomerEditTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = "نام مشتری",
-                        keyboardType = KeyboardType.Text,
-                        enabled = !isSubmitting,
+        when (lookupState) {
+            is CustomerEditLookupState.NotFound -> {
+                Column(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
+                    ManagerEmptyState(
+                        title = "مشتری یافت نشد",
+                        description = "این مشتری دیگر در دسترس نیست یا حذف شده است.",
                     )
-                    CustomerEditTextField(
-                        value = phone,
-                        onValueChange = { phone = it },
-                        label = "شماره تماس",
-                        keyboardType = KeyboardType.Phone,
-                        enabled = !isSubmitting,
-                    )
-
-                    Text(text = "دسته‌بندی", style = RojanTypography.Caption, color = ManagerColors.TextSecondary)
-                    CustomerTagPickerRow(
-                        selectedTag = selectedTag,
-                        onTagSelected = { selectedTag = it },
-                    )
+                    if (onBackClick != null) {
+                        ManagerPrimaryButton(
+                            text = "بازگشت",
+                            onClick = onBackClick,
+                            modifier = Modifier.padding(top = RojanDimens.SpaceMD),
+                        )
+                    }
                 }
             }
 
-            if (errorMessage != null) {
-                Text(text = errorMessage.orEmpty(), style = RojanTypography.Caption, color = RojanErrorText)
+            is CustomerEditLookupState.Found -> {
+                ManagerCustomerEditForm(customerId = customerId, existing = lookupState.customer, onSaved = onSaved)
             }
-
-            ManagerPrimaryButton(
-                text = "ذخیره تغییرات",
-                enabled = !isSubmitting && name.isNotBlank(),
-                onClick = {
-                    errorMessage = null
-                    isSubmitting = true
-                    scope.launch {
-                        ManagerRepositories.customers
-                            .update(existing.copy(name = name.trim(), phone = phone.trim(), tag = selectedTag))
-                            .onSuccess { isSubmitting = false; onSaved() }
-                            .onFailure { isSubmitting = false; errorMessage = userMessageFor(it) }
-                    }
-                },
-            )
         }
+    }
+}
+
+/** The two honest outcomes of resolving [ManagerCustomerEditScreen]'s `customerId` — see [resolveCustomerEditLookupState]. `internal` (not `private`) so the pure resolver is unit-testable. */
+internal sealed interface CustomerEditLookupState {
+    data class Found(val customer: ManagerCustomer) : CustomerEditLookupState
+    data object NotFound : CustomerEditLookupState
+}
+
+/**
+ * Pure decision function (Phase F1-A Safety Fix) — isolated from Compose so it's directly
+ * unit-testable: a `null` [existing] is always [CustomerEditLookupState.NotFound], never rendered as
+ * a blank/empty form; a non-null [existing] is always [CustomerEditLookupState.Found] wrapping that
+ * exact record.
+ */
+internal fun resolveCustomerEditLookupState(existing: ManagerCustomer?): CustomerEditLookupState =
+    if (existing != null) CustomerEditLookupState.Found(existing) else CustomerEditLookupState.NotFound
+
+@Composable
+private fun ManagerCustomerEditForm(customerId: String, existing: ManagerCustomer, onSaved: () -> Unit) {
+    var name by remember(customerId) { mutableStateOf(existing.name) }
+    var phone by remember(customerId) { mutableStateOf(existing.phone) }
+    var selectedTag by remember(customerId) { mutableStateOf(existing.tag) }
+    var isSubmitting by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    Column(
+        // Sprint 5A-3: scrollable so the form stays reachable when
+        // ManagerScaffold's safeDrawing inset shrinks the area for the
+        // keyboard.
+        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(RojanDimens.SpaceMD),
+        verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
+    ) {
+        Text(
+            text = "ویرایش مشتری",
+            style = RojanTypography.ScreenTitle,
+            color = ManagerColors.TextPrimary,
+        )
+
+        ManagerGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD),
+                verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+            ) {
+                CustomerEditTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = "نام مشتری",
+                    keyboardType = KeyboardType.Text,
+                    enabled = !isSubmitting,
+                )
+                CustomerEditTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = "شماره تماس",
+                    keyboardType = KeyboardType.Phone,
+                    enabled = !isSubmitting,
+                )
+
+                Text(text = "دسته‌بندی", style = RojanTypography.Caption, color = ManagerColors.TextSecondary)
+                CustomerTagPickerRow(
+                    selectedTag = selectedTag,
+                    onTagSelected = { selectedTag = it },
+                )
+            }
+        }
+
+        if (errorMessage != null) {
+            Text(text = errorMessage.orEmpty(), style = RojanTypography.Caption, color = RojanErrorText)
+        }
+
+        ManagerPrimaryButton(
+            text = "ذخیره تغییرات",
+            enabled = !isSubmitting && name.isNotBlank(),
+            onClick = {
+                errorMessage = null
+                isSubmitting = true
+                scope.launch {
+                    ManagerRepositories.customers
+                        .update(existing.copy(name = name.trim(), phone = phone.trim(), tag = selectedTag))
+                        .onSuccess { isSubmitting = false; onSaved() }
+                        .onFailure { isSubmitting = false; errorMessage = userMessageFor(it) }
+                }
+            },
+        )
     }
 }
 

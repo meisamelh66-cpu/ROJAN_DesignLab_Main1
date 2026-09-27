@@ -49,6 +49,10 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
@@ -136,6 +140,23 @@ import androidx.compose.ui.unit.dp
  * convention, now calling [ManagerCustomerProfileViewModel.retry]), or the
  * full profile (mapped from [UiState.Success]) — never a blank or
  * partially-substituted profile.
+ *
+ * Phase F1-B Refresh Fix (Phase E audit finding): editing this customer and
+ * saving pops back to this exact, already-existing screen instance — its
+ * [ManagerCustomerProfileViewModel] survives that round trip (correctly; it's
+ * scoped to this destination's back-stack entry), so its `init`-time load is
+ * not re-run automatically and the profile used to keep showing pre-edit
+ * data. The `LifecycleResumeEffect` below re-uses the existing
+ * [ManagerCustomerProfileViewModel.retry] — the same mechanism the Error
+ * state's own retry button already calls — on every resume *after* the
+ * first one, mirroring the exact `LifecycleResumeEffect` pattern already
+ * established by [ai.rojan.designlab.screens.search.SearchScreen]/
+ * `SalonListScreen` for an analogous stale-after-returning problem. Gated by
+ * [hasEnteredBefore] (persisted via `rememberSaveable`, which survives this
+ * screen being temporarily removed from composition while Edit is on top -
+ * the same guarantee Navigation-Compose already gives any back-stack entry)
+ * so the *first* entry is never double-loaded — `init` already covers it.
+ * No ViewModel/Factory/nav-graph change was needed or made.
  */
 @Composable
 fun ManagerCustomerProfileScreen(
@@ -152,6 +173,15 @@ fun ManagerCustomerProfileScreen(
         ),
     ),
 ) {
+    var hasEnteredBefore by rememberSaveable(customerId) { mutableStateOf(false) }
+    androidx.lifecycle.compose.LifecycleResumeEffect(customerId) {
+        if (hasEnteredBefore) {
+            viewModel.retry()
+        }
+        hasEnteredBefore = true
+        onPauseOrDispose { }
+    }
+
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         when (val state = viewModel.state) {
             is UiState.Loading -> {
