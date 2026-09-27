@@ -1,8 +1,12 @@
 package ai.rojan.designlab.manager.screens.customers
 
 import ai.rojan.designlab.manager.components.ManagerColors
+import ai.rojan.designlab.manager.components.ManagerEmptyState
+import ai.rojan.designlab.manager.components.ManagerErrorState
 import ai.rojan.designlab.manager.components.ManagerGlassSurface
 import ai.rojan.designlab.manager.components.ManagerIconContainer
+import ai.rojan.designlab.manager.components.ManagerLoadingState
+import ai.rojan.designlab.manager.components.ManagerPrimaryButton
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.domain.ai.ManagerCrmInsight
@@ -10,6 +14,7 @@ import ai.rojan.designlab.manager.domain.customer.CustomerNote
 import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
 import ai.rojan.designlab.manager.domain.customer.displayLabel
+import ai.rojan.designlab.presentation.common.userMessageFor
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
@@ -103,6 +108,19 @@ import androidx.compose.ui.unit.dp
  * is available on the device; a failure is silently swallowed rather
  * than shown as an error, matching that same precedent exactly. Display
  * text/layout is otherwise unchanged.
+ *
+ * P0 Safety Fix (Manager Completeness Audit v1, finding P0-1): this screen
+ * used to resolve [customerId] via `getById(customerId) ?: getAll().firstOrNull()`
+ * — on a lookup miss it silently substituted a *different* customer, and
+ * [onEditClick] would then act on the wrong customer's real id. [customerId]
+ * is now the sole source of truth: [resolveCustomerProfileState] only ever
+ * produces [CustomerProfileLookupState.Found] for that exact id, never a
+ * fallback. The screen renders one of four explicit states — Loading (while
+ * [ManagerRepositories.customers]'s `loadDetail` is in flight), Found, NotFound
+ * (a real "customer not found" card with a way back to the list), or Error
+ * (a real repository/network failure, via the same [ManagerErrorState] +
+ * "تلاش مجدد" retry convention already used by Dashboard/Calendar/the booking
+ * screens) — never a blank or partially-substituted profile.
  */
 @Composable
 fun ManagerCustomerProfileScreen(
@@ -111,41 +129,105 @@ fun ManagerCustomerProfileScreen(
     customerId: String = "c1",
     onEditClick: () -> Unit = {},
 ) {
-    var isLoadingDetail by remember(customerId) { mutableStateOf(true) }
-
-    LaunchedEffect(customerId) {
-        isLoadingDetail = true
-        ManagerRepositories.customers.loadDetail(customerId)
-        isLoadingDetail = false
+    var retryTick by remember(customerId) { mutableStateOf(0) }
+    var lookupState by remember(customerId) {
+        mutableStateOf<CustomerProfileLookupState>(CustomerProfileLookupState.Loading)
     }
 
-    val customer = ManagerRepositories.customers.getById(customerId)
-        ?: ManagerRepositories.customers.getAll().firstOrNull()
+    LaunchedEffect(customerId, retryTick) {
+        lookupState = CustomerProfileLookupState.Loading
+        val detailResult = ManagerRepositories.customers.loadDetail(customerId)
+        lookupState = resolveCustomerProfileState(
+            loadDetailResult = detailResult,
+            resolvedCustomer = ManagerRepositories.customers.getById(customerId),
+        )
+    }
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
-        if (customer == null) {
-            return@ManagerScaffold
-        }
-
-        val history = ManagerRepositories.customers.getServiceHistory(customerId)
-        val noteHistory = ManagerRepositories.customers.getNoteHistory(customerId)
-        val customerInsights = ManagerRepositories.crmInsights.filter { it.customerId == customerId }
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceLG),
-        ) {
-            item { CustomerIdentityHeader(customer, onEditClick = onEditClick) }
-            if (customerInsights.isNotEmpty()) {
-                item { AiInsightSection(customerInsights) }
+        when (val state = lookupState) {
+            is CustomerProfileLookupState.Loading -> {
+                ManagerLoadingState(
+                    modifier = Modifier.padding(RojanDimens.SpaceMD),
+                    message = "در حال بارگذاری اطلاعات مشتری...",
+                )
             }
-            if (!isLoadingDetail) {
-                item { ServiceHistorySection(history) }
-                item { ManagerNotesSection(notes = noteHistory) }
+
+            is CustomerProfileLookupState.NotFound -> {
+                Column(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
+                    ManagerEmptyState(
+                        title = "مشتری یافت نشد",
+                        description = "این مشتری دیگر در دسترس نیست یا حذف شده است.",
+                    )
+                    if (onBackClick != null) {
+                        ManagerPrimaryButton(
+                            text = "بازگشت به لیست مشتریان",
+                            onClick = onBackClick,
+                            modifier = Modifier.padding(top = RojanDimens.SpaceMD),
+                        )
+                    }
+                }
+            }
+
+            is CustomerProfileLookupState.Error -> {
+                ManagerErrorState(
+                    modifier = Modifier.padding(RojanDimens.SpaceMD),
+                    description = state.message,
+                    actionLabel = "تلاش مجدد",
+                    onAction = { retryTick++ },
+                )
+            }
+
+            is CustomerProfileLookupState.Found -> {
+                val customer = state.customer
+                val history = ManagerRepositories.customers.getServiceHistory(customerId)
+                val noteHistory = ManagerRepositories.customers.getNoteHistory(customerId)
+                val customerInsights = ManagerRepositories.crmInsights.filter { it.customerId == customerId }
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceLG),
+                ) {
+                    item { CustomerIdentityHeader(customer, onEditClick = onEditClick) }
+                    if (customerInsights.isNotEmpty()) {
+                        item { AiInsightSection(customerInsights) }
+                    }
+                    item { ServiceHistorySection(history) }
+                    item { ManagerNotesSection(notes = noteHistory) }
+                }
             }
         }
     }
 }
+
+/** The four honest outcomes of resolving [ManagerCustomerProfileScreen]'s `customerId` — see [resolveCustomerProfileState]. `internal` (not `private`) solely so the pure resolver below is unit-testable from `screens.customers` test sources. */
+internal sealed interface CustomerProfileLookupState {
+    data object Loading : CustomerProfileLookupState
+    data class Found(val customer: ManagerCustomer) : CustomerProfileLookupState
+    data object NotFound : CustomerProfileLookupState
+    data class Error(val message: String) : CustomerProfileLookupState
+}
+
+/**
+ * Pure decision function (P0 Safety Fix) — the entire fix's correctness contract lives here,
+ * isolated from Compose so it's directly unit-testable: a failed [loadDetailResult] is ALWAYS
+ * [CustomerProfileLookupState.Error], never silently reinterpreted as "not found"; a successful
+ * result with no matching [resolvedCustomer] is ALWAYS [CustomerProfileLookupState.NotFound];
+ * [CustomerProfileLookupState.Found] only ever wraps the exact [resolvedCustomer] passed in —
+ * there is no code path here (or anywhere else in this file) that can substitute a different one.
+ */
+internal fun resolveCustomerProfileState(
+    loadDetailResult: Result<Unit>,
+    resolvedCustomer: ManagerCustomer?,
+): CustomerProfileLookupState = loadDetailResult.fold(
+    onSuccess = {
+        if (resolvedCustomer != null) {
+            CustomerProfileLookupState.Found(resolvedCustomer)
+        } else {
+            CustomerProfileLookupState.NotFound
+        }
+    },
+    onFailure = { error -> CustomerProfileLookupState.Error(userMessageFor(error)) },
+)
 
 /** [onEditClick] (Customer Edit Flow, Phase 9 Step 1) routes to [ManagerCustomerEditScreen]; the phone row (Customer Contact Action, Phase 9 Step 3) launches the dialer when tapped. Name/phone text/visit-count/[TagChip] display is otherwise unchanged. */
 @Composable
