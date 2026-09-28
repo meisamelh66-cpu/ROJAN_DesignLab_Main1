@@ -17,6 +17,7 @@ import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
 import ai.rojan.designlab.manager.domain.customer.displayLabel
 import ai.rojan.designlab.manager.presentation.customers.ManagerCustomerProfileViewModel
 import ai.rojan.designlab.manager.presentation.customers.ManagerCustomerProfileViewModelFactory
+import ai.rojan.designlab.manager.presentation.customers.NoteSubmissionState
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.presentation.common.userMessageFor
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
@@ -25,6 +26,7 @@ import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
+import ai.rojan.designlab.ui.theme.RojanErrorText
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTheme
 import ai.rojan.designlab.ui.theme.RojanTypography
@@ -48,9 +50,14 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -79,9 +86,19 @@ import androidx.compose.ui.unit.dp
  * real note history via [ManagerRepositories.customers]'s
  * `getNoteHistory` (previously a single "tap to edit" row backed by only
  * the latest note — dropped along with the `onEditNotesClick` callback it
- * existed for, since the backend has no note-creation endpoint to edit
- * *into*; see that repository's own doc comment). Read-only, same as the
- * service history section below it.
+ * existed for). Same as the service history section below it, apart from
+ * the create form Phase F4 adds directly to it (see [ManagerNotesSection]).
+ *
+ * Phase F4 (Customer Notes completion): Notes gains real Create, via
+ * [ManagerCustomerProfileViewModel.submitNote] and the backend's real,
+ * already-tested `POST .../notes`. The backend stays the sole source of
+ * truth for note content/order — a successful submit re-runs the same full
+ * [ManagerCustomerProfileViewModel.load] [retry] already triggers, rather
+ * than appending locally, so this section always renders exactly what the
+ * backend just returned. A failed or in-flight submission is tracked by
+ * [ManagerCustomerProfileViewModel.noteSubmissionState], independent of
+ * [ManagerCustomerProfileViewModel.state] — it never regresses the already-
+ * loaded profile to a loading/error screen.
  *
  * Insight → Customer Profile Action, Phase 7 Step 7: also reads
  * [ManagerRepositories.crmInsights] (already populated by the same
@@ -233,7 +250,13 @@ fun ManagerCustomerProfileScreen(
                         item { AiInsightSection(customerInsights) }
                     }
                     item { ServiceHistorySection(history) }
-                    item { ManagerNotesSection(notes = noteHistory) }
+                    item {
+                        ManagerNotesSection(
+                            notes = noteHistory,
+                            submissionState = viewModel.noteSubmissionState,
+                            onSubmitNote = viewModel::submitNote,
+                        )
+                    }
                 }
             }
         }
@@ -474,9 +497,20 @@ private fun ServiceHistorySection(history: List<CustomerServiceHistoryEntry>) {
     }
 }
 
-/** CRM Foundation, Phase 6 Step 5 — every real manager note on this customer, newest first (see [CustomerNote]'s own doc comment on why read-only). */
+/**
+ * CRM Foundation, Phase 6 Step 5 — every real manager note on this customer, newest first.
+ *
+ * Phase F4: gains [AddNoteForm] — the create side. [notes] itself is still purely a display list;
+ * creating a note flows entirely through [onSubmitNote] ([ManagerCustomerProfileViewModel.submitNote]),
+ * which re-fetches from the backend on success rather than this composable ever locally inserting
+ * into [notes].
+ */
 @Composable
-private fun ManagerNotesSection(notes: List<CustomerNote>) {
+private fun ManagerNotesSection(
+    notes: List<CustomerNote>,
+    submissionState: NoteSubmissionState,
+    onSubmitNote: (String) -> Unit,
+) {
     Column(modifier = Modifier.fillMaxWidth()) {
         RtlSectionHeader(
             text = "یادداشت‌های مدیر",
@@ -485,43 +519,112 @@ private fun ManagerNotesSection(notes: List<CustomerNote>) {
             horizontalPadding = 0.dp,
         )
 
-        if (notes.isEmpty()) {
-            ManagerGlassSurface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = RojanDimens.SpaceMD),
-                shape = RojanShapes.GlassCard,
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(RojanDimens.SpaceMD),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = RojanDimens.SpaceMD),
+            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
+        ) {
+            AddNoteForm(submissionState = submissionState, onSubmit = onSubmitNote)
+
+            if (notes.isEmpty()) {
+                ManagerGlassSurface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RojanShapes.GlassCard,
                 ) {
-                    ManagerIconContainer(
-                        imageVector = Icons.Filled.EditNote,
-                        contentDescription = null,
-                        containerSize = 44.dp,
-                        accentColor = ManagerColors.Gold,
-                    )
-                    Text(
-                        text = "هنوز یادداشتی برای این مشتری ثبت نشده است.",
-                        style = RojanTypography.Body,
-                        color = ManagerColors.TextSecondary,
-                        modifier = Modifier.weight(1f),
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(RojanDimens.SpaceMD),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+                    ) {
+                        ManagerIconContainer(
+                            imageVector = Icons.Filled.EditNote,
+                            contentDescription = null,
+                            containerSize = 44.dp,
+                            accentColor = ManagerColors.Gold,
+                        )
+                        Text(
+                            text = "هنوز یادداشتی برای این مشتری ثبت نشده است.",
+                            style = RojanTypography.Body,
+                            color = ManagerColors.TextSecondary,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            } else {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+                ) {
+                    notes.forEach { note -> ManagerNoteRow(note) }
                 }
             }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = RojanDimens.SpaceMD),
-                verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
-            ) {
-                notes.forEach { note -> ManagerNoteRow(note) }
+        }
+    }
+}
+
+/**
+ * Phase F4 — the Notes section's Create CTA: an always-visible inline input + submit button (no new
+ * dialog/sheet component; this codebase has no existing Manager dialog/sheet pattern to reuse, and
+ * [ManagerCustomerEditScreen]'s inline-form shape is the closest existing pattern, reused here).
+ *
+ * Client-side blank/length gating mirrors the backend's own `@NotBlank`/`@Size(max = 2000)` - see
+ * [ManagerCustomerProfileViewModel.submitNote]'s own doc comment; this is a UX shortcut only, the
+ * backend still validates independently.
+ */
+@Composable
+private fun AddNoteForm(submissionState: NoteSubmissionState, onSubmit: (String) -> Unit) {
+    var text by rememberSaveable { mutableStateOf("") }
+    val isSubmitting = submissionState is NoteSubmissionState.Submitting
+    val isValid = text.isNotBlank() && text.length <= 2000
+
+    // Clears the input only on a genuine Submitting -> Idle transition (a real success) - never on
+    // Failed (the user's typed text must survive a failed submit so they can retry without
+    // retyping), and never on first composition (both start Idle, so the guard never fires there).
+    var previousSubmissionState by remember { mutableStateOf<NoteSubmissionState>(NoteSubmissionState.Idle) }
+    LaunchedEffect(submissionState) {
+        if (previousSubmissionState is NoteSubmissionState.Submitting && submissionState is NoteSubmissionState.Idle) {
+            text = ""
+        }
+        previousSubmissionState = submissionState
+    }
+
+    ManagerGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(RojanDimens.SpaceMD),
+            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+        ) {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text("افزودن یادداشت جدید") },
+                enabled = !isSubmitting,
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = ManagerColors.TextPrimary,
+                    unfocusedTextColor = ManagerColors.TextPrimary,
+                    focusedBorderColor = ManagerColors.Turquoise,
+                    unfocusedBorderColor = ManagerColors.TextSecondary,
+                    focusedLabelColor = ManagerColors.Turquoise,
+                    unfocusedLabelColor = ManagerColors.TextSecondary,
+                    cursorColor = ManagerColors.Turquoise,
+                ),
+            )
+
+            if (submissionState is NoteSubmissionState.Failed) {
+                Text(text = submissionState.message, style = RojanTypography.Caption, color = RojanErrorText)
             }
+
+            ManagerPrimaryButton(
+                text = "ثبت یادداشت",
+                onClick = { onSubmit(text) },
+                enabled = isValid && !isSubmitting,
+                loading = isSubmitting,
+            )
         }
     }
 }

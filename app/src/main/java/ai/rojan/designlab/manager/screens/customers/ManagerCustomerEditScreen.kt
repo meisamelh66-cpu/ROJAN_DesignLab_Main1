@@ -60,10 +60,13 @@ import kotlinx.coroutines.launch
  * carried those fields - not added here just because the DTO has them,
  * same discipline [ManagerStaffEditScreen] already applies to
  * `bio`/`photoUrl`. `notes`/`loyaltyScore`/`lastVisit`/`totalVisits` stay
- * unexposed too: no note-creation endpoint exists, `loyaltyScore` has no
- * backend equivalent (see [ai.rojan.designlab.manager.data.BackendCustomerRepository]'s
- * own doc comment), and the visit stats are derived, not directly
- * settable.
+ * unexposed here too - not because no note-creation endpoint exists (Phase
+ * F4: it does, and Notes now has its own dedicated create form on
+ * [ai.rojan.designlab.manager.screens.customers.ManagerCustomerProfileScreen],
+ * not this edit form), but because a note isn't a customer *profile* field
+ * to begin with. `loyaltyScore` has no backend equivalent (see
+ * [ai.rojan.designlab.manager.data.BackendCustomerRepository]'s own doc
+ * comment), and the visit stats are derived, not directly settable.
  *
  * Phone is not required - an empty value is sent as `null`
  * ([ai.rojan.designlab.manager.data.BackendCustomerRepository.update]'s

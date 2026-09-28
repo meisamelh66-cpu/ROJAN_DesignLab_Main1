@@ -37,12 +37,16 @@ data class CustomerServiceHistoryEntry(
  * One manager note on a customer (CRM Foundation, Phase 6 Step 5) — the
  * full history the backend already returns via `GET .../customers/{id}/notes`,
  * previously fetched and immediately truncated to just [ManagerCustomer.notes]
- * (the single latest one). Read-only: the backend has no note-creation
- * endpoint, so nothing here writes a new one. [authorId] is deliberately
- * not carried through - nothing in this app resolves a `userId` to a
- * display name, and every note visible to a Manager account was written
- * by a manager/owner of this salon, so a fabricated "author" label would
- * add nothing real.
+ * (the single latest one).
+ *
+ * Phase F4 correction: this doc previously claimed the backend has no
+ * note-creation endpoint - it does (`POST .../customers/{id}/notes`, see
+ * [ai.rojan.designlab.manager.domain.repository.CustomerRepository.createNote]).
+ * [authorId] is still deliberately not carried through here - nothing in
+ * this app resolves a `userId` to a display name, and every note visible to
+ * a Manager account was written by a manager/owner of this salon, so a
+ * fabricated "author" label would add nothing real; this is unchanged by
+ * Phase F4 and out of its scope.
  */
 data class CustomerNote(
     val id: String,

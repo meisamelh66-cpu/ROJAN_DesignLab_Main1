@@ -92,6 +92,8 @@ private object EmptyCustomerRepository : CustomerRepository {
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
     override fun getServiceHistory(customerId: String): List<CustomerServiceHistoryEntry> = emptyList()
     override fun getNoteHistory(customerId: String): List<CustomerNote> = emptyList()
+    override suspend fun createNote(customerId: String, text: String): Result<CustomerNote> =
+        Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
     override suspend fun loadDetail(customerId: String): Result<Unit> =
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
 }

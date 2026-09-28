@@ -87,6 +87,18 @@ data class CustomerResponseDto(
 
 
 /**
+ * Request body for POST /api/v1/salons/{salonId}/customers/{customerId}/notes.
+ *
+ * Matches the backend's `AddCustomerNoteRequest` exactly - `text` only,
+ * `@NotBlank`/`@Size(max = 2000)` enforced server-side (Phase F4).
+ */
+@Serializable
+data class CreateCustomerNoteRequestDto(
+    val text: String,
+)
+
+
+/**
  * Customer CRM note response.
  */
 @Serializable

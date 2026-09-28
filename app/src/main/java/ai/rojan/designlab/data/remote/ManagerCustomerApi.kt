@@ -1,6 +1,7 @@
 package ai.rojan.designlab.data.remote
 
 import ai.rojan.designlab.data.remote.dto.BookingResponseDto
+import ai.rojan.designlab.data.remote.dto.CreateCustomerNoteRequestDto
 import ai.rojan.designlab.data.remote.dto.CreateCustomerRequestDto
 import ai.rojan.designlab.data.remote.dto.CustomerNoteResponseDto
 import ai.rojan.designlab.data.remote.dto.CustomerResponseDto
@@ -52,6 +53,19 @@ interface ManagerCustomerApi {
         @Path("salonId") salonId: String,
         @Path("customerId") customerId: String,
     ): List<CustomerNoteResponseDto>
+
+
+    /**
+     * Phase F4 — the real, already backend-tested `POST .../customers/{customerId}/notes`
+     * (`ROJAN_Backend`'s `CustomerController.addNote` / `AddCustomerNoteUseCase`, `Permission.MANAGE_CRM`).
+     * Same route as [notes]; this is the write side of it, not a second endpoint.
+     */
+    @POST("api/v1/salons/{salonId}/customers/{customerId}/notes")
+    suspend fun addNote(
+        @Path("salonId") salonId: String,
+        @Path("customerId") customerId: String,
+        @Body request: CreateCustomerNoteRequestDto,
+    ): CustomerNoteResponseDto
 
 
     @GET("api/v1/salons/{salonId}/customers/{customerId}/bookings")

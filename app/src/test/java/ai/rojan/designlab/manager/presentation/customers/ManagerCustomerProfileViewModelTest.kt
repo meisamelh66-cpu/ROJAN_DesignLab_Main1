@@ -250,6 +250,134 @@ class ManagerCustomerProfileViewModelTest {
         val state = viewModel.state as UiState.Success
         assertEquals(customer, state.data.customer)
     }
+
+    // ---- Phase F4: Customer Notes completion (Create) --------------------------------------
+
+    @Test
+    fun `state data notes reflects the real loaded notes, not just history`() = runBlocking {
+        val realNote = CustomerNote(id = "note-1", text = "Prefers morning appointments", createdAt = "1404/07/05")
+        val repository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer),
+            notes = listOf(realNote),
+        )
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
+
+        val state = viewModel.state as UiState.Success
+        assertEquals(listOf(realNote), state.data.notes)
+    }
+
+    @Test
+    fun `an empty notes list stays a correct, empty Success - not Empty or Error`() = runBlocking {
+        val repository = ProfileFakeCustomerRepository(customers = mapOf(customer.id to customer), notes = emptyList())
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
+
+        val state = viewModel.state as UiState.Success
+        assertEquals(emptyList<CustomerNote>(), state.data.notes)
+    }
+
+    @Test
+    fun `a blank note is rejected locally without ever calling the repository`() = runBlocking {
+        val repository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer),
+            createNoteResult = { error("must not be called for blank text") },
+        )
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
+
+        viewModel.submitNote("   ")
+
+        val failed = viewModel.noteSubmissionState as NoteSubmissionState.Failed
+        assertTrue(failed.message.isNotBlank())
+    }
+
+    @Test
+    fun `a note over 2000 characters is rejected locally without ever calling the repository`() = runBlocking {
+        val repository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer),
+            createNoteResult = { error("must not be called for oversized text") },
+        )
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
+
+        viewModel.submitNote("a".repeat(2001))
+
+        val failed = viewModel.noteSubmissionState as NoteSubmissionState.Failed
+        assertTrue(failed.message.isNotBlank())
+    }
+
+    @Test
+    fun `a successful create is invisible until refresh, then appears exactly once - POST success does not mutate the cache`() = runBlocking {
+        // A distinct id per call, exactly like a real backend would assign - the probe below and the
+        // real submit must never collide on id, so "exactly once" below is a genuine count, not an
+        // accident of both calls sharing one hardcoded id.
+        var nextNoteId = 0
+        val repository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer),
+            notes = emptyList(),
+            createNoteResult = { text -> Result.success(CustomerNote(id = "note-${nextNoteId++}", text = text, createdAt = "1404/07/06")) },
+        )
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
+
+        // Hardening: prove the fake's own two-phase contract directly, on the exact repository
+        // instance the ViewModel below will drive - createNote() (POST) alone must never make the
+        // note visible through getNoteHistory(); only a subsequent loadDetail() (GET) can, exactly
+        // like BackendCustomerRepository's real createNote()/notesHistoryCache split.
+        val directCreate = repository.createNote(customer.id, "direct probe")
+        assertTrue("1. the create/POST operation must succeed", directCreate.isSuccess)
+        assertTrue(
+            "6. no local append before refresh - createNote() alone must not touch getNoteHistory()",
+            repository.getNoteHistory(customer.id).none { it.text == "direct probe" },
+        )
+        repository.loadDetail(customer.id)
+        assertTrue(
+            "GET refresh is the only thing that can reveal what createNote() already wrote to the backend",
+            repository.getNoteHistory(customer.id).any { it.text == "direct probe" },
+        )
+
+        // 2. Drive the real ViewModel path - submitNote() must itself call the refresh path (load()),
+        // not rely on createNote()'s own return value to populate state.
+        viewModel.submitNote("Prefers evening appointments")
+
+        // 3 & 4. The newly created note is visible (via the ViewModel's own refresh), exactly once -
+        // and distinctly from the direct probe note above, which has its own separate, real backend id.
+        val state = viewModel.state as UiState.Success
+        assertEquals(1, state.data.notes.count { it.text == "Prefers evening appointments" })
+        // 5. Submission status returns to Idle on success.
+        assertEquals(NoteSubmissionState.Idle, viewModel.noteSubmissionState)
+    }
+
+    @Test
+    fun `several refreshes after one successful create never duplicate the new note`() = runBlocking {
+        val repository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer),
+            notes = emptyList(),
+            createNoteResult = { text -> Result.success(CustomerNote(id = "new-note", text = text, createdAt = "1404/07/06")) },
+        )
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
+
+        viewModel.submitNote("Prefers evening appointments")
+        viewModel.retry()
+        viewModel.retry()
+        viewModel.retry()
+
+        val state = viewModel.state as UiState.Success
+        assertEquals(1, state.data.notes.count { it.id == "new-note" })
+    }
+
+    @Test
+    fun `a failed create leaves the existing profile data completely intact - never collapses to Error`() = runBlocking {
+        val repository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer),
+            history = listOf(historyEntry),
+            createNoteResult = { Result.failure(NetworkUnavailableException(Exception("offline"))) },
+        )
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
+        val stateBefore = viewModel.state as UiState.Success
+
+        viewModel.submitNote("Prefers evening appointments")
+
+        val stateAfter = viewModel.state
+        assertEquals("a failed note create must not touch the loaded profile", stateBefore, stateAfter)
+        assertTrue(viewModel.noteSubmissionState is NoteSubmissionState.Failed)
+    }
 }
 
 private fun identityContext(
@@ -285,10 +413,27 @@ private class ProfileFakeIdentityContextRepository(
 private class ProfileFakeCustomerRepository(
     customers: Map<String, ManagerCustomer> = emptyMap(),
     private val history: List<CustomerServiceHistoryEntry> = emptyList(),
-    private val notes: List<CustomerNote> = emptyList(),
+    notes: List<CustomerNote> = emptyList(),
     private val loadDetailResult: Result<Unit> = Result.success(Unit),
+    /** Phase F4 — what [createNote] returns; models the backend's real response, keyed by nothing since these tests only ever create one note at a time. */
+    private val createNoteResult: (String) -> Result<CustomerNote> = { error("not used by these tests") },
 ) : CustomerRepository {
     private var customers: Map<String, ManagerCustomer> = customers
+
+    /**
+     * Models the real backend's own notes table - the actual source of truth [createNote] writes to
+     * and [loadDetail] (GET) reads from. Never read directly by [getNoteHistory]; separate from
+     * [cachedNotes] on purpose, so a test can prove the two are genuinely decoupled.
+     */
+    private var backendNotes: List<CustomerNote> = notes
+
+    /**
+     * Models [ai.rojan.designlab.manager.data.BackendCustomerRepository]'s own `notesHistoryCache` -
+     * the only thing [getNoteHistory] actually returns. [createNote] never touches this (matching
+     * production's real contract: `POST success != local cache mutation`); only [loadDetail] (the GET
+     * refresh) replaces it wholesale from [backendNotes].
+     */
+    private var cachedNotes: List<CustomerNote> = notes
 
     fun setCustomer(customer: ManagerCustomer) {
         customers = customers + (customer.id to customer)
@@ -300,6 +445,22 @@ private class ProfileFakeCustomerRepository(
     override suspend fun create(customer: ManagerCustomer): Result<ManagerCustomer> = error("not used by these tests")
     override suspend fun update(customer: ManagerCustomer): Result<ManagerCustomer?> = error("not used by these tests")
     override fun getServiceHistory(customerId: String): List<CustomerServiceHistoryEntry> = history
-    override fun getNoteHistory(customerId: String): List<CustomerNote> = notes
-    override suspend fun loadDetail(customerId: String): Result<Unit> = loadDetailResult
+    override fun getNoteHistory(customerId: String): List<CustomerNote> = cachedNotes
+
+    /**
+     * Mirrors [ai.rojan.designlab.manager.data.BackendCustomerRepository.createNote] exactly: writes
+     * to the backend ([backendNotes]) and returns the created note, but deliberately does **not**
+     * touch [cachedNotes] - the same real-production contract that a create alone can never make a
+     * note visible through [getNoteHistory]; only a subsequent [loadDetail] can.
+     */
+    override suspend fun createNote(customerId: String, text: String): Result<CustomerNote> =
+        createNoteResult(text).onSuccess { created -> backendNotes = backendNotes + created }
+
+    /**
+     * Mirrors [ai.rojan.designlab.manager.data.BackendCustomerRepository.loadDetail]'s real GET
+     * refresh: on success, [cachedNotes] is fully replaced from [backendNotes] - the same full-
+     * reassignment (never an append) production performs from the real `GET .../notes` response.
+     */
+    override suspend fun loadDetail(customerId: String): Result<Unit> =
+        loadDetailResult.onSuccess { cachedNotes = backendNotes }
 }

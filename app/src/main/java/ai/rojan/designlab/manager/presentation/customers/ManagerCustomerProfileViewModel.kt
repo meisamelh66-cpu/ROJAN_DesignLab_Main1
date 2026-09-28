@@ -29,6 +29,17 @@ data class ManagerCustomerProfileData(
 )
 
 /**
+ * Phase F4 — the note-creation form's own status, deliberately separate from [ManagerCustomerProfileViewModel.state]:
+ * a failed or in-flight note submission must never collapse the whole profile to [UiState.Loading]/[UiState.Error] -
+ * [state] keeps showing the already-loaded profile throughout.
+ */
+sealed interface NoteSubmissionState {
+    data object Idle : NoteSubmissionState
+    data object Submitting : NoteSubmissionState
+    data class Failed(val message: String) : NoteSubmissionState
+}
+
+/**
  * Manager Customer Profile.
  *
  * **Phase 3A retarget (Customer Architecture Decision Audit):** previously depended on
@@ -76,6 +87,16 @@ data class ManagerCustomerProfileData(
  * had just populated). A subsequent [retry] calls [load] again, re-resolving the provider fresh at
  * that later point. The P0 identity contract is unaffected: [customerId] is still the only value
  * passed to every call on that resolved instance.
+ *
+ * **Phase F4 (Customer Notes completion):** [submitNote] adds Create to the previously read-only
+ * Notes capability, via the backend's real, already-tested `POST .../notes`
+ * ([CustomerRepository.createNote]). The backend stays the sole source of truth for note content/
+ * order: a successful create does not locally append to [state]'s `notes` - it re-runs [load] (the
+ * same full re-fetch [retry] already triggers), so the list [state] ends up showing is always exactly
+ * what the backend just returned, never a locally-guessed duplicate. [noteSubmissionState] is
+ * intentionally independent of [state]: a failed or in-flight note submission never touches the
+ * already-loaded profile - only [UiState.Success] data displayed via [state] can regress to
+ * [UiState.Loading]/[UiState.Error], and [submitNote] never does that on failure.
  */
 class ManagerCustomerProfileViewModel(
     private val customerRepositoryProvider: () -> CustomerRepository,
@@ -90,11 +111,46 @@ class ManagerCustomerProfileViewModel(
     var noAccessibleSalon by mutableStateOf(false)
         private set
 
+    /** Phase F4 — see this class's own doc comment. Independent of [state]; a failed/in-flight note submission never touches it. */
+    var noteSubmissionState by mutableStateOf<NoteSubmissionState>(NoteSubmissionState.Idle)
+        private set
+
     init {
         load()
     }
 
     fun retry() = load()
+
+    /**
+     * Phase F4. Client-side mirror of the backend's own `@NotBlank`/`@Size(max = 2000)` validation
+     * (`AddCustomerNoteRequest`) - rejected locally without a network round trip; the backend still
+     * re-validates independently, this is a UX shortcut, not a replacement for it. On success, re-runs
+     * [load] rather than locally appending, so [state]'s notes always come straight from the backend
+     * (see this class's own doc comment on why).
+     */
+    fun submitNote(text: String) {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) {
+            noteSubmissionState = NoteSubmissionState.Failed("متن یادداشت نمی‌تواند خالی باشد.")
+            return
+        }
+        if (trimmed.length > MAX_NOTE_TEXT_LENGTH) {
+            noteSubmissionState = NoteSubmissionState.Failed("متن یادداشت نمی‌تواند بیش از ۲۰۰۰ کاراکتر باشد.")
+            return
+        }
+
+        noteSubmissionState = NoteSubmissionState.Submitting
+        viewModelScope.launch {
+            customerRepositoryProvider().createNote(customerId, trimmed)
+                .onSuccess {
+                    noteSubmissionState = NoteSubmissionState.Idle
+                    load()
+                }
+                .onFailure { error ->
+                    noteSubmissionState = NoteSubmissionState.Failed(userMessageFor(error))
+                }
+        }
+    }
 
     private fun load() {
         state = UiState.Loading
@@ -136,5 +192,10 @@ class ManagerCustomerProfileViewModel(
                 ),
             )
         }
+    }
+
+    private companion object {
+        /** Mirrors the backend's `AddCustomerNoteRequest`'s `@Size(max = 2000)` (Phase F4) - a UX shortcut, not a replacement for that server-side check. */
+        const val MAX_NOTE_TEXT_LENGTH = 2000
     }
 }

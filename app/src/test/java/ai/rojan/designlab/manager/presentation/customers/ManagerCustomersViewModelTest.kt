@@ -374,5 +374,6 @@ private class FakeCustomerRepository(
     override suspend fun update(customer: ManagerCustomer): Result<ManagerCustomer?> = error("not used by these tests")
     override fun getServiceHistory(customerId: String): List<CustomerServiceHistoryEntry> = emptyList()
     override fun getNoteHistory(customerId: String): List<CustomerNote> = emptyList()
+    override suspend fun createNote(customerId: String, text: String): Result<CustomerNote> = error("not used by these tests")
     override suspend fun loadDetail(customerId: String): Result<Unit> = Result.success(Unit)
 }

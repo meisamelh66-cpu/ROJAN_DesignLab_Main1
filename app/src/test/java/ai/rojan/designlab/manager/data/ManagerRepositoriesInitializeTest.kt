@@ -107,6 +107,7 @@ class ManagerRepositoriesInitializeTest {
         override suspend fun update(customer: ManagerCustomer) = error("unused")
         override fun getServiceHistory(customerId: String) = emptyList<CustomerServiceHistoryEntry>()
         override fun getNoteHistory(customerId: String) = emptyList<CustomerNote>()
+        override suspend fun createNote(customerId: String, text: String) = error("unused")
         override suspend fun loadDetail(customerId: String) = Result.success(Unit)
     }
 
@@ -167,6 +168,16 @@ class ManagerRepositoriesInitializeTest {
         fun release(result: Result<ManagerInitData>) {
             gate!!.complete(result)
         }
+    }
+
+    // ---- Phase F4: EmptyCustomerRepository interface conformance --
+
+    @Test
+    fun `customers is EmptyCustomerRepository before initialize ever completes, and createNote fails honestly rather than faking success`() = runTest(dispatcher) {
+        val result = ManagerRepositories.customers.createNote("customer-1", "text")
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is IllegalStateException)
     }
 
     // ---- T1: sequential fresh init — NO TTL ----------------------

@@ -1,6 +1,7 @@
 package ai.rojan.designlab.manager.data
 
 import ai.rojan.designlab.data.remote.ManagerCustomerApi
+import ai.rojan.designlab.data.remote.dto.CreateCustomerNoteRequestDto
 import ai.rojan.designlab.data.remote.dto.CreateCustomerRequestDto
 import ai.rojan.designlab.data.remote.dto.CustomerResponseDto
 import ai.rojan.designlab.data.remote.dto.NetworkCustomerStatus
@@ -51,8 +52,13 @@ import java.time.LocalDateTime
  * `GET .../customers/{id}/notes` returns (not just the latest one used
  * for [ManagerCustomer.notes]), exposed via [getNoteHistory] - no extra
  * network call, the full list was already being fetched and discarded.
- * Read-only, same as everything else this class exposes past `create`/
- * `update` - the backend has no note-creation endpoint.
+ *
+ * Phase F4: [createNote] adds the write side, via the backend's real
+ * `POST .../customers/{id}/notes` (this class's doc previously claimed no
+ * such endpoint exists - it does, and is already backend-tested). [createNote]
+ * deliberately does not touch [notesHistoryCache] itself; the backend stays
+ * the sole source of truth for note content/order - a caller re-runs
+ * [loadDetail] to see the new note, the same as any other external change.
  */
 class BackendCustomerRepository(
     private val managerCustomerApi: ManagerCustomerApi,
@@ -118,6 +124,13 @@ class BackendCustomerRepository(
 
     override fun getNoteHistory(customerId: String): List<CustomerNote> =
         notesHistoryCache[customerId] ?: emptyList()
+
+    override suspend fun createNote(customerId: String, text: String): Result<CustomerNote> =
+        safeApiCall {
+            managerCustomerApi.addNote(salonId, customerId, CreateCustomerNoteRequestDto(text))
+        }.map { dto ->
+            CustomerNote(id = dto.id, text = dto.text, createdAt = formatVisitDate(dto.createdAt))
+        }
 
     override suspend fun loadDetail(customerId: String): Result<Unit> =
         safeApiCall {
