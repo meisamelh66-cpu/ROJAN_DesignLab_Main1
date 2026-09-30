@@ -304,13 +304,51 @@ object ManagerRepositories {
     private suspend fun runInitialize(load: suspend () -> Result<ManagerInitData>): Result<Unit> {
         val data = load().getOrElse { return Result.failure(it) }
 
+        // Data Integrity / API Contracts / Hardening (Master Integration
+        // Repair, PASS 7): the last-known-good merge below is only safe
+        // across a same-salon refresh (a transient failure in one category,
+        // the *same* salon still active) — it was never safe across an
+        // actual salon switch. Each category's repository instance has its
+        // salonId baked in at construction (see `loadFromBackend` below);
+        // if the active salon changed since the last successful init and a
+        // category's sync fails here, keeping that category's OLD
+        // repository in place would let a write silently succeed against
+        // the WRONG (previous) salon — a real, demonstrated mechanism
+        // independently corroborated by
+        // `ROJAN_Active_Salon_Context_Root_Cause_Report_v1.md`'s own
+        // discovery of this singleton's cross-salon staleness. On a
+        // confirmed switch, a failed category resets to its
+        // `Empty*Repository` instead — every write on those fails loudly
+        // (`IllegalStateException`), never silently, until a real re-sync
+        // succeeds for the new salon. `salonId == null` (the very first
+        // init) is never a "switch away from a wrong repo" case — the
+        // categories are already at their `Empty*Repository` starting
+        // point, so behavior there is unchanged.
+        val isSalonSwitch = salonId != null && salonId != data.salonId
+
         // No suspension points below — in production this runs on
         // Dispatchers.Main.immediate (initScope), so it cannot interleave
         // with a concurrent reader or a second init's own merge.
-        if (data.services.syncResult.isSuccess) services = data.services.repository
-        if (data.appointments.syncResult.isSuccess) appointments = data.appointments.repository
-        if (data.specialists.syncResult.isSuccess) specialists = data.specialists.repository
-        if (data.customers.syncResult.isSuccess) customers = data.customers.repository
+        services = when {
+            data.services.syncResult.isSuccess -> data.services.repository
+            isSalonSwitch -> EmptyServiceRepository
+            else -> services
+        }
+        appointments = when {
+            data.appointments.syncResult.isSuccess -> data.appointments.repository
+            isSalonSwitch -> EmptyAppointmentRepository
+            else -> appointments
+        }
+        specialists = when {
+            data.specialists.syncResult.isSuccess -> data.specialists.repository
+            isSalonSwitch -> EmptySpecialistRepository
+            else -> specialists
+        }
+        customers = when {
+            data.customers.syncResult.isSuccess -> data.customers.repository
+            isSalonSwitch -> EmptyCustomerRepository
+            else -> customers
+        }
 
         // The salon fetch already succeeded (otherwise `data` would be a
         // failure) — its details are valid, so always apply them.
