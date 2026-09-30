@@ -2,8 +2,6 @@ package ai.rojan.designlab.manager.presentation.booking
 
 import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.AvailabilityRepository
-import ai.rojan.designlab.domain.repository.BookingRepository
-import ai.rojan.designlab.domain.repository.BookingStatus
 import ai.rojan.designlab.domain.repository.PagedResult
 import ai.rojan.designlab.domain.repository.Salon
 import ai.rojan.designlab.domain.repository.SalonCustomer
@@ -16,6 +14,9 @@ import ai.rojan.designlab.domain.repository.ServiceRepository
 import ai.rojan.designlab.domain.repository.Specialist
 import ai.rojan.designlab.domain.repository.SpecialistRepository
 import ai.rojan.designlab.domain.repository.TimeSlot
+import ai.rojan.designlab.manager.domain.appointment.Appointment
+import ai.rojan.designlab.manager.domain.appointment.AppointmentStatus
+import ai.rojan.designlab.manager.domain.repository.AppointmentRepository
 import androidx.lifecycle.SavedStateHandle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -64,7 +65,7 @@ class ManagerBookingViewModelSavedStateTest {
         serviceRepository = FakeServiceRepository,
         specialistRepository = FakeSpecialistRepository,
         availabilityRepository = FakeAvailabilityRepository,
-        bookingRepository = FakeBookingRepository,
+        appointmentRepositoryProvider = { FakeAppointmentRepository },
         activeSalonContextRepository = FakeActiveSalonContextRepository,
         savedStateHandle = handle,
     )
@@ -175,23 +176,22 @@ class ManagerBookingViewModelSavedStateTest {
         ): Result<List<TimeSlot>> = Result.success(emptyList())
     }
 
-    private object FakeBookingRepository : BookingRepository {
-        override suspend fun createBooking(
-            salonId: String,
+    private object FakeAppointmentRepository : AppointmentRepository {
+        override fun getAll(): List<Appointment> = error("not used by these tests")
+        override fun getById(id: String): Appointment? = error("not used by these tests")
+        override fun getByCustomerId(customerId: String): List<Appointment> = error("not used by these tests")
+        override suspend fun create(appointment: Appointment): Result<Appointment> = error("not used by these tests")
+        override fun update(appointment: Appointment): Appointment? = error("not used by these tests")
+        override fun updateStatus(id: String, status: AppointmentStatus): Appointment? = error("not used by these tests")
+        override fun cancel(id: String): Appointment? = error("not used by these tests")
+        override suspend fun createForCustomer(
+            customerId: String,
             serviceId: String,
             specialistId: String,
             startTime: String,
             notes: String?,
-            idempotencyKey: String?,
-            customerId: String?,
-        ): Result<ai.rojan.designlab.domain.repository.Booking> = error("not used by these tests")
-        override suspend fun myBookings(page: Int, size: Int, status: BookingStatus?) = error("not used by these tests")
-        override suspend fun getBooking(bookingId: String) = error("not used by these tests")
-        override suspend fun cancelBooking(bookingId: String) = error("not used by these tests")
-        override suspend fun confirmBooking(bookingId: String) = error("not used by these tests")
-        override suspend fun completeBooking(bookingId: String) = error("not used by these tests")
-        override suspend fun rescheduleBooking(bookingId: String, newStartTime: String) = error("not used by these tests")
-        override suspend fun salonBookings(salonId: String, page: Int, size: Int, status: BookingStatus?) =
-            error("not used by these tests")
+        ): Result<Appointment> = error("not used by these tests")
+        override suspend fun confirm(id: String): Result<Appointment> = error("not used by these tests")
+        override suspend fun complete(id: String): Result<Appointment> = error("not used by these tests")
     }
 }

@@ -2,7 +2,6 @@ package ai.rojan.designlab.manager.presentation.booking
 
 import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.AvailabilityRepository
-import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.SalonCustomer
 import ai.rojan.designlab.domain.repository.SalonCustomerRepository
 import ai.rojan.designlab.domain.repository.SalonRepository
@@ -13,6 +12,7 @@ import ai.rojan.designlab.domain.repository.Specialist
 import ai.rojan.designlab.domain.repository.SpecialistRepository
 import ai.rojan.designlab.domain.repository.TimeSlot
 import ai.rojan.designlab.manager.domain.booking.ManagerBookingState
+import ai.rojan.designlab.manager.domain.repository.AppointmentRepository
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.presentation.common.userMessageFor
 import androidx.compose.runtime.getValue
@@ -26,7 +26,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.util.UUID
 
 /** The manager's own salon's real bookable catalog — everything [ManagerBookingViewModel]'s service/specialist steps need, loaded once per wizard session. */
 data class ManagerBookingCatalog(
@@ -46,16 +45,37 @@ data class ManagerBookingCatalog(
  * completes or is abandoned.
  *
  * **Manager Booking Creation Integrity follow-up:** every selection step
- * sources real backend data for the manager's own salon (`GET
- * /salons/mine` to resolve it, then the same
+ * sources real backend data for the manager's own salon (staff-inclusive
+ * salon resolution - see [loadCatalog]'s own doc comment - then the same
  * [ServiceRepository]/[SpecialistRepository]/[AvailabilityRepository] the
  * Customer booking flow already uses) instead of
  * `manager.data.ManagerRepositories`' in-memory catalog, and [confirm]
- * fires the real `POST /api/v1/bookings` with a real `customerId` —
- * resolved via the salon-scoped [SalonCustomerRepository] search, never a
- * fabricated identity. [confirm]'s `onSuccess` callback fires if and only
- * if the backend genuinely returns a persisted booking id — the exact "no
- * fake success" contract TEAM2-001 established for the Customer flow.
+ * fires the real, owner-authorized `POST /api/v1/salons/{salonId}/bookings`
+ * ([AppointmentRepository.createForCustomer]) with the selected real
+ * `customerId` — a CRM Customer id, resolved via the salon-scoped
+ * [SalonCustomerRepository] search, never a fabricated identity.
+ *
+ * **Master Integration Repair, Pass 4 (Customer Management audit):** [confirm]
+ * previously called the *customer self-service* `POST /api/v1/bookings`
+ * (`ai.rojan.designlab.domain.repository.BookingRepository.createBooking`) -
+ * that endpoint always derives its booking's `customerId` from the caller's
+ * own resolved identity server-side
+ * (`ai.rojan.backend.api.booking.BookingController.create`: `val customerId =
+ * currentUserResolver.resolve(principal)`) and has no `customerId` field on
+ * its request body at all, so every booking created through this wizard was
+ * silently attributed to the calling Manager's own account, never the
+ * customer actually selected in the wizard - regardless of which customer
+ * was picked. The previous doc comment's claim of a
+ * `BookingController.resolveBookingCustomerId` mechanism does not exist in
+ * the real backend; this was a mistaken assumption, not a real contract.
+ * [AppointmentRepository.createForCustomer] (`SalonBookingController.createForCustomer`,
+ * already implemented and already correctly wired in
+ * [ai.rojan.designlab.manager.data.BackendAppointmentRepository] - simply
+ * never called from here) takes the CRM `customerId` explicitly and is the
+ * real, owner/manager-authorized counterpart this wizard always needed.
+ * [confirm]'s `onSuccess` callback fires if and only if the backend
+ * genuinely returns a persisted booking id — the exact "no fake success"
+ * contract TEAM2-001 established for the Customer flow.
  *
  * Real backend [Specialist]/[SalonCustomer] carry no "skills"/"phone tag"
  * concept the old in-memory `manager.domain.specialist.Specialist`/
@@ -85,7 +105,8 @@ class ManagerBookingViewModel(
     private val serviceRepository: ServiceRepository,
     private val specialistRepository: SpecialistRepository,
     private val availabilityRepository: AvailabilityRepository,
-    private val bookingRepository: BookingRepository,
+    /** `() -> AppointmentRepository`, not a captured instance — same Phase F2 Timing Fix shape [ai.rojan.designlab.manager.presentation.customers.ManagerCustomerProfileViewModel.customerRepositoryProvider] already established: `ManagerRepositories.appointments` may still be the placeholder `EmptyAppointmentRepository` at construction time, and re-resolving fresh at each [confirm] call picks up the real one once `ManagerRepositories.initialize()` finishes, without a stale-capture race. */
+    private val appointmentRepositoryProvider: () -> AppointmentRepository,
     private val activeSalonContextRepository: ActiveSalonContextRepository,
     /** Defaults to a fresh, unattached handle so every existing positional/named call site (including this ViewModel's own non-SavedState-focused unit tests) keeps compiling unchanged; the real navigation call site always supplies the graph-restored one — see this class's own doc comment. */
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
@@ -240,14 +261,17 @@ class ManagerBookingViewModel(
     }
 
     /**
-     * Real `POST /api/v1/bookings` with the selected real `customerId` —
-     * the backend attributes the booking to that customer, not to the
-     * manager (owner-only, enforced server-side; see
-     * `SalonCustomerController`/`BookingController.resolveBookingCustomerId`
-     * in `ROJAN_Backend`). [onSuccess] fires if and only if this call
-     * genuinely succeeds and returns a persisted booking id — never
-     * unconditionally. Any failure (network, validation, a slot taken in
-     * the meantime, an inactive/deleted service or specialist) sets
+     * Real, owner/manager-authorized `POST /api/v1/salons/{salonId}/bookings`
+     * ([AppointmentRepository.createForCustomer]) with the selected real, CRM
+     * `customerId` — the backend attributes the booking to that customer, a
+     * salon-scoped write distinct from the customer self-service endpoint
+     * (see this class's own doc comment, Pass 4, for why the earlier
+     * self-service call was wrong here). [onSuccess] fires if and only if
+     * this call genuinely succeeds and returns a persisted booking id —
+     * never unconditionally. Any failure (network, validation, a slot taken
+     * in the meantime, an inactive/deleted service or specialist, or the
+     * selected customer having no linked account yet -
+     * `CustomerNotLinkedToAccountException` / 409) sets
      * [ManagerBookingState.submitError] instead and [onSuccess] is never
      * called — no local-only fallback of any kind.
      */
@@ -268,17 +292,15 @@ class ManagerBookingViewModel(
 
         setState(state.copy(isSubmitting = true, submitError = null))
         viewModelScope.launch {
-            bookingRepository.createBooking(
-                salonId = salonId,
+            appointmentRepositoryProvider().createForCustomer(
+                customerId = customerId,
                 serviceId = serviceId,
                 specialistId = specialistId,
                 startTime = "${dateKey}T$time:00",
                 notes = null,
-                idempotencyKey = UUID.randomUUID().toString(),
-                customerId = customerId,
             )
-                .onSuccess { booking ->
-                    setState(_uiState.value.copy(isSubmitting = false, createdAppointmentId = booking.id))
+                .onSuccess { appointment ->
+                    setState(_uiState.value.copy(isSubmitting = false, createdAppointmentId = appointment.id))
                     onSuccess()
                 }
                 .onFailure { error ->

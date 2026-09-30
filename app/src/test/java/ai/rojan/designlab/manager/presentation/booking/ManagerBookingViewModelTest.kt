@@ -3,9 +3,6 @@ package ai.rojan.designlab.manager.presentation.booking
 import ai.rojan.designlab.data.remote.NetworkUnavailableException
 import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.AvailabilityRepository
-import ai.rojan.designlab.domain.repository.Booking
-import ai.rojan.designlab.domain.repository.BookingRepository
-import ai.rojan.designlab.domain.repository.BookingStatus
 import ai.rojan.designlab.domain.repository.PagedResult
 import ai.rojan.designlab.domain.repository.Salon
 import ai.rojan.designlab.domain.repository.SalonCustomer
@@ -18,6 +15,9 @@ import ai.rojan.designlab.domain.repository.ServiceRepository
 import ai.rojan.designlab.domain.repository.Specialist
 import ai.rojan.designlab.domain.repository.SpecialistRepository
 import ai.rojan.designlab.domain.repository.TimeSlot
+import ai.rojan.designlab.manager.domain.appointment.Appointment
+import ai.rojan.designlab.manager.domain.appointment.AppointmentStatus
+import ai.rojan.designlab.manager.domain.repository.AppointmentRepository
 import ai.rojan.designlab.presentation.common.UiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -35,16 +35,22 @@ import org.junit.Before
 import org.junit.Test
 
 /**
- * Manager Booking Creation Integrity follow-up. [ManagerBookingViewModel]
- * is now constructed from nothing but backend-facing repository
- * interfaces — no `manager.data.ManagerRepositories` singleton appears
- * anywhere in its dependency list. These tests prove the wizard's catalog/
- * customer-search/slot loading all source real backend data for the
- * manager's own salon, and that [ManagerBookingViewModel.confirm]'s
- * `onSuccess` fires if and only if the real `POST /api/v1/bookings` call
- * (with the selected real `customerId`) genuinely succeeds — the same
- * "no fake success" contract TEAM2-001 established, finally reachable
- * here now that the backend contract for it exists.
+ * Manager Booking Creation Integrity follow-up. These tests prove the
+ * wizard's catalog/customer-search/slot loading all source real backend
+ * data for the manager's own salon, and that [ManagerBookingViewModel.confirm]'s
+ * `onSuccess` fires if and only if the real backend call genuinely
+ * succeeds — the same "no fake success" contract TEAM2-001 established.
+ *
+ * **Master Integration Repair, Pass 4:** [confirm] now calls
+ * [ai.rojan.designlab.manager.domain.repository.AppointmentRepository.createForCustomer]
+ * (`POST /api/v1/salons/{salonId}/bookings`, the real owner/manager-authorized
+ * counterpart) — not the customer self-service endpoint the wizard used
+ * before, which always attributed the booking to the calling Manager, never
+ * the customer actually selected. [ManagerBookingViewModel] does depend on
+ * one `manager.data.ManagerRepositories`-managed repository now
+ * ([AppointmentRepository], via a provider lambda) alongside its other,
+ * `BackendApiContainer`-sourced dependencies - see
+ * [ManagerBookingViewModel]'s own doc comment for the full rationale.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ManagerBookingViewModelTest {
@@ -67,7 +73,7 @@ class ManagerBookingViewModelTest {
     private fun viewModel(
         salonRepository: SalonRepository = FakeSalonRepository(Result.success(salon)),
         salonCustomerRepository: SalonCustomerRepository = FakeSalonCustomerRepository(Result.success(listOf(customer))),
-        bookingRepository: BookingRepository = FakeBookingRepository(Result.success(sampleBooking())),
+        appointmentRepository: AppointmentRepository = FakeAppointmentRepository(Result.success(sampleAppointment())),
         availabilityRepository: AvailabilityRepository = FakeAvailabilityRepository(Result.success(emptyList())),
         activeSalonId: String? = salon.id,
     ) = ManagerBookingViewModel(
@@ -77,20 +83,18 @@ class ManagerBookingViewModelTest {
         serviceRepository = FakeServiceRepository(Result.success(listOf(service))),
         specialistRepository = FakeSpecialistRepository(Result.success(listOf(specialist))),
         availabilityRepository = availabilityRepository,
-        bookingRepository = bookingRepository,
+        appointmentRepositoryProvider = { appointmentRepository },
         activeSalonContextRepository = FakeActiveSalonContextRepository(activeSalonId),
     )
 
-    private fun sampleBooking() = Booking(
+    private fun sampleAppointment() = Appointment(
         id = "booking-1",
-        salonId = "salon-1",
+        customerId = "customer-1",
         serviceId = "service-1",
         specialistId = "specialist-1",
-        customerId = "customer-1",
-        startTime = "2026-09-20T10:00:00",
-        endTime = "2026-09-20T10:30:00",
-        status = BookingStatus.PENDING,
-        notes = null,
+        date = "2026-09-20",
+        time = "10:00",
+        status = AppointmentStatus.PENDING,
     )
 
     private fun readySelection(viewModel: ManagerBookingViewModel) {
@@ -158,8 +162,8 @@ class ManagerBookingViewModelTest {
 
     @Test
     fun `confirm sends the real selected customerId and calls onSuccess only after the backend genuinely succeeds`() = runBlocking {
-        val repository = FakeBookingRepository(Result.success(sampleBooking()))
-        val viewModel = viewModel(bookingRepository = repository)
+        val repository = FakeAppointmentRepository(Result.success(sampleAppointment()))
+        val viewModel = viewModel(appointmentRepository = repository)
         readySelection(viewModel)
         var succeeded = false
 
@@ -171,10 +175,33 @@ class ManagerBookingViewModelTest {
         assertEquals(null, viewModel.uiState.value.submitError)
     }
 
+    /**
+     * Master Integration Repair, Pass 4 (Customer Management audit): [confirm] previously called
+     * the customer self-service `BookingRepository.createBooking`, which always attributes the
+     * booking to the CALLER (the Manager), never the customer actually selected in the wizard -
+     * regardless of which customer was picked. This test proves the real fix: the exact selected
+     * `customerId` is what reaches the repository, via the real owner-authorized
+     * [AppointmentRepository.createForCustomer] (`POST /api/v1/salons/{salonId}/bookings`).
+     */
+    @Test
+    fun `confirm sends the exact selected customer, not the caller's own identity`() = runBlocking {
+        val repository = FakeAppointmentRepository(Result.success(sampleAppointment()))
+        val viewModel = viewModel(appointmentRepository = repository)
+        viewModel.selectCustomer("a-completely-different-customer-id")
+        viewModel.selectService(service.id)
+        viewModel.selectSpecialist(specialist.id)
+        viewModel.selectDate("2026-09-20")
+        viewModel.selectTime("10:00")
+
+        viewModel.confirm(onSuccess = {})
+
+        assertEquals("a-completely-different-customer-id", repository.lastCustomerId)
+    }
+
     @Test
     fun `a backend failure never calls onSuccess and leaves a real submitError, never a fake local booking`() = runBlocking {
-        val repository = FakeBookingRepository(Result.failure(NetworkUnavailableException(Exception("offline"))))
-        val viewModel = viewModel(bookingRepository = repository)
+        val repository = FakeAppointmentRepository(Result.failure(NetworkUnavailableException(Exception("offline"))))
+        val viewModel = viewModel(appointmentRepository = repository)
         readySelection(viewModel)
         var succeeded = false
 
@@ -187,8 +214,8 @@ class ManagerBookingViewModelTest {
 
     @Test
     fun `confirm with an incomplete selection never calls the repository or onSuccess`() = runBlocking {
-        val repository = FakeBookingRepository(Result.success(sampleBooking()))
-        val viewModel = viewModel(bookingRepository = repository)
+        val repository = FakeAppointmentRepository(Result.success(sampleAppointment()))
+        val viewModel = viewModel(appointmentRepository = repository)
         viewModel.selectCustomer(customer.id)
         // service/specialist/date/time left unselected.
         var succeeded = false
@@ -196,7 +223,7 @@ class ManagerBookingViewModelTest {
         viewModel.confirm(onSuccess = { succeeded = true })
 
         assertFalse(succeeded)
-        assertFalse(repository.createBookingCalled)
+        assertFalse(repository.createForCustomerCalled)
     }
 }
 
@@ -243,37 +270,33 @@ private class FakeAvailabilityRepository(private val result: Result<List<TimeSlo
     ): Result<List<TimeSlot>> = result
 }
 
-private class FakeBookingRepository(private val createBookingResult: Result<Booking>) : BookingRepository {
+private class FakeAppointmentRepository(private val createForCustomerResult: Result<Appointment>) : AppointmentRepository {
 
-    var createBookingCalled = false
+    var createForCustomerCalled = false
         private set
     var lastCustomerId: String? = null
         private set
 
-    override suspend fun createBooking(
-        salonId: String,
+    override fun getAll(): List<Appointment> = error("not used by these tests")
+    override fun getById(id: String): Appointment? = error("not used by these tests")
+    override fun getByCustomerId(customerId: String): List<Appointment> = error("not used by these tests")
+    override suspend fun create(appointment: Appointment): Result<Appointment> = error("not used by these tests - superseded by createForCustomer (Master Integration Repair, Pass 4)")
+    override fun update(appointment: Appointment): Appointment? = error("not used by these tests")
+    override fun updateStatus(id: String, status: AppointmentStatus): Appointment? = error("not used by these tests")
+    override fun cancel(id: String): Appointment? = error("not used by these tests")
+
+    override suspend fun createForCustomer(
+        customerId: String,
         serviceId: String,
         specialistId: String,
         startTime: String,
         notes: String?,
-        idempotencyKey: String?,
-        customerId: String?,
-    ): Result<Booking> {
-        createBookingCalled = true
+    ): Result<Appointment> {
+        createForCustomerCalled = true
         lastCustomerId = customerId
-        return createBookingResult
+        return createForCustomerResult
     }
 
-    override suspend fun myBookings(page: Int, size: Int, status: BookingStatus?): Result<PagedResult<Booking>> =
-        error("not used by these tests")
-
-    override suspend fun getBooking(bookingId: String): Result<Booking> = error("not used by these tests")
-    override suspend fun cancelBooking(bookingId: String): Result<Booking> = error("not used by these tests")
-    override suspend fun confirmBooking(bookingId: String): Result<Booking> = error("not used by these tests")
-    override suspend fun completeBooking(bookingId: String): Result<Booking> = error("not used by these tests")
-    override suspend fun rescheduleBooking(bookingId: String, newStartTime: String): Result<Booking> =
-        error("not used by these tests")
-
-    override suspend fun salonBookings(salonId: String, page: Int, size: Int, status: BookingStatus?): Result<PagedResult<Booking>> =
-        error("not used by these tests")
+    override suspend fun confirm(id: String): Result<Appointment> = error("not used by these tests")
+    override suspend fun complete(id: String): Result<Appointment> = error("not used by these tests")
 }

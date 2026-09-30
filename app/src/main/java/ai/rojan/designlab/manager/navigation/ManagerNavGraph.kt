@@ -1,6 +1,7 @@
 package ai.rojan.designlab.manager.navigation
 
 import ai.rojan.designlab.di.BackendApiContainerHolder
+import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.domain.auth.ActiveSalonUiState
 import ai.rojan.designlab.manager.domain.customer.CustomerTag
 import ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel
@@ -457,7 +458,9 @@ private fun managerBookingViewModelFor(
             serviceRepository = BackendApiContainerHolder.get(context).serviceRepository,
             specialistRepository = BackendApiContainerHolder.get(context).specialistRepository,
             availabilityRepository = BackendApiContainerHolder.get(context).availabilityRepository,
-            bookingRepository = BackendApiContainerHolder.get(context).bookingRepository,
+            // Master Integration Repair, Pass 4: a lambda, not the value itself - ManagerRepositories.appointments
+            // is read fresh every time the ViewModel invokes this, never evaluated once here (Phase F2 Timing Fix shape).
+            appointmentRepositoryProvider = { ManagerRepositories.appointments },
             activeSalonContextRepository = BackendApiContainerHolder.get(context).activeSalonContextRepository,
         ),
         // 5B6-1: the extras Navigation-Compose restores SavedStateHandle through.
