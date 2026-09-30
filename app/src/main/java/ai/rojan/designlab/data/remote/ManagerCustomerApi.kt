@@ -5,8 +5,10 @@ import ai.rojan.designlab.data.remote.dto.CreateCustomerNoteRequestDto
 import ai.rojan.designlab.data.remote.dto.CreateCustomerRequestDto
 import ai.rojan.designlab.data.remote.dto.CustomerNoteResponseDto
 import ai.rojan.designlab.data.remote.dto.CustomerResponseDto
+import ai.rojan.designlab.data.remote.dto.LinkCustomerToUserRequestDto
 import ai.rojan.designlab.data.remote.dto.PagedResponseDto
 import ai.rojan.designlab.data.remote.dto.UpdateCustomerRequestDto
+import ai.rojan.designlab.data.remote.dto.UserLinkCandidateResponseDto
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.PATCH
@@ -91,5 +93,33 @@ interface ManagerCustomerApi {
         @Path("salonId") salonId: String,
         @Path("customerId") customerId: String,
         @Body request: UpdateCustomerRequestDto,
+    ): CustomerResponseDto
+
+
+    /**
+     * CRM Customer -> User Account Linking, Phase 2. Resolves the User account matching this
+     * customer's own already-on-file phone number, for explicit Manager confirmation before
+     * calling [link]. No phone/email parameter exists here - the backend reads the phone number
+     * directly from the requested Customer (`ROJAN_Backend`'s `LookupUserForCustomerLinkUseCase`,
+     * commit 0abd7b1); a 404 means no eligible User was found (or the match was inactive, or the
+     * customer has no phone on file - all three collapse to the same not-found response).
+     */
+    @GET("api/v1/salons/{salonId}/customers/{customerId}/link/lookup")
+    suspend fun lookupLinkCandidate(
+        @Path("salonId") salonId: String,
+        @Path("customerId") customerId: String,
+    ): UserLinkCandidateResponseDto
+
+
+    /**
+     * CRM Customer -> User Account Linking, Phase 2. The only mutation that can ever set
+     * `Customer.userId` - explicit, Manager-confirmed, never called automatically after
+     * [lookupLinkCandidate] (`ROJAN_Backend`'s `LinkCustomerToUserUseCase`, commit 4937192).
+     */
+    @POST("api/v1/salons/{salonId}/customers/{customerId}/link")
+    suspend fun link(
+        @Path("salonId") salonId: String,
+        @Path("customerId") customerId: String,
+        @Body request: LinkCustomerToUserRequestDto,
     ): CustomerResponseDto
 }

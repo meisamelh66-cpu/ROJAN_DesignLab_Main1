@@ -4,6 +4,7 @@ import ai.rojan.designlab.data.remote.ManagerCustomerApi
 import ai.rojan.designlab.data.remote.dto.CreateCustomerNoteRequestDto
 import ai.rojan.designlab.data.remote.dto.CreateCustomerRequestDto
 import ai.rojan.designlab.data.remote.dto.CustomerResponseDto
+import ai.rojan.designlab.data.remote.dto.LinkCustomerToUserRequestDto
 import ai.rojan.designlab.data.remote.dto.NetworkCustomerStatus
 import ai.rojan.designlab.data.remote.dto.UpdateCustomerRequestDto
 import ai.rojan.designlab.data.remote.safeApiCall
@@ -11,6 +12,7 @@ import ai.rojan.designlab.manager.domain.customer.CustomerNote
 import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
 import ai.rojan.designlab.manager.domain.customer.CustomerTag
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
+import ai.rojan.designlab.manager.domain.customer.UserLinkCandidate
 import ai.rojan.designlab.manager.domain.repository.CustomerRepository
 import ai.rojan.designlab.manager.domain.repository.ServiceRepository
 import ai.rojan.designlab.manager.domain.repository.SpecialistRepository
@@ -132,6 +134,26 @@ class BackendCustomerRepository(
             CustomerNote(id = dto.id, text = dto.text, createdAt = formatVisitDate(dto.createdAt))
         }
 
+    /** CRM Customer -> User Account Linking, Phase 2 - read-only; never touches [cache]. */
+    override suspend fun lookupUserForLink(customerId: String): Result<UserLinkCandidate> =
+        safeApiCall { managerCustomerApi.lookupLinkCandidate(salonId, customerId) }
+            .map { dto -> UserLinkCandidate(userId = dto.userId, fullName = dto.fullName, phoneNumber = dto.phoneNumber) }
+
+    /**
+     * CRM Customer -> User Account Linking, Phase 2 - mirrors [update]'s own cache-update-on-success
+     * shape exactly: the backend's `POST .../link` response is a full, authoritative `CustomerResponse`
+     * (userId included), so [cache] is updated directly from it, the same as [update] already does -
+     * no extra `GET` re-fetch needed, and never a locally fabricated `userId`.
+     */
+    override suspend fun linkToUser(customerId: String, userId: String): Result<ManagerCustomer> =
+        safeApiCall {
+            managerCustomerApi.link(salonId, customerId, LinkCustomerToUserRequestDto(userId))
+        }.map { dto ->
+            dto.toDomain().also { linked ->
+                cache = cache.map { if (it.id == linked.id) linked else it }
+            }
+        }
+
     override suspend fun loadDetail(customerId: String): Result<Unit> =
         safeApiCall {
             val bookings = managerCustomerApi.bookings(salonId, customerId, page = 0, size = 20, sortDirection = "DESC")
@@ -185,6 +207,7 @@ class BackendCustomerRepository(
         notes = null,
         lastVisit = "—",
         totalVisits = 0,
+        userId = userId,
     )
 
     /** 6 backend statuses -> 4 domain tags — see [CustomerResponseDto]'s doc comment on why these are richer than the mobile app's own model. */

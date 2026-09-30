@@ -18,6 +18,29 @@ data class ManagerCustomer(
     val notes: String?,
     val lastVisit: String,
     val totalVisits: Int,
+    /**
+     * CRM Customer -> User Account Linking, Phase 2: mirrors the backend's
+     * `CustomerResponse.userId` exactly - null for an unlinked walk-in, a real backend account id
+     * once linked. The backend remains the sole source of truth for this value; nothing in this app
+     * ever sets it except by mapping a real `CustomerResponseDto`/`UserLinkCandidateResponseDto`-
+     * derived response (see [ai.rojan.designlab.manager.data.BackendCustomerRepository]). Defaults to
+     * `null` so the one existing positional-argument construction site keeps compiling unchanged.
+     */
+    val userId: String? = null,
+)
+
+/**
+ * CRM Customer -> User Account Linking, Phase 2: the read-only result of
+ * `GET .../customers/{customerId}/link/lookup` (`ROJAN_Backend`'s `LookupUserForCustomerLinkUseCase`)
+ * - the one User account matching this customer's own already-on-file phone number, shown to a
+ * Manager for explicit visual confirmation before [ai.rojan.designlab.manager.domain.repository.CustomerRepository.linkToUser]
+ * is ever called. Deliberately as minimal as the backend response itself - no email, role, or other
+ * account data.
+ */
+data class UserLinkCandidate(
+    val userId: String,
+    val fullName: String,
+    val phoneNumber: String,
 )
 
 /**

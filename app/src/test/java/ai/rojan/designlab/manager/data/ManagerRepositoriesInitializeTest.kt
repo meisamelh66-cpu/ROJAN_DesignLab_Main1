@@ -9,6 +9,7 @@ import ai.rojan.designlab.manager.domain.customer.CustomerNote
 import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
 import ai.rojan.designlab.manager.domain.customer.CustomerTag
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
+import ai.rojan.designlab.manager.domain.customer.UserLinkCandidate
 import ai.rojan.designlab.manager.domain.dashboard.ManagerDashboardInsights
 import ai.rojan.designlab.manager.domain.dashboard.ManagerSalonSummary
 import ai.rojan.designlab.manager.domain.repository.AppointmentRepository
@@ -109,6 +110,8 @@ class ManagerRepositoriesInitializeTest {
         override fun getNoteHistory(customerId: String) = emptyList<CustomerNote>()
         override suspend fun createNote(customerId: String, text: String) = error("unused")
         override suspend fun loadDetail(customerId: String) = Result.success(Unit)
+        override suspend fun lookupUserForLink(customerId: String): Result<UserLinkCandidate> = error("unused")
+        override suspend fun linkToUser(customerId: String, userId: String) = error("unused")
     }
 
     private object FakeAvailability : AvailabilityRepository {

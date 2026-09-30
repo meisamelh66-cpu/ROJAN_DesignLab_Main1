@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.presentation.customers
 
+import ai.rojan.designlab.data.remote.BackendApiException
 import ai.rojan.designlab.data.remote.NetworkUnavailableException
 import ai.rojan.designlab.domain.repository.CurrentUserIdentityContext
 import ai.rojan.designlab.domain.repository.CurrentUserIdentityContextRepository
@@ -9,6 +10,7 @@ import ai.rojan.designlab.manager.domain.customer.CustomerNote
 import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
 import ai.rojan.designlab.manager.domain.customer.CustomerTag
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
+import ai.rojan.designlab.manager.domain.customer.UserLinkCandidate
 import ai.rojan.designlab.manager.domain.repository.CustomerRepository
 import ai.rojan.designlab.presentation.common.UiState
 import kotlinx.coroutines.Dispatchers
@@ -378,6 +380,160 @@ class ManagerCustomerProfileViewModelTest {
         assertEquals("a failed note create must not touch the loaded profile", stateBefore, stateAfter)
         assertTrue(viewModel.noteSubmissionState is NoteSubmissionState.Failed)
     }
+
+    // ---- CRM Customer -> User Account Linking, Phase 2 --------------------------------------
+
+    @Test
+    fun `the loaded customer's userId reflects the real backend linked state`() = runBlocking {
+        val linkedCustomer = customer.copy(userId = "user-1")
+        val repository = ProfileFakeCustomerRepository(customers = mapOf(linkedCustomer.id to linkedCustomer))
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
+
+        val state = viewModel.state as UiState.Success
+        assertEquals("user-1", state.data.customer.userId)
+    }
+
+    @Test
+    fun `an unlinked customer's userId is null`() = runBlocking {
+        val repository = ProfileFakeCustomerRepository(customers = mapOf(customer.id to customer))
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
+
+        val state = viewModel.state as UiState.Success
+        assertEquals(null, state.data.customer.userId)
+    }
+
+    @Test
+    fun `startLinkLookup on a real match moves linkState to Candidate, without linking anything`() = runBlocking {
+        val candidate = UserLinkCandidate(userId = "user-1", fullName = "Jane Real", phoneNumber = "+989120000000")
+        val repository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer),
+            lookupUserForLinkResult = { Result.success(candidate) },
+            linkToUserResult = { error("must not be called - lookup alone must never link") },
+        )
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
+
+        viewModel.startLinkLookup()
+
+        val linkState = viewModel.linkState as CustomerLinkState.Candidate
+        assertEquals(candidate, linkState.candidate)
+        // The customer's own linked state must still be untouched by a lookup alone.
+        assertEquals(null, (viewModel.state as UiState.Success).data.customer.userId)
+    }
+
+    @Test
+    fun `startLinkLookup with no match reports a real Failed linkState, via the existing error convention`() = runBlocking {
+        val repository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer),
+            lookupUserForLinkResult = { Result.failure(BackendApiException(404, null)) },
+        )
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
+
+        viewModel.startLinkLookup()
+
+        val failed = viewModel.linkState as CustomerLinkState.Failed
+        assertTrue(failed.message.isNotBlank())
+    }
+
+    @Test
+    fun `a network failure during lookup is reported through the existing error convention`() = runBlocking {
+        val repository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer),
+            lookupUserForLinkResult = { Result.failure(NetworkUnavailableException(Exception("offline"))) },
+        )
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
+
+        viewModel.startLinkLookup()
+
+        assertTrue(viewModel.linkState is CustomerLinkState.Failed)
+    }
+
+    @Test
+    fun `cancelLinkCandidate discards a found candidate without ever calling the link operation`() = runBlocking {
+        val candidate = UserLinkCandidate(userId = "user-1", fullName = "Jane Real", phoneNumber = "+989120000000")
+        val repository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer),
+            lookupUserForLinkResult = { Result.success(candidate) },
+            linkToUserResult = { error("must not be called - the Manager cancelled") },
+        )
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
+        viewModel.startLinkLookup()
+
+        viewModel.cancelLinkCandidate()
+
+        assertEquals(CustomerLinkState.Idle, viewModel.linkState)
+    }
+
+    @Test
+    fun `explicit confirmLink calls the real link operation with exactly the confirmed userId`() = runBlocking {
+        var capturedUserId: String? = null
+        val linked = customer.copy(userId = "user-1")
+        val repository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer),
+            history = listOf(historyEntry),
+            linkToUserResult = { userId ->
+                capturedUserId = userId
+                Result.success(linked)
+            },
+        )
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
+
+        viewModel.confirmLink("user-1")
+
+        assertEquals("user-1", capturedUserId)
+    }
+
+    @Test
+    fun `a successful confirmLink updates the customer's userId from the real backend response, preserving history and notes`() = runBlocking {
+        val realNote = CustomerNote(id = "note-1", text = "Real note", createdAt = "1404/07/05")
+        val linked = customer.copy(userId = "user-1")
+        val repository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer),
+            history = listOf(historyEntry),
+            notes = listOf(realNote),
+            linkToUserResult = { Result.success(linked) },
+        )
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
+
+        viewModel.confirmLink("user-1")
+
+        val state = viewModel.state as UiState.Success
+        assertEquals("user-1", state.data.customer.userId)
+        assertEquals(listOf(historyEntry), state.data.history)
+        assertEquals(listOf(realNote), state.data.notes)
+        assertEquals(CustomerLinkState.Idle, viewModel.linkState)
+    }
+
+    @Test
+    fun `a failed confirmLink leaves the previous state completely intact and reports the real backend error - never fabricates a linked state`() = runBlocking {
+        val repository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer),
+            history = listOf(historyEntry),
+            linkToUserResult = { Result.failure(BackendApiException(409, null)) },
+        )
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
+        val stateBefore = viewModel.state as UiState.Success
+
+        viewModel.confirmLink("user-1")
+
+        val stateAfter = viewModel.state as UiState.Success
+        assertEquals("a failed link must not touch the loaded profile", stateBefore, stateAfter)
+        assertEquals("userId must never be fabricated locally on failure", null, stateAfter.data.customer.userId)
+        assertTrue(viewModel.linkState is CustomerLinkState.Failed)
+    }
+
+    @Test
+    fun `a network failure during confirmLink is reported through the existing error convention, never as a fabricated success`() = runBlocking {
+        val repository = ProfileFakeCustomerRepository(
+            customers = mapOf(customer.id to customer),
+            linkToUserResult = { Result.failure(NetworkUnavailableException(Exception("offline"))) },
+        )
+        val viewModel = viewModel(customerRepositoryProvider = { repository })
+
+        viewModel.confirmLink("user-1")
+
+        assertTrue(viewModel.linkState is CustomerLinkState.Failed)
+        assertEquals(null, (viewModel.state as UiState.Success).data.customer.userId)
+    }
 }
 
 private fun identityContext(
@@ -417,6 +573,10 @@ private class ProfileFakeCustomerRepository(
     private val loadDetailResult: Result<Unit> = Result.success(Unit),
     /** Phase F4 — what [createNote] returns; models the backend's real response, keyed by nothing since these tests only ever create one note at a time. */
     private val createNoteResult: (String) -> Result<CustomerNote> = { error("not used by these tests") },
+    /** CRM Customer -> User Account Linking, Phase 2 — what [lookupUserForLink] returns. */
+    private val lookupUserForLinkResult: () -> Result<UserLinkCandidate> = { error("not used by these tests") },
+    /** CRM Customer -> User Account Linking, Phase 2 — what [linkToUser] returns, given the confirmed userId. */
+    private val linkToUserResult: (String) -> Result<ManagerCustomer> = { error("not used by these tests") },
 ) : CustomerRepository {
     private var customers: Map<String, ManagerCustomer> = customers
 
@@ -463,4 +623,15 @@ private class ProfileFakeCustomerRepository(
      */
     override suspend fun loadDetail(customerId: String): Result<Unit> =
         loadDetailResult.onSuccess { cachedNotes = backendNotes }
+
+    /** CRM Customer -> User Account Linking, Phase 2 — pure read, never touches [customers]. */
+    override suspend fun lookupUserForLink(customerId: String): Result<UserLinkCandidate> = lookupUserForLinkResult()
+
+    /**
+     * Mirrors [ai.rojan.designlab.manager.data.BackendCustomerRepository.linkToUser]'s real
+     * cache-update-on-success shape: a successful result also updates [customers] via [setCustomer],
+     * the same as the real backend's `POST .../link` response updating its cache directly.
+     */
+    override suspend fun linkToUser(customerId: String, userId: String): Result<ManagerCustomer> =
+        linkToUserResult(userId).onSuccess { linked -> setCustomer(linked) }
 }

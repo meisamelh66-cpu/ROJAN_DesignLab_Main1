@@ -9,6 +9,7 @@ import ai.rojan.designlab.manager.domain.customer.CustomerNote
 import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
 import ai.rojan.designlab.manager.domain.customer.CustomerTag
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
+import ai.rojan.designlab.manager.domain.customer.UserLinkCandidate
 import ai.rojan.designlab.manager.domain.repository.CustomerRepository
 import ai.rojan.designlab.presentation.common.UiState
 import kotlinx.coroutines.Dispatchers
@@ -376,4 +377,6 @@ private class FakeCustomerRepository(
     override fun getNoteHistory(customerId: String): List<CustomerNote> = emptyList()
     override suspend fun createNote(customerId: String, text: String): Result<CustomerNote> = error("not used by these tests")
     override suspend fun loadDetail(customerId: String): Result<Unit> = Result.success(Unit)
+    override suspend fun lookupUserForLink(customerId: String): Result<UserLinkCandidate> = error("not used by these tests")
+    override suspend fun linkToUser(customerId: String, userId: String): Result<ManagerCustomer> = error("not used by these tests")
 }

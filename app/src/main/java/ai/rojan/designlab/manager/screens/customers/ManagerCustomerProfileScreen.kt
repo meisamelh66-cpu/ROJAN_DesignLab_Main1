@@ -14,7 +14,9 @@ import ai.rojan.designlab.manager.domain.ai.ManagerCrmInsight
 import ai.rojan.designlab.manager.domain.customer.CustomerNote
 import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
+import ai.rojan.designlab.manager.domain.customer.UserLinkCandidate
 import ai.rojan.designlab.manager.domain.customer.displayLabel
+import ai.rojan.designlab.manager.presentation.customers.CustomerLinkState
 import ai.rojan.designlab.manager.presentation.customers.ManagerCustomerProfileViewModel
 import ai.rojan.designlab.manager.presentation.customers.ManagerCustomerProfileViewModelFactory
 import ai.rojan.designlab.manager.presentation.customers.NoteSubmissionState
@@ -47,8 +49,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
@@ -246,6 +250,15 @@ fun ManagerCustomerProfileScreen(
                     verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceLG),
                 ) {
                     item { CustomerIdentityHeader(customer, onEditClick = onEditClick) }
+                    item {
+                        AccountLinkSection(
+                            customer = customer,
+                            linkState = viewModel.linkState,
+                            onStartLookup = viewModel::startLinkLookup,
+                            onCancelCandidate = viewModel::cancelLinkCandidate,
+                            onConfirmLink = viewModel::confirmLink,
+                        )
+                    }
                     if (customerInsights.isNotEmpty()) {
                         item { AiInsightSection(customerInsights) }
                     }
@@ -391,6 +404,159 @@ private fun CustomerIdentityHeader(customer: ManagerCustomer, onEditClick: () ->
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * CRM Customer -> User Account Linking, Phase 2. [ManagerCustomer.userId] is the backend's own
+ * authoritative linked state - already-linked customers ([ManagerCustomer.userId] non-null) show a
+ * plain confirmation row and never offer a second link operation (UX rule: an already-linked
+ * customer cannot be re-linked). An unlinked customer offers [onStartLookup]
+ * ([ManagerCustomerProfileViewModel.startLinkLookup] - `GET .../link/lookup`, read-only); a returned
+ * [CustomerLinkState.Candidate] is shown side-by-side against this screen's own already-visible CRM
+ * customer identity so a Manager can visually tell "Existing CRM Customer" from "Matched ROJAN User
+ * Account" before either [onConfirmLink] ([ManagerCustomerProfileViewModel.confirmLink] - the only
+ * call that can mutate `Customer.userId`) or [onCancelCandidate]. Nothing here links automatically;
+ * every real backend error (`404` no match, `409` already linked, `403` permission denied, etc.)
+ * reaches this composable pre-rendered as Persian copy via [ai.rojan.designlab.presentation.common.userMessageFor]
+ * inside the ViewModel - no error-code branching happens here.
+ */
+@Composable
+private fun AccountLinkSection(
+    customer: ManagerCustomer,
+    linkState: CustomerLinkState,
+    onStartLookup: () -> Unit,
+    onCancelCandidate: () -> Unit,
+    onConfirmLink: (String) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        RtlSectionHeader(
+            text = "حساب کاربری",
+            style = RojanTypography.SectionTitle,
+            color = ManagerColors.TextPrimary,
+            horizontalPadding = 0.dp,
+        )
+
+        ManagerGlassSurface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = RojanDimens.SpaceMD),
+            shape = RojanShapes.GlassCard,
+        ) {
+            Column(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
+                if (customer.userId != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+                    ) {
+                        RojanIconContainer(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = null,
+                            size = RojanIconSize.Small,
+                            tint = ManagerColors.Turquoise,
+                        )
+                        Text(
+                            text = "این مشتری به یک حساب کاربری متصل است.",
+                            style = RojanTypography.Body,
+                            color = ManagerColors.TextSecondary,
+                        )
+                    }
+                } else {
+                    when (linkState) {
+                        is CustomerLinkState.Idle, is CustomerLinkState.Failed -> {
+                            Text(
+                                text = "این مشتری هنوز به هیچ حساب کاربری متصل نشده است.",
+                                style = RojanTypography.Body,
+                                color = ManagerColors.TextSecondary,
+                            )
+                            if (linkState is CustomerLinkState.Failed) {
+                                Text(
+                                    text = linkState.message,
+                                    style = RojanTypography.Caption,
+                                    color = RojanErrorText,
+                                    modifier = Modifier.padding(top = RojanDimens.SpaceXS),
+                                )
+                            }
+                            ManagerPrimaryButton(
+                                text = "اتصال به حساب کاربری",
+                                onClick = onStartLookup,
+                                modifier = Modifier.padding(top = RojanDimens.SpaceMD),
+                            )
+                        }
+
+                        is CustomerLinkState.LookingUp -> {
+                            ManagerPrimaryButton(
+                                text = "در حال جستجو...",
+                                onClick = {},
+                                enabled = false,
+                                loading = true,
+                            )
+                        }
+
+                        is CustomerLinkState.Candidate -> {
+                            LinkCandidateComparison(customer = customer, candidate = linkState.candidate)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = RojanDimens.SpaceMD),
+                                horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+                            ) {
+                                ManagerPrimaryButton(
+                                    text = "تأیید اتصال",
+                                    onClick = { onConfirmLink(linkState.candidate.userId) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                                ManagerPrimaryButton(
+                                    text = "انصراف",
+                                    onClick = onCancelCandidate,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                        }
+
+                        is CustomerLinkState.Linking -> {
+                            LinkCandidateComparison(customer = customer, candidate = null)
+                            ManagerPrimaryButton(
+                                text = "در حال اتصال...",
+                                onClick = {},
+                                enabled = false,
+                                loading = true,
+                                modifier = Modifier.padding(top = RojanDimens.SpaceMD),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The explicit human-confirmation UI itself: two visually distinct identities, never merged into
+ * one - "مشتری CRM موجود" (this screen's own already-visible [ManagerCustomer] identity) versus
+ * "حساب کاربری یافت‌شده" (the [UserLinkCandidate] the backend resolved). [candidate] is null only
+ * while [CustomerLinkState.Linking] shows this same comparison one more time during the link call
+ * itself, reusing the candidate that was already confirmed rather than requiring it be threaded
+ * through again.
+ */
+@Composable
+private fun LinkCandidateComparison(customer: ManagerCustomer, candidate: UserLinkCandidate?) {
+    Column(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
+        Text(text = "مشتری CRM موجود", style = RojanTypography.Caption, color = ManagerColors.TextSecondary)
+        Text(text = "${customer.name} · ${customer.phone}", style = RojanTypography.Body, color = ManagerColors.TextPrimary)
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = RojanDimens.SpaceSM)
+                .height(1.dp)
+                .background(ManagerColors.TextSecondary.copy(alpha = 0.16f)),
+        )
+
+        Text(text = "حساب کاربری یافت‌شده", style = RojanTypography.Caption, color = ManagerColors.TextSecondary)
+        if (candidate != null) {
+            Text(text = "${candidate.fullName} · ${candidate.phoneNumber}", style = RojanTypography.Body, color = ManagerColors.TurquoiseLight)
         }
     }
 }

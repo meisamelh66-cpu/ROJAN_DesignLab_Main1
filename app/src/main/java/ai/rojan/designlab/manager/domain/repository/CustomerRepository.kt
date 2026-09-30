@@ -3,6 +3,7 @@ package ai.rojan.designlab.manager.domain.repository
 import ai.rojan.designlab.manager.domain.customer.CustomerNote
 import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
+import ai.rojan.designlab.manager.domain.customer.UserLinkCandidate
 
 interface CustomerRepository {
     fun getAll(): List<ManagerCustomer>
@@ -48,4 +49,22 @@ interface CustomerRepository {
      * data is already fully in memory.
      */
     suspend fun loadDetail(customerId: String): Result<Unit>
+
+    /**
+     * CRM Customer -> User Account Linking, Phase 2 — resolves the User account matching this
+     * customer's own already-on-file phone number (`GET .../customers/{customerId}/link/lookup`),
+     * for a Manager to visually confirm before [linkToUser]. Read-only; never mutates [ManagerCustomer.userId]
+     * itself. A failure result (including "no match found") is the normal, expected outcome for most
+     * calls - not every unlinked walk-in has a matching real account yet.
+     */
+    suspend fun lookupUserForLink(customerId: String): Result<UserLinkCandidate>
+
+    /**
+     * CRM Customer -> User Account Linking, Phase 2 — the only operation that can set
+     * [ManagerCustomer.userId] (`POST .../customers/{customerId}/link`), and only after a Manager has
+     * explicitly confirmed the [UserLinkCandidate] [lookupUserForLink] returned. Never called
+     * automatically. Returns the backend's own updated [ManagerCustomer] - the authoritative
+     * post-link state, not a locally fabricated one.
+     */
+    suspend fun linkToUser(customerId: String, userId: String): Result<ManagerCustomer>
 }
