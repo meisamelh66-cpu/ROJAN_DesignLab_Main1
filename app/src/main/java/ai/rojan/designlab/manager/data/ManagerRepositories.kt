@@ -9,6 +9,7 @@ import ai.rojan.designlab.manager.domain.appointment.AppointmentStatus
 import ai.rojan.designlab.manager.domain.customer.CustomerNote
 import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
+import ai.rojan.designlab.manager.domain.customer.UserLinkCandidate
 import ai.rojan.designlab.manager.domain.dashboard.ManagerDashboardInsights
 import ai.rojan.designlab.manager.domain.dashboard.ManagerSalonSummary
 import ai.rojan.designlab.manager.domain.repository.AppointmentRepository
@@ -95,6 +96,10 @@ private object EmptyCustomerRepository : CustomerRepository {
     override suspend fun createNote(customerId: String, text: String): Result<CustomerNote> =
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
     override suspend fun loadDetail(customerId: String): Result<Unit> =
+        Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
+    override suspend fun lookupUserForLink(customerId: String): Result<UserLinkCandidate> =
+        Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
+    override suspend fun linkToUser(customerId: String, userId: String): Result<ManagerCustomer> =
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
 }
 

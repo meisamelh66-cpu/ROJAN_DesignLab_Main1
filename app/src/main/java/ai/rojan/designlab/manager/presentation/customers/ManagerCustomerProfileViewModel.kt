@@ -5,6 +5,7 @@ import ai.rojan.designlab.domain.repository.availableSalons
 import ai.rojan.designlab.manager.domain.customer.CustomerNote
 import ai.rojan.designlab.manager.domain.customer.CustomerServiceHistoryEntry
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
+import ai.rojan.designlab.manager.domain.customer.UserLinkCandidate
 import ai.rojan.designlab.manager.domain.repository.CustomerRepository
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.presentation.common.userMessageFor
@@ -37,6 +38,26 @@ sealed interface NoteSubmissionState {
     data object Idle : NoteSubmissionState
     data object Submitting : NoteSubmissionState
     data class Failed(val message: String) : NoteSubmissionState
+}
+
+/**
+ * CRM Customer -> User Account Linking, Phase 2 — the explicit lookup-then-confirm-then-link flow's
+ * own status, independent of [ManagerCustomerProfileViewModel.state] for the exact same reason
+ * [NoteSubmissionState] is: an in-flight or failed lookup/link must never collapse the already-loaded
+ * profile to [UiState.Loading]/[UiState.Error].
+ *
+ * [Candidate] is the one state between an explicit [ManagerCustomerProfileViewModel.startLinkLookup]
+ * and an explicit [ManagerCustomerProfileViewModel.confirmLink] or
+ * [ManagerCustomerProfileViewModel.cancelLinkCandidate] - nothing transitions out of it
+ * automatically, which is the whole point: the backend already resolved a real account, but linking
+ * it is a separate, Manager-confirmed decision.
+ */
+sealed interface CustomerLinkState {
+    data object Idle : CustomerLinkState
+    data object LookingUp : CustomerLinkState
+    data class Candidate(val candidate: UserLinkCandidate) : CustomerLinkState
+    data object Linking : CustomerLinkState
+    data class Failed(val message: String) : CustomerLinkState
 }
 
 /**
@@ -115,11 +136,65 @@ class ManagerCustomerProfileViewModel(
     var noteSubmissionState by mutableStateOf<NoteSubmissionState>(NoteSubmissionState.Idle)
         private set
 
+    /** CRM Customer -> User Account Linking, Phase 2 — see [CustomerLinkState]'s own doc comment. Independent of [state]. */
+    var linkState by mutableStateOf<CustomerLinkState>(CustomerLinkState.Idle)
+        private set
+
     init {
         load()
     }
 
     fun retry() = load()
+
+    /**
+     * CRM Customer -> User Account Linking, Phase 2 — explicit, Manager-initiated lookup only; never
+     * called automatically. On success, [linkState] becomes [CustomerLinkState.Candidate] and stays
+     * there until the Manager explicitly calls [confirmLink] or [cancelLinkCandidate] - nothing here
+     * links anything.
+     */
+    fun startLinkLookup() {
+        linkState = CustomerLinkState.LookingUp
+        viewModelScope.launch {
+            customerRepositoryProvider().lookupUserForLink(customerId)
+                .onSuccess { candidate -> linkState = CustomerLinkState.Candidate(candidate) }
+                .onFailure { error -> linkState = CustomerLinkState.Failed(userMessageFor(error)) }
+        }
+    }
+
+    /** Discards a [CustomerLinkState.Candidate]/[CustomerLinkState.Failed] without linking anything - the Manager declined. */
+    fun cancelLinkCandidate() {
+        linkState = CustomerLinkState.Idle
+    }
+
+    /**
+     * CRM Customer -> User Account Linking, Phase 2 — the only path that can call
+     * [CustomerRepository.linkToUser], and only ever with a [userId] the Manager has already seen and
+     * explicitly confirmed (normally [CustomerLinkState.Candidate.candidate]'s own id - the UI never
+     * has any other source to pass here). On success, [state] is updated directly from the backend's
+     * own returned [ManagerCustomer] (the `POST .../link` response is already the full, authoritative
+     * post-link customer - no extra fetch needed, and never a locally fabricated `userId`); history/
+     * notes already in [state] are preserved unchanged. A failure leaves [state] completely untouched
+     * and reports the real backend error via [linkState].
+     */
+    fun confirmLink(userId: String) {
+        linkState = CustomerLinkState.Linking
+        viewModelScope.launch {
+            customerRepositoryProvider().linkToUser(customerId, userId)
+                .onSuccess { linkedCustomer ->
+                    linkState = CustomerLinkState.Idle
+                    val current = state
+                    if (current is UiState.Success) {
+                        state = UiState.Success(current.data.copy(customer = linkedCustomer))
+                    } else {
+                        // Unreachable in practice (confirmLink is only ever invoked from a Success-state
+                        // UI), but if state somehow isn't Success, a full re-fetch is the honest fallback
+                        // rather than fabricating history/notes we don't have.
+                        load()
+                    }
+                }
+                .onFailure { error -> linkState = CustomerLinkState.Failed(userMessageFor(error)) }
+        }
+    }
 
     /**
      * Phase F4. Client-side mirror of the backend's own `@NotBlank`/`@Size(max = 2000)` validation

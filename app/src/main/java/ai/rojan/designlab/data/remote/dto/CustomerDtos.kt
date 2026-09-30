@@ -87,6 +87,32 @@ data class CustomerResponseDto(
 
 
 /**
+ * CRM Customer -> User Account Linking, Phase 2. Request body for
+ * POST /api/v1/salons/{salonId}/customers/{customerId}/link
+ * (`ROJAN_Backend`'s `LinkCustomerToUserRequest`).
+ */
+@Serializable
+data class LinkCustomerToUserRequestDto(
+    val userId: String,
+)
+
+
+/**
+ * CRM Customer -> User Account Linking, Phase 2. Response of
+ * GET /api/v1/salons/{salonId}/customers/{customerId}/link/lookup
+ * (`ROJAN_Backend`'s `UserLinkCandidateResponse`) - the one User account matching the customer's
+ * own already-on-file phone number. Deliberately minimal, matching the backend response exactly:
+ * no email/role/other account data.
+ */
+@Serializable
+data class UserLinkCandidateResponseDto(
+    val userId: String,
+    val fullName: String,
+    val phoneNumber: String,
+)
+
+
+/**
  * Request body for POST /api/v1/salons/{salonId}/customers/{customerId}/notes.
  *
  * Matches the backend's `AddCustomerNoteRequest` exactly - `text` only,
