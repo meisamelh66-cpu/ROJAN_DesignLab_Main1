@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.presentation.calendar
 
+import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.SalonRepository
 import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
@@ -15,6 +16,7 @@ class ManagerCalendarViewModelFactory(
     private val specialistRepository: SpecialistRepository,
     private val serviceCategoryRepository: ServiceCategoryRepository,
     private val serviceRepository: ServiceRepository,
+    private val activeSalonContextRepository: ActiveSalonContextRepository,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -24,6 +26,7 @@ class ManagerCalendarViewModelFactory(
             specialistRepository,
             serviceCategoryRepository,
             serviceRepository,
+            activeSalonContextRepository,
         ) as T
     }
 }

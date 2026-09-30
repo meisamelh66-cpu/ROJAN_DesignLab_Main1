@@ -2,6 +2,7 @@ package ai.rojan.designlab.manager.presentation.calendar
 
 import ai.rojan.designlab.data.remote.BackendApiException
 import ai.rojan.designlab.data.remote.NetworkUnavailableException
+import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.Booking
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.BookingStatus
@@ -17,6 +18,8 @@ import ai.rojan.designlab.domain.repository.SpecialistRepository
 import ai.rojan.designlab.presentation.common.UiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -62,20 +65,24 @@ class ManagerCalendarViewModelTest {
         notes = null,
     )
 
-    private fun viewModel(bookingRepository: FakeBookingRepository, salons: List<Salon> = listOf(salon)) =
-        ManagerCalendarViewModel(
-            salonRepository = FakeSalonRepository(Result.success(salons)),
-            bookingRepository = bookingRepository,
-            specialistRepository = FakeSpecialistRepository(
-                Result.success(listOf(Specialist("specialist-1", "salon-1", "متخصص", null, null))),
-            ),
-            serviceCategoryRepository = FakeServiceCategoryRepository(
-                Result.success(listOf(ServiceCategory("cat-1", "salon-1", "دسته", null))),
-            ),
-            serviceRepository = FakeServiceRepository(
-                Result.success(listOf(Service("service-1", "salon-1", "cat-1", "خدمت", null, 30, 100_000.0))),
-            ),
-        )
+    private fun viewModel(
+        bookingRepository: FakeBookingRepository,
+        activeSalonId: String? = salon.id,
+        getSalonResult: Result<Salon> = Result.success(salon),
+    ) = ManagerCalendarViewModel(
+        salonRepository = FakeSalonRepository(getSalonResult),
+        bookingRepository = bookingRepository,
+        specialistRepository = FakeSpecialistRepository(
+            Result.success(listOf(Specialist("specialist-1", "salon-1", "متخصص", null, null))),
+        ),
+        serviceCategoryRepository = FakeServiceCategoryRepository(
+            Result.success(listOf(ServiceCategory("cat-1", "salon-1", "دسته", null))),
+        ),
+        serviceRepository = FakeServiceRepository(
+            Result.success(listOf(Service("service-1", "salon-1", "cat-1", "خدمت", null, 30, 100_000.0))),
+        ),
+        activeSalonContextRepository = FakeActiveSalonContextRepository(activeSalonId),
+    )
 
     @Test
     fun `real salon bookings load into Success with resolved specialist and service names`() = runBlocking {
@@ -96,10 +103,26 @@ class ManagerCalendarViewModelTest {
     }
 
     @Test
-    fun `owning zero salons is also Empty`() = runBlocking {
-        val viewModel = viewModel(FakeBookingRepository(myBookingsResult = Result.success(PagedResult(emptyList(), 0, 200, 0, 0))), salons = emptyList())
+    fun `no active salon selected is also Empty`() = runBlocking {
+        val viewModel = viewModel(FakeBookingRepository(myBookingsResult = Result.success(PagedResult(emptyList(), 0, 200, 0, 0))), activeSalonId = null)
 
         assertEquals(UiState.Empty, viewModel.state)
+    }
+
+    /**
+     * Master Integration Repair, Pass 3 (Staff/Receptionist access): the real bug this fixes - a
+     * non-owner Manager/Receptionist has no owned salons at all, but does have a real, staff-
+     * inclusive active salon id (resolved at login by `ManagerAuthViewModel` from
+     * `availableSalons()` = owned + membership + specialist link). Before this fix, this exact
+     * scenario silently produced an empty Calendar via the owner-only `myOwnedSalons()`; now it
+     * resolves correctly via [ActiveSalonContextRepository] + [SalonRepository.getSalon].
+     */
+    @Test
+    fun `a real active salon resolves to Success even when it is not owned by the caller`() = runBlocking {
+        val viewModel = viewModel(FakeBookingRepository(myBookingsResult = Result.success(PagedResult(listOf(pendingBooking), 0, 200, 1, 1))))
+
+        val state = viewModel.state as UiState.Success
+        assertEquals("salon-1", state.data.salonId)
     }
 
     @Test
@@ -140,12 +163,19 @@ class ManagerCalendarViewModelTest {
     }
 }
 
-private class FakeSalonRepository(private val result: Result<List<Salon>>) : SalonRepository {
+private class FakeSalonRepository(private val result: Result<Salon>) : SalonRepository {
     override suspend fun browseSalons(page: Int, size: Int, nameFilter: String?, sortDirection: String): Result<PagedResult<Salon>> =
         error("not used by these tests")
 
-    override suspend fun getSalon(salonId: String): Result<Salon> = error("not used by these tests")
-    override suspend fun myOwnedSalons(): Result<List<Salon>> = result
+    override suspend fun getSalon(salonId: String): Result<Salon> = result
+    override suspend fun myOwnedSalons(): Result<List<Salon>> = error("not used by these tests - ManagerCalendarViewModel must never call the owner-only endpoint (Master Integration Repair, Pass 3)")
+}
+
+private class FakeActiveSalonContextRepository(initialSalonId: String?) : ActiveSalonContextRepository {
+    private val salonId = MutableStateFlow(initialSalonId)
+    override suspend fun saveActiveSalonId(salonId: String) { this.salonId.value = salonId }
+    override suspend fun clearActiveSalonId() { salonId.value = null }
+    override fun observeActiveSalonId(): Flow<String?> = salonId
 }
 
 private class FakeBookingRepository(private val myBookingsResult: Result<PagedResult<Booking>>) : BookingRepository {

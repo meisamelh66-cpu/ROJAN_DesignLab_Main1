@@ -142,13 +142,17 @@ class ManagerRepositoriesInitializeTest {
         customers: List<ManagerCustomer> = listOf(customer("new")),
         dashboard: Result<ManagerDashboardInsights> = Result.success(insights("new")),
         crm: Result<List<ManagerCrmInsight>> = Result.success(emptyList()),
+        // Data Integrity / API Contracts / Hardening (Master Integration Repair, PASS 7): overridable
+        // so a test can simulate a genuine salon switch (a different salonId than a prior init's) -
+        // every other existing test relies on this staying "salon-1" by default, unchanged.
+        salonId: String = "salon-1",
     ) = ManagerInitData(
         services = RepoSync(FakeServiceRepo(services), servicesSync),
         appointments = RepoSync(FakeAppointmentRepo(appointments), appointmentsSync),
         specialists = RepoSync(FakeSpecialistRepo(specialists), specialistsSync),
         customers = RepoSync(FakeCustomerRepo(customers), customersSync),
-        salon = ManagerSalonSummary("salon-1", "Salon", null, "0", null, "addr", null, null, true, null, null),
-        salonId = "salon-1",
+        salon = ManagerSalonSummary(salonId, "Salon", null, "0", null, "addr", null, null, true, null, null),
+        salonId = salonId,
         availabilityRepository = FakeAvailability,
         dashboardInsights = dashboard,
         crmInsights = crm,
@@ -286,6 +290,55 @@ class ManagerRepositoriesInitializeTest {
         assertEquals(listOf("NEW_SP"), ManagerRepositories.specialists.getAll().map { it.id })
         assertEquals(listOf("NEW_C"), ManagerRepositories.customers.getAll().map { it.id })
         assertEquals(listOf("OLD_A"), ManagerRepositories.appointments.getAll().map { it.id })
+    }
+
+    // ---- PASS 7: a failed category on a genuine salon switch must never
+    // ---- keep serving the PREVIOUS salon's repository ----------
+
+    @Test
+    fun `a failed category on a real salon switch resets to Empty, never keeps serving the previous salon's repo`() = runTest(dispatcher) {
+        ManagerRepositories.initializeWith {
+            Result.success(initData(salonId = "salon-OLD", services = listOf(service("OLD_S"))))
+        }
+        assertEquals(listOf("OLD_S"), ManagerRepositories.services.getAll().map { it.id })
+
+        // Switch to a different salon; services fails to sync for the new salon.
+        val result = ManagerRepositories.initializeWith {
+            Result.success(
+                initData(
+                    salonId = "salon-NEW",
+                    servicesSync = Result.failure(IOException("services down for new salon")),
+                    appointments = listOf(appointment("NEW_A")),
+                ),
+            )
+        }
+
+        assertTrue(result.isFailure)
+        // The new salon is already reflected (the salon fetch itself succeeded)...
+        assertEquals("salon-NEW", ManagerRepositories.salonId)
+        // ...but the failed category must NOT still be the OLD salon's live repository -
+        // a write through it must fail loudly, never silently target salon-OLD.
+        assertTrue(ManagerRepositories.services.getAll().isEmpty())
+        val writeAttempt = ManagerRepositories.services.create(service("should-not-write-anywhere"))
+        assertTrue(writeAttempt.isFailure)
+        assertTrue(writeAttempt.exceptionOrNull() is IllegalStateException)
+        // A category that DID sync for the new salon is applied normally.
+        assertEquals(listOf("NEW_A"), ManagerRepositories.appointments.getAll().map { it.id })
+    }
+
+    @Test
+    fun `a failed category on a SAME-salon refresh still keeps the previous good data (unchanged behavior)`() = runTest(dispatcher) {
+        ManagerRepositories.initializeWith {
+            Result.success(initData(salonId = "salon-1", services = listOf(service("GOOD_S"))))
+        }
+
+        val result = ManagerRepositories.initializeWith {
+            Result.success(initData(salonId = "salon-1", servicesSync = Result.failure(IOException("transient"))))
+        }
+
+        assertTrue(result.isFailure)
+        // Same salon as before - last-known-good still applies, exactly as T4/T5 already verify.
+        assertEquals(listOf("GOOD_S"), ManagerRepositories.services.getAll().map { it.id })
     }
 
     // ---- T6: first initialization with a failure ---------------

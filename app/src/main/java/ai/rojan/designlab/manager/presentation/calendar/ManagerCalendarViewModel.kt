@@ -1,6 +1,7 @@
 package ai.rojan.designlab.manager.presentation.calendar
 
 import ai.rojan.designlab.data.remote.BackendApiException
+import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.BookingStatus
 import ai.rojan.designlab.domain.repository.SalonRepository
@@ -16,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -58,6 +60,17 @@ data class ManagerCalendarData(
  * own priority list. Both reload from the backend afterward regardless of
  * outcome, same "the refreshed list is always the source of truth"
  * pattern `AppointmentsViewModel.cancelBooking` already established.
+ *
+ * Master Integration Repair, Pass 3 (Staff/Receptionist access): [load] previously resolved the
+ * salon via the owner-only `salonRepository.myOwnedSalons()` (`GET /api/v1/salons/mine`), the same
+ * endpoint [ai.rojan.designlab.manager.data.ManagerRepositories]'s own doc comment already documents
+ * as returning empty for a genuine `SalonMembership`-based Manager/Receptionist - a non-owner staff
+ * account saw a silent, unexplained empty Calendar despite `Permission.MANAGE_BOOKINGS` already
+ * granting them real backend access. Now resolves the same way
+ * [ai.rojan.designlab.manager.data.ManagerRepositories.loadFromBackend] does: [activeSalonContextRepository]'s
+ * already-staff-inclusive active salon id (populated at login by
+ * `ManagerAuthViewModel.resolveActiveSalon` from `availableSalons()` = owned + membership +
+ * specialist link), then [SalonRepository.getSalon] - existence-only, not an ownership check.
  */
 class ManagerCalendarViewModel(
     private val salonRepository: SalonRepository,
@@ -65,6 +78,7 @@ class ManagerCalendarViewModel(
     private val specialistRepository: SpecialistRepository,
     private val serviceCategoryRepository: ServiceCategoryRepository,
     private val serviceRepository: ServiceRepository,
+    private val activeSalonContextRepository: ActiveSalonContextRepository,
 ) : ViewModel() {
 
     var state by mutableStateOf<UiState<ManagerCalendarData>>(UiState.Loading)
@@ -86,15 +100,13 @@ class ManagerCalendarViewModel(
         state = UiState.Loading
         requiresReauth = false
         viewModelScope.launch {
-            salonRepository.myOwnedSalons()
-                .onSuccess { salons ->
-                    val salon = salons.firstOrNull()
-                    if (salon == null) {
-                        state = UiState.Empty
-                        return@launch
-                    }
-                    loadForSalon(salon.id)
-                }
+            val activeSalonId = activeSalonContextRepository.observeActiveSalonId().first()
+            if (activeSalonId == null) {
+                state = UiState.Empty
+                return@launch
+            }
+            salonRepository.getSalon(activeSalonId)
+                .onSuccess { salon -> loadForSalon(salon.id) }
                 .onFailure { error -> handleFailure(error) }
         }
     }

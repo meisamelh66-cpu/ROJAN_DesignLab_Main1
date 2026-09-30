@@ -458,6 +458,7 @@ private fun managerBookingViewModelFor(
             specialistRepository = BackendApiContainerHolder.get(context).specialistRepository,
             availabilityRepository = BackendApiContainerHolder.get(context).availabilityRepository,
             bookingRepository = BackendApiContainerHolder.get(context).bookingRepository,
+            activeSalonContextRepository = BackendApiContainerHolder.get(context).activeSalonContextRepository,
         ),
         // 5B6-1: the extras Navigation-Compose restores SavedStateHandle through.
         extras = parentEntry.defaultViewModelCreationExtras,
