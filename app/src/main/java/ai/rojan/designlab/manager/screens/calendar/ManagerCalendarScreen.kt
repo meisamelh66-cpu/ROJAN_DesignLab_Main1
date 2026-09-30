@@ -138,6 +138,7 @@ fun ManagerCalendarScreen(
             specialistRepository = BackendApiContainerHolder.get(LocalContext.current).specialistRepository,
             serviceCategoryRepository = BackendApiContainerHolder.get(LocalContext.current).serviceCategoryRepository,
             serviceRepository = BackendApiContainerHolder.get(LocalContext.current).serviceRepository,
+            activeSalonContextRepository = BackendApiContainerHolder.get(LocalContext.current).activeSalonContextRepository,
         ),
     ),
 ) {

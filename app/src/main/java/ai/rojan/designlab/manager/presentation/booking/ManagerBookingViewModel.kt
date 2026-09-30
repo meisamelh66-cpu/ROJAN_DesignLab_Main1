@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.presentation.booking
 
+import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.AvailabilityRepository
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.SalonCustomer
@@ -23,6 +24,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -84,6 +86,7 @@ class ManagerBookingViewModel(
     private val specialistRepository: SpecialistRepository,
     private val availabilityRepository: AvailabilityRepository,
     private val bookingRepository: BookingRepository,
+    private val activeSalonContextRepository: ActiveSalonContextRepository,
     /** Defaults to a fresh, unattached handle so every existing positional/named call site (including this ViewModel's own non-SavedState-focused unit tests) keeps compiling unchanged; the real navigation call site always supplies the graph-restored one — see this class's own doc comment. */
     private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
@@ -132,16 +135,28 @@ class ManagerBookingViewModel(
 
     fun retryLoadCatalog() = loadCatalog()
 
+    /**
+     * Master Integration Repair, Pass 3 (Staff/Receptionist access): previously resolved the salon
+     * via the owner-only `salonRepository.myOwnedSalons()` (`GET /api/v1/salons/mine`) - a non-owner
+     * Manager/Receptionist got a silent empty catalog and could never reach the service/specialist
+     * steps, despite `Permission.MANAGE_BOOKINGS` already granting them real backend access to create
+     * a booking. Now resolves the same staff-inclusive way
+     * [ai.rojan.designlab.manager.data.ManagerRepositories.loadFromBackend] and
+     * [ai.rojan.designlab.manager.presentation.calendar.ManagerCalendarViewModel] do: the already
+     * staff-inclusive active salon id from [activeSalonContextRepository] (populated at login by
+     * `ManagerAuthViewModel.resolveActiveSalon` from `availableSalons()`), then [SalonRepository.getSalon]
+     * - existence-only, not an ownership check.
+     */
     private fun loadCatalog() {
         catalogState = UiState.Loading
         viewModelScope.launch {
-            salonRepository.myOwnedSalons()
-                .onSuccess { salons ->
-                    val salon = salons.firstOrNull()
-                    if (salon == null) {
-                        catalogState = UiState.Empty
-                        return@launch
-                    }
+            val activeSalonId = activeSalonContextRepository.observeActiveSalonId().first()
+            if (activeSalonId == null) {
+                catalogState = UiState.Empty
+                return@launch
+            }
+            salonRepository.getSalon(activeSalonId)
+                .onSuccess { salon ->
                     val specialists = specialistRepository.getSpecialists(salon.id).getOrElse {
                         catalogState = UiState.Error(userMessageFor(it))
                         return@launch

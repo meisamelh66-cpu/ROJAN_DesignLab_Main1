@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.presentation.booking
 
+import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.AvailabilityRepository
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.SalonCustomerRepository
@@ -36,6 +37,7 @@ class ManagerBookingViewModelFactory(
     private val specialistRepository: SpecialistRepository,
     private val availabilityRepository: AvailabilityRepository,
     private val bookingRepository: BookingRepository,
+    private val activeSalonContextRepository: ActiveSalonContextRepository,
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
@@ -48,6 +50,7 @@ class ManagerBookingViewModelFactory(
             specialistRepository = specialistRepository,
             availabilityRepository = availabilityRepository,
             bookingRepository = bookingRepository,
+            activeSalonContextRepository = activeSalonContextRepository,
             savedStateHandle = extras.createSavedStateHandle(),
         ) as T
     }

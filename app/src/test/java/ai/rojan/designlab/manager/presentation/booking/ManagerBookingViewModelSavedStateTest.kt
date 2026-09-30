@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.presentation.booking
 
+import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.AvailabilityRepository
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.BookingStatus
@@ -18,6 +19,8 @@ import ai.rojan.designlab.domain.repository.TimeSlot
 import androidx.lifecycle.SavedStateHandle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -62,6 +65,7 @@ class ManagerBookingViewModelSavedStateTest {
         specialistRepository = FakeSpecialistRepository,
         availabilityRepository = FakeAvailabilityRepository,
         bookingRepository = FakeBookingRepository,
+        activeSalonContextRepository = FakeActiveSalonContextRepository,
         savedStateHandle = handle,
     )
 
@@ -131,8 +135,15 @@ class ManagerBookingViewModelSavedStateTest {
     private object FakeSalonRepository : SalonRepository {
         override suspend fun browseSalons(page: Int, size: Int, nameFilter: String?, sortDirection: String): Result<PagedResult<Salon>> =
             error("not used by these tests")
-        override suspend fun getSalon(salonId: String): Result<Salon> = error("not used by these tests")
-        override suspend fun myOwnedSalons(): Result<List<Salon>> = Result.success(emptyList())
+        override suspend fun getSalon(salonId: String): Result<Salon> = error("not used by these tests - no active salon is configured, so this must never be called")
+        override suspend fun myOwnedSalons(): Result<List<Salon>> = error("not used by these tests - ManagerBookingViewModel must never call the owner-only endpoint (Master Integration Repair, Pass 3)")
+    }
+
+    /** No active salon selected - these tests only exercise the wizard's SavedStateHandle-backed selection persistence, which is independent of [ManagerBookingViewModel.catalogState]. */
+    private object FakeActiveSalonContextRepository : ActiveSalonContextRepository {
+        override suspend fun saveActiveSalonId(salonId: String) {}
+        override suspend fun clearActiveSalonId() {}
+        override fun observeActiveSalonId(): Flow<String?> = flowOf(null)
     }
 
     private object FakeSalonCustomerRepository : SalonCustomerRepository {
