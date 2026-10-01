@@ -81,3 +81,41 @@ fun ManagerEmptyState(title: String, modifier: Modifier = Modifier, description:
         }
     }
 }
+
+/**
+ * Salon Activation Awareness (Sprint 1 / P0 Master Integration Repair,
+ * PASS 1): real backend `onboardingStatus == DRAFT` state, surfaced
+ * honestly — this app never computes or performs activation itself
+ * (`Permission.MANAGE_SALON`, hence `POST /api/v1/salons/{id}/activate`,
+ * stays owner-only and fully server-enforced, per the existing,
+ * already-live, already-tested Web onboarding flow at
+ * `/no-tenant/onboarding`). [onActivateClick] is expected to hand off to
+ * that real flow (e.g. opening it in a browser) — this component never
+ * calls `/activate` itself and never re-derives the readiness gate
+ * client-side.
+ */
+@Composable
+fun ManagerSalonDraftBanner(modifier: Modifier = Modifier, onActivateClick: () -> Unit) {
+    ManagerGlassSurface(modifier = modifier.fillMaxWidth(), shape = RojanShapes.Small) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                "این سالن هنوز فعال نشده است",
+                style = RojanTypography.CardTitle,
+                color = ManagerColors.TextPrimary,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(RojanDimens.SpaceXS))
+            Text(
+                "تا زمانی که سالن فعال نشود، در اپلیکیشن مشتری و وب‌سایت روژان AI نمایش داده نمی‌شود.",
+                style = RojanTypography.Body,
+                color = ManagerColors.TextSecondary,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(RojanDimens.SpaceLG))
+            ManagerPrimaryButton(text = "فعال‌سازی سالن در وب‌سایت", onClick = onActivateClick)
+        }
+    }
+}
