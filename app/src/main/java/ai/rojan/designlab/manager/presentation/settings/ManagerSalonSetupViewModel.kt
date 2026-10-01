@@ -31,6 +31,18 @@ data class SalonSetupFormState(
 )
 
 /**
+ * Manager Location Picker: result of a device-location capture attempt,
+ * shown as an inline caption next to the coordinate fields. Purely
+ * informational — [ManagerSalonRepository.updateSalon] has no accuracy
+ * field to persist, so this is never sent to the backend, only displayed
+ * before the owner taps Save.
+ */
+sealed interface LocationCaptureMessage {
+    data class Success(val accuracyMeters: Float) : LocationCaptureMessage
+    data class Error(val text: String) : LocationCaptureMessage
+}
+
+/**
  * Owns loading + form + submission state for
  * [ai.rojan.designlab.manager.screens.settings.ManagerSalonSetupScreen] —
  * proper ViewModel+Factory, deliberately not read from the
@@ -61,6 +73,12 @@ class ManagerSalonSetupViewModel(
     private val _submitError = MutableStateFlow<String?>(null)
     val submitError: StateFlow<String?> = _submitError.asStateFlow()
 
+    private val _isCapturingLocation = MutableStateFlow(false)
+    val isCapturingLocation: StateFlow<Boolean> = _isCapturingLocation.asStateFlow()
+
+    private val _locationCaptureMessage = MutableStateFlow<LocationCaptureMessage?>(null)
+    val locationCaptureMessage: StateFlow<LocationCaptureMessage?> = _locationCaptureMessage.asStateFlow()
+
     /** `null` until a real salon is loaded or created — the mode sentinel [save] switches on. */
     private var existingSalonId: String? = null
 
@@ -70,6 +88,7 @@ class ManagerSalonSetupViewModel(
 
     fun load() {
         _loadState.value = UiState.Loading
+        _locationCaptureMessage.value = null
         viewModelScope.launch {
             salonRepository.getMySalon()
                 .onSuccess { salon ->
@@ -117,10 +136,37 @@ class ManagerSalonSetupViewModel(
 
     fun onLatitudeChange(value: String) {
         _formState.value = _formState.value.copy(latitude = value)
+        _locationCaptureMessage.value = null
     }
 
     fun onLongitudeChange(value: String) {
         _formState.value = _formState.value.copy(longitude = value)
+        _locationCaptureMessage.value = null
+    }
+
+    /**
+     * Manager Location Picker: the Android location provider is the sole
+     * authoritative source for these coordinates (never an external map
+     * app, which has no way to return a value here) — these three methods
+     * are the only entry points the capture flow in
+     * [ai.rojan.designlab.manager.screens.settings.ManagerSalonSetupScreen]
+     * uses to report back what the device's `LocationManager` actually
+     * produced.
+     */
+    fun onLocationCaptureStarted() {
+        _locationCaptureMessage.value = null
+        _isCapturingLocation.value = true
+    }
+
+    fun onLocationCaptured(latitude: Double, longitude: Double, accuracyMeters: Float) {
+        _formState.value = _formState.value.copy(latitude = latitude.toString(), longitude = longitude.toString())
+        _isCapturingLocation.value = false
+        _locationCaptureMessage.value = LocationCaptureMessage.Success(accuracyMeters)
+    }
+
+    fun onLocationCaptureFailed(message: String) {
+        _isCapturingLocation.value = false
+        _locationCaptureMessage.value = LocationCaptureMessage.Error(message)
     }
 
     /**
