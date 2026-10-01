@@ -32,14 +32,17 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.LayoutDirection
 import kotlinx.coroutines.launch
 
 /**
@@ -105,6 +108,7 @@ fun ManagerServiceEditScreen(
                 text = if (isNew) "خدمت جدید" else "ویرایش خدمت",
                 style = RojanTypography.ScreenTitle,
                 color = ManagerColors.TextPrimary,
+                modifier = Modifier.fillMaxWidth(),
             )
 
             ManagerGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
@@ -134,13 +138,14 @@ fun ManagerServiceEditScreen(
                         enabled = !isSubmitting,
                     )
 
-                    Text(text = "دسته‌بندی", style = RojanTypography.Caption, color = ManagerColors.TextSecondary)
+                    Text(text = "دسته‌بندی", style = RojanTypography.Caption, color = ManagerColors.TextSecondary, modifier = Modifier.fillMaxWidth())
                     if (isNew) {
                         if (categoryNames.isEmpty()) {
                             Text(
                                 text = "هیچ دسته‌بندی‌ای برای این سالن ثبت نشده است.",
                                 style = RojanTypography.Caption,
                                 color = RojanErrorText,
+                                modifier = Modifier.fillMaxWidth(),
                             )
                         } else {
                             CategoryChipRow(
@@ -150,13 +155,13 @@ fun ManagerServiceEditScreen(
                             )
                         }
                     } else {
-                        Text(text = selectedCategory, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
+                        Text(text = selectedCategory, style = RojanTypography.Body, color = ManagerColors.TextPrimary, modifier = Modifier.fillMaxWidth())
                     }
                 }
             }
 
             if (errorMessage != null) {
-                Text(text = errorMessage.orEmpty(), style = RojanTypography.Caption, color = RojanErrorText)
+                Text(text = errorMessage.orEmpty(), style = RojanTypography.Caption, color = RojanErrorText, modifier = Modifier.fillMaxWidth())
             }
 
             ManagerPrimaryButton(
@@ -239,25 +244,30 @@ private fun ServiceTextField(
     keyboardType: KeyboardType,
     enabled: Boolean,
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        enabled = enabled,
-        singleLine = true,
-        textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary).withDirectionFor(value),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = ManagerColors.TextPrimary,
-            unfocusedTextColor = ManagerColors.TextPrimary,
-            focusedBorderColor = ManagerColors.Turquoise,
-            unfocusedBorderColor = ManagerColors.TextSecondary,
-            focusedLabelColor = ManagerColors.Turquoise,
-            unfocusedLabelColor = ManagerColors.TextSecondary,
-            cursorColor = ManagerColors.Turquoise,
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    )
+    // RTL fix: scope Rtl layout direction to just this field so its
+    // floating label right-anchors - withDirectionFor below only governs
+    // the typed value's own direction/alignment, not the label's position.
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label) },
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            enabled = enabled,
+            singleLine = true,
+            textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary).withDirectionFor(value),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = ManagerColors.TextPrimary,
+                unfocusedTextColor = ManagerColors.TextPrimary,
+                focusedBorderColor = ManagerColors.Turquoise,
+                unfocusedBorderColor = ManagerColors.TextSecondary,
+                focusedLabelColor = ManagerColors.Turquoise,
+                unfocusedLabelColor = ManagerColors.TextSecondary,
+                cursorColor = ManagerColors.Turquoise,
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Preview(

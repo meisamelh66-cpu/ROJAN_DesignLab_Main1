@@ -114,7 +114,9 @@ private fun BookingServiceRow(service: Service, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            // RTL fix: no leading icon anchors this row, so it right-anchors
+            // as a whole rather than hugging the left edge by default.
+            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
                 Text(text = service.name, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
                 Text(
                     text = formatDurationMinutes(service.durationMinutes),

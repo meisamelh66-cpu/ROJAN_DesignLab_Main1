@@ -164,8 +164,14 @@ class ManagerWorkingHoursViewModelTest {
 
     @Test
     fun `saving an open day calls setWorkingHours with a single interval`() = runTest {
+        // SUNDAY already has a record so this save is NOT the salon's very
+        // first ever - the Initial Default Weekly Schedule propagation
+        // (covered by its own tests below) must not fire here, keeping this
+        // a plain single-day save.
         val repository = FakeManagerWorkingHoursRepository(
-            getWorkingHoursResult = Result.success(emptyList()),
+            getWorkingHoursResult = Result.success(
+                listOf(SalonWorkingHours(dayOfWeek = "SUNDAY", intervals = listOf(TimeInterval("08:00:00", "16:00:00")))),
+            ),
             setWorkingHoursResult = Result.success(SalonWorkingHours("SATURDAY", listOf(TimeInterval("09:00:00", "18:00:00")))),
         )
         val viewModel = ManagerWorkingHoursViewModel(salonId = "salon-1", repository = repository)
@@ -181,6 +187,61 @@ class ManagerWorkingHoursViewModelTest {
         val saturday = days(viewModel.loadState.value).first { it.dayOfWeek == "SATURDAY" }
         assertFalse(saturday.isSaving)
         assertNull(saturday.error)
+    }
+
+    @Test
+    fun `saving the salon's very first day seeds the same interval as the default onto every other still-blank day`() = runTest {
+        val repository = FakeManagerWorkingHoursRepository(
+            getWorkingHoursResult = Result.success(emptyList()),
+            setWorkingHoursResult = Result.success(SalonWorkingHours("IGNORED", listOf(TimeInterval("09:00:00", "18:00:00")))),
+        )
+        val viewModel = ManagerWorkingHoursViewModel(salonId = "salon-1", repository = repository)
+
+        viewModel.onToggleOpen("SATURDAY", true)
+        viewModel.onStartChange("SATURDAY", "09:00:00")
+        viewModel.onEndChange("SATURDAY", "18:00:00")
+        viewModel.saveDay("SATURDAY")
+
+        // 1 real PUT for Saturday itself + 1 real PUT for each of the other
+        // 6 still-blank days - every day ends up with its own genuine
+        // backend record, not a client-only shadow value.
+        assertEquals(7, repository.setWorkingHoursCallCount)
+        val loaded = days(viewModel.loadState.value)
+        assertEquals(7, loaded.size)
+        loaded.forEach { day ->
+            assertTrue("${day.dayOfWeek} should be open", day.isOpen)
+            assertEquals("09:00:00", day.start)
+            assertEquals("18:00:00", day.end)
+            assertFalse(day.isSaving)
+        }
+    }
+
+    @Test
+    fun `initial default propagation never overwrites a day that already has its own existing record`() = runTest {
+        // FRIDAY already has a custom record, so this salon has already had
+        // its initial schedule established - saving SATURDAY for the first
+        // time must not treat it as the "very first day" and must not touch
+        // FRIDAY or propagate to anyone else.
+        val existingFriday = SalonWorkingHours(dayOfWeek = "FRIDAY", intervals = listOf(TimeInterval("10:00:00", "14:00:00")))
+        val repository = FakeManagerWorkingHoursRepository(
+            getWorkingHoursResult = Result.success(listOf(existingFriday)),
+            setWorkingHoursResult = Result.success(SalonWorkingHours("SATURDAY", listOf(TimeInterval("09:00:00", "18:00:00")))),
+        )
+        val viewModel = ManagerWorkingHoursViewModel(salonId = "salon-1", repository = repository)
+
+        viewModel.onToggleOpen("SATURDAY", true)
+        viewModel.onStartChange("SATURDAY", "09:00:00")
+        viewModel.onEndChange("SATURDAY", "18:00:00")
+        viewModel.saveDay("SATURDAY")
+
+        assertEquals(1, repository.setWorkingHoursCallCount)
+        val loaded = days(viewModel.loadState.value)
+        val friday = loaded.first { it.dayOfWeek == "FRIDAY" }
+        assertEquals("10:00:00", friday.start)
+        assertEquals("14:00:00", friday.end)
+        assertTrue(friday.hasExistingRecord)
+        val sunday = loaded.first { it.dayOfWeek == "SUNDAY" }
+        assertFalse("SUNDAY must stay blank, not silently defaulted", sunday.isOpen)
     }
 
     @Test

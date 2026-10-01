@@ -233,6 +233,7 @@ private fun CustomerSearchField(query: String, onQueryChange: (String) -> Unit) 
                                 text = "جستجوی نام یا شماره تماس...",
                                 style = RojanTypography.Body,
                                 color = ManagerColors.TextSecondary,
+                                modifier = Modifier.fillMaxWidth(),
                             )
                         }
                         innerTextField()

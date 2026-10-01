@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -92,6 +93,7 @@ fun ManagerOtpAuthScreen(
                 text = "ورود مدیر",
                 style = RojanTypography.HeroTitle,
                 color = ManagerColors.TextPrimary,
+                modifier = Modifier.fillMaxWidth(),
             )
 
             when (val step = otpStep) {
@@ -100,6 +102,7 @@ fun ManagerOtpAuthScreen(
                         text = "شماره موبایل مدیر را وارد کنید",
                         style = RojanTypography.Body,
                         color = ManagerColors.TextSecondary,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     PhoneEntryStep(
                         isSubmitting = isSubmitting,
@@ -112,6 +115,7 @@ fun ManagerOtpAuthScreen(
                         text = "کد ارسال‌شده به ${step.phoneNumber} را وارد کنید",
                         style = RojanTypography.Body,
                         color = ManagerColors.TextSecondary,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     CodeEntryStep(
                         isSubmitting = isSubmitting,
@@ -130,7 +134,9 @@ fun ManagerOtpAuthScreen(
                     color = RojanErrorText,
                     // 5B-2: polite live region so the error is announced on
                     // appear / change. Text and layout unchanged.
-                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics { liveRegion = LiveRegionMode.Polite },
                 )
             }
         }
@@ -182,13 +188,17 @@ private fun CodeEntryStep(
 
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM, Alignment.End),
     ) {
-        TextButton(onClick = onResend, enabled = !isSubmitting) {
-            Text("ارسال مجدد کد", color = ManagerColors.Turquoise)
-        }
+        // RTL fix (Pattern 4): "ویرایش شماره موبایل" coded first (packs
+        // left under Arrangement.End) and the primary "ارسال مجدد کد" action
+        // second (packs rightmost) - right-anchored, primary action
+        // physically closest to the reading-start edge.
         TextButton(onClick = onEditPhoneNumber, enabled = !isSubmitting) {
             Text("ویرایش شماره موبایل", color = ManagerColors.TextSecondary)
+        }
+        TextButton(onClick = onResend, enabled = !isSubmitting) {
+            Text("ارسال مجدد کد", color = ManagerColors.Turquoise)
         }
     }
 

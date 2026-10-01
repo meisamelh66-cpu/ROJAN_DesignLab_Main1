@@ -146,7 +146,7 @@ internal fun BookingSearchField(query: String, onQueryChange: (String) -> Unit, 
                     cursorBrush = SolidColor(ManagerColors.Turquoise),
                     decorationBox = { innerTextField ->
                         if (query.isEmpty()) {
-                            Text(text = placeholder, style = RojanTypography.Body, color = ManagerColors.TextSecondary)
+                            Text(text = placeholder, style = RojanTypography.Body, color = ManagerColors.TextSecondary, modifier = Modifier.fillMaxWidth())
                         }
                         innerTextField()
                     },
@@ -171,7 +171,9 @@ private fun BookingCustomerRow(customer: SalonCustomer, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            // RTL fix: no leading icon anchors this row, so it right-anchors
+            // as a whole rather than hugging the left edge by default.
+            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
                 Text(text = customer.fullName, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
                 // email is nullable (phone-only OTP accounts may have none
                 // on file) — omit the row rather than show a fabricated

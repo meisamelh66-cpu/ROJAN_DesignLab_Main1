@@ -59,6 +59,7 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,7 +70,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 
 /**
@@ -365,13 +368,17 @@ private fun CustomerIdentityHeader(customer: ManagerCustomer, onEditClick: () ->
                             }
                         },
                 ) {
+                    // RTL fix: text leading, icon trailing - matches this
+                    // codebase's own RtlInfoRow convention for icon+caption
+                    // rows (ui/components/rtl/RtlLayoutKit.kt), the mirror of
+                    // the previous icon-first composition.
+                    Text(text = customer.phone, style = RojanTypography.Caption, color = ManagerColors.TextSecondary)
                     RojanIconContainer(
                         imageVector = Icons.Filled.Phone,
                         contentDescription = null,
                         size = RojanIconSize.Small,
                         tint = ManagerColors.TextSecondary,
                     )
-                    Text(text = customer.phone, style = RojanTypography.Caption, color = ManagerColors.TextSecondary)
                 }
                 Text(
                     text = "${customer.totalVisits} نوبت گذشته",
@@ -448,19 +455,25 @@ private fun AccountLinkSection(
             Column(modifier = Modifier.padding(RojanDimens.SpaceMD)) {
                 if (customer.userId != null) {
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
                     ) {
+                        // RTL fix: text leading (weighted, right-anchors) and
+                        // icon trailing - matches RtlInfoRow's convention;
+                        // the previous icon-first/no-fillMaxWidth shape left
+                        // this sentence hugging the card's left edge.
+                        Text(
+                            text = "این مشتری به یک حساب کاربری متصل است.",
+                            style = RojanTypography.Body,
+                            color = ManagerColors.TextSecondary,
+                            modifier = Modifier.weight(1f),
+                        )
                         RojanIconContainer(
                             imageVector = Icons.Filled.CheckCircle,
                             contentDescription = null,
                             size = RojanIconSize.Small,
                             tint = ManagerColors.Turquoise,
-                        )
-                        Text(
-                            text = "این مشتری به یک حساب کاربری متصل است.",
-                            style = RojanTypography.Body,
-                            color = ManagerColors.TextSecondary,
                         )
                     }
                 } else {
@@ -470,13 +483,16 @@ private fun AccountLinkSection(
                                 text = "این مشتری هنوز به هیچ حساب کاربری متصل نشده است.",
                                 style = RojanTypography.Body,
                                 color = ManagerColors.TextSecondary,
+                                modifier = Modifier.fillMaxWidth(),
                             )
                             if (linkState is CustomerLinkState.Failed) {
                                 Text(
                                     text = linkState.message,
                                     style = RojanTypography.Caption,
                                     color = RojanErrorText,
-                                    modifier = Modifier.padding(top = RojanDimens.SpaceXS),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = RojanDimens.SpaceXS),
                                 )
                             }
                             ManagerPrimaryButton(
@@ -543,7 +559,9 @@ private fun AccountLinkSection(
  */
 @Composable
 private fun LinkCandidateComparison(customer: ManagerCustomer, candidate: UserLinkCandidate?) {
-    Column(verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
+    // RTL fix: no icon anchors this block, so it right-anchors as a whole
+    // rather than hugging a left edge by default.
+    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
         Text(text = "مشتری CRM موجود", style = RojanTypography.Caption, color = ManagerColors.TextSecondary)
         Text(text = "${customer.name} · ${customer.phone}", style = RojanTypography.Body, color = ManagerColors.TextPrimary)
 
@@ -639,15 +657,22 @@ private fun ServiceHistorySection(history: List<CustomerServiceHistoryEntry>) {
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = entry.service, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
+                        // RTL fix: no icon anchors this row - price (value)
+                        // coded first packs to the left, the weighted
+                        // service-details column coded second fills the
+                        // remaining space and right-anchors within it,
+                        // matching the value-left/label-right convention
+                        // already used in the booking review row.
+                        Text(text = entry.price, style = RojanTypography.Body, color = ManagerColors.GoldLight)
+                        Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                            Text(text = entry.service, style = RojanTypography.Body, color = ManagerColors.TextPrimary, modifier = Modifier.fillMaxWidth())
                             Text(
                                 text = "${entry.specialist} · ${entry.date}",
                                 style = RojanTypography.Caption,
                                 color = ManagerColors.TextSecondary,
+                                modifier = Modifier.fillMaxWidth(),
                             )
                         }
-                        Text(text = entry.price, style = RojanTypography.Body, color = ManagerColors.GoldLight)
                     }
                     if (index != history.lastIndex) {
                         Box(
@@ -764,26 +789,31 @@ private fun AddNoteForm(submissionState: NoteSubmissionState, onSubmit: (String)
                 .padding(RojanDimens.SpaceMD),
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                label = { Text("افزودن یادداشت جدید") },
-                enabled = !isSubmitting,
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary).withDirectionFor(text),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = ManagerColors.TextPrimary,
-                    unfocusedTextColor = ManagerColors.TextPrimary,
-                    focusedBorderColor = ManagerColors.Turquoise,
-                    unfocusedBorderColor = ManagerColors.TextSecondary,
-                    focusedLabelColor = ManagerColors.Turquoise,
-                    unfocusedLabelColor = ManagerColors.TextSecondary,
-                    cursorColor = ManagerColors.Turquoise,
-                ),
-            )
+            // RTL fix: scope Rtl layout direction to just this field so its
+            // floating label right-anchors - withDirectionFor below only
+            // governs the typed value's own direction/alignment.
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("افزودن یادداشت جدید") },
+                    enabled = !isSubmitting,
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary).withDirectionFor(text),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = ManagerColors.TextPrimary,
+                        unfocusedTextColor = ManagerColors.TextPrimary,
+                        focusedBorderColor = ManagerColors.Turquoise,
+                        unfocusedBorderColor = ManagerColors.TextSecondary,
+                        focusedLabelColor = ManagerColors.Turquoise,
+                        unfocusedLabelColor = ManagerColors.TextSecondary,
+                        cursorColor = ManagerColors.Turquoise,
+                    ),
+                )
+            }
 
             if (submissionState is NoteSubmissionState.Failed) {
-                Text(text = submissionState.message, style = RojanTypography.Caption, color = RojanErrorText)
+                Text(text = submissionState.message, style = RojanTypography.Caption, color = RojanErrorText, modifier = Modifier.fillMaxWidth())
             }
 
             ManagerPrimaryButton(
@@ -806,13 +836,16 @@ private fun ManagerNoteRow(note: CustomerNote) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(RojanDimens.SpaceMD),
+            horizontalAlignment = Alignment.End,
         ) {
-            Text(text = note.text, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
+            Text(text = note.text, style = RojanTypography.Body, color = ManagerColors.TextPrimary, modifier = Modifier.fillMaxWidth())
             Text(
                 text = note.createdAt,
                 style = RojanTypography.Caption,
                 color = ManagerColors.TextSecondary,
-                modifier = Modifier.padding(top = RojanDimens.SpaceXS),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = RojanDimens.SpaceXS),
             )
         }
     }

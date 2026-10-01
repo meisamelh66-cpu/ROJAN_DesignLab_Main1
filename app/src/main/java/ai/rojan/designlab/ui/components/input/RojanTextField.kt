@@ -17,14 +17,17 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 
 import ai.rojan.designlab.ui.motion.RojanMotion
@@ -100,65 +103,79 @@ fun RojanTextField(
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        TextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 56.dp)
-                .background(
-                    color = Color.White.copy(alpha = 0.10f + 0.02f * focusGlow),
-                    shape = shape,
-                )
-                .border(
-                    width = if (isFocused || isError) 2.dp else 1.4.dp,
-                    color = borderColor.copy(alpha = if (isFocused || isError) 1f else 0.6f),
-                    shape = shape,
-                )
-                .then(
-                    if (isError && errorText != null) {
-                        Modifier.semantics { error(errorText) }
-                    } else {
-                        Modifier
-                    },
+        // RTL fix (forensic audit, Pattern 5): `withDirectionFor` below only
+        // governs the typed/placeholder text's own paragraph direction - it
+        // never reaches Material3's internal label/leadingIcon/trailingIcon
+        // slot placement, which TextField positions according to ambient
+        // LayoutDirection (fixed LTR app-wide, per this app's own
+        // architecture). Scoping LayoutDirection.Rtl to just this one leaf
+        // TextField call - not the surrounding Column, not the screen, not
+        // the app - flips the label/leading/trailing slots to the correct
+        // (right-anchored label, right-side leading icon) RTL position
+        // without touching layout anywhere else; explicit textStyle
+        // direction/alignment above is unaffected since it's set absolutely
+        // (Rtl/Ltr, Right/Left), not derived from this ambient value.
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+            TextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
+                    .background(
+                        color = Color.White.copy(alpha = 0.10f + 0.02f * focusGlow),
+                        shape = shape,
+                    )
+                    .border(
+                        width = if (isFocused || isError) 2.dp else 1.4.dp,
+                        color = borderColor.copy(alpha = if (isFocused || isError) 1f else 0.6f),
+                        shape = shape,
+                    )
+                    .then(
+                        if (isError && errorText != null) {
+                            Modifier.semantics { error(errorText) }
+                        } else {
+                            Modifier
+                        },
+                    ),
+                enabled = enabled,
+                isError = isError,
+                singleLine = singleLine,
+                textStyle = LocalTextStyle.current.withDirectionFor(value),
+                label = label?.let { { Text(it, style = RojanTypography.Caption) } },
+                placeholder = placeholder?.let { { Text(it, style = RojanTypography.Body, color = palette.textSecondary.copy(alpha = 0.7f)) } },
+                leadingIcon = leadingIcon?.let {
+                    {
+                        Icon(it, contentDescription = null, tint = palette.textSecondary)
+                    }
+                },
+                trailingIcon = trailing,
+                keyboardOptions = keyboardOptions,
+                keyboardActions = keyboardActions,
+                visualTransformation = visualTransformation,
+                interactionSource = interactionSource,
+                shape = shape,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent,
+                    errorContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                    errorIndicatorColor = Color.Transparent,
+                    cursorColor = palette.textAccent,
+                    errorCursorColor = RojanErrorText,
+                    focusedLabelColor = palette.textAccent,
+                    unfocusedLabelColor = palette.textSecondary,
+                    errorLabelColor = RojanErrorText,
+                    focusedTextColor = palette.textPrimary,
+                    unfocusedTextColor = palette.textPrimary,
+                    disabledTextColor = palette.textSecondary,
+                    errorTextColor = palette.textPrimary,
                 ),
-            enabled = enabled,
-            isError = isError,
-            singleLine = singleLine,
-            textStyle = LocalTextStyle.current.withDirectionFor(value),
-            label = label?.let { { Text(it, style = RojanTypography.Caption) } },
-            placeholder = placeholder?.let { { Text(it, style = RojanTypography.Body, color = palette.textSecondary.copy(alpha = 0.7f)) } },
-            leadingIcon = leadingIcon?.let {
-                {
-                    Icon(it, contentDescription = null, tint = palette.textSecondary)
-                }
-            },
-            trailingIcon = trailing,
-            keyboardOptions = keyboardOptions,
-            keyboardActions = keyboardActions,
-            visualTransformation = visualTransformation,
-            interactionSource = interactionSource,
-            shape = shape,
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                disabledContainerColor = Color.Transparent,
-                errorContainerColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                disabledIndicatorColor = Color.Transparent,
-                errorIndicatorColor = Color.Transparent,
-                cursorColor = palette.textAccent,
-                errorCursorColor = RojanErrorText,
-                focusedLabelColor = palette.textAccent,
-                unfocusedLabelColor = palette.textSecondary,
-                errorLabelColor = RojanErrorText,
-                focusedTextColor = palette.textPrimary,
-                unfocusedTextColor = palette.textPrimary,
-                disabledTextColor = palette.textSecondary,
-                errorTextColor = palette.textPrimary,
-            ),
-        )
+            )
+        }
 
         val supporting = when {
             isError && !errorText.isNullOrBlank() -> errorText to RojanErrorText
@@ -170,7 +187,9 @@ fun RojanTextField(
                 text = message,
                 style = RojanTypography.Caption,
                 color = color,
-                modifier = Modifier.padding(top = RojanDimens.SpaceXS, start = RojanDimens.SpaceXS),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = RojanDimens.SpaceXS, end = RojanDimens.SpaceXS),
             )
         }
     }

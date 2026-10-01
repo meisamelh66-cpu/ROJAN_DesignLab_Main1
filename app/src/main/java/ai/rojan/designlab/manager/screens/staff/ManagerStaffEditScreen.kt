@@ -26,13 +26,16 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.LayoutDirection
 import kotlinx.coroutines.launch
 
 /**
@@ -83,6 +86,7 @@ fun ManagerStaffEditScreen(
                 text = if (isNew) "متخصص جدید" else "ویرایش متخصص",
                 style = RojanTypography.ScreenTitle,
                 color = ManagerColors.TextPrimary,
+                modifier = Modifier.fillMaxWidth(),
             )
 
             ManagerGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
@@ -99,7 +103,7 @@ fun ManagerStaffEditScreen(
             }
 
             if (errorMessage != null) {
-                Text(text = errorMessage.orEmpty(), style = RojanTypography.Caption, color = RojanErrorText)
+                Text(text = errorMessage.orEmpty(), style = RojanTypography.Caption, color = RojanErrorText, modifier = Modifier.fillMaxWidth())
             }
 
             ManagerPrimaryButton(
@@ -146,24 +150,29 @@ fun ManagerStaffEditScreen(
 /** Minimal, self-contained Manager-themed text field — same styling as [ai.rojan.designlab.manager.screens.auth.ManagerOtpAuthScreen]'s own local `ManagerTextField` (no shared Manager text-field component exists yet to reuse). */
 @Composable
 private fun StaffNameField(value: String, onValueChange: (String) -> Unit, enabled: Boolean) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text("نام متخصص") },
-        enabled = enabled,
-        singleLine = true,
-        textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary).withDirectionFor(value),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = ManagerColors.TextPrimary,
-            unfocusedTextColor = ManagerColors.TextPrimary,
-            focusedBorderColor = ManagerColors.Turquoise,
-            unfocusedBorderColor = ManagerColors.TextSecondary,
-            focusedLabelColor = ManagerColors.Turquoise,
-            unfocusedLabelColor = ManagerColors.TextSecondary,
-            cursorColor = ManagerColors.Turquoise,
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    )
+    // RTL fix: scope Rtl layout direction to just this field so its
+    // floating label right-anchors - withDirectionFor below only governs
+    // the typed value's own direction/alignment, not the label's position.
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text("نام متخصص") },
+            enabled = enabled,
+            singleLine = true,
+            textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary).withDirectionFor(value),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = ManagerColors.TextPrimary,
+                unfocusedTextColor = ManagerColors.TextPrimary,
+                focusedBorderColor = ManagerColors.Turquoise,
+                unfocusedBorderColor = ManagerColors.TextSecondary,
+                focusedLabelColor = ManagerColors.Turquoise,
+                unfocusedLabelColor = ManagerColors.TextSecondary,
+                cursorColor = ManagerColors.Turquoise,
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Preview(

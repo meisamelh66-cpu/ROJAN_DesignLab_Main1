@@ -116,20 +116,24 @@ private fun AddServiceRow(onClick: () -> Unit) {
             .rojanPressable(onClick = onClick),
         shape = RojanShapes.Small,
     ) {
+        // RTL fix (Pattern 3): right-anchored (Arrangement.End) with the
+        // icon trailing (coded after the text) - matches RtlInfoRow's
+        // icon-trailing convention, the mirror of the previous icon-first/
+        // unanchored composition which hugged the left edge.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM, Alignment.End),
         ) {
+            Text(text = "افزودن خدمت", style = RojanTypography.Body, color = ManagerColors.TextPrimary)
             RojanIconContainer(
                 imageVector = Icons.Filled.AddCircle,
                 contentDescription = "افزودن خدمت",
                 size = RojanIconSize.Medium,
                 tint = ManagerColors.Gold,
             )
-            Text(text = "افزودن خدمت", style = RojanTypography.Body, color = ManagerColors.TextPrimary)
         }
     }
 }
@@ -166,6 +170,7 @@ private fun ServiceSearchField(query: String, onQueryChange: (String) -> Unit) {
                                 text = "جستجوی نام یا دسته‌بندی...",
                                 style = RojanTypography.Body,
                                 color = ManagerColors.TextSecondary,
+                                modifier = Modifier.fillMaxWidth(),
                             )
                         }
                         innerTextField()

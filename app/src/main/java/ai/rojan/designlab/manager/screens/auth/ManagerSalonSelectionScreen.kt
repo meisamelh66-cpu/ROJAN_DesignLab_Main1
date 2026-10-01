@@ -118,10 +118,15 @@ private fun SalonOptionCard(salon: AvailableSalon, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = salon.salonName, style = RojanTypography.CardTitle, color = ManagerColors.TextPrimary)
-            }
+            // RTL fix (Pattern 2): tag chip coded first (packs left) and the
+            // weighted title column second with Alignment.End + fillMaxWidth
+            // on the Text, so the salon name right-anchors toward the
+            // card's trailing edge - matching this codebase's own RtlListRow
+            // convention (ui/components/rtl/RtlLayoutKit.kt).
             TagChip(text = salon.accessType.displayLabel)
+            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                Text(text = salon.salonName, style = RojanTypography.CardTitle, color = ManagerColors.TextPrimary, modifier = Modifier.fillMaxWidth())
+            }
         }
     }
 }

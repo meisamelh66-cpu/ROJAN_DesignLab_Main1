@@ -116,6 +116,7 @@ fun ManagerAppointmentDetailScreen(
                         text = errorMessage.orEmpty(),
                         style = RojanTypography.Caption,
                         color = RojanErrorText,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }

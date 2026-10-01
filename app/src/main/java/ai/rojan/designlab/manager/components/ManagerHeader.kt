@@ -245,6 +245,7 @@ private fun ManagerHeroBanner(
                 },
                 style = RojanTypography.Body,
                 color = ManagerColors.TextSecondary,
+                modifier = Modifier.fillMaxWidth(),
             )
 
             // Real gold CTA pill — same [onViewTodayClick] handler as

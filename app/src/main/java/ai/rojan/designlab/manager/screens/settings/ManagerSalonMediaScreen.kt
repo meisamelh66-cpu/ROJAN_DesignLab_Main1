@@ -170,10 +170,10 @@ private fun SalonMediaContent(
             .padding(RojanDimens.SpaceMD),
         verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
     ) {
-        Text(text = "رسانه سالن", style = RojanTypography.ScreenTitle, color = ManagerColors.TextPrimary)
+        Text(text = "رسانه سالن", style = RojanTypography.ScreenTitle, color = ManagerColors.TextPrimary, modifier = Modifier.fillMaxWidth())
 
         if (state.errorMessage != null) {
-            Text(text = state.errorMessage, style = RojanTypography.Caption, color = RojanErrorText)
+            Text(text = state.errorMessage, style = RojanTypography.Caption, color = RojanErrorText, modifier = Modifier.fillMaxWidth())
         }
 
         IdentityMediaCard(
@@ -220,7 +220,7 @@ private fun IdentityMediaCard(
             modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD),
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {
-            Text(text = title, style = RojanTypography.CardTitle, color = ManagerColors.TextPrimary)
+            Text(text = title, style = RojanTypography.CardTitle, color = ManagerColors.TextPrimary, modifier = Modifier.fillMaxWidth())
 
             Box(
                 modifier = Modifier
@@ -265,13 +265,17 @@ private fun GallerySection(
             modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD),
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {
+            // RTL fix (Pattern 4): count (secondary/value) coded first packs
+            // left, the "گالری تصاویر" title (primary label) coded second
+            // lands at the right - matching the value-left/label-right
+            // convention used elsewhere (booking review row).
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(text = "گالری تصاویر", style = RojanTypography.CardTitle, color = ManagerColors.TextPrimary)
                 Text(text = "${images.size} تصویر", style = RojanTypography.Caption, color = ManagerColors.TextSecondary)
+                Text(text = "گالری تصاویر", style = RojanTypography.CardTitle, color = ManagerColors.TextPrimary)
             }
 
             LazyVerticalGrid(

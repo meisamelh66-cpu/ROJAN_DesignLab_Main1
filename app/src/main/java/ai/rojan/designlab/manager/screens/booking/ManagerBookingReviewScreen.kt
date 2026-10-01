@@ -109,11 +109,15 @@ fun ManagerBookingReviewScreen(
 
 @Composable
 private fun ReviewRow(label: String, value: String) {
+    // RTL fix (Pattern 4): value coded first so it packs to the left under
+    // Arrangement.SpaceBetween, label coded second so it lands at the right
+    // - matching RtlListRow's value-left/label-right convention, the mirror
+    // of the previous label-first/value-second composition.
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(text = label, style = RojanTypography.Body, color = ManagerColors.TextSecondary)
         Text(text = value, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
+        Text(text = label, style = RojanTypography.Body, color = ManagerColors.TextSecondary)
     }
 }

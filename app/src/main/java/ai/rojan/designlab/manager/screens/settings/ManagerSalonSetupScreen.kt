@@ -43,6 +43,7 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,6 +54,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 
@@ -203,6 +206,7 @@ private fun SalonSetupForm(
             text = if (isCreateMode) "ثبت اطلاعات سالن" else "ویرایش اطلاعات سالن",
             style = RojanTypography.ScreenTitle,
             color = ManagerColors.TextPrimary,
+            modifier = Modifier.fillMaxWidth(),
         )
 
         ManagerGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
@@ -243,7 +247,7 @@ private fun SalonSetupForm(
         }
 
         if (submitError != null) {
-            Text(text = submitError, style = RojanTypography.Caption, color = RojanErrorText)
+            Text(text = submitError, style = RojanTypography.Caption, color = RojanErrorText, modifier = Modifier.fillMaxWidth())
         }
 
         ManagerPrimaryButton(
@@ -338,12 +342,13 @@ private fun SalonCoordinatesSection(
                 .padding(RojanDimens.SpaceMD),
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {
-            Text(text = "موقعیت جغرافیایی", style = RojanTypography.CardTitle, color = ManagerColors.TextPrimary)
+            Text(text = "موقعیت جغرافیایی", style = RojanTypography.CardTitle, color = ManagerColors.TextPrimary, modifier = Modifier.fillMaxWidth())
             if (isCreateMode) {
                 Text(
                     text = "مختصات جغرافیایی پس از ثبت سالن قابل ویرایش است",
                     style = RojanTypography.Caption,
                     color = ManagerColors.TextSecondary,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             } else {
                 Text(
@@ -363,11 +368,13 @@ private fun SalonCoordinatesSection(
                         text = "موقعیت انتخابی شما ذخیره خواهد شد",
                         style = RojanTypography.Caption,
                         color = RojanSuccessText,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     is LocationCaptureMessage.Error -> Text(
                         text = locationCaptureMessage.text,
                         style = RojanTypography.Caption,
                         color = RojanErrorText,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     null -> Unit
                 }
@@ -458,22 +465,30 @@ private fun SalonMediaEntryRow(onClick: () -> Unit) {
 
 @Composable
 private fun SalonTextField(label: String, value: String, onValueChange: (String) -> Unit, enabled: Boolean) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        enabled = enabled,
-        singleLine = true,
-        textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary).withDirectionFor(value),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = ManagerColors.TextPrimary,
-            unfocusedTextColor = ManagerColors.TextPrimary,
-            focusedBorderColor = ManagerColors.Turquoise,
-            unfocusedBorderColor = ManagerColors.TextSecondary,
-            focusedLabelColor = ManagerColors.Turquoise,
-            unfocusedLabelColor = ManagerColors.TextSecondary,
-            cursorColor = ManagerColors.Turquoise,
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    )
+    // RTL fix: withDirectionFor below only governs the typed text's own
+    // direction/alignment - it never reaches OutlinedTextField's internal
+    // floating-label placement, which Material3 positions according to
+    // ambient LayoutDirection (fixed LTR app-wide). Scoping Rtl to just this
+    // one leaf field flips the label to the right without touching anything
+    // else in this screen's layout.
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label) },
+            enabled = enabled,
+            singleLine = true,
+            textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary).withDirectionFor(value),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = ManagerColors.TextPrimary,
+                unfocusedTextColor = ManagerColors.TextPrimary,
+                focusedBorderColor = ManagerColors.Turquoise,
+                unfocusedBorderColor = ManagerColors.TextSecondary,
+                focusedLabelColor = ManagerColors.Turquoise,
+                unfocusedLabelColor = ManagerColors.TextSecondary,
+                cursorColor = ManagerColors.Turquoise,
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }

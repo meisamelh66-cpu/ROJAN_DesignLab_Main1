@@ -96,7 +96,9 @@ fun ManagerBookingDateTimeScreen(
                             text = "ساعت‌های آزاد",
                             style = RojanTypography.SectionTitle,
                             color = ManagerColors.TextPrimary,
-                            modifier = Modifier.padding(top = RojanDimens.SpaceSM),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = RojanDimens.SpaceSM),
                         )
                     }
 

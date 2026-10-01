@@ -110,12 +110,28 @@ class ManagerWorkingHoursViewModel(
      * one interval. Closing the day (`DELETE`) is still allowed even when
      * multiple intervals exist — that's the owner explicitly removing the
      * whole day's record, not a silent partial collapse.
+     *
+     * Initial Default Weekly Schedule: when this is the very first day this
+     * salon has EVER had a working-hours record for (every other day still
+     * has [WorkingDayFormState.hasExistingRecord] `false`), a successful
+     * save also seeds every other still-blank day with this same interval —
+     * see [applyInitialDefaultToOtherDays]. This is a one-time bootstrap,
+     * not a standing "copy this day everywhere" behavior: once any other
+     * day already has a record (from this bootstrap or a later manual
+     * edit), [isEstablishingInitialSchedule] is false on every subsequent
+     * save and no propagation happens — an owner's later per-day
+     * customization (including closing a day via `DELETE`) always goes
+     * through this same single-day path untouched.
      */
     fun saveDay(dayOfWeek: String) {
         val id = salonId ?: return
-        val day = currentDays()?.find { it.dayOfWeek == dayOfWeek } ?: return
+        val days = currentDays() ?: return
+        val day = days.find { it.dayOfWeek == dayOfWeek } ?: return
         if (day.isOpen && (day.start.isBlank() || day.end.isBlank())) return
         if (day.isOpen && day.hasMultipleIntervals) return
+
+        val isEstablishingInitialSchedule = day.isOpen && days.none { it.hasExistingRecord }
+        val initialInterval = TimeInterval(start = day.start.trim(), end = day.end.trim())
 
         updateDay(dayOfWeek) { it.copy(isSaving = true, error = null) }
         viewModelScope.launch {
@@ -123,7 +139,7 @@ class ManagerWorkingHoursViewModel(
                 day.isOpen -> repository.setWorkingHours(
                     salonId = id,
                     dayOfWeek = dayOfWeek,
-                    intervals = listOf(TimeInterval(start = day.start.trim(), end = day.end.trim())),
+                    intervals = listOf(initialInterval),
                 )
                 day.hasExistingRecord -> repository.removeWorkingHours(id, dayOfWeek)
                     .map { SalonWorkingHours(dayOfWeek = dayOfWeek, intervals = emptyList()) }
@@ -131,8 +147,40 @@ class ManagerWorkingHoursViewModel(
             }
 
             result
-                .onSuccess { updated -> updateDay(dayOfWeek) { updated.toFormState(dayOfWeek).copy(isSaving = false) } }
+                .onSuccess { updated ->
+                    updateDay(dayOfWeek) { updated.toFormState(dayOfWeek).copy(isSaving = false) }
+                    if (isEstablishingInitialSchedule) {
+                        applyInitialDefaultToOtherDays(salonId = id, sourceDay = dayOfWeek, interval = initialInterval)
+                    }
+                }
                 .onFailure { error -> updateDay(dayOfWeek) { it.copy(isSaving = false, error = userMessageFor(error)) } }
+        }
+    }
+
+    /**
+     * Seeds [interval] onto every day other than [sourceDay] that still has
+     * no backend record ([WorkingDayFormState.hasExistingRecord] `false`),
+     * re-checked fresh from current state right before each write — a day
+     * that already has a record (an explicit prior customization, or
+     * already seeded by this same call) is never touched. Each day is a
+     * real, independent `PUT` through the exact same existing
+     * [ManagerWorkingHoursRepository.setWorkingHours] contract
+     * [saveDay] itself uses — Backend ends up with seven genuine per-day
+     * records, indistinguishable from the owner having set each one by
+     * hand, so Customer App/Web (both already reading the same
+     * `GET .../working-hours`) see the seeded days with no changes needed
+     * on their side.
+     */
+    private fun applyInitialDefaultToOtherDays(salonId: String, sourceDay: String, interval: TimeInterval) {
+        val blankDays = currentDays()?.filter { it.dayOfWeek != sourceDay && !it.hasExistingRecord }.orEmpty()
+        blankDays.forEach { blankDay ->
+            val dayOfWeek = blankDay.dayOfWeek
+            updateDay(dayOfWeek) { it.copy(isSaving = true, error = null) }
+            viewModelScope.launch {
+                repository.setWorkingHours(salonId = salonId, dayOfWeek = dayOfWeek, intervals = listOf(interval))
+                    .onSuccess { updated -> updateDay(dayOfWeek) { updated.toFormState(dayOfWeek).copy(isSaving = false) } }
+                    .onFailure { error -> updateDay(dayOfWeek) { it.copy(isSaving = false, error = userMessageFor(error)) } }
+            }
         }
     }
 
