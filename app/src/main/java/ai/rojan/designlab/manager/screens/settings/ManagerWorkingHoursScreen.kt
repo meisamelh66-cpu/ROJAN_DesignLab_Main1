@@ -8,6 +8,7 @@ import ai.rojan.designlab.manager.presentation.settings.ManagerWorkingHoursViewM
 import ai.rojan.designlab.manager.presentation.settings.WorkingDayFormState
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.ui.text.Text
+import ai.rojan.designlab.ui.text.withDirectionFor
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanErrorText
 import ai.rojan.designlab.ui.theme.RojanShapes
@@ -212,7 +213,7 @@ private fun TimeField(label: String, value: String, onValueChange: (String) -> U
         placeholder = { Text("09:00") },
         enabled = enabled,
         singleLine = true,
-        textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary),
+        textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary).withDirectionFor(value),
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = ManagerColors.TextPrimary,
             unfocusedTextColor = ManagerColors.TextPrimary,
