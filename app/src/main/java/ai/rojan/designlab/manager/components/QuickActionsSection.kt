@@ -77,9 +77,13 @@ fun QuickActionsSection(
     // Spacing-cleanup pass: the standalone "دسترسی سریع" heading is gone,
     // along with the title-to-content gap that existed only for it. The
     // action row is the whole of this composable now.
+    // Spacing refinement pass: tightened from SpaceSM (8dp) to SpaceXS
+    // (4dp, an existing token) — matches the Dashboard's other
+    // outer-spacing gaps, a thin separation between the 5 action chips
+    // rather than a wider gap. Chip sizes/content/padding unchanged.
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
     ) {
         sampleQuickActions.forEach { action ->
             QuickActionChip(

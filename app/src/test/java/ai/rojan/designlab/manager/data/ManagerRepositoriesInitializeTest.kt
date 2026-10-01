@@ -98,6 +98,7 @@ class ManagerRepositoriesInitializeTest {
         override suspend fun create(specialist: Specialist) = error("unused")
         override suspend fun update(specialist: Specialist) = error("unused")
         override suspend fun delete(id: String) = error("unused")
+        override suspend fun eligibleServiceIds(specialistId: String) = error("unused")
     }
 
     private class FakeCustomerRepo(private val items: List<ManagerCustomer>) : CustomerRepository {
@@ -129,7 +130,7 @@ class ManagerRepositoriesInitializeTest {
     private fun service(id: String) = Service(id, "svc-$id", "cat", 0L, 30, true)
     private fun appointment(id: String) =
         Appointment(id, "c1", "s1", "sp1", "2026/09/01", "10:00", AppointmentStatus.CONFIRMED)
-    private fun specialist(id: String) = Specialist(id, "sp-$id", emptyList(), "", 0.0, true)
+    private fun specialist(id: String) = Specialist(id, "sp-$id", bio = null, photoUrl = null, mobileNumber = null, specialty = null, userId = null, active = true)
     private fun customer(id: String) =
         ManagerCustomer(id, "cust-$id", "0", CustomerTag.REGULAR, 0, null, "2026/09/01", 0)
     private fun insights(message: String) = ManagerDashboardInsights(0.0, 0, message)

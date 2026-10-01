@@ -21,21 +21,15 @@ import ai.rojan.designlab.manager.domain.specialist.Specialist
  * owner-only writes, same "shared reads, owner-scoped writes" split
  * [BackendCustomerRepository] already established.
  *
- * [Specialist.skills] is always empty here — the backend's real
- * eligibility mechanism is per-specialist
- * (`ManagerSpecialistApi.eligibleServiceIds`), which would mean one
- * extra call per roster member just to populate a filter, not a bulk
- * field this sync can fetch for free. Not wired in this step to keep it
- * scoped; [ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel.specialistsFor]'s
- * existing "fall back to the full active roster when nothing matches"
- * behavior already degrades to exactly that with an empty skill set, so
- * nothing dead-ends - the wizard just always shows every active
- * specialist for now, a disclosed simplification, not a silent one.
- * [Specialist.workingHours]/[Specialist.commissionRate] have no backend
- * equivalent either (business-internal figures the API doesn't expose);
- * `workingHours` stays `"—"` (matching the same honest-placeholder
- * convention [BackendCustomerRepository] uses) and `commissionRate` stays
- * `0.0` (never rendered anywhere in this codebase).
+ * Specialist Profile Expansion: [Specialist.bio]/[photoUrl]/[mobileNumber]/
+ * [specialty]/[userId] now round-trip for real (previously dropped by this
+ * mapper even though the DTOs already carried `bio`/`photoUrl`). The old
+ * `skills`/`workingHours`/`commissionRate` placeholders are gone entirely -
+ * none has a backend field, DB column, or endpoint; [eligibleServiceIds]
+ * (`ManagerSpecialistApi.eligibleServiceIds`) is the real, already-defined
+ * substitute for `skills` (per-specialist service eligibility - empty means
+ * eligible for every service, per the backend's own contract), now actually
+ * wired up rather than left unused.
  */
 class BackendSpecialistRepository(
     private val specialistApi: SpecialistApi,
@@ -60,7 +54,13 @@ class BackendSpecialistRepository(
         safeApiCall {
             managerSpecialistApi.create(
                 salonId = salonId,
-                request = CreateSpecialistRequestDto(displayName = specialist.name),
+                request = CreateSpecialistRequestDto(
+                    displayName = specialist.name,
+                    bio = specialist.bio,
+                    photoUrl = specialist.photoUrl,
+                    mobileNumber = specialist.mobileNumber,
+                    specialty = specialist.specialty,
+                ),
             )
         }.map { dto ->
             dto.toDomain().also { created -> cache = cache + created }
@@ -71,7 +71,13 @@ class BackendSpecialistRepository(
             managerSpecialistApi.update(
                 salonId = salonId,
                 specialistId = specialist.id,
-                request = UpdateSpecialistRequestDto(displayName = specialist.name),
+                request = UpdateSpecialistRequestDto(
+                    displayName = specialist.name,
+                    bio = specialist.bio,
+                    photoUrl = specialist.photoUrl,
+                    mobileNumber = specialist.mobileNumber,
+                    specialty = specialist.specialty,
+                ),
             )
         }.map { dto ->
             dto.toDomain().also { updated ->
@@ -87,12 +93,17 @@ class BackendSpecialistRepository(
             true
         }
 
+    override suspend fun eligibleServiceIds(specialistId: String): Result<List<String>> =
+        safeApiCall { managerSpecialistApi.eligibleServiceIds(salonId, specialistId) }
+
     private fun SpecialistResponseDto.toDomain() = Specialist(
         id = id,
         name = displayName,
-        skills = emptyList(),
-        workingHours = "—",
-        commissionRate = 0.0,
+        bio = bio,
+        photoUrl = photoUrl,
+        mobileNumber = mobileNumber,
+        specialty = specialty,
+        userId = userId,
         active = active,
     )
 }

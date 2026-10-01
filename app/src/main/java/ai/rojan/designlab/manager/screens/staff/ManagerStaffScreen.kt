@@ -9,6 +9,7 @@ import ai.rojan.designlab.manager.screens.customers.TagChip
 import ai.rojan.designlab.ui.components.cards.PremiumCardShell
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
+import ai.rojan.designlab.ui.components.image.RojanRemoteImage
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.text.Text
@@ -17,6 +18,7 @@ import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTheme
 import ai.rojan.designlab.ui.theme.RojanTypography
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,8 +26,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
@@ -189,6 +193,13 @@ private fun StaffSearchField(query: String, onQueryChange: (String) -> Unit) {
  * `contentPadding` is [RojanDimens.SpaceMD] — the same value this `Row`
  * applied manually before.
  */
+/**
+ * Specialist Profile Expansion: shows the real photo (when [Specialist.photoUrl]
+ * is set, same circular-avatar treatment [ManagerStaffEditScreen]'s picker
+ * uses) instead of always the generic person icon, and [Specialist.specialty]
+ * as a secondary line when set - never a fabricated placeholder for either;
+ * an unset [specialty] simply means no second line renders at all.
+ */
 @Composable
 private fun SpecialistCard(specialist: Specialist, onClick: () -> Unit) {
     PremiumCardShell(
@@ -200,15 +211,47 @@ private fun SpecialistCard(specialist: Specialist, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {
-            RojanIconContainer(
-                imageVector = Icons.Filled.Person,
-                contentDescription = null,
-                size = RojanIconSize.Medium,
-                tint = ManagerColors.Turquoise,
-            )
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .border(1.dp, ManagerColors.Turquoise, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (specialist.photoUrl != null) {
+                    RojanRemoteImage(
+                        url = specialist.photoUrl,
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp),
+                        shape = CircleShape,
+                        fallback = {
+                            RojanIconContainer(
+                                imageVector = Icons.Filled.Person,
+                                contentDescription = null,
+                                size = RojanIconSize.Medium,
+                                tint = ManagerColors.Turquoise,
+                            )
+                        },
+                    )
+                } else {
+                    RojanIconContainer(
+                        imageVector = Icons.Filled.Person,
+                        contentDescription = null,
+                        size = RojanIconSize.Medium,
+                        tint = ManagerColors.Turquoise,
+                    )
+                }
+            }
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = specialist.name, style = RojanTypography.Body, color = ManagerColors.TextPrimary)
+                specialist.specialty?.takeIf { it.isNotBlank() }?.let { specialty ->
+                    Text(
+                        text = specialty,
+                        style = RojanTypography.Caption,
+                        color = ManagerColors.TextSecondary,
+                        modifier = Modifier.padding(top = RojanDimens.SpaceXS),
+                    )
+                }
             }
 
             TagChip(text = if (specialist.active) "فعال" else "غیرفعال")

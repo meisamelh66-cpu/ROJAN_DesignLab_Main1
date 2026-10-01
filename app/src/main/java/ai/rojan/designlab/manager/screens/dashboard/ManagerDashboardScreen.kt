@@ -11,7 +11,6 @@ import ai.rojan.designlab.manager.components.ManagerLoadingState
 import ai.rojan.designlab.manager.components.ManagerQuickAction
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.components.QuickActionsSection
-import ai.rojan.designlab.manager.components.SalonIdentityCard
 import ai.rojan.designlab.manager.components.TodayOverviewSection
 import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.domain.ai.ManagerCrmInsightCategory
@@ -20,12 +19,15 @@ import ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewMod
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.ui.theme.RojanDimens
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 
 /**
  * Manager App workspace — Dashboard v1.0 UI.
@@ -59,13 +61,18 @@ import androidx.compose.ui.platform.LocalContext
  * (fixed text "X مشتری غیرفعال") would start counting VIP insights too.
  *
  * **TEAM2-002 (Manager Data Persistence, reconciled with the above):**
- * [SalonIdentityCard] and [TodayOverviewSection] now render the
- * authenticated manager's real salon and real today's-bookings stats via
- * [ManagerDashboardViewModel] (`GET /api/v1/salons/mine` + the salon's
- * real bookings) — replacing `SalonIdentityCard`'s hardcoded default
- * params and `TodayOverviewSection`'s previous internal
- * `manager.data.computeManagerDashboardStats()`/`ManagerRepositories`
- * read (that file, and its `refreshKey`-driven re-trigger, are retired).
+ * [TodayOverviewSection] renders the authenticated manager's real
+ * today's-bookings stats via [ManagerDashboardViewModel]
+ * (`GET /api/v1/salons/mine` + the salon's real bookings) — replacing its
+ * previous internal `manager.data.computeManagerDashboardStats()`/
+ * `ManagerRepositories` read (that file, and its `refreshKey`-driven
+ * re-trigger, are retired).
+ *
+ * Dashboard visual refinement: the real salon name - previously shown only
+ * by the now-removed `SalonIdentityCard` once this same [ManagerDashboardViewModel]
+ * data loaded - is now [ManagerHeader]'s own primary identity (passed as
+ * `salonName` below), so the header no longer shows a generic greeting in
+ * place of it.
  * [AIInsightCard]/[CalendarPreviewSection]'s own data sourcing is
  * genuinely unchanged by that move — [AIInsightCard] still reads
  * [ManagerRepositories.dashboardInsights]/[ManagerRepositories.crmInsights]
@@ -80,6 +87,19 @@ import androidx.compose.ui.platform.LocalContext
  * retriable) — see [ManagerDashboardViewModel.requiresReauth]'s doc
  * comment.
  */
+
+/**
+ * Micro-spacing fix: the Banner's hard-edged bright artwork sitting
+ * directly on the near-black background reads as having a visible gap
+ * even at the Dashboard's normal [RojanDimens.SpaceXS] (4dp) rhythm, so
+ * the two gaps immediately touching it (Header-to-Banner and
+ * Banner-to-next-section) are tightened further to a near-invisible
+ * separation. Every other inter-section gap keeps [RojanDimens.SpaceXS]
+ * unchanged — this is a one-off, Banner-specific value, not a new
+ * general-purpose spacing token.
+ */
+private val ManagerBannerAdjacentGap = 2.dp
+
 @Composable
 fun ManagerDashboardScreen(
     modifier: Modifier = Modifier,
@@ -122,25 +142,29 @@ fun ManagerDashboardScreen(
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            // Spacing-cleanup pass: tightened from the shared
-            // SpaceSectionToSection (16dp) to SpaceSM (8dp, an existing
-            // token, not an arbitrary value) — this dashboard specifically
-            // reads as one continuous, premium surface rather than
-            // separated islands, per explicit request.
-            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+            // Micro-spacing fix: the uniform inter-item gap moves from this
+            // single Arrangement value into explicit Spacer items below, so
+            // the two Banner-adjacent gaps can be tightened independently
+            // of every other (unchanged) SpaceXS gap - Arrangement.spacedBy
+            // can only express one uniform value for every item pair.
+            verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
             item {
                 ManagerHeader(
                     onProfileClick = onProfileClick,
-                    todaysAppointmentCount = (viewModel.state as? UiState.Success)?.data?.stats?.todaysAppointmentCount,
+                    salonName = (viewModel.state as? UiState.Success)?.data?.salonName,
                     onViewTodayClick = onViewCalendarClick,
                 )
             }
+
+            item { Spacer(modifier = Modifier.height(ManagerBannerAdjacentGap)) }
 
             // Manager Dashboard Banner integration: admin-managed static
             // artwork (target=MANAGER), independent of dashboardState below -
             // unaffected by the salon-loading/error/empty/success state machine.
             item { ManagerBannerSlot() }
+
+            item { Spacer(modifier = Modifier.height(ManagerBannerAdjacentGap)) }
 
             when (val dashboardState = viewModel.state) {
                 is UiState.Loading -> item { ManagerLoadingState(message = "در حال بارگذاری اطلاعات سالن...") }
@@ -159,16 +183,11 @@ fun ManagerDashboardScreen(
                 }
                 is UiState.Success -> {
                     val data = dashboardState.data
-                    item {
-                        SalonIdentityCard(
-                            salonName = data.salonName,
-                            salonCategory = data.salonDescription ?: "زیبایی و سلامت",
-                            isActive = data.isActive,
-                        )
-                    }
                     item { TodayOverviewSection(stats = data.stats) }
                 }
             }
+
+            item { Spacer(modifier = Modifier.height(RojanDimens.SpaceXS)) }
 
             item {
                 QuickActionsSection(
@@ -183,6 +202,9 @@ fun ManagerDashboardScreen(
                     },
                 )
             }
+
+            item { Spacer(modifier = Modifier.height(RojanDimens.SpaceXS)) }
+
             item {
                 AIInsightCard(
                     message = ManagerRepositories.dashboardInsights?.topRecommendationMessage,
@@ -190,6 +212,9 @@ fun ManagerDashboardScreen(
                     onInactiveCustomersClick = onViewInactiveCustomersClick,
                 )
             }
+
+            item { Spacer(modifier = Modifier.height(RojanDimens.SpaceXS)) }
+
             item {
                 CalendarPreviewSection(onViewCalendarClick = onViewCalendarClick)
             }

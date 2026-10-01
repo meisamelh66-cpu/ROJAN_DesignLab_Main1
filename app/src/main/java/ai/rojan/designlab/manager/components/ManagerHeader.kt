@@ -1,6 +1,5 @@
 package ai.rojan.designlab.manager.components
 
-import ai.rojan.designlab.manager.data.toPersianDigits
 import ai.rojan.designlab.ui.components.icon.RojanIconContainer
 import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
@@ -32,9 +31,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import java.util.Calendar
 
 /**
  * Manager App workspace — dashboard header.
@@ -45,9 +44,22 @@ import java.util.Calendar
  * composable now renders nothing but the hero banner, so the Dashboard
  * starts directly with it — everything below moves up automatically
  * (the `LazyColumn`'s own item spacing is unaffected; only this item's
- * height shrank). The real salon name lives in [SalonIdentityCard],
- * rendered as the very next item once real data loads — no salon name is
- * duplicated or invented here.
+ * height shrank).
+ *
+ * Dashboard visual refinement pass: [salonName] is now this header's own
+ * primary identity - the real salon name (once
+ * [ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewModel]
+ * loads it), shown at [RojanTypography.SectionTitle] next to the
+ * day-part sun icon, replacing the previous generic time-of-day greeting
+ * sentence. The now-removed `SalonIdentityCard` dashboard section used to
+ * be the only place this name appeared; nothing is invented here - before
+ * the real salon loads, [salonName] is `null` and the existing
+ * [managerNameFallback] placeholder shows instead, same safety net the
+ * previous greeting text already had. The previous "امروز N appointments"
+ * sentence is dropped entirely - it duplicated the exact same count
+ * [ai.rojan.designlab.manager.components.TodayOverviewSection]'s own KPI
+ * card already shows immediately below, and removing it (plus shrinking
+ * the CTA pill's padding) is what shortens this header's overall height.
  *
  * Full-bleed pass: the hero uses [fullBleedHorizontal] — a small, local
  * `Modifier.layout {}` that widens the *measurement* constraints given to
@@ -70,16 +82,15 @@ import java.util.Calendar
 @Composable
 fun ManagerHeader(
     modifier: Modifier = Modifier,
-    managerName: String = "مدیر سالن",
-    todaysAppointmentCount: Int? = null,
+    salonName: String? = null,
+    managerNameFallback: String = "مدیر سالن",
     onNotificationsClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onViewTodayClick: () -> Unit = {},
 ) {
     ManagerHeroBanner(
         modifier = modifier,
-        managerName = managerName,
-        todaysAppointmentCount = todaysAppointmentCount,
+        displayName = salonName?.takeIf { it.isNotBlank() } ?: managerNameFallback,
         onProfileClick = onProfileClick,
         onNotificationsClick = onNotificationsClick,
         onViewTodayClick = onViewTodayClick,
@@ -142,24 +153,13 @@ private fun QuietIconBadge(
     }
 }
 
-private fun greetingForNow(): String {
-    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-    return when (hour) {
-        in 5..10 -> "صبح بخیر"
-        in 11..16 -> "ظهر بخیر"
-        in 17..20 -> "عصر بخیر"
-        else -> "شب بخیر"
-    }
-}
-
 /** Wide, low, clearly rectangular banner — a smaller, explicit radius local to this composable (not the shared 32dp `RojanShapes.GlassCard`, tuned for taller cards). */
 private val HeroBannerShape = RoundedCornerShape(20.dp)
 
 @Composable
 private fun ManagerHeroBanner(
     modifier: Modifier = Modifier,
-    managerName: String,
-    todaysAppointmentCount: Int?,
+    displayName: String,
     onProfileClick: () -> Unit,
     onNotificationsClick: () -> Unit,
     onViewTodayClick: () -> Unit,
@@ -185,10 +185,17 @@ private fun ManagerHeroBanner(
         borderAlpha = 0.32f,
         borderSecondaryAlpha = 0.28f,
     ) {
+        // Dashboard visual refinement pass: reduced from 3 stacked
+        // elements (greeting row + explanatory sentence + CTA) to 2 -
+        // dropping the explanatory sentence entirely (it only ever
+        // duplicated TodayOverviewSection's own appointment-count KPI
+        // directly below) - plus the tighter vertical padding here and
+        // the CTA's own shrunk padding below, is what shortens this
+        // header's overall height.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(RojanDimens.SpaceMD),
+                .padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {
             Row(
@@ -196,7 +203,11 @@ private fun ManagerHeroBanner(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                // The salon name is this header's primary identity now -
+                // weighted + ellipsized so a long name can never push the
+                // notification/profile icons out of the row.
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
                 ) {
@@ -207,12 +218,12 @@ private fun ManagerHeroBanner(
                         tint = ManagerColors.Gold,
                     )
                     Text(
-                        text = "${greetingForNow()}، $managerName",
-                        style = RojanTypography.CardTitle,
-                        // Pixel-perfect pass: reference.png shows the
-                        // greeting in white — gold is reserved for the
-                        // CTA only, never headline text.
+                        text = displayName,
+                        style = RojanTypography.SectionTitle,
                         color = ManagerColors.TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
                 }
 
@@ -237,25 +248,15 @@ private fun ManagerHeroBanner(
                 }
             }
 
-            Text(
-                text = if (todaysAppointmentCount != null) {
-                    "امروز ${todaysAppointmentCount.toPersianDigits()} نوبت برای سالن شما ثبت شده است."
-                } else {
-                    "با هم امروز روزی موفق و پربار بسازیم."
-                },
-                style = RojanTypography.Body,
-                color = ManagerColors.TextSecondary,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            // Real gold CTA pill — same [onViewTodayClick] handler as
-            // before, just a proper button affordance.
+            // Compact gold CTA pill — same [onViewTodayClick] handler as
+            // before; padding shrunk (SpaceMD/SpaceSM -> SpaceSM/SpaceXS)
+            // so it reads as a small premium chip rather than a large
+            // block, per the Dashboard visual refinement pass.
             Row(
                 modifier = Modifier
-                    .padding(top = RojanDimens.SpaceXS)
                     .background(ManagerColors.Gold, RojanShapes.PremiumButton)
                     .rojanPressable(onClick = onViewTodayClick)
-                    .padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
+                    .padding(horizontal = RojanDimens.SpaceSM, vertical = RojanDimens.SpaceXS),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
             ) {

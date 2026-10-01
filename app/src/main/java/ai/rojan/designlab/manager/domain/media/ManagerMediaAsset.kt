@@ -1,16 +1,21 @@
 package ai.rojan.designlab.manager.domain.media
 
 /**
- * Central Salon Management — Salon Media UI. Mirrors the backend's real
+ * Central Salon Management — Salon Media UI, plus Specialist Profile
+ * Expansion's [SPECIALIST_PHOTO]. Mirrors the backend's real
  * `MediaAsset`/`MediaType` shape exactly (`ROJAN_Backend/domain/.../media/MediaAsset.kt`)
  * rather than inventing a Manager-only structure: this is a thin domain
  * read of the same `media_assets` row every future Customer App/Reception
- * App/Website consumer will read too. Only the three types this screen
- * manages are represented here — `PORTFOLIO`/`DOCUMENT` exist on the
- * backend enum but belong to other, unrelated features (Document Archive's
- * own Security Gate in particular), not Salon Media.
+ * App/Website consumer will read too. [SPECIALIST_PHOTO] deliberately
+ * reuses this same salon-scoped upload pipeline (`ManagerMediaApi.upload`)
+ * rather than a parallel one - per the backend's own doc comment, the
+ * association to *which* specialist owns an upload is carried by
+ * `Specialist.photoUrl` (set via the existing specialist update endpoint
+ * after upload), not a `targetId` on the media row (unlike `PORTFOLIO`,
+ * which `DOCUMENT`/other target-required types do need - neither is
+ * represented here since they belong to other, unrelated features).
  */
-enum class ManagerMediaType { LOGO, COVER, GALLERY }
+enum class ManagerMediaType { LOGO, COVER, GALLERY, SPECIALIST_PHOTO }
 
 /** [id]/[url] are the two fields every other consumer of this same backend row will also need — nothing Manager-specific added. */
 data class ManagerMediaAsset(

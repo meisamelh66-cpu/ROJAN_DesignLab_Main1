@@ -53,9 +53,15 @@ fun TodayOverviewSection(stats: ManagerDashboardStats, modifier: Modifier = Modi
     // redundant next to the Salon Identity card above it — along with the
     // title-to-content gap that existed only for that heading. The KPI
     // row is the whole of this composable now.
+    // Spacing refinement pass: tightened from SpaceCardToCard (16dp) to
+    // SpaceXS (4dp, an existing token) — matches the Dashboard's other
+    // outer-spacing gaps, a thin separation between the 3 KPI cards
+    // rather than a wide empty band. Card sizes/content/padding unchanged
+    // — each card still gets an equal `weight(1f)` share of the row, just
+    // with a smaller gap consumed between them.
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceCardToCard),
+        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
     ) {
             StatCard(
                 icon = Icons.Filled.EventAvailable,
