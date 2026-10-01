@@ -20,14 +20,8 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.Criteria
-import android.location.Location
-import android.location.LocationListener
 import android.location.LocationManager
-import android.net.Uri
 import android.os.Build
-import android.os.Bundle
-import android.os.Looper
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -48,8 +42,9 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.rememberScrollState
@@ -59,11 +54,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
  * Manager App workspace — Owner Salon Identity setup/edit (First Salon
@@ -80,10 +70,12 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  * Correction, later extended by the Manager Location Picker) via the
  * same `PUT` once a salon exists — real, live backend fields
  * (`Salon.updateProfile()`, verified directly against `ROJAN_Backend`
- * source). [SalonCoordinatesSection] captures them via the device's own
- * high-accuracy `LocationManager` fix (see [rememberLocationCapture]),
- * with the underlying text fields still editable for a manual
- * correction. Latitude/longitude only appear in edit mode:
+ * source). [SalonCoordinatesSection] captures them via the in-app map
+ * picker ([ManagerLocationPickerMapDialog]) — the device's last-known
+ * location only ever centers that map initially, the owner's confirmed
+ * pin position is what's actually saved — with the underlying text
+ * fields still editable for a manual correction. Latitude/longitude only
+ * appear in edit mode:
  * the backend's `CreateSalonRequest` has no such fields, so a brand-new
  * salon's coordinates can't be set until the owner edits it once it
  * exists - [SalonSetupForm] shows an explanatory caption in create mode
@@ -193,7 +185,7 @@ private fun SalonSetupForm(
     onLatitudeChange: (String) -> Unit,
     onLongitudeChange: (String) -> Unit,
     onLocationCaptureStarted: () -> Unit,
-    onLocationCaptured: (Double, Double, Float) -> Unit,
+    onLocationCaptured: (Double, Double) -> Unit,
     onLocationCaptureFailed: (String) -> Unit,
     onSaveClick: () -> Unit,
     onWorkingHoursClick: (() -> Unit)? = null,
@@ -273,12 +265,15 @@ private fun SalonSetupForm(
  * dropping a value that could never actually be submitted yet.
  *
  * Manager Location Picker: the fields below stay plain, editable text
- * fields (a manual correction after a capture, or for an owner who
- * prefers typing exact survey coordinates, is still possible) - the
- * "دریافت موقعیت دقیق" button above them is the new acquisition path,
- * not a replacement for the fields themselves. See [rememberLocationCapture]
- * for the actual GPS flow and the authoritative-source architecture note
- * on why an external map app is never treated as returning a coordinate.
+ * fields (a manual correction, or for an owner who prefers typing exact
+ * survey coordinates, is still possible) - the "انتخاب موقعیت روی نقشه"
+ * button opens [ManagerLocationPickerMapDialog], an in-app interactive
+ * map. The device's last-known location (if available and permitted)
+ * only ever centers that map when it opens - never the saved value by
+ * itself. The owner pans the map until the fixed center pin sits on the
+ * desired spot and taps confirm; THAT pin position is what reaches
+ * [onLocationCaptured] and populates the fields below. There is no
+ * external map app involved anywhere in this flow.
  */
 @Composable
 private fun SalonCoordinatesSection(
@@ -291,14 +286,49 @@ private fun SalonCoordinatesSection(
     isCapturingLocation: Boolean,
     locationCaptureMessage: LocationCaptureMessage?,
     onLocationCaptureStarted: () -> Unit,
-    onLocationCaptured: (Double, Double, Float) -> Unit,
+    onLocationCaptured: (Double, Double) -> Unit,
     onLocationCaptureFailed: (String) -> Unit,
 ) {
-    val captureLocation = rememberLocationCapture(
-        onStarted = onLocationCaptureStarted,
-        onCaptured = onLocationCaptured,
-        onFailed = onLocationCaptureFailed,
-    )
+    val context = LocalContext.current
+    var showMapPicker by remember { mutableStateOf(false) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) {
+        // Opens the map regardless of the grant result - permission only ever
+        // affects whether the map can center on the device's last-known
+        // location; denial is handled gracefully, never as a hard failure,
+        // per the Manager Location Picker's own requirement.
+        showMapPicker = true
+    }
+
+    val openPicker: () -> Unit = openPicker@{
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val locationEnabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            locationManager.isLocationEnabled
+        } else {
+            @Suppress("DEPRECATION")
+            locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        }
+        if (!locationEnabled) {
+            context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+            onLocationCaptureFailed("لطفاً GPS دستگاه را فعال کرده و دوباره تلاش کنید، یا موقعیت را مستقیماً روی نقشه انتخاب کنید")
+            return@openPicker
+        }
+
+        val hasFineLocation = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (hasFineLocation) {
+            showMapPicker = true
+        } else {
+            permissionLauncher.launch(
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+            )
+        }
+    }
 
     ManagerGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
         Column(
@@ -316,19 +346,19 @@ private fun SalonCoordinatesSection(
                 )
             } else {
                 Text(
-                    text = "مختصات از GPS دستگاه شما دریافت و ذخیره می‌شود. نقشه فقط برای مشاهده و تأیید بصری موقعیت است.",
+                    text = "موقعیت را روی نقشه مشخص کنید. مکان فعلی شما فقط برای مرکز اولیه نقشه استفاده می‌شود؛ مختصات نهایی همان پینی است که روی نقشه تأیید می‌کنید.",
                     style = RojanTypography.Caption,
                     color = ManagerColors.TextSecondary,
                 )
                 ManagerPrimaryButton(
-                    text = "دریافت موقعیت دقیق",
-                    onClick = captureLocation,
+                    text = "انتخاب موقعیت روی نقشه",
+                    onClick = openPicker,
                     enabled = enabled && !isCapturingLocation,
                     loading = isCapturingLocation,
                 )
                 when (locationCaptureMessage) {
                     is LocationCaptureMessage.Success -> Text(
-                        text = "این موقعیت ذخیره خواهد شد (دقت: ${locationCaptureMessage.accuracyMeters.toInt()} متر)",
+                        text = "موقعیت انتخابی شما ذخیره خواهد شد",
                         style = RojanTypography.Caption,
                         color = RojanSuccessText,
                     )
@@ -344,186 +374,17 @@ private fun SalonCoordinatesSection(
             }
         }
     }
-}
 
-/**
- * Manager Location Picker: returns a trigger to run when "دریافت موقعیت
- * دقیق" is tapped.
- *
- * Architecture rule (explicit requirement, not a simplification): an
- * external map app is NEVER the source of the coordinate -
- * `ACTION_VIEW`/`geo:` intents have no result channel back to the caller
- * on Android, so there is no way for a map app to "return" a
- * user-selected point here. The device's own [LocationManager]
- * ([awaitAccurateLocation]) is the sole authoritative source, always.
- *
- * Flow order is deliberately GPS-first: [runLocationCaptureFlow] captures
- * the high-accuracy fix BEFORE calling [offerMapAppChooser], then opens
- * the map centered on that real captured coordinate (not a placeholder)
- * so the owner can visually confirm it on an actual map. That visual
- * confirmation is informational only - there is nothing for the owner to
- * "confirm back" into ROJAN; the coordinate that gets saved is the one
- * already captured, shown to the owner inline (see the accuracy caption
- * in [SalonCoordinatesSection]) before they ever leave the app. If the
- * pin looks wrong, the existing editable latitude/longitude fields are
- * the correction path - never a return value from the map app, which
- * does not exist.
- */
-@Composable
-private fun rememberLocationCapture(
-    onStarted: () -> Unit,
-    onCaptured: (Double, Double, Float) -> Unit,
-    onFailed: (String) -> Unit,
-): () -> Unit {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions(),
-    ) { grants ->
-        if (grants[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
-            scope.launch { runLocationCaptureFlow(context, onStarted, onCaptured, onFailed) }
-        } else {
-            onFailed("برای دریافت موقعیت دقیق، دسترسی مکان لازم است")
-        }
-    }
-
-    return remember(context) {
-        {
-            val hasFineLocation = ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_FINE_LOCATION,
-            ) == PackageManager.PERMISSION_GRANTED
-            if (hasFineLocation) {
-                scope.launch { runLocationCaptureFlow(context, onStarted, onCaptured, onFailed) }
-            } else {
-                permissionLauncher.launch(
-                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
-                )
-            }
-        }
-    }
-}
-
-private suspend fun runLocationCaptureFlow(
-    context: Context,
-    onStarted: () -> Unit,
-    onCaptured: (Double, Double, Float) -> Unit,
-    onFailed: (String) -> Unit,
-) {
-    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-    val locationEnabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        locationManager.isLocationEnabled
-    } else {
-        @Suppress("DEPRECATION")
-        locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
-            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-    }
-    if (!locationEnabled) {
-        context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
-        onFailed("لطفاً GPS دستگاه را فعال کرده و دوباره تلاش کنید")
-        return
-    }
-
-    onStarted()
-    val location = awaitAccurateLocation(locationManager)
-    if (location != null) {
-        offerMapAppChooser(context, location.latitude, location.longitude)
-        onCaptured(location.latitude, location.longitude, location.accuracy)
-    } else {
-        onFailed("دریافت موقعیت دقیق ممکن نشد. دوباره تلاش کنید")
-    }
-}
-
-/**
- * Optional visual aid only, shown AFTER the real GPS fix is already
- * captured so the map is centered on the owner's actual coordinate, not
- * a placeholder - lets the owner visually confirm their captured
- * location on a real map. Shows the Android app chooser when more than
- * one map app can handle a `geo:` intent, opens the single installed one
- * directly, or is a silent no-op with zero installed. Purely for the
- * owner's benefit: nothing the owner does in that external app changes
- * what gets saved - [latitude]/[longitude] (the already-captured GPS fix)
- * are what reach [onCaptured], unconditionally.
- */
-private fun offerMapAppChooser(context: Context, latitude: Double, longitude: Double) {
-    val geoIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude"))
-    val resolved = context.packageManager.queryIntentActivities(geoIntent, PackageManager.MATCH_DEFAULT_ONLY)
-    try {
-        when {
-            resolved.isEmpty() -> Unit
-            resolved.size == 1 -> context.startActivity(geoIntent)
-            else -> context.startActivity(Intent.createChooser(geoIntent, "انتخاب برنامه نقشه"))
-        }
-    } catch (_: android.content.ActivityNotFoundException) {
-        // No installed app can actually handle it despite resolving - skip silently,
-        // this is a visual convenience only, never required for the capture above.
-    }
-}
-
-/** Highest reported accuracy radius (meters) that ends the wait early instead of running the full timeout. */
-private const val LOCATION_ACCURACY_THRESHOLD_METERS = 30f
-
-/** Upper bound on how long the owner waits for a fix before getting the best reading obtained so far (or a failure, if none arrived at all). */
-private const val LOCATION_TIMEOUT_MS = 20_000L
-
-/**
- * Requests a single high-accuracy fix from [LocationManager] directly -
- * no Play Services dependency, since none exists in this project yet and
- * this flow doesn't need anything Play Services would add over a plain
- * GPS/network provider fix. Waits up to [LOCATION_TIMEOUT_MS] for a
- * reading at or below [LOCATION_ACCURACY_THRESHOLD_METERS] accuracy,
- * resolving early the moment one arrives; on timeout, returns the best
- * (lowest-accuracy-value) reading received during the wait rather than
- * discarding it, or `null` if the device never produced a single fix -
- * that `null` case is a genuine failure, surfaced as an error, never
- * silently treated as success with a placeholder coordinate.
- */
-private suspend fun awaitAccurateLocation(locationManager: LocationManager): Location? {
-    val criteria = Criteria().apply { accuracy = Criteria.ACCURACY_FINE }
-    @Suppress("DEPRECATION")
-    val provider = locationManager.getBestProvider(criteria, true) ?: return null
-
-    return suspendCancellableCoroutine { continuation ->
-        var bestLocation: Location? = null
-        lateinit var listener: LocationListener
-        lateinit var timeoutJob: Job
-
-        listener = object : LocationListener {
-            override fun onLocationChanged(location: Location) {
-                val currentBest = bestLocation
-                if (currentBest == null || location.accuracy < currentBest.accuracy) {
-                    bestLocation = location
-                }
-                if (location.accuracy <= LOCATION_ACCURACY_THRESHOLD_METERS) {
-                    timeoutJob.cancel()
-                    locationManager.removeUpdates(this)
-                    if (continuation.isActive) continuation.resume(location, onCancellation = null)
-                }
-            }
-
-            @Deprecated("Deprecated in Java, still part of the LocationListener interface on minSdk 24")
-            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
-            override fun onProviderEnabled(provider: String) = Unit
-            override fun onProviderDisabled(provider: String) = Unit
-        }
-
-        continuation.invokeOnCancellation {
-            locationManager.removeUpdates(listener)
-        }
-
-        timeoutJob = CoroutineScope(continuation.context).launch {
-            delay(LOCATION_TIMEOUT_MS)
-            locationManager.removeUpdates(listener)
-            if (continuation.isActive) continuation.resume(bestLocation, onCancellation = null)
-        }
-
-        try {
-            locationManager.requestLocationUpdates(provider, 1000L, 0f, listener, Looper.getMainLooper())
-        } catch (_: SecurityException) {
-            timeoutJob.cancel()
-            if (continuation.isActive) continuation.resume(null, onCancellation = null)
-        }
+    if (showMapPicker) {
+        ManagerLocationPickerMapDialog(
+            initialLatitude = latitude.toDoubleOrNull(),
+            initialLongitude = longitude.toDoubleOrNull(),
+            onConfirm = { lat, lng ->
+                showMapPicker = false
+                onLocationCaptured(lat, lng)
+            },
+            onDismiss = { showMapPicker = false },
+        )
     }
 }
 

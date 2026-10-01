@@ -370,6 +370,15 @@ dependencies {
     // android.media.ExifInterface).
     implementation(libs.androidx.exifinterface)
 
+    // Manager Location Picker: in-app interactive map for visually
+    // confirming/adjusting the GPS-centered salon coordinate before save.
+    // osmdroid chosen over Google Maps Compose specifically because this
+    // project has no Maps API key/billing set up anywhere and none should
+    // be introduced for one settings screen - osmdroid needs neither (OSM
+    // tiles, no key), nor a Play Services dependency this project doesn't
+    // otherwise have. No other map library exists in this project to reuse.
+    implementation(libs.osmdroid.android)
+
     // Core library desugaring runtime — pairs with
     // android.compileOptions.isCoreLibraryDesugaringEnabled above.
     coreLibraryDesugaring(libs.desugar.jdk.libs)

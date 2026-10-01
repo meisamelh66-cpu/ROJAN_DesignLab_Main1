@@ -31,14 +31,14 @@ data class SalonSetupFormState(
 )
 
 /**
- * Manager Location Picker: result of a device-location capture attempt,
- * shown as an inline caption next to the coordinate fields. Purely
- * informational — [ManagerSalonRepository.updateSalon] has no accuracy
- * field to persist, so this is never sent to the backend, only displayed
- * before the owner taps Save.
+ * Manager Location Picker: result of a location-selection attempt, shown
+ * as an inline caption next to the coordinate fields. [Success] carries
+ * no payload - the coordinate itself already lives in [SalonSetupFormState],
+ * this is purely a transient "this is what will be saved" confirmation,
+ * never sent to the backend.
  */
 sealed interface LocationCaptureMessage {
-    data class Success(val accuracyMeters: Float) : LocationCaptureMessage
+    data object Success : LocationCaptureMessage
     data class Error(val text: String) : LocationCaptureMessage
 }
 
@@ -145,23 +145,23 @@ class ManagerSalonSetupViewModel(
     }
 
     /**
-     * Manager Location Picker: the Android location provider is the sole
-     * authoritative source for these coordinates (never an external map
-     * app, which has no way to return a value here) — these three methods
-     * are the only entry points the capture flow in
+     * Manager Location Picker: the owner's confirmed pin position on the
+     * in-app map is the sole source of these coordinates - the device's
+     * last-known location (if available) only ever centers the map when
+     * it first opens, it is never passed here directly. These three
+     * methods are the only entry points the picker in
      * [ai.rojan.designlab.manager.screens.settings.ManagerSalonSetupScreen]
-     * uses to report back what the device's `LocationManager` actually
-     * produced.
+     * uses to report back what the owner actually confirmed.
      */
     fun onLocationCaptureStarted() {
         _locationCaptureMessage.value = null
         _isCapturingLocation.value = true
     }
 
-    fun onLocationCaptured(latitude: Double, longitude: Double, accuracyMeters: Float) {
+    fun onLocationCaptured(latitude: Double, longitude: Double) {
         _formState.value = _formState.value.copy(latitude = latitude.toString(), longitude = longitude.toString())
         _isCapturingLocation.value = false
-        _locationCaptureMessage.value = LocationCaptureMessage.Success(accuracyMeters)
+        _locationCaptureMessage.value = LocationCaptureMessage.Success
     }
 
     fun onLocationCaptureFailed(message: String) {

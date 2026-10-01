@@ -262,12 +262,12 @@ class ManagerSalonSetupViewModelTest {
         val viewModel = ManagerSalonSetupViewModel(FakeManagerSalonRepository(getMySalonResult = Result.success(existingSalon)))
 
         viewModel.onLocationCaptureStarted()
-        viewModel.onLocationCaptured(latitude = 35.70, longitude = 51.42, accuracyMeters = 12.5f)
+        viewModel.onLocationCaptured(latitude = 35.70, longitude = 51.42)
 
         assertFalse(viewModel.isCapturingLocation.value)
         assertEquals("35.7", viewModel.formState.value.latitude)
         assertEquals("51.42", viewModel.formState.value.longitude)
-        assertEquals(LocationCaptureMessage.Success(12.5f), viewModel.locationCaptureMessage.value)
+        assertEquals(LocationCaptureMessage.Success, viewModel.locationCaptureMessage.value)
     }
 
     @Test
@@ -287,7 +287,7 @@ class ManagerSalonSetupViewModelTest {
     fun `manually editing a coordinate field clears a previously shown capture message`() = runTest {
         val viewModel = ManagerSalonSetupViewModel(FakeManagerSalonRepository(getMySalonResult = Result.success(existingSalon)))
 
-        viewModel.onLocationCaptured(latitude = 35.70, longitude = 51.42, accuracyMeters = 12.5f)
+        viewModel.onLocationCaptured(latitude = 35.70, longitude = 51.42)
         viewModel.onLatitudeChange("36.0")
 
         assertNull(viewModel.locationCaptureMessage.value)
