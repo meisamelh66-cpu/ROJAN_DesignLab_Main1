@@ -196,7 +196,9 @@ fun ManagerLocationPickerMapDialog(
                     text = "نقشه را جابه‌جا کنید تا پین روی موقعیت دقیق قرار گیرد",
                     style = RojanTypography.Caption,
                     color = ManagerColors.TextPrimary,
-                    modifier = Modifier.padding(RojanDimens.SpaceSM),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(RojanDimens.SpaceSM),
                 )
             }
 

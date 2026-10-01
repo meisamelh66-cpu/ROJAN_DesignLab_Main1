@@ -11,6 +11,7 @@ import ai.rojan.designlab.manager.presentation.settings.SalonSetupFormState
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.text.Text
+import ai.rojan.designlab.ui.text.withDirectionFor
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanErrorText
 import ai.rojan.designlab.ui.theme.RojanShapes
@@ -349,6 +350,7 @@ private fun SalonCoordinatesSection(
                     text = "موقعیت را روی نقشه مشخص کنید. مکان فعلی شما فقط برای مرکز اولیه نقشه استفاده می‌شود؛ مختصات نهایی همان پینی است که روی نقشه تأیید می‌کنید.",
                     style = RojanTypography.Caption,
                     color = ManagerColors.TextSecondary,
+                    modifier = Modifier.fillMaxWidth(),
                 )
                 ManagerPrimaryButton(
                     text = "انتخاب موقعیت روی نقشه",
@@ -462,7 +464,7 @@ private fun SalonTextField(label: String, value: String, onValueChange: (String)
         label = { Text(label) },
         enabled = enabled,
         singleLine = true,
-        textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary),
+        textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary).withDirectionFor(value),
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = ManagerColors.TextPrimary,
             unfocusedTextColor = ManagerColors.TextPrimary,
