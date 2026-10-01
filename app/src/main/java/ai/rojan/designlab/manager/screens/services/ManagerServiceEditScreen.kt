@@ -11,6 +11,7 @@ import ai.rojan.designlab.manager.navigation.ManagerDestinations
 import ai.rojan.designlab.presentation.common.userMessageFor
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.text.Text
+import ai.rojan.designlab.ui.text.withDirectionFor
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanErrorText
 import ai.rojan.designlab.ui.theme.RojanShapes
@@ -245,7 +246,7 @@ private fun ServiceTextField(
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         enabled = enabled,
         singleLine = true,
-        textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary),
+        textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary).withDirectionFor(value),
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = ManagerColors.TextPrimary,
             unfocusedTextColor = ManagerColors.TextPrimary,

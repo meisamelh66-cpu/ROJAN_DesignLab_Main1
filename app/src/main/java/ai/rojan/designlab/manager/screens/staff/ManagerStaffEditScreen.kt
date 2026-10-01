@@ -14,6 +14,7 @@ import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTheme
 import ai.rojan.designlab.ui.theme.RojanTypography
 import ai.rojan.designlab.ui.text.Text
+import ai.rojan.designlab.ui.text.withDirectionFor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -151,7 +152,7 @@ private fun StaffNameField(value: String, onValueChange: (String) -> Unit, enabl
         label = { Text("نام متخصص") },
         enabled = enabled,
         singleLine = true,
-        textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary),
+        textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary).withDirectionFor(value),
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = ManagerColors.TextPrimary,
             unfocusedTextColor = ManagerColors.TextPrimary,
