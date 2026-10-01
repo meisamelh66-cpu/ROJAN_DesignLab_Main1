@@ -4,6 +4,7 @@ import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.manager.components.AIInsightCard
 import ai.rojan.designlab.manager.components.CalendarPreviewSection
 import ai.rojan.designlab.manager.components.ManagerEmptyState
+import ai.rojan.designlab.manager.components.ManagerBannerSlot
 import ai.rojan.designlab.manager.components.ManagerErrorState
 import ai.rojan.designlab.manager.components.ManagerHeader
 import ai.rojan.designlab.manager.components.ManagerLoadingState
@@ -127,6 +128,11 @@ fun ManagerDashboardScreen(
             verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSectionToSection),
         ) {
             item { ManagerHeader(onProfileClick = onProfileClick) }
+
+            // Manager Dashboard Banner integration: admin-managed static
+            // artwork (target=MANAGER), independent of dashboardState below -
+            // unaffected by the salon-loading/error/empty/success state machine.
+            item { ManagerBannerSlot() }
 
             when (val dashboardState = viewModel.state) {
                 is UiState.Loading -> item { ManagerLoadingState(message = "در حال بارگذاری اطلاعات سالن...") }
