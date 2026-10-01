@@ -5,6 +5,7 @@ import ai.rojan.designlab.manager.components.ManagerGlassSurface
 import ai.rojan.designlab.manager.components.ManagerIconContainer
 import ai.rojan.designlab.manager.components.ManagerPrimaryButton
 import ai.rojan.designlab.manager.components.ManagerScaffold
+import ai.rojan.designlab.manager.presentation.settings.LocationCaptureMessage
 import ai.rojan.designlab.manager.presentation.settings.ManagerSalonSetupViewModel
 import ai.rojan.designlab.manager.presentation.settings.SalonSetupFormState
 import ai.rojan.designlab.presentation.common.UiState
@@ -13,7 +14,23 @@ import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanErrorText
 import ai.rojan.designlab.ui.theme.RojanShapes
+import ai.rojan.designlab.ui.theme.RojanSuccessText
 import ai.rojan.designlab.ui.theme.RojanTypography
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.Criteria
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.os.Looper
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,13 +48,22 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
  * Manager App workspace — Owner Salon Identity setup/edit (First Salon
@@ -51,10 +77,13 @@ import androidx.compose.ui.unit.dp
  *
  * Covers name/description/phone/email/address via the real `POST`/
  * `PUT /api/v1/salons` endpoints, plus latitude/longitude (Phase A
- * Correction) via the same `PUT` once a salon exists — real, live
- * backend fields (`Salon.updateProfile()`, verified directly against
- * `ROJAN_Backend` source), entered as plain coordinate text fields, not
- * a map or location picker. Latitude/longitude only appear in edit mode:
+ * Correction, later extended by the Manager Location Picker) via the
+ * same `PUT` once a salon exists — real, live backend fields
+ * (`Salon.updateProfile()`, verified directly against `ROJAN_Backend`
+ * source). [SalonCoordinatesSection] captures them via the device's own
+ * high-accuracy `LocationManager` fix (see [rememberLocationCapture]),
+ * with the underlying text fields still editable for a manual
+ * correction. Latitude/longitude only appear in edit mode:
  * the backend's `CreateSalonRequest` has no such fields, so a brand-new
  * salon's coordinates can't be set until the owner edits it once it
  * exists - [SalonSetupForm] shows an explanatory caption in create mode
@@ -80,6 +109,8 @@ fun ManagerSalonSetupScreen(
     val form by viewModel.formState.collectAsStateWithLifecycle()
     val isSubmitting by viewModel.isSubmitting.collectAsStateWithLifecycle()
     val submitError by viewModel.submitError.collectAsStateWithLifecycle()
+    val isCapturingLocation by viewModel.isCapturingLocation.collectAsStateWithLifecycle()
+    val locationCaptureMessage by viewModel.locationCaptureMessage.collectAsStateWithLifecycle()
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         when (val state = loadState) {
@@ -91,6 +122,8 @@ fun ManagerSalonSetupScreen(
                     form = form,
                     isSubmitting = isSubmitting,
                     submitError = submitError,
+                    isCapturingLocation = isCapturingLocation,
+                    locationCaptureMessage = locationCaptureMessage,
                     onNameChange = viewModel::onNameChange,
                     onDescriptionChange = viewModel::onDescriptionChange,
                     onPhoneChange = viewModel::onPhoneChange,
@@ -98,6 +131,9 @@ fun ManagerSalonSetupScreen(
                     onAddressChange = viewModel::onAddressChange,
                     onLatitudeChange = viewModel::onLatitudeChange,
                     onLongitudeChange = viewModel::onLongitudeChange,
+                    onLocationCaptureStarted = viewModel::onLocationCaptureStarted,
+                    onLocationCaptured = viewModel::onLocationCaptured,
+                    onLocationCaptureFailed = viewModel::onLocationCaptureFailed,
                     onSaveClick = { viewModel.save(onSaved = onSaved) },
                     // Owner Salon Profile Completion (Android-only) - only a
                     // real navigation entry point once a salon exists
@@ -147,6 +183,8 @@ private fun SalonSetupForm(
     form: SalonSetupFormState,
     isSubmitting: Boolean,
     submitError: String?,
+    isCapturingLocation: Boolean,
+    locationCaptureMessage: LocationCaptureMessage?,
     onNameChange: (String) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onPhoneChange: (String) -> Unit,
@@ -154,6 +192,9 @@ private fun SalonSetupForm(
     onAddressChange: (String) -> Unit,
     onLatitudeChange: (String) -> Unit,
     onLongitudeChange: (String) -> Unit,
+    onLocationCaptureStarted: () -> Unit,
+    onLocationCaptured: (Double, Double, Float) -> Unit,
+    onLocationCaptureFailed: (String) -> Unit,
     onSaveClick: () -> Unit,
     onWorkingHoursClick: (() -> Unit)? = null,
     onSalonMediaClick: (() -> Unit)? = null,
@@ -193,6 +234,11 @@ private fun SalonSetupForm(
             onLatitudeChange = onLatitudeChange,
             onLongitudeChange = onLongitudeChange,
             enabled = !isSubmitting,
+            isCapturingLocation = isCapturingLocation,
+            locationCaptureMessage = locationCaptureMessage,
+            onLocationCaptureStarted = onLocationCaptureStarted,
+            onLocationCaptured = onLocationCaptured,
+            onLocationCaptureFailed = onLocationCaptureFailed,
         )
 
         if (onWorkingHoursClick != null) {
@@ -216,17 +262,23 @@ private fun SalonSetupForm(
 }
 
 /**
- * Latitude/longitude editing (Phase A Correction) — real, live backend
- * fields (`Salon.updateProfile()`, verified directly against
- * `ROJAN_Backend` source), sent through
+ * Latitude/longitude (Phase A Correction) — real, live backend fields
+ * (`Salon.updateProfile()`, verified directly against `ROJAN_Backend`
+ * source), sent through
  * [ai.rojan.designlab.manager.domain.repository.ManagerSalonRepository.updateSalon]
- * exactly as typed. Plain coordinate text fields only — no map, no
- * location picker, per this correction's own scope. Only shown once a
- * salon exists ([isCreateMode] `false`): the backend's `CreateSalonRequest`
- * has no coordinate fields, so a brand-new salon's coordinates can't be
- * set until the owner edits it - a caption explains this in create mode
- * instead of silently dropping a value typed into a field that could
- * never actually be submitted yet.
+ * exactly as captured. Only shown once a salon exists ([isCreateMode]
+ * `false`): the backend's `CreateSalonRequest` has no coordinate fields,
+ * so a brand-new salon's coordinates can't be set until the owner edits
+ * it - a caption explains this in create mode instead of silently
+ * dropping a value that could never actually be submitted yet.
+ *
+ * Manager Location Picker: the fields below stay plain, editable text
+ * fields (a manual correction after a capture, or for an owner who
+ * prefers typing exact survey coordinates, is still possible) - the
+ * "دریافت موقعیت دقیق" button above them is the new acquisition path,
+ * not a replacement for the fields themselves. See [rememberLocationCapture]
+ * for the actual GPS flow and the authoritative-source architecture note
+ * on why an external map app is never treated as returning a coordinate.
  */
 @Composable
 private fun SalonCoordinatesSection(
@@ -236,7 +288,18 @@ private fun SalonCoordinatesSection(
     onLatitudeChange: (String) -> Unit,
     onLongitudeChange: (String) -> Unit,
     enabled: Boolean,
+    isCapturingLocation: Boolean,
+    locationCaptureMessage: LocationCaptureMessage?,
+    onLocationCaptureStarted: () -> Unit,
+    onLocationCaptured: (Double, Double, Float) -> Unit,
+    onLocationCaptureFailed: (String) -> Unit,
 ) {
+    val captureLocation = rememberLocationCapture(
+        onStarted = onLocationCaptureStarted,
+        onCaptured = onLocationCaptured,
+        onFailed = onLocationCaptureFailed,
+    )
+
     ManagerGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
         Column(
             modifier = Modifier
@@ -252,9 +315,214 @@ private fun SalonCoordinatesSection(
                     color = ManagerColors.TextSecondary,
                 )
             } else {
+                Text(
+                    text = "مختصات از GPS دستگاه شما دریافت و ذخیره می‌شود. نقشه فقط برای مشاهده و تأیید بصری موقعیت است.",
+                    style = RojanTypography.Caption,
+                    color = ManagerColors.TextSecondary,
+                )
+                ManagerPrimaryButton(
+                    text = "دریافت موقعیت دقیق",
+                    onClick = captureLocation,
+                    enabled = enabled && !isCapturingLocation,
+                    loading = isCapturingLocation,
+                )
+                when (locationCaptureMessage) {
+                    is LocationCaptureMessage.Success -> Text(
+                        text = "این موقعیت ذخیره خواهد شد (دقت: ${locationCaptureMessage.accuracyMeters.toInt()} متر)",
+                        style = RojanTypography.Caption,
+                        color = RojanSuccessText,
+                    )
+                    is LocationCaptureMessage.Error -> Text(
+                        text = locationCaptureMessage.text,
+                        style = RojanTypography.Caption,
+                        color = RojanErrorText,
+                    )
+                    null -> Unit
+                }
                 SalonTextField(label = "عرض جغرافیایی", value = latitude, onValueChange = onLatitudeChange, enabled = enabled)
                 SalonTextField(label = "طول جغرافیایی", value = longitude, onValueChange = onLongitudeChange, enabled = enabled)
             }
+        }
+    }
+}
+
+/**
+ * Manager Location Picker: returns a trigger to run when "دریافت موقعیت
+ * دقیق" is tapped.
+ *
+ * Architecture rule (explicit requirement, not a simplification): an
+ * external map app is NEVER the source of the coordinate -
+ * `ACTION_VIEW`/`geo:` intents have no result channel back to the caller
+ * on Android, so there is no way for a map app to "return" a
+ * user-selected point here. The device's own [LocationManager]
+ * ([awaitAccurateLocation]) is the sole authoritative source, always.
+ *
+ * Flow order is deliberately GPS-first: [runLocationCaptureFlow] captures
+ * the high-accuracy fix BEFORE calling [offerMapAppChooser], then opens
+ * the map centered on that real captured coordinate (not a placeholder)
+ * so the owner can visually confirm it on an actual map. That visual
+ * confirmation is informational only - there is nothing for the owner to
+ * "confirm back" into ROJAN; the coordinate that gets saved is the one
+ * already captured, shown to the owner inline (see the accuracy caption
+ * in [SalonCoordinatesSection]) before they ever leave the app. If the
+ * pin looks wrong, the existing editable latitude/longitude fields are
+ * the correction path - never a return value from the map app, which
+ * does not exist.
+ */
+@Composable
+private fun rememberLocationCapture(
+    onStarted: () -> Unit,
+    onCaptured: (Double, Double, Float) -> Unit,
+    onFailed: (String) -> Unit,
+): () -> Unit {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        if (grants[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
+            scope.launch { runLocationCaptureFlow(context, onStarted, onCaptured, onFailed) }
+        } else {
+            onFailed("برای دریافت موقعیت دقیق، دسترسی مکان لازم است")
+        }
+    }
+
+    return remember(context) {
+        {
+            val hasFineLocation = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+            ) == PackageManager.PERMISSION_GRANTED
+            if (hasFineLocation) {
+                scope.launch { runLocationCaptureFlow(context, onStarted, onCaptured, onFailed) }
+            } else {
+                permissionLauncher.launch(
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+                )
+            }
+        }
+    }
+}
+
+private suspend fun runLocationCaptureFlow(
+    context: Context,
+    onStarted: () -> Unit,
+    onCaptured: (Double, Double, Float) -> Unit,
+    onFailed: (String) -> Unit,
+) {
+    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+    val locationEnabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        locationManager.isLocationEnabled
+    } else {
+        @Suppress("DEPRECATION")
+        locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    }
+    if (!locationEnabled) {
+        context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+        onFailed("لطفاً GPS دستگاه را فعال کرده و دوباره تلاش کنید")
+        return
+    }
+
+    onStarted()
+    val location = awaitAccurateLocation(locationManager)
+    if (location != null) {
+        offerMapAppChooser(context, location.latitude, location.longitude)
+        onCaptured(location.latitude, location.longitude, location.accuracy)
+    } else {
+        onFailed("دریافت موقعیت دقیق ممکن نشد. دوباره تلاش کنید")
+    }
+}
+
+/**
+ * Optional visual aid only, shown AFTER the real GPS fix is already
+ * captured so the map is centered on the owner's actual coordinate, not
+ * a placeholder - lets the owner visually confirm their captured
+ * location on a real map. Shows the Android app chooser when more than
+ * one map app can handle a `geo:` intent, opens the single installed one
+ * directly, or is a silent no-op with zero installed. Purely for the
+ * owner's benefit: nothing the owner does in that external app changes
+ * what gets saved - [latitude]/[longitude] (the already-captured GPS fix)
+ * are what reach [onCaptured], unconditionally.
+ */
+private fun offerMapAppChooser(context: Context, latitude: Double, longitude: Double) {
+    val geoIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:$latitude,$longitude?q=$latitude,$longitude"))
+    val resolved = context.packageManager.queryIntentActivities(geoIntent, PackageManager.MATCH_DEFAULT_ONLY)
+    try {
+        when {
+            resolved.isEmpty() -> Unit
+            resolved.size == 1 -> context.startActivity(geoIntent)
+            else -> context.startActivity(Intent.createChooser(geoIntent, "انتخاب برنامه نقشه"))
+        }
+    } catch (_: android.content.ActivityNotFoundException) {
+        // No installed app can actually handle it despite resolving - skip silently,
+        // this is a visual convenience only, never required for the capture above.
+    }
+}
+
+/** Highest reported accuracy radius (meters) that ends the wait early instead of running the full timeout. */
+private const val LOCATION_ACCURACY_THRESHOLD_METERS = 30f
+
+/** Upper bound on how long the owner waits for a fix before getting the best reading obtained so far (or a failure, if none arrived at all). */
+private const val LOCATION_TIMEOUT_MS = 20_000L
+
+/**
+ * Requests a single high-accuracy fix from [LocationManager] directly -
+ * no Play Services dependency, since none exists in this project yet and
+ * this flow doesn't need anything Play Services would add over a plain
+ * GPS/network provider fix. Waits up to [LOCATION_TIMEOUT_MS] for a
+ * reading at or below [LOCATION_ACCURACY_THRESHOLD_METERS] accuracy,
+ * resolving early the moment one arrives; on timeout, returns the best
+ * (lowest-accuracy-value) reading received during the wait rather than
+ * discarding it, or `null` if the device never produced a single fix -
+ * that `null` case is a genuine failure, surfaced as an error, never
+ * silently treated as success with a placeholder coordinate.
+ */
+private suspend fun awaitAccurateLocation(locationManager: LocationManager): Location? {
+    val criteria = Criteria().apply { accuracy = Criteria.ACCURACY_FINE }
+    @Suppress("DEPRECATION")
+    val provider = locationManager.getBestProvider(criteria, true) ?: return null
+
+    return suspendCancellableCoroutine { continuation ->
+        var bestLocation: Location? = null
+        lateinit var listener: LocationListener
+        lateinit var timeoutJob: Job
+
+        listener = object : LocationListener {
+            override fun onLocationChanged(location: Location) {
+                val currentBest = bestLocation
+                if (currentBest == null || location.accuracy < currentBest.accuracy) {
+                    bestLocation = location
+                }
+                if (location.accuracy <= LOCATION_ACCURACY_THRESHOLD_METERS) {
+                    timeoutJob.cancel()
+                    locationManager.removeUpdates(this)
+                    if (continuation.isActive) continuation.resume(location, onCancellation = null)
+                }
+            }
+
+            @Deprecated("Deprecated in Java, still part of the LocationListener interface on minSdk 24")
+            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
+            override fun onProviderEnabled(provider: String) = Unit
+            override fun onProviderDisabled(provider: String) = Unit
+        }
+
+        continuation.invokeOnCancellation {
+            locationManager.removeUpdates(listener)
+        }
+
+        timeoutJob = CoroutineScope(continuation.context).launch {
+            delay(LOCATION_TIMEOUT_MS)
+            locationManager.removeUpdates(listener)
+            if (continuation.isActive) continuation.resume(bestLocation, onCancellation = null)
+        }
+
+        try {
+            locationManager.requestLocationUpdates(provider, 1000L, 0f, listener, Looper.getMainLooper())
+        } catch (_: SecurityException) {
+            timeoutJob.cancel()
+            if (continuation.isActive) continuation.resume(null, onCancellation = null)
         }
     }
 }

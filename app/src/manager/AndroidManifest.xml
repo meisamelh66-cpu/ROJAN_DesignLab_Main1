@@ -3,6 +3,16 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!--
+        Manager Location Picker: high-accuracy device location for the
+        salon coordinates flow (ManagerSalonSetupScreen). Declared here,
+        not in the shared src/main manifest, so the Customer flavor never
+        requests location at all - Customer has no location feature and
+        no existing permission here to merge with.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!--
         ROJAN Manager flavor manifest — merged with src/main/AndroidManifest.xml
         (unchanged, still Customer's manifest). Only what differs for the
         Manager app lives here: its own launcher icon and its own entry

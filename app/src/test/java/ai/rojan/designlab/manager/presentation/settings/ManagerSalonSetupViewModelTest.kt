@@ -246,6 +246,53 @@ class ManagerSalonSetupViewModelTest {
         assertTrue(viewModel.submitError.value != null)
     }
 
+    @Test
+    fun `onLocationCaptureStarted sets isCapturingLocation and clears any prior message`() = runTest {
+        val viewModel = ManagerSalonSetupViewModel(FakeManagerSalonRepository(getMySalonResult = Result.success(existingSalon)))
+
+        viewModel.onLocationCaptureFailed("خطای قبلی")
+        viewModel.onLocationCaptureStarted()
+
+        assertTrue(viewModel.isCapturingLocation.value)
+        assertNull(viewModel.locationCaptureMessage.value)
+    }
+
+    @Test
+    fun `onLocationCaptured populates the latitude and longitude fields and reports success`() = runTest {
+        val viewModel = ManagerSalonSetupViewModel(FakeManagerSalonRepository(getMySalonResult = Result.success(existingSalon)))
+
+        viewModel.onLocationCaptureStarted()
+        viewModel.onLocationCaptured(latitude = 35.70, longitude = 51.42, accuracyMeters = 12.5f)
+
+        assertFalse(viewModel.isCapturingLocation.value)
+        assertEquals("35.7", viewModel.formState.value.latitude)
+        assertEquals("51.42", viewModel.formState.value.longitude)
+        assertEquals(LocationCaptureMessage.Success(12.5f), viewModel.locationCaptureMessage.value)
+    }
+
+    @Test
+    fun `onLocationCaptureFailed reports the error and does not touch the existing coordinate fields`() = runTest {
+        val viewModel = ManagerSalonSetupViewModel(FakeManagerSalonRepository(getMySalonResult = Result.success(existingSalon)))
+
+        viewModel.onLocationCaptureStarted()
+        viewModel.onLocationCaptureFailed("دسترسی مکان رد شد")
+
+        assertFalse(viewModel.isCapturingLocation.value)
+        assertEquals(LocationCaptureMessage.Error("دسترسی مکان رد شد"), viewModel.locationCaptureMessage.value)
+        assertEquals("35.6892", viewModel.formState.value.latitude)
+        assertEquals("51.389", viewModel.formState.value.longitude)
+    }
+
+    @Test
+    fun `manually editing a coordinate field clears a previously shown capture message`() = runTest {
+        val viewModel = ManagerSalonSetupViewModel(FakeManagerSalonRepository(getMySalonResult = Result.success(existingSalon)))
+
+        viewModel.onLocationCaptured(latitude = 35.70, longitude = 51.42, accuracyMeters = 12.5f)
+        viewModel.onLatitudeChange("36.0")
+
+        assertNull(viewModel.locationCaptureMessage.value)
+    }
+
     private class FakeManagerSalonRepository(
         private val getMySalonResult: Result<ManagerSalonSummary?>,
         private val createSalonResult: Result<ManagerSalonSummary>? = null,
