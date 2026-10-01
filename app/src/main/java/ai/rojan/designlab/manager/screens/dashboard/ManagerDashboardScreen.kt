@@ -122,12 +122,20 @@ fun ManagerDashboardScreen(
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            // Shared Premium Glass Design System spacing rhythm: compact
-            // section-to-section gap so stacked cards read as one
-            // dashboard, not isolated islands with large empty gaps.
-            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSectionToSection),
+            // Spacing-cleanup pass: tightened from the shared
+            // SpaceSectionToSection (16dp) to SpaceSM (8dp, an existing
+            // token, not an arbitrary value) — this dashboard specifically
+            // reads as one continuous, premium surface rather than
+            // separated islands, per explicit request.
+            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {
-            item { ManagerHeader(onProfileClick = onProfileClick) }
+            item {
+                ManagerHeader(
+                    onProfileClick = onProfileClick,
+                    todaysAppointmentCount = (viewModel.state as? UiState.Success)?.data?.stats?.todaysAppointmentCount,
+                    onViewTodayClick = onViewCalendarClick,
+                )
+            }
 
             // Manager Dashboard Banner integration: admin-managed static
             // artwork (target=MANAGER), independent of dashboardState below -
