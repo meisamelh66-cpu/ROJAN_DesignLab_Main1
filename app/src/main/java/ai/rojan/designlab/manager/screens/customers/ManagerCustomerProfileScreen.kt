@@ -27,6 +27,7 @@ import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
 import ai.rojan.designlab.ui.text.Text
+import ai.rojan.designlab.ui.text.withDirectionFor
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanErrorText
 import ai.rojan.designlab.ui.theme.RojanShapes
@@ -769,7 +770,7 @@ private fun AddNoteForm(submissionState: NoteSubmissionState, onSubmit: (String)
                 label = { Text("افزودن یادداشت جدید") },
                 enabled = !isSubmitting,
                 modifier = Modifier.fillMaxWidth(),
-                textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary),
+                textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary).withDirectionFor(text),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = ManagerColors.TextPrimary,
                     unfocusedTextColor = ManagerColors.TextPrimary,
