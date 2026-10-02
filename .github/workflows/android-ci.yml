@@ -1,0 +1,43 @@
+# ROJAN Android CI — minimum build/test/lint gate (closes the gap identified
+# in the ROJAN CI GAP read-only audit). Independent of governance-drift-check.yml.
+#
+# Scope (deliberately minimal — see the audit this implements):
+#   - assembleDebug: compiles all debug variants (customer/manager/reception).
+#   - testCustomerDevDebugUnitTest: runs the common unit-test suite, which
+#     includes ArchitectureRulesTest.kt (no flavor-specific test source sets
+#     exist, so one variant's unit-test task already covers it).
+#   - lintCustomerDevDebug: enforces the existing abortOnError lint gate.
+# Deliberately excluded: instrumented/emulator tests, release builds, release
+# signing — see the audit's Risks section for why.
+name: android-ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Assemble all debug variants
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Run Customer Dev Debug unit tests (includes architecture-test suite)
+        run: ./gradlew testCustomerDevDebugUnitTest --no-daemon
+
+      - name: Run Customer Dev Debug lint
+        run: ./gradlew lintCustomerDevDebug --no-daemon

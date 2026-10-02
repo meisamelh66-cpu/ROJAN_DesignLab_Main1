@@ -14,16 +14,18 @@ import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.TokenRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.IOException
+import retrofit2.HttpException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.TimeUnit
@@ -133,6 +135,20 @@ class TokenAuthenticatorTest {
         if (prior != null) builder.priorResponse(prior)
         return builder.build()
     }
+
+    /**
+     * A genuine, backend-confirmed rejection of the refresh call itself —
+     * the only failure shape [safeApiCall] maps to [BackendApiException]
+     * (via its `catch (e: HttpException)` branch) and therefore the only
+     * shape [TokenAuthenticator] treats as "genuinely dead" rather than a
+     * transient transport error. A plain [java.io.IOException] (or even a
+     * raw [BackendApiException] thrown directly) falls into safeApiCall's
+     * generic `catch (e: IOException)` branch instead and is reported as
+     * [NetworkUnavailableException] — same pattern already used by
+     * `BookingRepositoryImplTest.httpException`.
+     */
+    private fun genuineRejection(code: Int): HttpException =
+        HttpException(retrofit2.Response.error<Any>(code, "{}".toResponseBody("application/json".toMediaType())))
 
     // ---- A. single 401 ------------------------------------------------
 
@@ -271,15 +287,17 @@ class TokenAuthenticatorTest {
 
     @Test
     fun `a failed refresh clears the token pair and the persisted person id`() {
-        // C2 (session-persistence fix): the current implementation clears
-        // BOTH the token pair and the persisted personId whenever the
-        // refresh call itself fails (any Throwable — transient or genuine).
-        // This test locks that behaviour in.
+        // C2 (session-persistence fix) + P1 Auth Audit fix: the current
+        // implementation clears BOTH the token pair and the persisted
+        // personId only when the refresh call itself is a genuine,
+        // backend-confirmed rejection (400/401/403) — not a transient
+        // transport error. This test locks that behaviour in using a real
+        // genuine-rejection shape.
         tokenRepo.seed(OLD_ACCESS, VALID_REFRESH)
         val refreshCount = AtomicInteger(0)
         fakeApi.onRefresh = {
             refreshCount.incrementAndGet()
-            throw IOException("simulated refresh failure")
+            throw genuineRejection(401)
         }
 
         val result = authenticator.authenticate(null, response401(bearer = OLD_ACCESS))
@@ -307,7 +325,7 @@ class TokenAuthenticatorTest {
             refreshCount.incrementAndGet()
             refreshEntered.countDown()
             assertTrue(releaseRefresh.await(10, TimeUnit.SECONDS))
-            throw IOException("simulated refresh failure")
+            throw genuineRejection(401)
         }
 
         val response = response401(bearer = OLD_ACCESS)
