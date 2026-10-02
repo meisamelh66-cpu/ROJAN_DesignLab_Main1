@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /** Stable identifier for each quick action — navigation switches on this, never on [QuickAction.label] (display text, not an identifier). */
@@ -108,7 +109,10 @@ private fun QuickActionChip(action: QuickAction, onClick: () -> Unit, modifier: 
 
     Column(
         modifier = modifier
-            .heightIn(min = 76.dp)
+            // Identical-sizing fix: a fixed height (not a minimum) so all
+            // five chips are exactly the same size regardless of label
+            // length/wrapping - see the Text below's matching maxLines=2.
+            .height(76.dp)
             .shadow(
                 elevation = 4.dp,
                 shape = RojanShapes.Small,
@@ -128,7 +132,10 @@ private fun QuickActionChip(action: QuickAction, onClick: () -> Unit, modifier: 
             .rojanPressable(onClick = onClick)
             .padding(RojanDimens.SpaceSM),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS),
+        // Centers the icon+text group within the now-fixed height, so a
+        // one-line label and a two-line label both sit visually balanced
+        // instead of top-packed with leftover space at the bottom.
+        verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceXS, Alignment.CenterVertically),
     ) {
         RojanIconContainer(
             imageVector = action.icon,
@@ -141,6 +148,8 @@ private fun QuickActionChip(action: QuickAction, onClick: () -> Unit, modifier: 
             style = RojanTypography.Caption,
             color = labelColor,
             textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

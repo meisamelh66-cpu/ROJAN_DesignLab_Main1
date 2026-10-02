@@ -17,7 +17,6 @@ import ai.rojan.designlab.manager.domain.ai.ManagerCrmInsightCategory
 import ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewModel
 import ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewModelFactory
 import ai.rojan.designlab.presentation.common.UiState
-import ai.rojan.designlab.ui.theme.RojanDimens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -89,16 +88,14 @@ import androidx.compose.ui.unit.dp
  */
 
 /**
- * Micro-spacing fix: the Banner's hard-edged bright artwork sitting
- * directly on the near-black background reads as having a visible gap
- * even at the Dashboard's normal [RojanDimens.SpaceXS] (4dp) rhythm, so
- * the two gaps immediately touching it (Header-to-Banner and
- * Banner-to-next-section) are tightened further to a near-invisible
- * separation. Every other inter-section gap keeps [RojanDimens.SpaceXS]
- * unchanged — this is a one-off, Banner-specific value, not a new
- * general-purpose spacing token.
+ * Spacing refinement: every major-section gap on this screen (Header,
+ * Banner, Statistics, Quick Actions, Smart Suggestion, Calendar Preview)
+ * now shares this one tight value, replacing the previous mix of a
+ * Banner-specific 2dp and a 4dp token elsewhere — a single consistent
+ * rhythm reads as one connected dashboard rather than a few tightened
+ * gaps next to a few looser ones.
  */
-private val ManagerBannerAdjacentGap = 2.dp
+private val ManagerDashboardSectionGap = 2.dp
 
 @Composable
 fun ManagerDashboardScreen(
@@ -157,14 +154,14 @@ fun ManagerDashboardScreen(
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(ManagerBannerAdjacentGap)) }
+            item { Spacer(modifier = Modifier.height(ManagerDashboardSectionGap)) }
 
             // Manager Dashboard Banner integration: admin-managed static
             // artwork (target=MANAGER), independent of dashboardState below -
             // unaffected by the salon-loading/error/empty/success state machine.
             item { ManagerBannerSlot() }
 
-            item { Spacer(modifier = Modifier.height(ManagerBannerAdjacentGap)) }
+            item { Spacer(modifier = Modifier.height(ManagerDashboardSectionGap)) }
 
             when (val dashboardState = viewModel.state) {
                 is UiState.Loading -> item { ManagerLoadingState(message = "در حال بارگذاری اطلاعات سالن...") }
@@ -187,7 +184,7 @@ fun ManagerDashboardScreen(
                 }
             }
 
-            item { Spacer(modifier = Modifier.height(RojanDimens.SpaceXS)) }
+            item { Spacer(modifier = Modifier.height(ManagerDashboardSectionGap)) }
 
             item {
                 QuickActionsSection(
@@ -203,7 +200,7 @@ fun ManagerDashboardScreen(
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(RojanDimens.SpaceXS)) }
+            item { Spacer(modifier = Modifier.height(ManagerDashboardSectionGap)) }
 
             item {
                 AIInsightCard(
@@ -213,7 +210,7 @@ fun ManagerDashboardScreen(
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(RojanDimens.SpaceXS)) }
+            item { Spacer(modifier = Modifier.height(ManagerDashboardSectionGap)) }
 
             item {
                 CalendarPreviewSection(onViewCalendarClick = onViewCalendarClick)
