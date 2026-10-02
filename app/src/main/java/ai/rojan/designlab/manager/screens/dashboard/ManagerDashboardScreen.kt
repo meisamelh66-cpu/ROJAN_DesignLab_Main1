@@ -20,12 +20,15 @@ import ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewMod
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.ui.theme.RojanDimens
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 
 /**
  * Manager App workspace — Dashboard v1.0 UI.
@@ -80,6 +83,17 @@ import androidx.compose.ui.platform.LocalContext
  * retriable) — see [ManagerDashboardViewModel.requiresReauth]'s doc
  * comment.
  */
+
+/**
+ * Spacing refinement: every major-section gap on this screen (Header,
+ * Banner, Statistics, Quick Actions, Smart Suggestion, Calendar Preview)
+ * now shares this one tight value, replacing the previous mix of a
+ * Banner-specific 2dp and a 4dp token elsewhere — a single consistent
+ * rhythm reads as one connected dashboard rather than a few tightened
+ * gaps next to a few looser ones.
+ */
+private val ManagerDashboardSectionGap = 2.dp
+
 @Composable
 fun ManagerDashboardScreen(
     modifier: Modifier = Modifier,
@@ -137,10 +151,14 @@ fun ManagerDashboardScreen(
                 )
             }
 
+            item { Spacer(modifier = Modifier.height(ManagerDashboardSectionGap)) }
+
             // Manager Dashboard Banner integration: admin-managed static
             // artwork (target=MANAGER), independent of dashboardState below -
             // unaffected by the salon-loading/error/empty/success state machine.
             item { ManagerBannerSlot() }
+
+            item { Spacer(modifier = Modifier.height(ManagerDashboardSectionGap)) }
 
             when (val dashboardState = viewModel.state) {
                 is UiState.Loading -> item { ManagerLoadingState(message = "در حال بارگذاری اطلاعات سالن...") }
@@ -170,6 +188,8 @@ fun ManagerDashboardScreen(
                 }
             }
 
+            item { Spacer(modifier = Modifier.height(ManagerDashboardSectionGap)) }
+
             item {
                 QuickActionsSection(
                     onActionClick = { action ->
@@ -183,6 +203,9 @@ fun ManagerDashboardScreen(
                     },
                 )
             }
+
+            item { Spacer(modifier = Modifier.height(ManagerDashboardSectionGap)) }
+
             item {
                 AIInsightCard(
                     message = ManagerRepositories.dashboardInsights?.topRecommendationMessage,
@@ -190,6 +213,9 @@ fun ManagerDashboardScreen(
                     onInactiveCustomersClick = onViewInactiveCustomersClick,
                 )
             }
+
+            item { Spacer(modifier = Modifier.height(ManagerDashboardSectionGap)) }
+
             item {
                 CalendarPreviewSection(onViewCalendarClick = onViewCalendarClick)
             }
