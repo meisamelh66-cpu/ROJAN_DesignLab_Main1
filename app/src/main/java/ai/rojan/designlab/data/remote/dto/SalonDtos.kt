@@ -32,6 +32,20 @@ data class SalonResponseDto(
 )
 
 /**
+ * Wire body for `POST /api/v1/salons/onboarding` — live-verified against
+ * production (authenticated E2E, 2026-10-04): the endpoint returns the
+ * created/returned salon **wrapped** with an idempotency flag, not a bare
+ * [SalonResponseDto]. `alreadyHasSalon == false` on first create (HTTP 201);
+ * `true` when the account already owns a salon, in which case [salon] is the
+ * pre-existing record and no duplicate is created (HTTP 200).
+ */
+@Serializable
+data class SalonOnboardingResponseDto(
+    val salon: SalonResponseDto,
+    val alreadyHasSalon: Boolean,
+)
+
+/**
  * `AssignIdentityMediaRequest` (backend, `SalonController.assignIdentityMedia`,
  * `PUT /api/v1/salons/{salonId}/identity-media`) — Central Salon
  * Management — Salon Media UI. [mediaId] `null` clears the slot; a

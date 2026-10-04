@@ -41,7 +41,7 @@ class BackendManagerSalonRepository(
                     address = address,
                 ),
             )
-        }.map { it.toDomain() }
+        }.map { it.salon.toDomain() }
 
     override suspend fun updateSalon(
         salonId: String,
