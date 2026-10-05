@@ -1,8 +1,10 @@
 package ai.rojan.designlab.manager.screens.dashboard
 
 import ai.rojan.designlab.di.BackendApiContainerHolder
+import ai.rojan.designlab.domain.repository.SalonOnboardingStatus
 import ai.rojan.designlab.manager.components.AIInsightCard
 import ai.rojan.designlab.manager.components.CalendarPreviewSection
+import ai.rojan.designlab.manager.components.ManagerSalonDraftBanner
 import ai.rojan.designlab.manager.components.ManagerEmptyState
 import ai.rojan.designlab.manager.components.ManagerErrorState
 import ai.rojan.designlab.manager.components.ManagerHeader
@@ -18,6 +20,8 @@ import ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewMod
 import ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewModelFactory
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.ui.theme.RojanDimens
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
@@ -151,6 +155,23 @@ fun ManagerDashboardScreen(
                             salonCategory = data.salonDescription ?: "زیبایی و سلامت",
                             isActive = data.isActive,
                         )
+                    }
+                    // Salon Activation Awareness (Sprint 1 / P0 Master Integration
+                    // Repair, PASS 1): this screen's data always comes from
+                    // `myOwnedSalons()`, so reaching this branch means the current
+                    // account owns this salon — the real backend owner-only
+                    // `/activate` action already exists and works on the website
+                    // (`/no-tenant/onboarding`); this only opens it, never performs
+                    // activation itself.
+                    if (data.onboardingStatus == SalonOnboardingStatus.DRAFT) {
+                        item {
+                            ManagerSalonDraftBanner(
+                                onActivateClick = {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://rojanai.ir/no-tenant/onboarding"))
+                                    runCatching { context.startActivity(intent) }
+                                },
+                            )
+                        }
                     }
                     item { TodayOverviewSection(stats = data.stats) }
                 }

@@ -3,13 +3,31 @@ package ai.rojan.designlab.data.remote.dto
 import kotlinx.serialization.Serializable
 
 /**
+ * Salon Activation Awareness (Sprint 1 / P0 Master Integration Repair,
+ * PASS 1): mirrors `ROJAN_Backend`'s `SalonOnboardingStatus` enum exactly
+ * (`DRAFT`, `ACTIVE`) — gates *public discoverability only*, separate from
+ * [SalonResponseDto.active] (soft-delete). Only ever present on the
+ * authenticated `SalonResponseDto` shape (`GET/POST/PUT /api/v1/salons/...`)
+ * — the public/`PublicSalonResponseDto` shapes never carry it, since a
+ * DRAFT salon 404s there before this field would ever matter.
+ */
+@Serializable
+enum class NetworkSalonOnboardingStatus {
+    DRAFT,
+    ACTIVE,
+}
+
+/**
  * Wire-format DTO for the ROJAN backend's Salon resource — see
  * `ROJAN_Backend/API_CONTRACT.md`. [logoUrl]/[coverImageUrl] and
  * [logoMediaId]/[coverMediaId] (Central Salon Management — Salon Media UI)
  * are real backend fields, resolved at the response boundary from
  * whichever `MediaAsset` is currently assigned to each identity slot (see
  * `SalonController.toResponse`) — `null` only means the slot is genuinely
- * unset, never "not supported."
+ * unset, never "not supported." [onboardingStatus] defaults to `null`
+ * rather than being required, matching this DTO's existing defensive style
+ * for every other optional field — real production responses always carry
+ * a real value, but a `null` here degrades to "unknown," never a crash.
  */
 @Serializable
 data class SalonResponseDto(
@@ -27,6 +45,7 @@ data class SalonResponseDto(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val active: Boolean,
+    val onboardingStatus: NetworkSalonOnboardingStatus? = null,
     val createdAt: String,
     val updatedAt: String,
 )

@@ -22,6 +22,21 @@ data class SalonLocation(
 )
 
 /**
+ * Mirrors `ROJAN_Backend`'s `SalonOnboardingStatus` (`DRAFT`/`ACTIVE`) —
+ * public-discoverability lifecycle, distinct from [Salon.active]
+ * (soft-delete). Added for Salon Activation Awareness (Sprint 1 / P0
+ * Master Integration Repair, PASS 1): the Manager app previously had no
+ * way to even know a salon it created is still DRAFT, let alone tell the
+ * owner — this makes the real backend state visible, it does not
+ * reimplement the activation decision itself (that stays entirely
+ * server-side, per `ActivateSalonUseCase`).
+ */
+enum class SalonOnboardingStatus {
+    DRAFT,
+    ACTIVE,
+}
+
+/**
  * Domain-facing shape of a salon. Deliberately narrower than
  * [ai.rojan.designlab.data.demo.DemoSalon] — the backend has no
  * rating/review-aggregate or working-hours-as-a-display-string concept, so
@@ -47,6 +62,11 @@ data class Salon(
     // salons; this is exposed so Manager-side reads (myOwnedSalons, the
     // Dashboard identity card) can tell an active salon from a draft one.
     val active: Boolean = true,
+    // Salon Activation Awareness (PASS 1): `null` only when the backend
+    // response genuinely omitted it (defensive default, see
+    // `SalonResponseDto.onboardingStatus`'s own doc comment) — every real
+    // authenticated response carries a real value today.
+    val onboardingStatus: SalonOnboardingStatus? = null,
 ) {
     val location: SalonLocation get() = SalonLocation(latitude = latitude, longitude = longitude, address = address)
 }

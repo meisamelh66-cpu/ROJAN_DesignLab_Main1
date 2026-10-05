@@ -4,6 +4,7 @@ import ai.rojan.designlab.data.remote.BackendApiException
 import ai.rojan.designlab.domain.booking.RollingBookingDates
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.BookingStatus
+import ai.rojan.designlab.domain.repository.SalonOnboardingStatus
 import ai.rojan.designlab.domain.repository.SalonRepository
 import ai.rojan.designlab.domain.repository.Service
 import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
@@ -32,6 +33,12 @@ data class ManagerDashboardData(
     val salonDescription: String?,
     val isActive: Boolean,
     val stats: ManagerDashboardStats,
+    // Salon Activation Awareness (Sprint 1 / P0 Master Integration Repair,
+    // PASS 1): real backend `onboardingStatus` — this screen only ever
+    // shows salons from `myOwnedSalons()`, so a DRAFT value here always
+    // means the CURRENT (owner) user's own salon, not a staff member's.
+    // `null` only if the backend response genuinely omitted the field.
+    val onboardingStatus: SalonOnboardingStatus?,
 )
 
 /**
@@ -103,6 +110,7 @@ class ManagerDashboardViewModel(
                             salonDescription = salon.description,
                             isActive = salon.active,
                             stats = loadStats(salon.id),
+                            onboardingStatus = salon.onboardingStatus,
                         ),
                     )
                 }

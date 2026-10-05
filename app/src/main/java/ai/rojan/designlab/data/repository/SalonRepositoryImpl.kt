@@ -1,10 +1,12 @@
 package ai.rojan.designlab.data.repository
 
 import ai.rojan.designlab.data.remote.SalonApi
+import ai.rojan.designlab.data.remote.dto.NetworkSalonOnboardingStatus
 import ai.rojan.designlab.data.remote.dto.SalonResponseDto
 import ai.rojan.designlab.data.remote.safeApiCall
 import ai.rojan.designlab.domain.repository.PagedResult
 import ai.rojan.designlab.domain.repository.Salon
+import ai.rojan.designlab.domain.repository.SalonOnboardingStatus
 import ai.rojan.designlab.domain.repository.SalonRepository
 
 class SalonRepositoryImpl(
@@ -47,5 +49,11 @@ class SalonRepositoryImpl(
         latitude = latitude,
         longitude = longitude,
         active = active,
+        onboardingStatus = onboardingStatus?.toDomain(),
     )
+}
+
+private fun NetworkSalonOnboardingStatus.toDomain(): SalonOnboardingStatus = when (this) {
+    NetworkSalonOnboardingStatus.DRAFT -> SalonOnboardingStatus.DRAFT
+    NetworkSalonOnboardingStatus.ACTIVE -> SalonOnboardingStatus.ACTIVE
 }
