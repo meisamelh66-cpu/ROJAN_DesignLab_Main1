@@ -133,6 +133,7 @@ fun ManagerCalendarScreen(
     onRequireLogin: () -> Unit = {},
     viewModel: ManagerCalendarViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = ManagerCalendarViewModelFactory(
+            activeSalonContextRepository = BackendApiContainerHolder.get(LocalContext.current).activeSalonContextRepository,
             salonRepository = BackendApiContainerHolder.get(LocalContext.current).salonRepository,
             bookingRepository = BackendApiContainerHolder.get(LocalContext.current).bookingRepository,
             specialistRepository = BackendApiContainerHolder.get(LocalContext.current).specialistRepository,

@@ -1,6 +1,7 @@
 package ai.rojan.designlab.manager.presentation.calendar
 
 import ai.rojan.designlab.data.remote.BackendApiException
+import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.BookingStatus
 import ai.rojan.designlab.domain.repository.SalonRepository
@@ -16,6 +17,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
 /**
@@ -45,21 +48,17 @@ data class ManagerCalendarData(
 )
 
 /**
- * TEAM2-002 (Manager Data Persistence). Backs
- * [ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen] with
- * the salon's real bookings (`GET /api/v1/salons/{salonId}/bookings`, via
- * [BookingRepository.salonBookings]) — replacing the previous direct reads
- * of `manager.data.ManagerRepositories.appointments`/`.specialists`.
+ * Backs [ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen]
+ * with the active salon's real bookings (`GET /api/v1/salons/{salonId}/bookings`,
+ * via [BookingRepository.salonBookings]). Targets the salon currently selected
+ * in [ActiveSalonContextRepository] rather than assuming the first owned salon.
  *
  * Also owns the two booking-lifecycle actions the backend already
- * supports and TEAM2-003 already gave this app a real client for:
- * [confirmAppointment] (`PENDING` -> `CONFIRMED`) and [completeAppointment]
- * (`CONFIRMED` -> `COMPLETED`) — "Update booking status" from this task's
- * own priority list. Both reload from the backend afterward regardless of
- * outcome, same "the refreshed list is always the source of truth"
- * pattern `AppointmentsViewModel.cancelBooking` already established.
+ * supports: [confirmAppointment] (`PENDING` -> `CONFIRMED`) and
+ * [completeAppointment] (`CONFIRMED` -> `COMPLETED`).
  */
 class ManagerCalendarViewModel(
+    private val activeSalonContextRepository: ActiveSalonContextRepository,
     private val salonRepository: SalonRepository,
     private val bookingRepository: BookingRepository,
     private val specialistRepository: SpecialistRepository,
@@ -78,24 +77,44 @@ class ManagerCalendarViewModel(
     var requiresReauth by mutableStateOf(false)
         private set
 
+    private var currentSalonId: String? = null
+
     init {
-        load()
+        viewModelScope.launch {
+            activeSalonContextRepository.observeActiveSalonId()
+                .collectLatest { salonId ->
+                    currentSalonId = salonId
+                    if (salonId.isNullOrBlank()) {
+                        state = UiState.Empty
+                    } else {
+                        state = UiState.Loading
+                        requiresReauth = false
+                        loadForSalon(salonId)
+                    }
+                }
+        }
     }
 
     fun load() {
-        state = UiState.Loading
-        requiresReauth = false
-        viewModelScope.launch {
-            salonRepository.myOwnedSalons()
-                .onSuccess { salons ->
-                    val salon = salons.firstOrNull()
-                    if (salon == null) {
-                        state = UiState.Empty
-                        return@launch
-                    }
-                    loadForSalon(salon.id)
+        val salonId = currentSalonId
+        if (salonId.isNullOrBlank()) {
+            viewModelScope.launch {
+                val id = activeSalonContextRepository.observeActiveSalonId().firstOrNull()
+                currentSalonId = id
+                if (id.isNullOrBlank()) {
+                    state = UiState.Empty
+                } else {
+                    state = UiState.Loading
+                    requiresReauth = false
+                    loadForSalon(id)
                 }
-                .onFailure { error -> handleFailure(error) }
+            }
+        } else {
+            state = UiState.Loading
+            requiresReauth = false
+            viewModelScope.launch {
+                loadForSalon(salonId)
+            }
         }
     }
 
@@ -119,7 +138,7 @@ class ManagerCalendarViewModel(
         viewModelScope.launch {
             call()
             updatingBookingId = null
-            load()
+            currentSalonId?.let { loadForSalon(it) }
         }
     }
 

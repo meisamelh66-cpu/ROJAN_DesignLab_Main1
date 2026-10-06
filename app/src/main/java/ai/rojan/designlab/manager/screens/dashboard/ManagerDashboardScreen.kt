@@ -99,6 +99,7 @@ fun ManagerDashboardScreen(
     onRequireLogin: () -> Unit = {},
     viewModel: ManagerDashboardViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = ManagerDashboardViewModelFactory(
+            activeSalonContextRepository = BackendApiContainerHolder.get(LocalContext.current).activeSalonContextRepository,
             salonRepository = BackendApiContainerHolder.get(LocalContext.current).salonRepository,
             bookingRepository = BackendApiContainerHolder.get(LocalContext.current).bookingRepository,
             specialistRepository = BackendApiContainerHolder.get(LocalContext.current).specialistRepository,
@@ -213,7 +214,10 @@ fun ManagerDashboardScreen(
                 )
             }
             item {
-                CalendarPreviewSection(onViewCalendarClick = onViewCalendarClick)
+                CalendarPreviewSection(
+                    slots = (viewModel.state as? UiState.Success)?.data?.todaysUpcomingSlots.orEmpty(),
+                    onViewCalendarClick = onViewCalendarClick,
+                )
             }
         }
     }

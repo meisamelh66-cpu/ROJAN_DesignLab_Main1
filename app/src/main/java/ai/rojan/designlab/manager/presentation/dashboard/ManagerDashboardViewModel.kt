@@ -2,6 +2,7 @@ package ai.rojan.designlab.manager.presentation.dashboard
 
 import ai.rojan.designlab.data.remote.BackendApiException
 import ai.rojan.designlab.domain.booking.RollingBookingDates
+import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.BookingStatus
 import ai.rojan.designlab.domain.repository.SalonOnboardingStatus
@@ -10,6 +11,7 @@ import ai.rojan.designlab.domain.repository.Service
 import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
 import ai.rojan.designlab.domain.repository.ServiceRepository
 import ai.rojan.designlab.domain.repository.SpecialistRepository
+import ai.rojan.designlab.manager.data.UpcomingSlot
 import ai.rojan.designlab.manager.domain.booking.managerBookingTimeSlots
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.presentation.common.userMessageFor
@@ -18,6 +20,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
 /** Real per-salon dashboard numbers — replaces `manager.data.computeManagerDashboardStats()`'s in-memory computation with the same shape, computed from real backend bookings/specialists/services. */
@@ -34,39 +38,19 @@ data class ManagerDashboardData(
     val isActive: Boolean,
     val stats: ManagerDashboardStats,
     // Salon Activation Awareness (Sprint 1 / P0 Master Integration Repair,
-    // PASS 1): real backend `onboardingStatus` — this screen only ever
-    // shows salons from `myOwnedSalons()`, so a DRAFT value here always
-    // means the CURRENT (owner) user's own salon, not a staff member's.
-    // `null` only if the backend response genuinely omitted the field.
+    // PASS 1): real backend `onboardingStatus`
     val onboardingStatus: SalonOnboardingStatus?,
+    val todaysUpcomingSlots: List<UpcomingSlot> = emptyList(),
 )
 
 /**
- * TEAM2-002 (Manager Data Persistence). Backs
- * [ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen]'s
- * salon identity + "today's overview" sections with the authenticated
- * manager's real salon and real bookings — replacing
- * `SalonIdentityCard`'s hardcoded default params and
- * `TodayOverviewSection`'s `computeManagerDashboardStats()` (which read
- * `manager.data.ManagerRepositories`' in-memory singletons).
- *
- * A manager account can in principle own more than one salon
- * (`GET /api/v1/salons/mine` returns a list) — this MVP, like the rest of
- * the Manager app, assumes a single salon and uses the first one; a real
- * salon switcher is new UI this task doesn't add (disclosed simplification,
- * see `TEAM2_RESULT_MANAGER_DATA_PERSISTENCE.md`). Zero salons owned is a
- * real [UiState.Empty], not an error — a legitimate account state.
- *
- * There is no backend "revenue"/"occupancy" endpoint; both are computed
- * here the same way `computeManagerDashboardStats()` always did — a
- * genuine (if simplified) ratio/sum over real data, not a fabricated
- * number — just sourced from [BookingRepository.salonBookings] instead of
- * an in-memory list. "New customers today" is dropped: it required
- * `manager.data.ManagerRepositories.customers`, which has no backend
- * equivalent (no endpoint resolves a booking's customer to a profile —
- * see the Calendar-side of this same task's report for the same gap).
+ * Backs [ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen]'s
+ * salon identity + "today's overview" sections with the active salon's
+ * real data and bookings. Targets the salon currently selected in
+ * [ActiveSalonContextRepository] rather than assuming the first owned salon.
  */
 class ManagerDashboardViewModel(
+    private val activeSalonContextRepository: ActiveSalonContextRepository,
     private val salonRepository: SalonRepository,
     private val bookingRepository: BookingRepository,
     private val specialistRepository: SpecialistRepository,
@@ -88,45 +72,75 @@ class ManagerDashboardViewModel(
     var requiresReauth by mutableStateOf(false)
         private set
 
-    init {
-        load()
-    }
+    private var currentSalonId: String? = null
 
-    fun load() {
-        state = UiState.Loading
-        requiresReauth = false
+    init {
         viewModelScope.launch {
-            salonRepository.myOwnedSalons()
-                .onSuccess { salons ->
-                    val salon = salons.firstOrNull()
-                    if (salon == null) {
+            activeSalonContextRepository.observeActiveSalonId()
+                .collectLatest { salonId ->
+                    currentSalonId = salonId
+                    if (salonId.isNullOrBlank()) {
                         state = UiState.Empty
-                        return@launch
-                    }
-                    state = UiState.Success(
-                        ManagerDashboardData(
-                            salonId = salon.id,
-                            salonName = salon.name,
-                            salonDescription = salon.description,
-                            isActive = salon.active,
-                            stats = loadStats(salon.id),
-                            onboardingStatus = salon.onboardingStatus,
-                        ),
-                    )
-                }
-                .onFailure { error ->
-                    if (error is BackendApiException && error.statusCode == 401) {
-                        requiresReauth = true
                     } else {
-                        state = UiState.Error(userMessageFor(error))
+                        state = UiState.Loading
+                        requiresReauth = false
+                        loadSalon(salonId)
                     }
                 }
         }
     }
 
+    fun load() {
+        val salonId = currentSalonId
+        if (salonId.isNullOrBlank()) {
+            viewModelScope.launch {
+                val id = activeSalonContextRepository.observeActiveSalonId().firstOrNull()
+                currentSalonId = id
+                if (id.isNullOrBlank()) {
+                    state = UiState.Empty
+                } else {
+                    state = UiState.Loading
+                    requiresReauth = false
+                    loadSalon(id)
+                }
+            }
+        } else {
+            state = UiState.Loading
+            requiresReauth = false
+            viewModelScope.launch {
+                loadSalon(salonId)
+            }
+        }
+    }
+
     fun retry() = load()
 
-    private suspend fun loadStats(salonId: String): ManagerDashboardStats {
+    private suspend fun loadSalon(salonId: String) {
+        salonRepository.getSalon(salonId)
+            .onSuccess { salon ->
+                val (stats, slots) = loadStatsAndSlots(salon.id)
+                state = UiState.Success(
+                    ManagerDashboardData(
+                        salonId = salon.id,
+                        salonName = salon.name,
+                        salonDescription = salon.description,
+                        isActive = salon.active,
+                        stats = stats,
+                        onboardingStatus = salon.onboardingStatus,
+                        todaysUpcomingSlots = slots,
+                    ),
+                )
+            }
+            .onFailure { error ->
+                if (error is BackendApiException && error.statusCode == 401) {
+                    requiresReauth = true
+                } else {
+                    state = UiState.Error(userMessageFor(error))
+                }
+            }
+    }
+
+    private suspend fun loadStatsAndSlots(salonId: String): Pair<ManagerDashboardStats, List<UpcomingSlot>> {
         val bookings = bookingRepository.salonBookings(salonId, page = 0, size = STATS_WINDOW_SIZE)
             .getOrNull()?.content.orEmpty()
         val specialists = specialistRepository.getSpecialists(salonId).getOrNull().orEmpty()
@@ -140,11 +154,23 @@ class ManagerDashboardViewModel(
         val totalCapacity = (specialists.size * managerBookingTimeSlots.size).coerceAtLeast(1)
         val occupancy = ((todaysActive.size * 100) / totalCapacity).coerceIn(0, 100)
 
-        return ManagerDashboardStats(
+        val stats = ManagerDashboardStats(
             todaysAppointmentCount = todays.size,
             todaysRevenueLabel = formatRevenueLabel(revenue),
             occupancyPercent = occupancy,
         )
+
+        val slots = todaysActive
+            .sortedBy { it.startTime }
+            .map { booking ->
+                UpcomingSlot(
+                    time = booking.startTime.substringAfter('T').take(5),
+                    clientName = "—",
+                    service = services[booking.serviceId]?.name ?: "—",
+                )
+            }
+
+        return Pair(stats, slots)
     }
 
     private suspend fun allServices(salonId: String): List<Service> {

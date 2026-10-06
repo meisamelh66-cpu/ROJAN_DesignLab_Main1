@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.presentation.dashboard
 
+import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.SalonRepository
 import ai.rojan.designlab.domain.repository.ServiceCategoryRepository
@@ -10,6 +11,7 @@ import androidx.lifecycle.ViewModelProvider
 
 /** Manual factory, mirroring every other ViewModel factory in this app (e.g. `AppointmentsViewModelFactory`). */
 class ManagerDashboardViewModelFactory(
+    private val activeSalonContextRepository: ActiveSalonContextRepository,
     private val salonRepository: SalonRepository,
     private val bookingRepository: BookingRepository,
     private val specialistRepository: SpecialistRepository,
@@ -19,6 +21,7 @@ class ManagerDashboardViewModelFactory(
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return ManagerDashboardViewModel(
+            activeSalonContextRepository,
             salonRepository,
             bookingRepository,
             specialistRepository,

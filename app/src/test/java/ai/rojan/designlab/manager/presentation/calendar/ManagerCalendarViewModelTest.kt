@@ -2,6 +2,7 @@ package ai.rojan.designlab.manager.presentation.calendar
 
 import ai.rojan.designlab.data.remote.BackendApiException
 import ai.rojan.designlab.data.remote.NetworkUnavailableException
+import ai.rojan.designlab.domain.repository.ActiveSalonContextRepository
 import ai.rojan.designlab.domain.repository.Booking
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.BookingStatus
@@ -17,6 +18,8 @@ import ai.rojan.designlab.domain.repository.SpecialistRepository
 import ai.rojan.designlab.presentation.common.UiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -29,11 +32,10 @@ import org.junit.Before
 import org.junit.Test
 
 /**
- * TEAM2-002 (Manager Data Persistence). [ManagerCalendarViewModel] is
- * constructed from nothing but backend-facing repository interfaces — no
- * `manager.data.ManagerRepositories` singleton in its dependency list.
- * Covers Loading/Success/Empty/Error/Unauthorized plus the two real
- * status-update actions (confirm/complete).
+ * [ManagerCalendarViewModel] is constructed from backend-facing repository interfaces
+ * and targets the active salon from [ActiveSalonContextRepository].
+ * Covers Loading/Success/Empty/Error/Unauthorized, salon switching, missing active salon,
+ * page-size preservation, plus the two real status-update actions (confirm/complete).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ManagerCalendarViewModelTest {
@@ -62,24 +64,28 @@ class ManagerCalendarViewModelTest {
         notes = null,
     )
 
-    private fun viewModel(bookingRepository: FakeBookingRepository, salons: List<Salon> = listOf(salon)) =
-        ManagerCalendarViewModel(
-            salonRepository = FakeSalonRepository(Result.success(salons)),
-            bookingRepository = bookingRepository,
-            specialistRepository = FakeSpecialistRepository(
-                Result.success(listOf(Specialist("specialist-1", "salon-1", "متخصص", null, null))),
-            ),
-            serviceCategoryRepository = FakeServiceCategoryRepository(
-                Result.success(listOf(ServiceCategory("cat-1", "salon-1", "دسته", null))),
-            ),
-            serviceRepository = FakeServiceRepository(
-                Result.success(listOf(Service("service-1", "salon-1", "cat-1", "خدمت", null, 30, 100_000.0))),
-            ),
-        )
+    private fun viewModel(
+        bookingRepository: FakeBookingRepository,
+        activeSalonContextRepository: FakeActiveSalonContextRepository = FakeActiveSalonContextRepository("salon-1"),
+        salons: List<Salon> = listOf(salon),
+    ) = ManagerCalendarViewModel(
+        activeSalonContextRepository = activeSalonContextRepository,
+        salonRepository = FakeSalonRepository(Result.success(salons)),
+        bookingRepository = bookingRepository,
+        specialistRepository = FakeSpecialistRepository(
+            Result.success(listOf(Specialist("specialist-1", "salon-1", "متخصص", null, null))),
+        ),
+        serviceCategoryRepository = FakeServiceCategoryRepository(
+            Result.success(listOf(ServiceCategory("cat-1", "salon-1", "دسته", null))),
+        ),
+        serviceRepository = FakeServiceRepository(
+            Result.success(listOf(Service("service-1", "salon-1", "cat-1", "خدمت", null, 30, 100_000.0))),
+        ),
+    )
 
     @Test
     fun `real salon bookings load into Success with resolved specialist and service names`() = runBlocking {
-        val viewModel = viewModel(FakeBookingRepository(myBookingsResult = Result.success(PagedResult(listOf(pendingBooking), 0, 200, 1, 1))))
+        val viewModel = viewModel(FakeBookingRepository(myBookingsResult = Result.success(PagedResult(listOf(pendingBooking), 0, 100, 1, 1))))
 
         val state = viewModel.state as UiState.Success
         val appointment = state.data.appointments.single()
@@ -90,16 +96,66 @@ class ManagerCalendarViewModelTest {
 
     @Test
     fun `an empty salon booking list is Empty, not an error`() = runBlocking {
-        val viewModel = viewModel(FakeBookingRepository(myBookingsResult = Result.success(PagedResult(emptyList(), 0, 200, 0, 0))))
+        val viewModel = viewModel(FakeBookingRepository(myBookingsResult = Result.success(PagedResult(emptyList(), 0, 100, 0, 0))))
 
         assertEquals(UiState.Empty, viewModel.state)
     }
 
     @Test
-    fun `owning zero salons is also Empty`() = runBlocking {
-        val viewModel = viewModel(FakeBookingRepository(myBookingsResult = Result.success(PagedResult(emptyList(), 0, 200, 0, 0))), salons = emptyList())
+    fun `missing active salon is Empty and does not query bookings or fall back to firstOwnedSalon`() = runBlocking {
+        val activeContext = FakeActiveSalonContextRepository(initialSalonId = null)
+        val bookingRepo = FakeBookingRepository(myBookingsResult = Result.success(PagedResult(listOf(pendingBooking), 0, 100, 1, 1)))
+        val viewModel = viewModel(
+            bookingRepository = bookingRepo,
+            activeSalonContextRepository = activeContext,
+            salons = listOf(salon),
+        )
 
         assertEquals(UiState.Empty, viewModel.state)
+        assertEquals(0, bookingRepo.salonBookingsCallCount)
+        assertNull(bookingRepo.lastRequestedSalonId)
+    }
+
+    @Test
+    fun `Calendar uses active salon ID rather than first owned salon`() = runBlocking {
+        val activeContext = FakeActiveSalonContextRepository(initialSalonId = "salon-active-99")
+        val firstOwnedSalon = Salon("salon-owned-1", "مالک اول", null, "000", null, "تهران")
+        val bookingRepo = FakeBookingRepository(myBookingsResult = Result.success(PagedResult(listOf(pendingBooking), 0, 100, 1, 1)))
+        val viewModel = viewModel(
+            bookingRepository = bookingRepo,
+            activeSalonContextRepository = activeContext,
+            salons = listOf(firstOwnedSalon),
+        )
+
+        assertEquals("salon-active-99", bookingRepo.lastRequestedSalonId)
+        val state = viewModel.state as UiState.Success
+        assertEquals("salon-active-99", state.data.salonId)
+    }
+
+    @Test
+    fun `changing active salon causes subsequent booking loads to target the new salon`() = runBlocking {
+        val activeContext = FakeActiveSalonContextRepository(initialSalonId = "salon-1")
+        val bookingRepo = FakeBookingRepository(myBookingsResult = Result.success(PagedResult(listOf(pendingBooking), 0, 100, 1, 1)))
+        val viewModel = viewModel(
+            bookingRepository = bookingRepo,
+            activeSalonContextRepository = activeContext,
+        )
+
+        assertEquals("salon-1", bookingRepo.lastRequestedSalonId)
+
+        activeContext.saveActiveSalonId("salon-2")
+
+        assertEquals("salon-2", bookingRepo.lastRequestedSalonId)
+        val state = viewModel.state as UiState.Success
+        assertEquals("salon-2", state.data.salonId)
+    }
+
+    @Test
+    fun `page size behavior passes 100 to salonBookings`() = runBlocking {
+        val bookingRepo = FakeBookingRepository(myBookingsResult = Result.success(PagedResult(listOf(pendingBooking), 0, 100, 1, 1)))
+        viewModel(bookingRepo)
+
+        assertEquals(100, bookingRepo.lastRequestedPageSize)
     }
 
     @Test
@@ -118,7 +174,7 @@ class ManagerCalendarViewModelTest {
 
     @Test
     fun `confirming a booking calls the real confirm endpoint and refreshes from the backend`() = runBlocking {
-        val repository = FakeBookingRepository(myBookingsResult = Result.success(PagedResult(listOf(pendingBooking), 0, 200, 1, 1)))
+        val repository = FakeBookingRepository(myBookingsResult = Result.success(PagedResult(listOf(pendingBooking), 0, 100, 1, 1)))
         val viewModel = viewModel(repository)
 
         viewModel.confirmAppointment("booking-1")
@@ -130,7 +186,7 @@ class ManagerCalendarViewModelTest {
 
     @Test
     fun `completing a booking calls the real complete endpoint and refreshes from the backend`() = runBlocking {
-        val repository = FakeBookingRepository(myBookingsResult = Result.success(PagedResult(listOf(pendingBooking), 0, 200, 1, 1)))
+        val repository = FakeBookingRepository(myBookingsResult = Result.success(PagedResult(listOf(pendingBooking), 0, 100, 1, 1)))
         val viewModel = viewModel(repository)
 
         viewModel.completeAppointment("booking-1")
@@ -138,6 +194,20 @@ class ManagerCalendarViewModelTest {
         assertEquals("booking-1", repository.lastCompletedBookingId)
         assertTrue(repository.salonBookingsCallCount >= 2)
     }
+}
+
+private class FakeActiveSalonContextRepository(initialSalonId: String? = "salon-1") : ActiveSalonContextRepository {
+    private val flow = MutableStateFlow(initialSalonId)
+
+    override suspend fun saveActiveSalonId(salonId: String) {
+        flow.value = salonId
+    }
+
+    override suspend fun clearActiveSalonId() {
+        flow.value = null
+    }
+
+    override fun observeActiveSalonId(): Flow<String?> = flow
 }
 
 private class FakeSalonRepository(private val result: Result<List<Salon>>) : SalonRepository {
@@ -151,6 +221,10 @@ private class FakeSalonRepository(private val result: Result<List<Salon>>) : Sal
 private class FakeBookingRepository(private val myBookingsResult: Result<PagedResult<Booking>>) : BookingRepository {
 
     var salonBookingsCallCount = 0
+        private set
+    var lastRequestedSalonId: String? = null
+        private set
+    var lastRequestedPageSize: Int? = null
         private set
     var lastConfirmedBookingId: String? = null
         private set
@@ -188,6 +262,8 @@ private class FakeBookingRepository(private val myBookingsResult: Result<PagedRe
 
     override suspend fun salonBookings(salonId: String, page: Int, size: Int, status: BookingStatus?): Result<PagedResult<Booking>> {
         salonBookingsCallCount++
+        lastRequestedSalonId = salonId
+        lastRequestedPageSize = size
         return myBookingsResult
     }
 }
