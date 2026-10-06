@@ -50,6 +50,7 @@ class SalonRepositoryImpl(
         longitude = longitude,
         active = active,
         onboardingStatus = onboardingStatus?.toDomain(),
+        coverImageUrl = coverImageUrl,
     )
 }
 

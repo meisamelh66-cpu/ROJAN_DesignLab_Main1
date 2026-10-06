@@ -43,12 +43,16 @@ import kotlinx.coroutines.launch
  * doubles as a mode sentinel" shape [ManagerDestinations.STAFF_EDIT]
  * documents.
  *
- * Only [Specialist.name] is editable — `bio`/`photoUrl` exist on the
- * backend's create/update DTOs but aren't part of this domain model yet
- * (see [ai.rojan.designlab.manager.data.BackendSpecialistRepository]'s own
- * doc comment on why `skills`/`workingHours`/`commissionRate` are already
- * disclosed placeholders); not adding fields here that wouldn't actually
- * persist anything real.
+ * [Specialist.name]/[Specialist.bio]/[Specialist.photoUrl] are editable —
+ * `bio`/`photoUrl` (Master Integration Repair, PASS 2/7) are real backend
+ * fields, now on the domain model too; both are pre-populated from
+ * [existing] on edit and always round-tripped on save, since the real
+ * `update` endpoint is a full replace (see
+ * [ai.rojan.designlab.manager.data.BackendSpecialistRepository]'s own doc
+ * comment) — sending a blind `null` here would otherwise silently erase
+ * whatever bio/photo any other client had already set for this specialist.
+ * `skills`/`workingHours`/`commissionRate` remain disclosed placeholders,
+ * unchanged by this pass.
  *
  * [onSaved] fires after a successful create, update, or deactivate — in
  * every case the caller returns to the roster list.
@@ -66,6 +70,8 @@ fun ManagerStaffEditScreen(
     }
 
     var name by remember(specialistId) { mutableStateOf(existing?.name.orEmpty()) }
+    var bio by remember(specialistId) { mutableStateOf(existing?.bio.orEmpty()) }
+    var photoUrl by remember(specialistId) { mutableStateOf(existing?.photoUrl.orEmpty()) }
     var isSubmitting by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -94,6 +100,16 @@ fun ManagerStaffEditScreen(
                         onValueChange = { name = it },
                         enabled = !isSubmitting,
                     )
+                    StaffBioField(
+                        value = bio,
+                        onValueChange = { bio = it },
+                        enabled = !isSubmitting,
+                    )
+                    StaffPhotoUrlField(
+                        value = photoUrl,
+                        onValueChange = { photoUrl = it },
+                        enabled = !isSubmitting,
+                    )
                 }
             }
 
@@ -108,12 +124,25 @@ fun ManagerStaffEditScreen(
                     errorMessage = null
                     isSubmitting = true
                     scope.launch {
+                        val trimmedBio = bio.trim().ifBlank { null }
+                        val trimmedPhotoUrl = photoUrl.trim().ifBlank { null }
                         val result = if (isNew) {
                             ManagerRepositories.specialists.create(
-                                Specialist(id = "", name = name.trim(), skills = emptyList(), workingHours = "—", commissionRate = 0.0, active = true),
+                                Specialist(
+                                    id = "",
+                                    name = name.trim(),
+                                    skills = emptyList(),
+                                    workingHours = "—",
+                                    commissionRate = 0.0,
+                                    active = true,
+                                    bio = trimmedBio,
+                                    photoUrl = trimmedPhotoUrl,
+                                ),
                             )
                         } else {
-                            ManagerRepositories.specialists.update((existing ?: return@launch).copy(name = name.trim()))
+                            ManagerRepositories.specialists.update(
+                                (existing ?: return@launch).copy(name = name.trim(), bio = trimmedBio, photoUrl = trimmedPhotoUrl),
+                            )
                         }
                         isSubmitting = false
                         result.onSuccess { onSaved() }
@@ -149,6 +178,52 @@ private fun StaffNameField(value: String, onValueChange: (String) -> Unit, enabl
         value = value,
         onValueChange = onValueChange,
         label = { Text("نام متخصص") },
+        enabled = enabled,
+        singleLine = true,
+        textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = ManagerColors.TextPrimary,
+            unfocusedTextColor = ManagerColors.TextPrimary,
+            focusedBorderColor = ManagerColors.Turquoise,
+            unfocusedBorderColor = ManagerColors.TextSecondary,
+            focusedLabelColor = ManagerColors.Turquoise,
+            unfocusedLabelColor = ManagerColors.TextSecondary,
+            cursorColor = ManagerColors.Turquoise,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+/** Data Integrity / API Hardening (Master Integration Repair, PASS 2/7): real `Specialist.bio`, multi-line since it's free-text. */
+@Composable
+private fun StaffBioField(value: String, onValueChange: (String) -> Unit, enabled: Boolean) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text("بیوگرافی (اختیاری)") },
+        enabled = enabled,
+        minLines = 2,
+        textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = ManagerColors.TextPrimary,
+            unfocusedTextColor = ManagerColors.TextPrimary,
+            focusedBorderColor = ManagerColors.Turquoise,
+            unfocusedBorderColor = ManagerColors.TextSecondary,
+            focusedLabelColor = ManagerColors.Turquoise,
+            unfocusedLabelColor = ManagerColors.TextSecondary,
+            cursorColor = ManagerColors.Turquoise,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+/** Data Integrity / API Hardening (Master Integration Repair, PASS 2/7): real `Specialist.photoUrl` — a plain URL field, matching this app's current lack of an upload endpoint for specialist photos (no new upload feature invented here). */
+@Composable
+private fun StaffPhotoUrlField(value: String, onValueChange: (String) -> Unit, enabled: Boolean) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text("آدرس تصویر (اختیاری)") },
         enabled = enabled,
         singleLine = true,
         textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary),

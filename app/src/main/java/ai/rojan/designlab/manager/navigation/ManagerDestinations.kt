@@ -49,9 +49,19 @@ object ManagerDestinations {
     const val CUSTOMER_PROFILE = "manager_customer_profile/{customerId}"
     fun customerProfile(customerId: String) = "manager_customer_profile/$customerId"
 
-    /** Customer Edit Flow, Phase 9 Step 1 — edit-only, reached from [ai.rojan.designlab.manager.screens.customers.ManagerCustomerProfileScreen]'s edit entry point. No create/new sentinel, unlike [STAFF_EDIT]/[SERVICE_EDIT] — a customer always already exists by the time this route is reached. */
+    /**
+     * Customer Edit Flow, Phase 9 Step 1 — reached from
+     * [ai.rojan.designlab.manager.screens.customers.ManagerCustomerProfileScreen]'s
+     * edit entry point for editing an existing customer.
+     *
+     * Master Integration Repair, PASS 4: extended to also support create,
+     * same [NEW_CUSTOMER_ID]-sentinel shape as [STAFF_EDIT]/[SERVICE_EDIT] —
+     * previously there was no create route or entry point anywhere in this
+     * app, despite the backend/DTO/repository fully supporting it.
+     */
     const val CUSTOMER_EDIT = "manager_customer_edit/{customerId}"
     fun customerEdit(customerId: String) = "manager_customer_edit/$customerId"
+    const val NEW_CUSTOMER_ID = "new"
     const val SERVICES = "manager_services"
 
     /** Manager Operational Foundation, Phase 6 Step 3 — one screen for both create and edit, same [NEW_SPECIALIST_ID]-style sentinel shape as [STAFF_EDIT]; [NEW_SERVICE_ID] as [serviceId] means create. */

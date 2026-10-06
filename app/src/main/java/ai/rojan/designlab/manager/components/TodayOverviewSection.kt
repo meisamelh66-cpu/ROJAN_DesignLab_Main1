@@ -2,135 +2,167 @@ package ai.rojan.designlab.manager.components
 
 import ai.rojan.designlab.manager.data.toPersianDigits
 import ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardStats
-import ai.rojan.designlab.ui.components.cards.PremiumCardShell
-import ai.rojan.designlab.ui.components.rtl.RtlSectionHeader
+import ai.rojan.designlab.ui.components.icon.RojanIconContainer
+import ai.rojan.designlab.ui.components.icon.RojanIconSize
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
 import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.EventAvailable
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
-private data class OverviewStat(
-    val icon: ImageVector,
-    val label: String,
-    val value: String,
-    val accent: Color,
-)
-
 /**
- * Turquoise + Gold, alternating — matches the reference's KPI row exactly;
- * values come from [stats], not sample data.
+ * Manager App workspace — "today's overview" stat row.
  *
- * TEAM2-002 (Manager Data Persistence): "مشتریان جدید" (new customers) is
- * gone — it read `manager.data.ManagerRepositories.customers`, which has
- * no backend equivalent (no endpoint resolves a booking's customer to a
- * profile at all — see `TEAM2_RESULT_MANAGER_DATA_PERSISTENCE.md`).
- * Three honest real stats, not four where one would have to be faked.
- */
-private fun overviewStatsFrom(stats: ManagerDashboardStats): List<OverviewStat> = listOf(
-    OverviewStat(Icons.Filled.EventAvailable, "نوبت‌های امروز", stats.todaysAppointmentCount.toPersianDigits(), ManagerColors.Turquoise),
-    OverviewStat(Icons.Filled.AttachMoney, "درآمد امروز", stats.todaysRevenueLabel, ManagerColors.Gold),
-    OverviewStat(Icons.AutoMirrored.Filled.TrendingUp, "نرخ اشغال", "٪${stats.occupancyPercent.toPersianDigits()}", ManagerColors.Gold),
-)
-
-/**
- * Manager App workspace — "today's overview" stat grid.
- *
- * TEAM2-002 (Manager Data Persistence): [stats] now comes from
+ * TEAM2-002 (Manager Data Persistence): [stats] comes from
  * [ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewModel]
- * — real computation over the salon's real backend bookings — replacing
- * this composable's previous internal
- * `computeManagerDashboardStats()`/`ManagerRepositories` read. Layout
- * unchanged; this screen no longer computes anything itself, per "no
- * business logic inside Composables."
+ * — real computation over the salon's real backend bookings. This
+ * screen still computes nothing itself — [OccupancyStatCard]'s ring is a
+ * pure re-render of the already-real [ManagerDashboardStats.occupancyPercent],
+ * not a new value.
  *
- * ROJAN AI Manager Visual Theme Implementation: re-themed for the dark
- * luxury background — content/layout unchanged.
+ * Safe-redesign pass: three real stats across one [Row], each tile at
+ * `Modifier.weight(1f)` — a completely standard, bounded-constraint
+ * pattern (the Row itself is measured with a finite width by its parent
+ * `LazyColumn` item), not the flagged "weight inside unbounded parent"
+ * risk. No `LazyRow`, no negative modifiers, no custom `Layout`.
  */
 @Composable
 fun TodayOverviewSection(stats: ManagerDashboardStats, modifier: Modifier = Modifier) {
-    // TEAM2-002 (Manager Data Persistence): stats now come from the real,
-    // ViewModel-owned ManagerDashboardViewModel.state — the previous
-    // self-computing `computeManagerDashboardStats()`/`ManagerRepositories`
-    // read (and its refreshKey-based re-trigger) is retired along with it.
-    val overviewStats = overviewStatsFrom(stats)
-
-    Column(modifier = modifier.fillMaxWidth()) {
-        RtlSectionHeader(
-            text = "نمای امروز",
-            style = RojanTypography.SectionTitle,
-            color = ManagerColors.TextPrimary,
-            horizontalPadding = 0.dp,
+    // Spacing-cleanup pass: the standalone "نمای امروز" heading is gone —
+    // redundant next to the Salon Identity card above it — along with the
+    // title-to-content gap that existed only for that heading. The KPI
+    // row is the whole of this composable now.
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceCardToCard),
+    ) {
+            StatCard(
+                icon = Icons.Filled.EventAvailable,
+                label = "نوبت‌های امروز",
+                value = stats.todaysAppointmentCount.toPersianDigits(),
+                accent = ManagerColors.Turquoise,
+                modifier = Modifier.weight(1f),
+            )
+            StatCard(
+                icon = Icons.Filled.AttachMoney,
+                label = "درآمد امروز",
+                value = stats.todaysRevenueLabel,
+                accent = ManagerColors.Gold,
+                modifier = Modifier.weight(1f),
+            )
+        OccupancyStatCard(
+            percent = stats.occupancyPercent,
+            modifier = Modifier.weight(1f),
         )
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                // Shared Premium Glass Design System spacing rhythm:
-                // title-to-content gap everywhere — the title reads as
-                // integrated into the section, not floating above it.
-                .padding(top = RojanDimens.SpaceTitleToContent),
-            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceCardToCard),
-        ) {
-            overviewStats.chunked(2).forEach { rowStats ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceCardToCard),
-                ) {
-                    rowStats.forEach { stat ->
-                        StatCard(stat = stat, modifier = Modifier.weight(1f))
-                    }
-                }
-            }
-        }
     }
 }
 
-/**
- * Design-system refinement, Phase 4B-2: rendering moved onto the shared
- * [PremiumCardShell] (shell only — content/spacing/behavior unchanged).
- * [PremiumCardShell]'s default `variant = RojanCardVariant.GlassCard`
- * resolves to the exact same fill/border/elevation the previous direct
- * [ManagerGlassSurface] call defaulted to, and its default
- * `contentPadding` is [RojanDimens.SpaceMD] — the same value this
- * `Column` applied manually before. Still non-interactive (no `onClick`
- * — a static KPI tile, not a tappable card).
- */
+/** Shared shell for all three KPI tiles — identical padding/background/shadow/border, so the row reads as one consistent set of equal-geometry tiles. Plain neutral shadow + a thin turquoise hairline (controlled depth, not a metallic gold border). All values/shapes are fixed positive dp — no size-dependent or negative computation. Pixel-perfect pass: content is now centered (icon badge → number → label, vertically stacked), matching the reference's KPI card layout. */
 @Composable
-private fun StatCard(stat: OverviewStat, modifier: Modifier = Modifier) {
-    PremiumCardShell(
-        modifier = modifier,
-        shape = RojanShapes.Small,
+private fun FlatStatShell(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 4.dp,
+                shape = RojanShapes.Small,
+                ambientColor = Color.Black.copy(alpha = 0.25f),
+                spotColor = Color.Black.copy(alpha = 0.25f),
+            )
+            .background(ManagerColors.BaseSecondary.copy(alpha = 0.35f), RojanShapes.Small)
+            .border(1.dp, ManagerColors.Turquoise.copy(alpha = 0.14f), RojanShapes.Small)
+            .padding(RojanDimens.SpaceMD),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        content = content,
+    )
+}
+
+/** Small filled color badge behind a KPI icon — matches the reference's icon treatment (a colored container, not a bare tinted glyph). */
+@Composable
+private fun KpiIconBadge(icon: ImageVector, accent: Color, contentDescription: String?) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .background(accent.copy(alpha = 0.18f), RojanShapes.Small),
+        contentAlignment = Alignment.Center,
     ) {
-        ManagerIconContainer(
-            imageVector = stat.icon,
-            contentDescription = stat.label,
-            containerSize = 40.dp,
-            accentColor = stat.accent,
+        RojanIconContainer(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = accent,
+            size = RojanIconSize.Medium,
         )
+    }
+}
+
+@Composable
+private fun StatCard(icon: ImageVector, label: String, value: String, accent: Color, modifier: Modifier = Modifier) {
+    FlatStatShell(modifier = modifier) {
+        KpiIconBadge(icon = icon, accent = accent, contentDescription = label)
         Text(
-            text = stat.value,
-            style = RojanTypography.Display,
+            text = value,
+            style = RojanTypography.CardTitle,
             color = ManagerColors.TextPrimary,
             modifier = Modifier.padding(top = RojanDimens.SpaceSM),
         )
         Text(
-            text = stat.label,
+            text = label,
             style = RojanTypography.Caption,
             color = ManagerColors.TextSecondary,
+            modifier = Modifier.padding(top = RojanDimens.SpaceXS),
+        )
+    }
+}
+
+/** Same shell/footprint as [StatCard]; the value renders inside a fixed-size ring instead of beside an icon, since it is a percentage-of-whole rather than a raw count/amount. */
+@Composable
+private fun OccupancyStatCard(percent: Int, modifier: Modifier = Modifier) {
+    val clampedPercent = percent.coerceIn(0, 100)
+
+    FlatStatShell(modifier = modifier) {
+        Box(
+            modifier = Modifier.size(RojanDimens.IconSizeXLarge),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator(
+                progress = { clampedPercent / 100f },
+                modifier = Modifier.fillMaxSize(),
+                color = ManagerColors.Turquoise,
+                trackColor = ManagerColors.TextSecondary.copy(alpha = 0.18f),
+                strokeWidth = 4.dp,
+            )
+            Text(
+                text = "٪${clampedPercent.toPersianDigits()}",
+                style = RojanTypography.Caption,
+                color = ManagerColors.TextPrimary,
+            )
+        }
+        Text(
+            text = "نرخ اشغال",
+            style = RojanTypography.Caption,
+            color = ManagerColors.TextSecondary,
+            modifier = Modifier.padding(top = RojanDimens.SpaceSM),
         )
     }
 }

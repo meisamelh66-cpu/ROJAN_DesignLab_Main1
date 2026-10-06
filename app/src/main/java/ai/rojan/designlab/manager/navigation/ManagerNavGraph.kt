@@ -292,6 +292,9 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
             onCustomerClick = { customerId ->
                 navController.navigate(ManagerDestinations.customerProfile(customerId))
             },
+            // Master Integration Repair, PASS 4 — previously no create entry
+            // point existed anywhere in the app.
+            onAddClick = { navController.navigate(ManagerDestinations.customerEdit(ManagerDestinations.NEW_CUSTOMER_ID)) },
             initialTagFilter = initialTagFilter,
         )
     }

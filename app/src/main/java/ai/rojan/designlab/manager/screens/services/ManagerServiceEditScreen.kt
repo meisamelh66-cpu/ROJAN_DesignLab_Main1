@@ -59,10 +59,10 @@ import kotlinx.coroutines.launch
  * nothing, so edit mode shows the category as read-only text instead of
  * inventing a capability that doesn't exist.
  *
- * [description] (on the create/update DTOs) has no field in the [Service]
- * domain model and isn't added here, same "don't add a field that can't
- * actually round-trip" discipline [ManagerStaffEditScreen] already
- * applies to `bio`/`photoUrl`.
+ * [Service.description] (Master Integration Repair, PASS 2) is a real
+ * backend field, now on the domain model and editable here — previously
+ * never collected or sent by this screen even though the backend/DTO both
+ * supported it.
  *
  * [onSaved] fires after a successful create, update, or deactivate — in
  * every case the caller returns to the services list.
@@ -81,6 +81,7 @@ fun ManagerServiceEditScreen(
     val categoryNames = remember { ManagerRepositories.services.getCategoryNames() }
 
     var name by remember(serviceId) { mutableStateOf(existing?.name.orEmpty()) }
+    var description by remember(serviceId) { mutableStateOf(existing?.description.orEmpty()) }
     var selectedCategory by remember(serviceId) { mutableStateOf(existing?.category ?: categoryNames.firstOrNull().orEmpty()) }
     var priceText by remember(serviceId) { mutableStateOf(existing?.price?.toString().orEmpty()) }
     var durationText by remember(serviceId) { mutableStateOf(existing?.durationMinutes?.toString().orEmpty()) }
@@ -132,6 +133,11 @@ fun ManagerServiceEditScreen(
                         keyboardType = KeyboardType.Number,
                         enabled = !isSubmitting,
                     )
+                    ServiceDescriptionField(
+                        value = description,
+                        onValueChange = { description = it },
+                        enabled = !isSubmitting,
+                    )
 
                     Text(text = "دسته‌بندی", style = RojanTypography.Caption, color = ManagerColors.TextSecondary)
                     if (isNew) {
@@ -167,13 +173,27 @@ fun ManagerServiceEditScreen(
                     errorMessage = null
                     isSubmitting = true
                     scope.launch {
+                        val trimmedDescription = description.trim().ifBlank { null }
                         val result = if (isNew) {
                             ManagerRepositories.services.create(
-                                Service(id = "", name = name.trim(), category = selectedCategory, price = validPrice, durationMinutes = validDuration, active = true),
+                                Service(
+                                    id = "",
+                                    name = name.trim(),
+                                    category = selectedCategory,
+                                    price = validPrice,
+                                    durationMinutes = validDuration,
+                                    active = true,
+                                    description = trimmedDescription,
+                                ),
                             )
                         } else {
                             ManagerRepositories.services.update(
-                                (existing ?: return@launch).copy(name = name.trim(), price = validPrice, durationMinutes = validDuration),
+                                (existing ?: return@launch).copy(
+                                    name = name.trim(),
+                                    price = validPrice,
+                                    durationMinutes = validDuration,
+                                    description = trimmedDescription,
+                                ),
                             )
                         }
                         isSubmitting = false
@@ -245,6 +265,29 @@ private fun ServiceTextField(
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         enabled = enabled,
         singleLine = true,
+        textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = ManagerColors.TextPrimary,
+            unfocusedTextColor = ManagerColors.TextPrimary,
+            focusedBorderColor = ManagerColors.Turquoise,
+            unfocusedBorderColor = ManagerColors.TextSecondary,
+            focusedLabelColor = ManagerColors.Turquoise,
+            unfocusedLabelColor = ManagerColors.TextSecondary,
+            cursorColor = ManagerColors.Turquoise,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+/** Salon Data Integration (Master Integration Repair, PASS 2): real `Service.description`, multi-line since it's free-text. */
+@Composable
+private fun ServiceDescriptionField(value: String, onValueChange: (String) -> Unit, enabled: Boolean) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text("توضیحات (اختیاری)") },
+        enabled = enabled,
+        minLines = 2,
         textStyle = LocalTextStyle.current.copy(color = ManagerColors.TextPrimary),
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = ManagerColors.TextPrimary,

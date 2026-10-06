@@ -13,6 +13,11 @@ data class Specialist(
     val displayName: String,
     val bio: String?,
     val photoUrl: String?,
+    // Salon Data Integration (Master Integration Repair, PASS 2): real
+    // backend field (`SpecialistResponseDto.active`), previously dropped by
+    // this mapper — carried through for completeness; no new client-side
+    // filtering is applied anywhere.
+    val active: Boolean = true,
 )
 
 /** Talks to the ROJAN backend's Specialist API (`ROJAN_Backend/API_CONTRACT.md`). */

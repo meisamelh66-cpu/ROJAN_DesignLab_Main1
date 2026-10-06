@@ -18,6 +18,7 @@ import ai.rojan.designlab.data.remote.ManagerSalonApi
 import ai.rojan.designlab.data.remote.ManagerServiceApi
 import ai.rojan.designlab.data.remote.ManagerSpecialistApi
 import ai.rojan.designlab.data.remote.NetworkConfig
+import ai.rojan.designlab.data.remote.PublicBannerApi
 import ai.rojan.designlab.data.remote.PublicSalonApi
 import ai.rojan.designlab.data.remote.SalonApi
 import ai.rojan.designlab.data.remote.SalonBookingApi
@@ -34,6 +35,7 @@ import ai.rojan.designlab.data.repository.AppUpdateRepositoryImpl
 import ai.rojan.designlab.data.repository.AuthSessionRepositoryImpl
 import ai.rojan.designlab.data.repository.AvailabilityRepositoryImpl
 import ai.rojan.designlab.data.repository.BackendAuthRepositoryImpl
+import ai.rojan.designlab.data.repository.BannerRepositoryImpl
 import ai.rojan.designlab.data.repository.BookingHistoryRepositoryImpl
 import ai.rojan.designlab.data.repository.BookingRepositoryImpl
 import ai.rojan.designlab.data.repository.CurrentUserIdentityContextRepositoryImpl
@@ -54,6 +56,7 @@ import ai.rojan.designlab.domain.repository.AppUpdateRepository
 import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.AvailabilityRepository
 import ai.rojan.designlab.domain.repository.BackendAuthRepository
+import ai.rojan.designlab.domain.repository.BannerRepository
 import ai.rojan.designlab.domain.repository.BookingHistoryRepository
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.CurrentUserIdentityContextRepository
@@ -256,6 +259,14 @@ class BackendApiContainer(context: Context) {
     // same reasoning as plainAuthApi below.
     val publicSalonRepository: PublicSalonRepository =
         PublicSalonRepositoryImpl(buildPlainRetrofit().create(PublicSalonApi::class.java))
+
+    // MANAGER static-banner slot: same "deliberately NOT built on [retrofit]"
+    // reasoning as publicSalonRepository above - the real, pre-existing
+    // public banner endpoint (ROJAN_Backend's PublicBannerController) is
+    // unauthenticated by design and target=MANAGER is now a valid
+    // BannerTarget (V43__manager_banner_target.sql).
+    val bannerRepository: BannerRepository =
+        BannerRepositoryImpl(buildPlainRetrofit().create(PublicBannerApi::class.java))
 
     // Android App Update Client, Phase 2B: same "deliberately NOT built on
     // [retrofit]" reasoning as publicSalonRepository above — the update

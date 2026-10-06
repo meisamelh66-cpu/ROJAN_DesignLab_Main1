@@ -54,6 +54,7 @@ import ai.rojan.designlab.screens.customer.components.RefSurface
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
 import ai.rojan.designlab.ui.components.image.RojanRemoteImage
 import ai.rojan.designlab.ui.theme.RojanDimens
+import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
@@ -142,6 +143,24 @@ private fun PublicSalonContent(data: PublicSalonData) {
                     .fillMaxWidth()
                     .padding(horizontal = CustomerScreenMargin),
             ) {
+                // Salon Data Integration (Master Integration Repair, PASS 2): real
+                // backend `coverImageUrl` — renders nothing when a salon has none
+                // set (no fabricated placeholder), same "real or absent"
+                // discipline as the logo avatar below.
+                if (salon.coverImageUrl != null) {
+                    RojanRemoteImage(
+                        url = salon.coverImageUrl,
+                        contentDescription = null,
+                        shape = RojanShapes.GlassCard,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                            .clip(RojanShapes.GlassCard),
+                        fallback = {},
+                    )
+                    Spacer(Modifier.height(RojanDimens.SpaceMD))
+                }
+
                 Box(
                     modifier = Modifier
                         .size(72.dp)

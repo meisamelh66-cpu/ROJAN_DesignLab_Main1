@@ -67,6 +67,13 @@ data class Salon(
     // `SalonResponseDto.onboardingStatus`'s own doc comment) — every real
     // authenticated response carries a real value today.
     val onboardingStatus: SalonOnboardingStatus? = null,
+    // Salon Data Integration (Master Integration Repair, PASS 2): a real
+    // backend field (`SalonResponseDto.coverImageUrl` on the authenticated
+    // shape; `PublicSalonSummaryResponseDto.coverUrl` — differently named,
+    // same field, see that mapper's own doc comment — on the public
+    // directory-row shape) that was never carried through to this domain
+    // model before, so it could never render anywhere on Customer/Manager.
+    val coverImageUrl: String? = null,
 ) {
     val location: SalonLocation get() = SalonLocation(latitude = latitude, longitude = longitude, address = address)
 }

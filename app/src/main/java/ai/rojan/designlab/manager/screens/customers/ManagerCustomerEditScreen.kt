@@ -10,6 +10,7 @@ import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.domain.customer.CustomerTag
 import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
 import ai.rojan.designlab.manager.domain.customer.displayLabel
+import ai.rojan.designlab.manager.navigation.ManagerDestinations
 import ai.rojan.designlab.presentation.common.userMessageFor
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.text.Text
@@ -42,14 +43,26 @@ import androidx.compose.ui.tooling.preview.Preview
 import kotlinx.coroutines.launch
 
 /**
- * Manager App workspace — Customer Edit (Phase 9 Step 1). Edit-only, no
- * create mode — a customer always already exists by the time this screen
- * is reached (from [ManagerCustomerProfileScreen]'s edit entry point),
- * unlike [ai.rojan.designlab.manager.screens.staff.ManagerStaffEditScreen]/
- * [ai.rojan.designlab.manager.screens.services.ManagerServiceEditScreen]'s
- * shared create/edit shape.
+ * Manager App workspace — Customer Create/Edit (Phase 9 Step 1; create mode
+ * added in Master Integration Repair, PASS 4). [customerId] ==
+ * [ai.rojan.designlab.manager.navigation.ManagerDestinations.NEW_CUSTOMER_ID]
+ * means create — same "route param doubles as a mode sentinel" shape as
+ * [ai.rojan.designlab.manager.screens.staff.ManagerStaffEditScreen]/
+ * [ai.rojan.designlab.manager.screens.services.ManagerServiceEditScreen].
+ * Previously this screen was edit-only and no create route/entry point
+ * existed anywhere in the app, even though
+ * [ai.rojan.designlab.manager.data.BackendCustomerRepository.create] and
+ * the real `POST .../customers` endpoint were already fully implemented —
+ * a missing UI entry point, not a missing capability.
  *
- * **Exactly three fields are editable, and only these** —
+ * Create mode only collects name/phone — the real endpoint
+ * ([ai.rojan.designlab.manager.data.BackendCustomerRepository.create])
+ * only ever sends `fullName`/`phoneNumber`, matching
+ * `CreateCustomerRequestDto`'s current wiring exactly; `tag` has no
+ * effect on create (the backend assigns the initial status) so it isn't
+ * shown until edit mode, once a real record exists.
+ *
+ * **In edit mode, exactly three fields are editable, and only these** —
  * [ai.rojan.designlab.manager.domain.customer.ManagerCustomer.name]/`.phone`/`.tag`
  * — because [ai.rojan.designlab.manager.data.BackendCustomerRepository.update]
  * already only ever sends `fullName`/`phoneNumber`/`status` to the real
@@ -87,12 +100,15 @@ import kotlinx.coroutines.launch
 @Composable
 fun ManagerCustomerEditScreen(
     modifier: Modifier = Modifier,
-    customerId: String,
+    customerId: String = ManagerDestinations.NEW_CUSTOMER_ID,
     onBackClick: (() -> Unit)? = null,
     onSaved: () -> Unit = {},
 ) {
-    val existing = remember(customerId) { ManagerRepositories.customers.getById(customerId) }
-    val lookupState = resolveCustomerEditLookupState(existing)
+    val isNew = customerId == ManagerDestinations.NEW_CUSTOMER_ID
+    val existing = remember(customerId) {
+        if (isNew) null else ManagerRepositories.customers.getById(customerId)
+    }
+    val lookupState = resolveCustomerEditLookupState(isNew = isNew, existing = existing)
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         when (lookupState) {
@@ -112,6 +128,10 @@ fun ManagerCustomerEditScreen(
                 }
             }
 
+            is CustomerEditLookupState.Create -> {
+                ManagerCustomerCreateForm(onSaved = onSaved)
+            }
+
             is CustomerEditLookupState.Found -> {
                 ManagerCustomerEditForm(customerId = customerId, existing = lookupState.customer, onSaved = onSaved)
             }
@@ -119,20 +139,116 @@ fun ManagerCustomerEditScreen(
     }
 }
 
-/** The two honest outcomes of resolving [ManagerCustomerEditScreen]'s `customerId` — see [resolveCustomerEditLookupState]. `internal` (not `private`) so the pure resolver is unit-testable. */
+/**
+ * The three honest outcomes of resolving [ManagerCustomerEditScreen]'s
+ * `customerId` — see [resolveCustomerEditLookupState]. `internal` (not
+ * `private`) so the pure resolver is unit-testable. [Create] added in
+ * Master Integration Repair, PASS 4.
+ */
 internal sealed interface CustomerEditLookupState {
+    data object Create : CustomerEditLookupState
     data class Found(val customer: ManagerCustomer) : CustomerEditLookupState
     data object NotFound : CustomerEditLookupState
 }
 
 /**
- * Pure decision function (Phase F1-A Safety Fix) — isolated from Compose so it's directly
- * unit-testable: a `null` [existing] is always [CustomerEditLookupState.NotFound], never rendered as
- * a blank/empty form; a non-null [existing] is always [CustomerEditLookupState.Found] wrapping that
- * exact record.
+ * Pure decision function (Phase F1-A Safety Fix, extended PASS 4 for create
+ * mode) — isolated from Compose so it's directly unit-testable: [isNew]
+ * always resolves to [CustomerEditLookupState.Create] regardless of
+ * [existing]; otherwise a `null` [existing] is
+ * [CustomerEditLookupState.NotFound] (never rendered as a blank/empty
+ * form), and a non-null [existing] is [CustomerEditLookupState.Found]
+ * wrapping that exact record.
  */
-internal fun resolveCustomerEditLookupState(existing: ManagerCustomer?): CustomerEditLookupState =
-    if (existing != null) CustomerEditLookupState.Found(existing) else CustomerEditLookupState.NotFound
+internal fun resolveCustomerEditLookupState(isNew: Boolean, existing: ManagerCustomer?): CustomerEditLookupState = when {
+    isNew -> CustomerEditLookupState.Create
+    existing != null -> CustomerEditLookupState.Found(existing)
+    else -> CustomerEditLookupState.NotFound
+}
+
+/**
+ * Master Integration Repair, PASS 4 — the create-mode form. Only
+ * name/phone, matching exactly what
+ * [ai.rojan.designlab.manager.data.BackendCustomerRepository.create]
+ * actually sends; other [ManagerCustomer] fields are placeholders here
+ * (ignored by the real create call, mirroring
+ * [ai.rojan.designlab.manager.screens.staff.ManagerStaffEditScreen]'s own
+ * placeholder discipline for fields the backend doesn't take at create
+ * time) — the real, server-assigned values come back on
+ * [ai.rojan.designlab.manager.domain.repository.CustomerRepository.create]'s
+ * response.
+ */
+@Composable
+private fun ManagerCustomerCreateForm(onSaved: () -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var isSubmitting by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    Column(
+        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(RojanDimens.SpaceMD),
+        verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceMD),
+    ) {
+        Text(
+            text = "مشتری جدید",
+            style = RojanTypography.ScreenTitle,
+            color = ManagerColors.TextPrimary,
+        )
+
+        ManagerGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.GlassCard) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD),
+                verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+            ) {
+                CustomerEditTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = "نام مشتری",
+                    keyboardType = KeyboardType.Text,
+                    enabled = !isSubmitting,
+                )
+                CustomerEditTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = "شماره تماس",
+                    keyboardType = KeyboardType.Phone,
+                    enabled = !isSubmitting,
+                )
+            }
+        }
+
+        if (errorMessage != null) {
+            Text(text = errorMessage.orEmpty(), style = RojanTypography.Caption, color = RojanErrorText)
+        }
+
+        ManagerPrimaryButton(
+            text = "ایجاد مشتری",
+            enabled = !isSubmitting && name.isNotBlank(),
+            onClick = {
+                errorMessage = null
+                isSubmitting = true
+                scope.launch {
+                    ManagerRepositories.customers
+                        .create(
+                            ManagerCustomer(
+                                id = "",
+                                name = name.trim(),
+                                phone = phone.trim(),
+                                tag = CustomerTag.NEW,
+                                loyaltyScore = 0,
+                                notes = null,
+                                lastVisit = "—",
+                                totalVisits = 0,
+                            ),
+                        )
+                        .onSuccess { isSubmitting = false; onSaved() }
+                        .onFailure { isSubmitting = false; errorMessage = userMessageFor(it) }
+                }
+            },
+        )
+    }
+}
 
 @Composable
 private fun ManagerCustomerEditForm(customerId: String, existing: ManagerCustomer, onSaved: () -> Unit) {

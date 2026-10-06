@@ -21,5 +21,6 @@ class ServiceRepositoryImpl(
         description = description,
         durationMinutes = durationMinutes,
         price = price,
+        active = active,
     )
 }

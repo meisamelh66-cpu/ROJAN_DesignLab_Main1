@@ -10,6 +10,10 @@ data class PublicSalon(
     val logoUrl: String?,
     val latitude: Double?,
     val longitude: Double?,
+    // Salon Data Integration (Master Integration Repair, PASS 2): real backend
+    // field (`PublicSalonResponse.coverImageUrl`), previously not modeled on
+    // this DTO/domain type at all — defaulted so this stays source-compatible.
+    val coverImageUrl: String? = null,
 )
 
 data class PublicServiceCategory(

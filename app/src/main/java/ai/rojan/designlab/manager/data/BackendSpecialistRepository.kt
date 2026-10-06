@@ -60,7 +60,7 @@ class BackendSpecialistRepository(
         safeApiCall {
             managerSpecialistApi.create(
                 salonId = salonId,
-                request = CreateSpecialistRequestDto(displayName = specialist.name),
+                request = CreateSpecialistRequestDto(displayName = specialist.name, bio = specialist.bio, photoUrl = specialist.photoUrl),
             )
         }.map { dto ->
             dto.toDomain().also { created -> cache = cache + created }
@@ -71,7 +71,11 @@ class BackendSpecialistRepository(
             managerSpecialistApi.update(
                 salonId = salonId,
                 specialistId = specialist.id,
-                request = UpdateSpecialistRequestDto(displayName = specialist.name),
+                // Full-replace endpoint (see this repository's own class doc
+                // comment) — always sends the caller's real bio/photoUrl,
+                // never a blind null, so an edit that doesn't touch them
+                // preserves whatever was already there.
+                request = UpdateSpecialistRequestDto(displayName = specialist.name, bio = specialist.bio, photoUrl = specialist.photoUrl),
             )
         }.map { dto ->
             dto.toDomain().also { updated ->
@@ -94,5 +98,7 @@ class BackendSpecialistRepository(
         workingHours = "—",
         commissionRate = 0.0,
         active = active,
+        bio = bio,
+        photoUrl = photoUrl,
     )
 }

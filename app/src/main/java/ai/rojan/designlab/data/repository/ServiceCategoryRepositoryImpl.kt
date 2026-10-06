@@ -18,5 +18,6 @@ class ServiceCategoryRepositoryImpl(
         salonId = salonId,
         name = name,
         description = description,
+        active = active,
     )
 }

@@ -17,10 +17,11 @@ import ai.rojan.designlab.manager.domain.service.Service
  * synchronous. The backend has no "all services for a salon" endpoint,
  * only per-category, so [sync] fetches every category first.
  *
- * `create`/`update`/`delete` have no real caller yet (no Services
- * management screen exists) — implemented against the real,
- * owner-authenticated `ServiceController` regardless, so the moment that
- * screen is built it has something real to call. [Service.category]
+ * `create`/`update`/`delete` are called by
+ * [ai.rojan.designlab.manager.screens.services.ManagerServiceEditScreen]
+ * (this doc comment was stale — flagged and corrected in Master Integration
+ * Repair, PASS 2 — that screen already existed and calls these methods).
+ * [Service.category]
  * stores a category *name* (matching the existing domain model, unchanged
  * from its in-memory-era shape) — the category id a write call actually
  * needs is resolved from the name via the cache [sync] built, which is
@@ -71,6 +72,7 @@ class BackendServiceRepository(
                 categoryId = categoryId,
                 request = CreateServiceRequest(
                     name = service.name,
+                    description = service.description,
                     durationMinutes = service.durationMinutes,
                     price = service.price.toDouble(),
                 ),
@@ -91,6 +93,7 @@ class BackendServiceRepository(
                 serviceId = service.id,
                 request = UpdateServiceRequest(
                     name = service.name,
+                    description = service.description,
                     durationMinutes = service.durationMinutes,
                     price = service.price.toDouble(),
                 ),
@@ -120,5 +123,6 @@ class BackendServiceRepository(
         price = price.toLong(),
         durationMinutes = durationMinutes,
         active = active,
+        description = description,
     )
 }

@@ -82,6 +82,7 @@ class PublicSalonRepositoryImpl(
         logoUrl = logoUrl,
         latitude = latitude,
         longitude = longitude,
+        coverImageUrl = coverImageUrl,
     )
 
     /**
@@ -89,7 +90,11 @@ class PublicSalonRepositoryImpl(
      * omits `phone`/`address` (kept behind the by-slug endpoint), so those map
      * to "" — the Explore card treats an empty address as "not shown", and the
      * booking flow re-fetches the full authenticated salon before it needs a
-     * phone anyway.
+     * phone anyway. [coverImageUrl]: this DTO's own field is named `coverUrl`
+     * (differs from the authenticated `SalonResponseDto.coverImageUrl` and
+     * this by-slug `PublicSalonResponseDto.coverImageUrl` — a real, pre-existing
+     * backend naming drift, tracked separately) — same field, mapped through
+     * under the domain model's one consistent name.
      */
     private fun PublicSalonSummaryResponseDto.toDomain() = Salon(
         id = id,
@@ -101,6 +106,7 @@ class PublicSalonRepositoryImpl(
         logoUrl = logoUrl,
         latitude = latitude,
         longitude = longitude,
+        coverImageUrl = coverUrl,
     )
 
     private fun PublicServiceCategoryResponseDto.toDomain() = PublicServiceCategory(

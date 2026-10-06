@@ -18,6 +18,11 @@ data class PublicSalonResponseDto(
     val logoUrl: String?,
     val latitude: Double?,
     val longitude: Double?,
+    // Salon Data Integration (Master Integration Repair, PASS 2): a real
+    // backend field (`PublicSalonResponse.coverImageUrl`) that this DTO
+    // never declared at all before — defaulted so this stays
+    // source-compatible with any existing construction site.
+    val coverImageUrl: String? = null,
 )
 
 /**

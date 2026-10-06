@@ -14,4 +14,13 @@ data class Specialist(
     val workingHours: String,
     val commissionRate: Double,
     val active: Boolean,
+    // Data Integrity / API Hardening (Master Integration Repair, PASS 2/7):
+    // real backend fields (`SpecialistResponseDto.bio`/`.photoUrl`), never
+    // modeled on this domain type before. `update` on the real backend is a
+    // full replace, not a merge (`UpdateSpecialistRequestDto`) — carrying
+    // these through and always round-tripping the existing value on edit
+    // prevents a name-only save from silently wiping a bio/photo any other
+    // client ever sets for the same specialist.
+    val bio: String? = null,
+    val photoUrl: String? = null,
 )

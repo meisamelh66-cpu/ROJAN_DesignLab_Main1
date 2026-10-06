@@ -102,15 +102,34 @@ class BackendCustomerRepository(
             dto.toDomain().also { created -> cache = cache + created }
         }
 
-    override suspend fun update(customer: ManagerCustomer): Result<ManagerCustomer?> =
-        safeApiCall {
+    /**
+     * Data Integrity / API Hardening (Master Integration Repair, PASS 4/7):
+     * `status` is only sent when [customer.tag] actually differs from the
+     * cached, real backend status for this same customer — previously this
+     * always resent `customer.tag.toNetworkStatus()`, and since
+     * [CustomerTag]<->[NetworkCustomerStatus] is a real, disclosed lossy
+     * mapping (6 backend statuses -> 4 mobile tags: `LEAD`/`PROSPECT` both
+     * read as [CustomerTag.NEW], `INACTIVE`/`CHURNED` both read as
+     * [CustomerTag.INACTIVE]), any edit that didn't touch the tag picker at
+     * all (e.g. only correcting a phone number) could silently rewrite a
+     * real `PROSPECT` customer to `LEAD`, or a real `CHURNED` customer to
+     * `INACTIVE`, on every single save. `null` here uses this same
+     * endpoint's already-relied-upon partial-update semantics ("null means
+     * leave unchanged" — see this class's own doc comment on `email`/
+     * `company`), so a status that genuinely wasn't touched is never
+     * resent at all, real or lossy.
+     */
+    override suspend fun update(customer: ManagerCustomer): Result<ManagerCustomer?> {
+        val cachedTag = cache.find { it.id == customer.id }?.tag
+        val statusToSend = if (customer.tag != cachedTag) customer.tag.toNetworkStatus() else null
+        return safeApiCall {
             managerCustomerApi.update(
                 salonId = salonId,
                 customerId = customer.id,
                 request = UpdateCustomerRequestDto(
                     fullName = customer.name,
                     phoneNumber = customer.phone.ifBlank { null },
-                    status = customer.tag.toNetworkStatus(),
+                    status = statusToSend,
                 ),
             )
         }.map { dto ->
@@ -118,6 +137,7 @@ class BackendCustomerRepository(
                 cache = cache.map { if (it.id == updated.id) updated else it }
             }
         }
+    }
 
     override fun getServiceHistory(customerId: String): List<CustomerServiceHistoryEntry> =
         historyCache[customerId] ?: emptyList()

@@ -22,5 +22,6 @@ class SpecialistRepositoryImpl(
         displayName = displayName,
         bio = bio,
         photoUrl = photoUrl,
+        active = active,
     )
 }

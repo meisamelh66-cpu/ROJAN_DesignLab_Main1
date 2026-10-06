@@ -40,6 +40,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -114,6 +115,11 @@ fun ManagerCustomersListScreen(
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
     onCustomerClick: (String) -> Unit = {},
+    // Master Integration Repair, PASS 4 — same "AddXRow above the search
+    // field" entry-point shape as
+    // ai.rojan.designlab.manager.screens.staff.ManagerStaffScreen's own
+    // onAddClick; previously this screen had no create entry point at all.
+    onAddClick: () -> Unit = {},
     initialTagFilter: CustomerTag? = null,
     viewModel: ManagerCustomersViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = ManagerCustomersViewModelFactory(
@@ -148,6 +154,8 @@ fun ManagerCustomersListScreen(
                     horizontalPadding = 0.dp,
                 )
             }
+
+            item { AddCustomerRow(onClick = onAddClick) }
 
             item {
                 CustomerSearchField(
@@ -197,6 +205,33 @@ fun ManagerCustomersListScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+/** Master Integration Repair, PASS 4 — mirrors [ai.rojan.designlab.manager.screens.staff.ManagerStaffScreen]'s own `AddSpecialistRow` exactly. */
+@Composable
+private fun AddCustomerRow(onClick: () -> Unit) {
+    ManagerGlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .rojanPressable(onClick = onClick),
+        shape = RojanShapes.Small,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+        ) {
+            RojanIconContainer(
+                imageVector = Icons.Filled.PersonAdd,
+                contentDescription = "افزودن مشتری",
+                size = RojanIconSize.Medium,
+                tint = ManagerColors.Gold,
+            )
+            Text(text = "افزودن مشتری", style = RojanTypography.Body, color = ManagerColors.TextPrimary)
         }
     }
 }

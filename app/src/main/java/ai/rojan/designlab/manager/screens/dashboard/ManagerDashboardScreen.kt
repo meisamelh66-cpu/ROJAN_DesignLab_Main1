@@ -4,12 +4,13 @@ import ai.rojan.designlab.di.BackendApiContainerHolder
 import ai.rojan.designlab.domain.repository.SalonOnboardingStatus
 import ai.rojan.designlab.manager.components.AIInsightCard
 import ai.rojan.designlab.manager.components.CalendarPreviewSection
-import ai.rojan.designlab.manager.components.ManagerSalonDraftBanner
+import ai.rojan.designlab.manager.components.ManagerBannerSlot
 import ai.rojan.designlab.manager.components.ManagerEmptyState
 import ai.rojan.designlab.manager.components.ManagerErrorState
 import ai.rojan.designlab.manager.components.ManagerHeader
 import ai.rojan.designlab.manager.components.ManagerLoadingState
 import ai.rojan.designlab.manager.components.ManagerQuickAction
+import ai.rojan.designlab.manager.components.ManagerSalonDraftBanner
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.components.QuickActionsSection
 import ai.rojan.designlab.manager.components.SalonIdentityCard
@@ -125,12 +126,26 @@ fun ManagerDashboardScreen(
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            // Shared Premium Glass Design System spacing rhythm: compact
-            // section-to-section gap so stacked cards read as one
-            // dashboard, not isolated islands with large empty gaps.
-            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSectionToSection),
+            // Spacing-cleanup pass: tightened from the shared
+            // SpaceSectionToSection (16dp) to SpaceSM (8dp, an existing
+            // token, not an arbitrary value) — this dashboard specifically
+            // reads as one continuous, premium surface rather than
+            // separated islands, per explicit request.
+            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
         ) {
-            item { ManagerHeader(onProfileClick = onProfileClick) }
+            item {
+                ManagerHeader(
+                    onProfileClick = onProfileClick,
+                    todaysAppointmentCount = (viewModel.state as? UiState.Success)?.data?.stats?.todaysAppointmentCount,
+                    onViewTodayClick = onViewCalendarClick,
+                )
+            }
+
+            // Admin-managed static banner (target=MANAGER) — real, remote,
+            // non-clickable artwork; renders nothing when there is none.
+            // Independent of dashboardState below, so it's unaffected by
+            // the salon-loading/error/empty state machine.
+            item { ManagerBannerSlot() }
 
             when (val dashboardState = viewModel.state) {
                 is UiState.Loading -> item { ManagerLoadingState(message = "در حال بارگذاری اطلاعات سالن...") }

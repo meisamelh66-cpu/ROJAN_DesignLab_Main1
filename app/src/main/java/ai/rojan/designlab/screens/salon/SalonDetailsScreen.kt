@@ -88,6 +88,7 @@ import ai.rojan.designlab.ui.components.image.RojanRemoteImage
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
+import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
 import java.util.Calendar
 
@@ -513,6 +514,24 @@ private fun RefHeader(
             .padding(horizontal = RefScreenMargin),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        // Salon Data Integration (Master Integration Repair, PASS 2): real
+        // backend `coverImageUrl` — renders nothing when a salon has none set
+        // (no fabricated placeholder), same "real or absent" discipline as
+        // the logo avatar below.
+        if (salon.coverImageUrl != null) {
+            RojanRemoteImage(
+                url = salon.coverImageUrl,
+                contentDescription = null,
+                shape = RojanShapes.GlassCard,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .clip(RojanShapes.GlassCard),
+                fallback = {},
+            )
+            Spacer(Modifier.height(RojanDimens.SpaceMD))
+        }
+
         Box(
             modifier = Modifier
                 .size(RefLogoSize)
