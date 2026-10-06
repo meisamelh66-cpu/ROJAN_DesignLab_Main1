@@ -156,7 +156,7 @@ class ManagerDashboardViewModel(
         if (revenue >= 1_000_000) "%.1f".format(revenue / 1_000_000.0) + "م" else "${(revenue / 1000).toInt()}ت"
 
     private companion object {
-        /** No "load more" on this screen — one bounded page stands in for real pagination, same disclosed limitation as `AppointmentsViewModel`'s. */
-        const val STATS_WINDOW_SIZE = 200
+        /** No "load more" on this screen — one bounded page stands in for real pagination, same disclosed limitation as `AppointmentsViewModel`'s. Bounded by the backend's `PageRequest.MAX_SIZE` (100) — a larger size is rejected with 400 INVALID_ARGUMENT. */
+        const val STATS_WINDOW_SIZE = 100
     }
 }

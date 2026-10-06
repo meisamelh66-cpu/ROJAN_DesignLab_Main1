@@ -164,7 +164,7 @@ class ManagerCalendarViewModel(
     }
 
     private companion object {
-        /** No "load more" on this screen — same disclosed, bounded-page limitation as `AppointmentsViewModel`'s. */
-        const val CALENDAR_WINDOW_SIZE = 200
+        /** No "load more" on this screen — same disclosed, bounded-page limitation as `AppointmentsViewModel`'s. Bounded by the backend's `PageRequest.MAX_SIZE` (100) — a larger size is rejected with 400 INVALID_ARGUMENT. */
+        const val CALENDAR_WINDOW_SIZE = 100
     }
 }
