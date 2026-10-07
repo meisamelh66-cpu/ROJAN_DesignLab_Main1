@@ -95,6 +95,7 @@ fun ManagerDashboardScreen(
     onViewServicesClick: () -> Unit = {},
     onViewStaffClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
+    onNotificationsClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onRequireLogin: () -> Unit = {},
     viewModel: ManagerDashboardViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
@@ -137,6 +138,7 @@ fun ManagerDashboardScreen(
             item {
                 ManagerHeader(
                     onProfileClick = onProfileClick,
+                    onNotificationsClick = onNotificationsClick,
                     todaysAppointmentCount = (viewModel.state as? UiState.Success)?.data?.stats?.todaysAppointmentCount,
                     onViewTodayClick = onViewCalendarClick,
                 )

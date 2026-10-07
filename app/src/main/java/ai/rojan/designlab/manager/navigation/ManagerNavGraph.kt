@@ -28,6 +28,7 @@ import ai.rojan.designlab.manager.screens.auth.ManagerAccessErrorScreen
 import ai.rojan.designlab.manager.screens.auth.ManagerOtpAuthScreen
 import ai.rojan.designlab.manager.screens.auth.ManagerSalonSelectionScreen
 import ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen
+import ai.rojan.designlab.manager.screens.notifications.ManagerNotificationsScreen
 import ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen
 import ai.rojan.designlab.manager.screens.services.ManagerServiceEditScreen
 import ai.rojan.designlab.manager.screens.services.ManagerServicesScreen
@@ -162,6 +163,7 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
     composable(ManagerDestinations.DASHBOARD) {
         ManagerDashboardScreen(
             onViewCalendarClick = { navController.navigate(ManagerDestinations.CALENDAR) },
+            onNotificationsClick = { navController.navigate(ManagerDestinations.NOTIFICATIONS) },
             onCreateAppointmentClick = { navController.navigate(ManagerDestinations.CREATE_APPOINTMENT) },
             onViewCustomersClick = { navController.navigate(ManagerDestinations.customers()) },
             onViewInactiveCustomersClick = { navController.navigate(ManagerDestinations.customers(CustomerTag.INACTIVE)) },
@@ -169,6 +171,13 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
             onViewStaffClick = { navController.navigate(ManagerDestinations.STAFF) },
             onProfileClick = { navController.navigate(ManagerDestinations.PROFILE) },
             onSettingsClick = { navController.navigate(ManagerDestinations.SETTINGS) },
+            onRequireLogin = { navController.navigateToManagerLogin() },
+        )
+    }
+
+    composable(ManagerDestinations.NOTIFICATIONS) {
+        ManagerNotificationsScreen(
+            onBackClick = { navController.popBackStack() },
             onRequireLogin = { navController.navigateToManagerLogin() },
         )
     }

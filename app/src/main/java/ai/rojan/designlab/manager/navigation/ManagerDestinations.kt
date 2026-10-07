@@ -37,6 +37,7 @@ object ManagerDestinations {
     /** System2 Android Parallel Work, Phase A item 3 — the resolved terminal state for a `/salon-access` failure (previously unreachable, see [ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel.refreshIdentityContext]'s own doc comment), mirroring [ai.rojan.designlab.reception.navigation.ReceptionDestinations.ACCESS_ERROR]. */
     const val ACCESS_ERROR = "manager_access_error"
     const val DASHBOARD = "manager_dashboard_root"
+    const val NOTIFICATIONS = "manager_notifications"
     const val CALENDAR = "manager_calendar"
 
     /** Manager Operational Foundation, Phase 6 Step 4 — read-only detail, reached from [ai.rojan.designlab.manager.screens.calendar.ManagerCalendarScreen]'s existing `onAppointmentClick`. No create/new sentinel — every appointment already exists by the time this route is reached. */

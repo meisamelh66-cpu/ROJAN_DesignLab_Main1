@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -62,16 +63,16 @@ import java.util.Calendar
  * measurement).
  */
 /**
- * [onNotificationsClick] is currently unused: no notifications screen
- * exists yet, so the bell renders dimmed/inert rather than being wired
- * to a placeholder. Kept as a parameter (not removed) so wiring it up
- * later, once a real destination exists, is a one-line change here.
+ * [onNotificationsClick] routes to the Manager notifications feed
+ * ([ai.rojan.designlab.manager.navigation.ManagerDestinations.NOTIFICATIONS]).
+ * [unreadNotificationCount] renders an indicator badge when > 0.
  */
 @Composable
 fun ManagerHeader(
     modifier: Modifier = Modifier,
     managerName: String = "مدیر سالن",
     todaysAppointmentCount: Int? = null,
+    unreadNotificationCount: Long? = null,
     onNotificationsClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onViewTodayClick: () -> Unit = {},
@@ -80,6 +81,7 @@ fun ManagerHeader(
         modifier = modifier,
         managerName = managerName,
         todaysAppointmentCount = todaysAppointmentCount,
+        unreadNotificationCount = unreadNotificationCount,
         onProfileClick = onProfileClick,
         onNotificationsClick = onNotificationsClick,
         onViewTodayClick = onViewTodayClick,
@@ -160,6 +162,7 @@ private fun ManagerHeroBanner(
     modifier: Modifier = Modifier,
     managerName: String,
     todaysAppointmentCount: Int?,
+    unreadNotificationCount: Long? = null,
     onProfileClick: () -> Unit,
     onNotificationsClick: () -> Unit,
     onViewTodayClick: () -> Unit,
@@ -222,12 +225,24 @@ private fun ManagerHeroBanner(
                     horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    QuietIconBadge(
-                        imageVector = Icons.Filled.Notifications,
-                        contentDescription = "اعلان‌ها",
-                        tint = ManagerColors.TextSecondary,
-                        modifier = Modifier.alpha(0.6f),
-                    )
+                    Box {
+                        QuietIconBadge(
+                            imageVector = Icons.Filled.Notifications,
+                            contentDescription = "اعلان‌ها",
+                            tint = if (unreadNotificationCount != null && unreadNotificationCount > 0) ManagerColors.Turquoise else ManagerColors.TextPrimary,
+                            modifier = Modifier.rojanPressable(onClick = onNotificationsClick),
+                        )
+                        if (unreadNotificationCount != null && unreadNotificationCount > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(2.dp)
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(ManagerColors.Turquoise),
+                            )
+                        }
+                    }
                     QuietIconBadge(
                         imageVector = Icons.Filled.Person,
                         contentDescription = "پروفایل مدیر",

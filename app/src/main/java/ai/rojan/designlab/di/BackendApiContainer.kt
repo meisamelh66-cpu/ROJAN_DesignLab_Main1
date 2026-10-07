@@ -13,6 +13,7 @@ import ai.rojan.designlab.data.remote.ManagerBookingApi
 import ai.rojan.designlab.data.remote.ManagerCustomerApi
 import ai.rojan.designlab.data.remote.ManagerDashboardApi
 import ai.rojan.designlab.data.remote.ManagerMediaApi
+import ai.rojan.designlab.data.remote.ManagerNotificationApi
 import ai.rojan.designlab.data.remote.UserMediaApi
 import ai.rojan.designlab.data.remote.ManagerSalonApi
 import ai.rojan.designlab.data.remote.ManagerServiceApi
@@ -40,6 +41,7 @@ import ai.rojan.designlab.data.repository.BookingHistoryRepositoryImpl
 import ai.rojan.designlab.data.repository.BookingRepositoryImpl
 import ai.rojan.designlab.data.repository.CurrentUserIdentityContextRepositoryImpl
 import ai.rojan.designlab.data.repository.CustomerRelationshipRepositoryImpl
+import ai.rojan.designlab.data.repository.ManagerNotificationRepositoryImpl
 import ai.rojan.designlab.data.repository.PublicSalonRepositoryImpl
 import ai.rojan.designlab.data.repository.SalonCustomerRepositoryImpl
 import ai.rojan.designlab.data.repository.SalonRepositoryImpl
@@ -61,6 +63,7 @@ import ai.rojan.designlab.domain.repository.BookingHistoryRepository
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.CurrentUserIdentityContextRepository
 import ai.rojan.designlab.domain.repository.CustomerRelationshipRepository
+import ai.rojan.designlab.domain.repository.ManagerNotificationRepository
 import ai.rojan.designlab.domain.repository.PublicSalonRepository
 import ai.rojan.designlab.domain.repository.SalonCustomerRepository
 import ai.rojan.designlab.domain.repository.SalonRepository
@@ -210,6 +213,12 @@ class BackendApiContainer(context: Context) {
 
     val managerMediaRepository: ManagerMediaRepository =
         BackendManagerMediaRepository(managerMediaApi, managerSalonApi)
+
+    val managerNotificationApi: ManagerNotificationApi =
+        retrofit.create(ManagerNotificationApi::class.java)
+
+    val managerNotificationRepository: ManagerNotificationRepository =
+        ManagerNotificationRepositoryImpl(managerNotificationApi)
 
 
     // Raw APIs exposed for manager repositories
