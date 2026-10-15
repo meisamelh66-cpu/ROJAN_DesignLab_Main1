@@ -7,6 +7,16 @@ import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
 interface CustomerRepository {
     fun getAll(): List<ManagerCustomer>
     fun getById(id: String): ManagerCustomer?
+
+    /**
+     * Resolves a CRM customer by its linked backend-account id (`ManagerCustomer.userId`) —
+     * **not** by [ManagerCustomer.id]. A `Booking`/`Appointment.customerId` is always a `UserId`,
+     * never a CRM `Customer.id` (the two id spaces are distinct entities on the backend, see
+     * `Customer.userId`), so resolving "which CRM customer does this booking belong to" must go
+     * through this accessor, never [getById]. Returns null if no cached customer is linked to this
+     * user id (e.g. a walk-in booking, or the user simply isn't a CRM customer of this salon).
+     */
+    fun getByUserId(userId: String): ManagerCustomer?
     fun search(query: String): List<ManagerCustomer>
     suspend fun create(customer: ManagerCustomer): Result<ManagerCustomer>
     suspend fun update(customer: ManagerCustomer): Result<ManagerCustomer?>

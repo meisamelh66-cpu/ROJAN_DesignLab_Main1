@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.presentation.settings
 
+import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.domain.dashboard.ManagerSalonSummary
 import ai.rojan.designlab.manager.domain.repository.ManagerSalonRepository
 import ai.rojan.designlab.presentation.common.UiState
@@ -175,6 +176,11 @@ class ManagerSalonSetupViewModel(
                 .onSuccess { salon ->
                     existingSalonId = salon.id
                     _loadState.value = UiState.Success(salon)
+                    // Issue-015 / Broken Flow #10 fix: push the fresh salon into the shared
+                    // singleton so the Dashboard's salon-identity card (which observes
+                    // ManagerRepositories.salon) reflects this save immediately, without a
+                    // relaunch - same established pattern as ManagerSalonMediaViewModel.
+                    ManagerRepositories.updateSalon(salon)
                     onSaved()
                 }
                 .onFailure { _submitError.value = userMessageFor(it) }

@@ -18,6 +18,13 @@ data class ManagerCustomer(
     val notes: String?,
     val lastVisit: String,
     val totalVisits: Int,
+    /**
+     * The linked backend account id, if any (`CustomerResponseDto.userId`) — null for a walk-in
+     * customer with no app account. Distinct from [id]: a `Booking`/`Appointment.customerId` is a
+     * `UserId`, never a CRM `Customer.id`, so resolving "which customer is this booking for" must
+     * match on this field, never [id] directly (see [ai.rojan.designlab.manager.domain.repository.CustomerRepository.getByUserId]).
+     */
+    val userId: String? = null,
 )
 
 /**

@@ -98,7 +98,9 @@ fun ManagerAppointmentDetailScreen(
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         val current = appointment ?: return@ManagerScaffold
 
-        val customer = ManagerRepositories.customers.getById(current.customerId)
+        // `current.customerId` is a `UserId` (the booking response's field), never a CRM
+        // `Customer.id` — resolve via `getByUserId`, not `getById` (Issue-012 conflation fix).
+        val customer = ManagerRepositories.customers.getByUserId(current.customerId)
         val service = ManagerRepositories.services.getById(current.serviceId)
         val specialist = ManagerRepositories.specialists.getById(current.specialistId)
 
