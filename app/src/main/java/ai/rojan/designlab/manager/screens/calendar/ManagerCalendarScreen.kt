@@ -59,7 +59,7 @@ import androidx.compose.ui.unit.dp
 private enum class ManagerCalendarViewMode { DAILY, WEEKLY }
 
 /** Status indicator — Turquoise/Gold extend naturally into "confirmed/pending"; [RojanErrorText] (existing token) covers "cancelled/no-show." */
-private enum class AppointmentStatus(val label: String, val color: Color) {
+internal enum class AppointmentStatus(val label: String, val color: Color) {
     CONFIRMED("تایید شده", ManagerColors.Turquoise),
     PENDING("در انتظار", ManagerColors.Gold),
     COMPLETED("انجام شده", ManagerColors.Turquoise),
@@ -76,7 +76,7 @@ private fun DomainAppointmentStatus.toDisplayStatus(): AppointmentStatus = when 
 }
 
 /** Display row for one real [Appointment] — customer/service/specialist ids resolved to names via [ManagerRepositories]. */
-private data class CalendarAppointment(
+internal data class CalendarAppointment(
     val id: String,
     val time: String,
     val clientName: String,
@@ -85,10 +85,23 @@ private data class CalendarAppointment(
     val status: AppointmentStatus,
 )
 
-private fun Appointment.toDisplay(): CalendarAppointment = CalendarAppointment(
+/**
+ * Issue-012 fix: [Appointment.customerId] is a `UserId` (the booking response's field), never a
+ * CRM `Customer.id` - resolve via [ManagerRepositories.customers]'s [ai.rojan.designlab.manager.domain.repository.CustomerRepository.getByUserId],
+ * not `getById` (same conflation already fixed on `ManagerAppointmentDetailScreen`).
+ *
+ * [resolveCustomerName] is injected with the real lookup as its default - same minimal-seam
+ * idiom already established by [ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewModel]'s
+ * own `initialize` parameter (see its doc comment on the `ManagerRepositories` singleton-bypass
+ * pattern, tracked as R-02) - so every existing call site keeps working unchanged, while a test
+ * can supply a plain lambda instead of touching the singleton at all.
+ */
+internal fun Appointment.toDisplay(
+    resolveCustomerName: (String) -> String? = { ManagerRepositories.customers.getByUserId(it)?.name },
+): CalendarAppointment = CalendarAppointment(
     id = id,
     time = time,
-    clientName = ManagerRepositories.customers.getById(customerId)?.name ?: "—",
+    clientName = resolveCustomerName(customerId) ?: "—",
     service = ManagerRepositories.services.getById(serviceId)?.name ?: "—",
     specialist = ManagerRepositories.specialists.getById(specialistId)?.name ?: "—",
     status = status.toDisplayStatus(),

@@ -98,6 +98,7 @@ private object EmptyManagerInviteRepository : ManagerInviteRepository {
 private object EmptyCustomerRepository : CustomerRepository {
     override fun getAll(): List<ManagerCustomer> = emptyList()
     override fun getById(id: String): ManagerCustomer? = null
+    override fun getByUserId(userId: String): ManagerCustomer? = null
     override fun search(query: String): List<ManagerCustomer> = emptyList()
     override suspend fun create(customer: ManagerCustomer): Result<ManagerCustomer> =
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))

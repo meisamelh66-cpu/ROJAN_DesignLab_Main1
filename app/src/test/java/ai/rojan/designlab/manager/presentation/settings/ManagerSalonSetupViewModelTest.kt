@@ -1,5 +1,6 @@
 package ai.rojan.designlab.manager.presentation.settings
 
+import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.domain.dashboard.ManagerSalonSummary
 import ai.rojan.designlab.manager.domain.repository.ManagerSalonRepository
 import ai.rojan.designlab.presentation.common.UiState
@@ -36,6 +37,10 @@ class ManagerSalonSetupViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        // This branch has no ManagerRepositories.resetForTest() (unlike `main`) - its own
+        // existing, already-public clearActiveSalon() (used for real logout) clears the same
+        // `_salon` field this test touches, with no new test-only API needed.
+        ManagerRepositories.clearActiveSalon()
     }
 
     private val existingSalon = ManagerSalonSummary(
@@ -244,6 +249,40 @@ class ManagerSalonSetupViewModelTest {
         assertFalse(savedCalled)
         assertFalse(viewModel.isSubmitting.value)
         assertTrue(viewModel.submitError.value != null)
+    }
+
+    /**
+     * Issue-015 / Broken Flow #10 regression coverage: a successful Salon Setup save must push the
+     * fresh salon into the shared [ManagerRepositories.salon] singleton the Dashboard's own
+     * salon-identity card observes - previously this never happened, leaving the Dashboard showing
+     * stale data until the app was relaunched.
+     */
+    @Test
+    fun `a successful save pushes the fresh salon into ManagerRepositories so the Dashboard sees it immediately`() = runTest {
+        val repository = FakeManagerSalonRepository(
+            getMySalonResult = Result.success(existingSalon),
+            updateSalonResult = Result.success(existingSalon.copy(name = "نام به‌روزشده")),
+        )
+        val viewModel = ManagerSalonSetupViewModel(repository)
+
+        viewModel.onNameChange("نام به‌روزشده")
+        viewModel.save(onSaved = {})
+
+        assertEquals("نام به‌روزشده", ManagerRepositories.salon.value?.name)
+    }
+
+    @Test
+    fun `a failed save never touches ManagerRepositories - the Dashboard must not falsely update`() = runTest {
+        val repository = FakeManagerSalonRepository(
+            getMySalonResult = Result.success(existingSalon),
+            updateSalonResult = Result.failure(RuntimeException("network down")),
+        )
+        val viewModel = ManagerSalonSetupViewModel(repository)
+
+        viewModel.onNameChange("نام نامعتبر")
+        viewModel.save(onSaved = {})
+
+        assertNull("a failed save must not push anything into the shared singleton", ManagerRepositories.salon.value)
     }
 
     private class FakeManagerSalonRepository(
