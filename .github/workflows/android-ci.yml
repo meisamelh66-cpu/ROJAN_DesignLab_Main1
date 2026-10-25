@@ -34,8 +34,17 @@ jobs:
       # confirmed locally that a clean checkout with no local.properties
       # compiles and runs the full unit-test suite correctly as long as
       # these env vars are set, exactly as this action sets them.
+      #
+      # v3 fails on current ubuntu-latest runners: "Warning: Failed to find
+      # package 'tools'" -> sdkmanager exits 1 (android-actions/setup-android
+      # issue #537 - the action still tried to install Google's long-removed
+      # legacy `tools` package). Fixed upstream in PR #538, which landed in
+      # v4.0.4, not in any v3.x or even v4.0.0 (confirmed via the GitHub API
+      # compare endpoint before pinning this) - v3 cannot be patched around,
+      # v4 is required. Observed failing in this PR's own first real CI run,
+      # fixed here, not a precautionary bump.
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
