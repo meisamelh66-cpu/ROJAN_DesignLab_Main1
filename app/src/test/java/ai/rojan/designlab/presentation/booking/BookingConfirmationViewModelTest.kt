@@ -96,12 +96,14 @@ class BookingConfirmationViewModelTest {
             return salon?.let { Result.success(it) } ?: Result.failure(IOException("no salon"))
         }
         override suspend fun myOwnedSalons(): Result<List<Salon>> = error("unused")
+        override suspend fun getGallery(salonId: String): Result<List<String>> = error("unused")
     }
 
     private class FakeSpecialistRepository(private val specialist: Specialist?) : SpecialistRepository {
         override suspend fun getSpecialists(salonId: String): Result<List<Specialist>> = error("unused")
         override suspend fun getSpecialist(salonId: String, specialistId: String): Result<Specialist> =
             specialist?.let { Result.success(it) } ?: Result.failure(IOException("no specialist"))
+        override suspend fun getPortfolio(salonId: String, specialistId: String): Result<List<String>> = error("unused")
     }
 
     private class FakeServiceCategoryRepository(private val categories: List<ServiceCategory>) : ServiceCategoryRepository {
@@ -111,6 +113,7 @@ class BookingConfirmationViewModelTest {
     private class FakeServiceRepository(private val servicesByCategory: Map<String, List<Service>>) : ServiceRepository {
         override suspend fun getServices(salonId: String, categoryId: String): Result<List<Service>> =
             Result.success(servicesByCategory[categoryId].orEmpty())
+        override suspend fun getImages(salonId: String, serviceId: String): Result<List<String>> = error("unused")
     }
 
     private fun viewModel(

@@ -98,6 +98,9 @@ class ManagerRepositoriesInitializeTest {
         override suspend fun create(specialist: Specialist) = error("unused")
         override suspend fun update(specialist: Specialist) = error("unused")
         override suspend fun delete(id: String) = error("unused")
+        override suspend fun getAssignedServiceIds(specialistId: String) = error("unused")
+        override suspend fun assignService(specialistId: String, serviceId: String) = error("unused")
+        override suspend fun unassignService(specialistId: String, serviceId: String) = error("unused")
     }
 
     private class FakeCustomerRepo(private val items: List<ManagerCustomer>) : CustomerRepository {

@@ -214,11 +214,13 @@ private class FakeSalonRepository(private val result: Result<Salon>) : SalonRepo
 
     override suspend fun getSalon(salonId: String): Result<Salon> = result
     override suspend fun myOwnedSalons(): Result<List<Salon>> = error("not used by these tests")
+    override suspend fun getGallery(salonId: String): Result<List<String>> = error("not used by these tests")
 }
 
 private class FakeSpecialistRepository(private val result: Result<Specialist>) : SpecialistRepository {
     override suspend fun getSpecialists(salonId: String): Result<List<Specialist>> = error("not used by these tests")
     override suspend fun getSpecialist(salonId: String, specialistId: String): Result<Specialist> = result
+    override suspend fun getPortfolio(salonId: String, specialistId: String): Result<List<String>> = error("not used by these tests")
 }
 
 private class FakeServiceCategoryRepository(private val result: Result<List<ServiceCategory>>) : ServiceCategoryRepository {
@@ -227,4 +229,5 @@ private class FakeServiceCategoryRepository(private val result: Result<List<Serv
 
 private class FakeServiceRepository(private val result: Result<List<Service>>) : ServiceRepository {
     override suspend fun getServices(salonId: String, categoryId: String): Result<List<Service>> = result
+    override suspend fun getImages(salonId: String, serviceId: String): Result<List<String>> = error("not used by these tests")
 }

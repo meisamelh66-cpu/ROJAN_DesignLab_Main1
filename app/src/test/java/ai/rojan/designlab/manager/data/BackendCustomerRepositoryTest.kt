@@ -44,6 +44,9 @@ class BackendCustomerRepositoryTest {
         override suspend fun create(specialist: Specialist): Result<Specialist> = error("not used by these tests")
         override suspend fun update(specialist: Specialist): Result<Specialist?> = error("not used by these tests")
         override suspend fun delete(id: String): Result<Boolean> = error("not used by these tests")
+        override suspend fun getAssignedServiceIds(specialistId: String): Result<List<String>> = error("not used by these tests")
+        override suspend fun assignService(specialistId: String, serviceId: String): Result<Unit> = error("not used by these tests")
+        override suspend fun unassignService(specialistId: String, serviceId: String): Result<Unit> = error("not used by these tests")
     }
 
     @Test
