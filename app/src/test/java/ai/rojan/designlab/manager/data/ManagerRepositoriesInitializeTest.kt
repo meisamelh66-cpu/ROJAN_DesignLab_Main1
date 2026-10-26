@@ -12,8 +12,10 @@ import ai.rojan.designlab.manager.domain.customer.ManagerCustomer
 import ai.rojan.designlab.manager.domain.customer.UserLinkCandidate
 import ai.rojan.designlab.manager.domain.dashboard.ManagerDashboardInsights
 import ai.rojan.designlab.manager.domain.dashboard.ManagerSalonSummary
+import ai.rojan.designlab.manager.domain.membership.SalonMemberRole
 import ai.rojan.designlab.manager.domain.repository.AppointmentRepository
 import ai.rojan.designlab.manager.domain.repository.CustomerRepository
+import ai.rojan.designlab.manager.domain.repository.ManagerInviteRepository
 import ai.rojan.designlab.manager.domain.repository.ServiceRepository
 import ai.rojan.designlab.manager.domain.repository.SpecialistRepository
 import ai.rojan.designlab.manager.domain.service.Service
@@ -157,6 +159,12 @@ class ManagerRepositoriesInitializeTest {
         appointments = RepoSync(FakeAppointmentRepo(appointments), appointmentsSync),
         specialists = RepoSync(FakeSpecialistRepo(specialists), specialistsSync),
         customers = RepoSync(FakeCustomerRepo(customers), customersSync),
+        invites = object : ManagerInviteRepository {
+            override suspend fun issueInvite(role: SalonMemberRole) = error("not used by these tests")
+            override suspend fun listInvites() = error("not used by these tests")
+            override suspend fun revokeInvite(inviteId: String) = error("not used by these tests")
+            override suspend fun getInviteQrCode(inviteId: String, sizePx: Int) = error("not used by these tests")
+        },
         salon = ManagerSalonSummary(salonId, "Salon", null, "0", null, "addr", null, null, true, null, null),
         salonId = salonId,
         availabilityRepository = FakeAvailability,

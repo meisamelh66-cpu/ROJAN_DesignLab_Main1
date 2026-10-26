@@ -461,11 +461,6 @@ object ManagerRepositories {
             )
         }
 
-        val inviteRepo = BackendManagerInviteRepository(
-            managerInviteApi = container.managerInviteApi,
-            salonId = salonDto.id,
-        )
-
         return Result.success(
             ManagerInitData(
                 services = RepoSync(serviceRepo, serviceSync),
