@@ -22,7 +22,10 @@ fun BookingResponseDto.toDomain(): Booking = Booking(
     salonId = salonId,
     serviceId = serviceId,
     specialistId = specialistId,
-    customerId = customerId,
+    // TASK-003: exactly one of customerId/crmCustomerId is ever non-null on the wire - fall back to
+    // crmCustomerId for a walk-in booking so Booking.customerId stays non-null for every existing
+    // consumer, unchanged.
+    customerId = customerId ?: crmCustomerId.orEmpty(),
     startTime = startTime,
     endTime = endTime,
     status = status.toDomain(),
@@ -30,6 +33,7 @@ fun BookingResponseDto.toDomain(): Booking = Booking(
     service = service?.toDomain(),
     specialist = specialist?.toDomain(),
     customer = customer?.toDomain(),
+    crmCustomerId = crmCustomerId,
 )
 
 fun NetworkBookingStatus.toDomain(): BookingStatus = when (this) {

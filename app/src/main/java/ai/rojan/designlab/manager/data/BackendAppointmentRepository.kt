@@ -38,13 +38,11 @@ import java.time.format.DateTimeFormatter
  * wizard-in-progress and backend-synced appointments this class does not
  * attempt to unify.
  *
- * **Known real backend constraint, surfaced not hidden:** per
- * `createForCustomer`'s own contract, the target customer must already
- * be linked to a real account or the call 409s - a walk-in CRM record
- * with no linked account cannot be booked this way today. [create]
- * returns that failure through [Result] rather than silently succeeding,
- * so the wizard can show it instead of claiming a booking that didn't
- * happen.
+ * TASK-003 (Walk-in Customer Booking): `createForCustomer`'s own contract
+ * no longer requires the target customer to already be linked to a real
+ * account - a walk-in CRM record with no linked account can be booked this
+ * way too now (the resulting [Appointment.customerId] falls back to
+ * [Appointment.crmCustomerId] - see [toDomain]'s own comment).
  *
  * [confirm]/[complete] (RBAC compatibility fix — Manager Android Pilot)
  * are real too, via `PATCH /api/v1/bookings/{id}/confirm`|`/complete` -
@@ -168,7 +166,10 @@ class BackendAppointmentRepository(
         val start = LocalDateTime.parse(startTime)
         return Appointment(
             id = id,
-            customerId = customerId,
+            // TASK-003: exactly one of customerId/crmCustomerId is ever non-null on the wire - fall
+            // back to crmCustomerId for a walk-in booking so Appointment.customerId stays non-null
+            // for every existing consumer, unchanged.
+            customerId = customerId ?: crmCustomerId.orEmpty(),
             serviceId = serviceId,
             specialistId = specialistId,
             date = start.format(DateTimeFormatter.ofPattern("yyyy/MM/dd")),
@@ -176,6 +177,7 @@ class BackendAppointmentRepository(
             status = status.toDomain(),
             endTime = LocalDateTime.parse(endTime).format(DateTimeFormatter.ofPattern("HH:mm")),
             notes = notes,
+            crmCustomerId = crmCustomerId,
         )
     }
 

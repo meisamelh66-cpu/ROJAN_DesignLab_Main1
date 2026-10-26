@@ -307,7 +307,9 @@ private fun bookingErrorMessage(error: Throwable): String {
     return when {
         (error as? BackendApiException)?.statusCode == 403 ->
             "دسترسی شما برای این عملیات هنوز فعال نشده است — این یک محدودیت شناخته‌شده است، نه خطای برنامه."
-        apiError?.errorCode == "CUSTOMER_NOT_LINKED_TO_ACCOUNT" -> "این مشتری به حساب کاربری متصل نیست و امکان ثبت نوبت برای او وجود ندارد."
+        // TASK-003 (Walk-in Customer Booking): CUSTOMER_NOT_LINKED_TO_ACCOUNT is no longer sent by
+        // the backend for this endpoint - a customer with no linked account now becomes a real
+        // walk-in booking instead of a 409. Removed rather than left dead.
         apiError?.errorCode == "BOOKING_CONFLICT" -> "این بازه زمانی دیگر در دسترس نیست. لطفاً ساعت دیگری را انتخاب کنید."
         apiError?.errorCode in setOf("SPECIALIST_NOT_FOUND", "SERVICE_NOT_FOUND", "CUSTOMER_NOT_FOUND") -> "اطلاعات انتخاب‌شده دیگر معتبر نیست. لطفاً دوباره تلاش کنید."
         else -> apiError?.message ?: "درخواست با خطا مواجه شد. لطفاً دوباره تلاش کنید."
