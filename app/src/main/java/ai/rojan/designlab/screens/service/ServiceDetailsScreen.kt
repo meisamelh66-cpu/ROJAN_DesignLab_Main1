@@ -6,11 +6,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -19,6 +22,10 @@ import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,11 +45,16 @@ import ai.rojan.designlab.screens.bookingflow.components.BookingLoadingRows
 import ai.rojan.designlab.screens.bookingflow.components.BookingScaffold
 import ai.rojan.designlab.screens.bookingflow.components.BookingScreenMargin
 import ai.rojan.designlab.screens.bookingflow.components.BookingSectionLabelStyle
+import ai.rojan.designlab.screens.bookingflow.components.BookingSurfaceFill
 import ai.rojan.designlab.screens.bookingflow.components.RefPrimaryButton
 import ai.rojan.designlab.screens.bookingflow.components.RefSurface
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.ui.components.image.MediaPreviewDialog
+import ai.rojan.designlab.ui.components.image.RojanRemoteImage
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
+import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
@@ -83,7 +95,8 @@ fun ServiceDetailsScreen(
     ),
 ) {
     val state = viewModel.state
-    val service = (state as? UiState.Success)?.data
+    val service = (state as? UiState.Success)?.data?.service
+    val images = (state as? UiState.Success)?.data?.images ?: emptyList()
 
     BookingScaffold(
         title = service?.name ?: "جزئیات خدمت",
@@ -118,13 +131,15 @@ fun ServiceDetailsScreen(
                 onAction = { viewModel.retry() },
             )
 
-            is UiState.Success -> ServiceContent(state.data)
+            is UiState.Success -> ServiceContent(state.data.service, state.data.images)
         }
     }
 }
 
 @Composable
-private fun ServiceContent(service: Service) {
+private fun ServiceContent(service: Service, images: List<String> = emptyList()) {
+    var previewIndex by remember { mutableStateOf<Int?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -187,6 +202,39 @@ private fun ServiceContent(service: Service) {
                 )
             }
         }
+
+        if (images.isNotEmpty()) {
+            Spacer(Modifier.height(RojanDimens.SpaceXL))
+            Text(
+                "تصاویر",
+                style = BookingSectionLabelStyle,
+                color = HomeColors.TextMuted,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(RojanDimens.SpaceSM))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
+                itemsIndexed(images) { index, imageUrl ->
+                    Box(
+                        modifier = Modifier
+                            .size(96.dp)
+                            .background(BookingSurfaceFill, RojanShapes.Small)
+                            .rojanPressable(onClick = { previewIndex = index }),
+                    ) {
+                        RojanRemoteImage(
+                            url = imageUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            shape = RojanShapes.Small,
+                            fallback = {},
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    previewIndex?.let { index ->
+        MediaPreviewDialog(urls = images, initialIndex = index, onDismiss = { previewIndex = null })
     }
 }
 

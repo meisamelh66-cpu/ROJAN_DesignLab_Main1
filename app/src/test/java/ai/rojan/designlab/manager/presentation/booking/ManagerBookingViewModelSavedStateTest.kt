@@ -138,6 +138,7 @@ class ManagerBookingViewModelSavedStateTest {
             error("not used by these tests")
         override suspend fun getSalon(salonId: String): Result<Salon> = error("not used by these tests - no active salon is configured, so this must never be called")
         override suspend fun myOwnedSalons(): Result<List<Salon>> = error("not used by these tests - ManagerBookingViewModel must never call the owner-only endpoint (Master Integration Repair, Pass 3)")
+        override suspend fun getGallery(salonId: String): Result<List<String>> = error("not used by these tests")
     }
 
     /** No active salon selected - these tests only exercise the wizard's SavedStateHandle-backed selection persistence, which is independent of [ManagerBookingViewModel.catalogState]. */
@@ -158,12 +159,14 @@ class ManagerBookingViewModelSavedStateTest {
 
     private object FakeServiceRepository : ServiceRepository {
         override suspend fun getServices(salonId: String, categoryId: String): Result<List<Service>> = Result.success(emptyList())
+        override suspend fun getImages(salonId: String, serviceId: String): Result<List<String>> = error("not used by these tests")
     }
 
     private object FakeSpecialistRepository : SpecialistRepository {
         override suspend fun getSpecialists(salonId: String): Result<List<Specialist>> = Result.success(emptyList())
         override suspend fun getSpecialist(salonId: String, specialistId: String): Result<Specialist> =
             error("not used by these tests")
+        override suspend fun getPortfolio(salonId: String, specialistId: String): Result<List<String>> = error("not used by these tests")
     }
 
     private object FakeAvailabilityRepository : AvailabilityRepository {

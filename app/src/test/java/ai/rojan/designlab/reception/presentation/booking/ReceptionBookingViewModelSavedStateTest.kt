@@ -126,6 +126,7 @@ class ReceptionBookingViewModelSavedStateTest {
 
     private object StubServiceRepo : ServiceRepository {
         override suspend fun getServices(salonId: String, categoryId: String) = error("unused")
+        override suspend fun getImages(salonId: String, serviceId: String) = error("unused")
     }
 
     private object StubServiceCategoryRepo : ServiceCategoryRepository {
@@ -135,6 +136,7 @@ class ReceptionBookingViewModelSavedStateTest {
     private object StubSpecialistRepo : SpecialistRepository {
         override suspend fun getSpecialists(salonId: String) = error("unused")
         override suspend fun getSpecialist(salonId: String, specialistId: String) = error("unused")
+        override suspend fun getPortfolio(salonId: String, specialistId: String) = error("unused")
     }
 
     private object StubAvailabilityRepo : AvailabilityRepository {

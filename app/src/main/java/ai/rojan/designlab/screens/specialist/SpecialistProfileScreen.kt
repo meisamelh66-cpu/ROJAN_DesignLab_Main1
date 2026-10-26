@@ -13,11 +13,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PersonSearch
 import ai.rojan.designlab.ui.text.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,8 +48,12 @@ import ai.rojan.designlab.screens.customer.components.RefListRow
 import ai.rojan.designlab.screens.customer.components.RefRowDivider
 import ai.rojan.designlab.screens.customer.components.RefSurface
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.ui.components.image.MediaPreviewDialog
+import ai.rojan.designlab.ui.components.image.RojanRemoteImage
 import ai.rojan.designlab.ui.components.image.SpecialistAvatar
+import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.theme.RojanDimens
+import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
 
 /**
@@ -66,9 +76,22 @@ import ai.rojan.designlab.ui.theme.RojanTypography
  * [CustomerSectionLabel], and [CustomerLoadingState] / [CustomerEmptyState]
  * / [CustomerErrorState].
  *
- * NOTHING about behaviour changed: `retry()` and every `on*` callback
- * ([onBackClick], [onServiceClick]) are called exactly where they were. No
- * ViewModel, repository, API, or navigation route is touched.
+ * `photoUrl` (Media System Evolution v2) now renders as a real remote
+ * image via [SpecialistAvatar]'s `photoUrl` parameter — this screen
+ * previously called [SpecialistAvatar] without it, always showing the icon
+ * fallback even when a real photo existed; that was the actual gap, not a
+ * real backend limitation. A "نمونه‌کارها" (portfolio) section, styled with
+ * the same flat foundation primitives as the bio/service cards above
+ * (not the glass-era `RtlSectionHeader`/`HomeGlassSurface` this pass
+ * already retired), renders [SpecialistProfileData.portfolio] when
+ * non-empty, with the same tap-to-preview [MediaPreviewDialog] the salon
+ * gallery and service-image sections use.
+ *
+ * NOTHING about behaviour changed by the Quiet Luxury pass itself:
+ * `retry()` and every `on*` callback ([onBackClick], [onServiceClick]) are
+ * called exactly where they were. No ViewModel, repository, API, or
+ * navigation route is touched by that pass — the portfolio section above
+ * is new behavior, added after it, not part of it.
  */
 @Composable
 fun SpecialistProfileScreen(
@@ -108,6 +131,8 @@ fun SpecialistProfileScreen(
             is UiState.Success -> {
                 val specialist = loadState.data.specialist
                 val services = loadState.data.services
+                val portfolio = loadState.data.portfolio
+                var previewIndex by remember { mutableStateOf<Int?>(null) }
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -134,6 +159,7 @@ fun SpecialistProfileScreen(
                                     contentDescription = specialist.displayName,
                                     fallbackIconSize = 40.dp,
                                     modifier = Modifier.fillMaxSize(),
+                                    photoUrl = specialist.photoUrl,
                                 )
                             }
                             Spacer(Modifier.height(RojanDimens.SpaceMD))
@@ -163,6 +189,39 @@ fun SpecialistProfileScreen(
                         }
                     }
 
+                    if (portfolio.isNotEmpty()) {
+                        item {
+                            Spacer(Modifier.height(RojanDimens.SpaceXL))
+                            CustomerSectionLabel("نمونه‌کارها")
+                            Spacer(Modifier.height(RojanDimens.SpaceSM))
+                        }
+                        item {
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = CustomerScreenMargin),
+                                horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+                            ) {
+                                itemsIndexed(portfolio) { index, imageUrl ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(96.dp)
+                                            .clip(RojanShapes.Small)
+                                            .background(CustomerSurfaceFill)
+                                            .border(1.dp, CustomerHairline, RojanShapes.Small)
+                                            .rojanPressable(onClick = { previewIndex = index }),
+                                    ) {
+                                        RojanRemoteImage(
+                                            url = imageUrl,
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxSize(),
+                                            shape = RojanShapes.Small,
+                                            fallback = {},
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     if (services.isNotEmpty()) {
                         item {
                             Spacer(Modifier.height(RojanDimens.SpaceXL))
@@ -184,6 +243,10 @@ fun SpecialistProfileScreen(
                             }
                         }
                     }
+                }
+
+                previewIndex?.let { index ->
+                    MediaPreviewDialog(urls = portfolio, initialIndex = index, onDismiss = { previewIndex = null })
                 }
             }
         }

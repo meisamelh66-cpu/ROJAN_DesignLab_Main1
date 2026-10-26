@@ -33,19 +33,21 @@ import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SearchOff
-import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -84,10 +86,12 @@ import ai.rojan.designlab.screens.customer.components.CustomerSurfaceFill as Ref
 import ai.rojan.designlab.screens.customer.components.CustomerTopBarHeight as RefTopBarHeight
 import ai.rojan.designlab.screens.customer.hometheme.HomeBackgroundTheme
 import ai.rojan.designlab.screens.customer.hometheme.HomeColors
+import ai.rojan.designlab.ui.components.image.MediaPreviewDialog
 import ai.rojan.designlab.ui.components.image.RojanRemoteImage
 import ai.rojan.designlab.ui.components.interaction.rojanPressable
 import ai.rojan.designlab.ui.text.Text
 import ai.rojan.designlab.ui.theme.RojanDimens
+import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanTypography
 import java.util.Calendar
 
@@ -182,10 +186,20 @@ private fun String.initial(): String = trim().firstOrNull()?.toString() ?: "?"
  * working-hours) and [SalonRelationshipViewModel] (follow / favourite).
  *
  * Sections whose data the backend doesn't model (ratings/reviews,
- * facilities, photo gallery) are absent by design — never faked or rendered
- * empty. `selectedServiceIds` (category-first flow) filters services;
+ * facilities) are absent by design — never faked or rendered empty.
+ * `selectedServiceIds` (category-first flow) filters services;
  * `onContinueBooking` (only when the caller provides it) renders the bottom
  * CTA and auto-skips specialist selection when the salon has exactly one.
+ *
+ * Media Sprint P0: the photo gallery is back, for real this time - the
+ * backend gained a genuine `salon_media` concept (`MediaAsset`/
+ * `MediaType.GALLERY`). A "گالری تصاویر" section renders
+ * `SalonDetailsData.gallery` (`GET /salons/{id}/media?mediaType=GALLERY`)
+ * when non-empty — omitted entirely, not shown empty, when the salon has no
+ * gallery images yet. This reference screen's hero was already reduced to
+ * the small circular [RefHeader] logo only (no banner) by the Quiet Luxury
+ * pass before this milestone, so the gallery is added as its own section
+ * rather than reviving a banner that pass deliberately removed.
  */
 @Composable
 fun SalonDetailsScreen(
@@ -267,6 +281,7 @@ fun SalonDetailsScreen(
                     val data = loadState.data
                     val salon = data.salon
                     val specialists = data.specialists
+                    var galleryPreviewIndex by remember { mutableStateOf<Int?>(null) }
                     val services = if (selectedServiceIds != null) {
                         data.services.filter { it.id in selectedServiceIds }
                     } else {
@@ -308,6 +323,18 @@ fun SalonDetailsScreen(
                             }
                         } else {
                             item { Spacer(Modifier.height(RojanDimens.SpaceXL)) }
+                        }
+
+                        if (data.gallery.isNotEmpty()) {
+                            item { RefSectionLabel("گالری تصاویر") }
+                            item {
+                                SalonGallerySection(
+                                    images = data.gallery,
+                                    onImageClick = { index -> galleryPreviewIndex = index },
+                                    modifier = Modifier.padding(top = RojanDimens.SpaceSM),
+                                )
+                            }
+                            item { RefSectionSpacer() }
                         }
 
                         if (services.isNotEmpty()) {
@@ -370,6 +397,10 @@ fun SalonDetailsScreen(
                                 }
                             }
                         }
+                    }
+
+                    galleryPreviewIndex?.let { index ->
+                        MediaPreviewDialog(urls = data.gallery, initialIndex = index, onDismiss = { galleryPreviewIndex = null })
                     }
                 }
             }
@@ -614,6 +645,46 @@ private fun RefMetaRow(
                 style = RojanTypography.Caption,
                 color = if (open) RefAccent else HomeColors.TextMuted,
             )
+        }
+    }
+}
+
+/**
+ * Media Sprint P0: read-only horizontal gallery row, same flat
+ * [RefSurfaceFill]/[LazyRow] visual language as [RefSpecialistItem] above
+ * (not the glass-era `HomeGlassSurface` look this screen's Quiet Luxury
+ * pass already retired). No add/delete here — this is the Customer-facing
+ * read side of the same `MediaAsset` rows Manager's
+ * [ai.rojan.designlab.manager.screens.settings.ManagerSalonMediaScreen]
+ * writes; only called when [images] is non-empty (the caller gates on
+ * that), so there's no empty-state to design for. Tapping a thumbnail opens
+ * [MediaPreviewDialog] via [onImageClick] - the same full-screen preview
+ * every gallery in this app uses.
+ */
+@Composable
+private fun SalonGallerySection(images: List<String>, onImageClick: (Int) -> Unit, modifier: Modifier = Modifier) {
+    LazyRow(
+        modifier = modifier,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = RefScreenMargin),
+        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+    ) {
+        itemsIndexed(images) { index, imageUrl ->
+            Box(
+                modifier = Modifier
+                    .size(96.dp)
+                    .clip(RojanShapes.Small)
+                    .background(RefSurfaceFill)
+                    .border(1.dp, RefHairline, RojanShapes.Small)
+                    .rojanPressable(onClick = { onImageClick(index) }),
+            ) {
+                RojanRemoteImage(
+                    url = imageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    shape = RojanShapes.Small,
+                    fallback = { Icon(Icons.Outlined.Image, contentDescription = null, tint = HomeColors.TextSecondary) },
+                )
+            }
         }
     }
 }

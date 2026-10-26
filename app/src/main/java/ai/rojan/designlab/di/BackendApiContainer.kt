@@ -12,6 +12,7 @@ import ai.rojan.designlab.data.remote.BookingApi
 import ai.rojan.designlab.data.remote.ManagerBookingApi
 import ai.rojan.designlab.data.remote.ManagerCustomerApi
 import ai.rojan.designlab.data.remote.ManagerDashboardApi
+import ai.rojan.designlab.data.remote.ManagerInviteApi
 import ai.rojan.designlab.data.remote.ManagerMediaApi
 import ai.rojan.designlab.data.remote.UserMediaApi
 import ai.rojan.designlab.data.remote.ManagerSalonApi
@@ -197,6 +198,13 @@ class BackendApiContainer(context: Context) {
 
     val managerSpecialistApi: ManagerSpecialistApi =
         retrofit.create(ManagerSpecialistApi::class.java)
+
+    // P1-6, Manager Salon Invite Management: raw API only — salonId is
+    // baked into the real repository at construction time inside
+    // ManagerRepositories.initialize(), same split managerSpecialistApi
+    // above already uses for BackendSpecialistRepository.
+    val managerInviteApi: ManagerInviteApi =
+        retrofit.create(ManagerInviteApi::class.java)
 
     // Central Salon Management — Salon Media UI: fully wrapped here, same
     // treatment as managerSalonRepository above - the real screen-facing

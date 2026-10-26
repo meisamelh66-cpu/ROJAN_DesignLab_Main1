@@ -4,6 +4,7 @@ import ai.rojan.designlab.data.remote.ManagerMediaApi
 import ai.rojan.designlab.data.remote.ManagerSalonApi
 import ai.rojan.designlab.data.remote.dto.AssignIdentityMediaRequestDto
 import ai.rojan.designlab.data.remote.dto.MediaAssetResponseDto
+import ai.rojan.designlab.data.remote.dto.ReorderMediaRequestDto
 import ai.rojan.designlab.data.remote.dto.SalonResponseDto
 import ai.rojan.designlab.data.remote.safeApiCall
 import ai.rojan.designlab.manager.domain.dashboard.ManagerSalonSummary
@@ -25,8 +26,8 @@ class BackendManagerMediaRepository(
     private val managerSalonApi: ManagerSalonApi,
 ) : ManagerMediaRepository {
 
-    override suspend fun list(salonId: String, mediaType: ManagerMediaType?): Result<List<ManagerMediaAsset>> =
-        safeApiCall { managerMediaApi.list(salonId, mediaType?.name) }
+    override suspend fun list(salonId: String, mediaType: ManagerMediaType?, targetId: String?): Result<List<ManagerMediaAsset>> =
+        safeApiCall { managerMediaApi.list(salonId, mediaType?.name, targetId) }
             .map { assets -> assets.map { it.toDomain() } }
 
     override suspend fun upload(
@@ -35,6 +36,7 @@ class BackendManagerMediaRepository(
         fileBytes: ByteArray,
         fileName: String,
         mimeType: String,
+        targetId: String?,
     ): Result<ManagerMediaAsset> =
         safeApiCall {
             val filePart = MultipartBody.Part.createFormData(
@@ -43,7 +45,8 @@ class BackendManagerMediaRepository(
                 body = fileBytes.toRequestBody(mimeType.toMediaTypeOrNull()),
             )
             val mediaTypePart = mediaType.name.toRequestBody("text/plain".toMediaTypeOrNull())
-            managerMediaApi.upload(salonId, filePart, mediaTypePart)
+            val targetIdPart = targetId?.toRequestBody("text/plain".toMediaTypeOrNull())
+            managerMediaApi.upload(salonId, filePart, mediaTypePart, targetIdPart)
         }.map { it.toDomain() }
 
     override suspend fun delete(salonId: String, mediaId: String): Result<Unit> =
@@ -54,12 +57,17 @@ class BackendManagerMediaRepository(
             managerSalonApi.assignIdentityMedia(salonId, AssignIdentityMediaRequestDto(slot = slot.name, mediaId = mediaId))
         }.map { it.toDomain() }
 
+    override suspend fun reorder(salonId: String, mediaType: ManagerMediaType, targetId: String?, mediaIds: List<String>): Result<Unit> =
+        safeApiCall { managerMediaApi.reorder(salonId, ReorderMediaRequestDto(mediaType.name, targetId, mediaIds)) }
+
     private fun MediaAssetResponseDto.toDomain() = ManagerMediaAsset(
         id = id,
         mediaType = ManagerMediaType.valueOf(mediaType),
         url = url,
         originalName = originalName,
         createdAt = createdAt,
+        targetId = targetId,
+        displayOrder = displayOrder,
     )
 
     private fun SalonResponseDto.toDomain() = ManagerSalonSummary(

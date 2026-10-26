@@ -16,6 +16,10 @@ class SpecialistRepositoryImpl(
     override suspend fun getSpecialist(salonId: String, specialistId: String): Result<Specialist> =
         safeApiCall { specialistApi.getSpecialist(salonId, specialistId) }.map { it.toDomain() }
 
+    override suspend fun getPortfolio(salonId: String, specialistId: String): Result<List<String>> =
+        safeApiCall { specialistApi.getMedia(salonId, mediaType = "PORTFOLIO", targetId = specialistId) }
+            .map { assets -> assets.map { it.url } }
+
     private fun SpecialistResponseDto.toDomain() = Specialist(
         id = id,
         salonId = salonId,

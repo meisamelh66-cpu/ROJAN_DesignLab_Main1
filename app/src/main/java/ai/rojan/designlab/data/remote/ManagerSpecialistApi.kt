@@ -49,4 +49,29 @@ interface ManagerSpecialistApi {
         @Path("salonId") salonId: String,
         @Path("specialistId") specialistId: String,
     ): List<String>
+
+    /**
+     * P1-5, Manager Specialist <-> Service Assignment: restricts [specialistId]
+     * to their assigned services going forward — confirmed real against
+     * `SpecialistController.assignService` (`PUT .../services/{serviceId}`,
+     * `Permission.MANAGE_STAFF`), no request body and an empty response body
+     * (unlike [removeService], this endpoint carries no explicit
+     * `@ResponseStatus` on the backend, so Spring's default 200 OK applies,
+     * not 204 — harmless here either way, since a `Unit`-returning suspend
+     * Retrofit call accepts any 2xx and never attempts to parse a body).
+     */
+    @PUT("api/v1/salons/{salonId}/specialists/{specialistId}/services/{serviceId}")
+    suspend fun assignService(
+        @Path("salonId") salonId: String,
+        @Path("specialistId") specialistId: String,
+        @Path("serviceId") serviceId: String,
+    )
+
+    /** P1-5: removes one assignment — `DELETE .../services/{serviceId}`, same auth as [assignService]. If this was the specialist's last explicit assignment, the backend's own "empty means eligible for everything" rule applies again afterward — not something this client needs to special-case. */
+    @DELETE("api/v1/salons/{salonId}/specialists/{specialistId}/services/{serviceId}")
+    suspend fun removeService(
+        @Path("salonId") salonId: String,
+        @Path("specialistId") specialistId: String,
+        @Path("serviceId") serviceId: String,
+    )
 }
