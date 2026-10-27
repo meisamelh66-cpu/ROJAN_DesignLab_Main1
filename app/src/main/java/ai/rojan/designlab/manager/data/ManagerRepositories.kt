@@ -55,7 +55,8 @@ private object EmptyAppointmentRepository : AppointmentRepository {
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
     override fun update(appointment: Appointment): Appointment? = null
     override fun updateStatus(id: String, status: AppointmentStatus): Appointment? = null
-    override fun cancel(id: String): Appointment? = null
+    override suspend fun cancel(id: String): Result<Appointment> =
+        Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
     override suspend fun createForCustomer(
         customerId: String,
         serviceId: String,

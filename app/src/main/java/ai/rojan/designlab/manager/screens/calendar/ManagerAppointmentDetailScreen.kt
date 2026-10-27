@@ -36,8 +36,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -55,16 +60,20 @@ import androidx.lifecycle.viewmodel.compose.viewModel
  * `ManagerNavGraph.kt`; this screen and Calendar itself are otherwise
  * untouched).
  *
- * Confirm/Complete (RBAC compatibility fix — Manager Android Pilot): now
- * real, backend-persistent actions via
+ * Confirm/Complete/Cancel (RBAC compatibility fix — Manager Android Pilot;
+ * Cancel wired in the Final Blocker Closure Sprint) are real,
+ * backend-persistent actions via
  * [ai.rojan.designlab.manager.presentation.calendar.ManagerAppointmentDetailViewModel] —
- * `ManagerBookingApi.confirm`/`complete` (`PATCH /api/v1/bookings/{id}/confirm`|`/complete`,
+ * `ManagerBookingApi.confirm`/`complete`/`cancel` (`PATCH /api/v1/bookings/{id}/confirm`|`/complete`|`/cancel`,
  * already RBAC-correct on the backend, see that interface's own doc
- * comment). Still deliberately **no cancel or reschedule action**: the
- * backend still has no owner/manager-side cancel or reschedule endpoint,
- * and those two were not part of this fix's approved scope either -
+ * comment). Cancel requires an explicit confirmation dialog first (it is
+ * destructive and, unlike Confirm/Complete, not reversible by a later
+ * action in this screen) - see [CancelConfirmationDialog]. Still
+ * deliberately **no reschedule action**: the backend still has no
+ * owner/manager-side reschedule endpoint, and that was not part of this
+ * fix's approved scope -
  * [ai.rojan.designlab.manager.data.BackendAppointmentRepository.update]/
- * `updateStatus`/`cancel` stay local-cache-only, unchanged.
+ * `updateStatus` stay local-cache-only, unchanged.
  *
  * Resolves [Appointment.customerId]/[serviceId]/[specialistId] to display
  * data via [ManagerRepositories], the identical resolution
@@ -86,6 +95,17 @@ fun ManagerAppointmentDetailScreen(
     val appointment by viewModel.appointment.collectAsStateWithLifecycle()
     val isSubmitting by viewModel.isSubmitting.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+    var showCancelConfirmation by remember { mutableStateOf(false) }
+
+    if (showCancelConfirmation) {
+        CancelConfirmationDialog(
+            onConfirm = {
+                showCancelConfirmation = false
+                viewModel.cancelBooking()
+            },
+            onDismiss = { showCancelConfirmation = false },
+        )
+    }
 
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         val current = appointment ?: return@ManagerScaffold
@@ -135,6 +155,19 @@ fun ManagerAppointmentDetailScreen(
                     )
                 }
                 else -> Unit
+            }
+            // Cancel: valid from PENDING or CONFIRMED only, matching the backend's own
+            // Booking.cancel() invariant (ai.rojan.backend.domain.booking.Booking, confirmed by
+            // direct source read) - a request from any other state would be rejected with
+            // INVALID_BOOKING_STATE anyway, so the button is simply not offered then.
+            if (current.status == AppointmentStatus.PENDING || current.status == AppointmentStatus.CONFIRMED) {
+                item {
+                    ManagerPrimaryButton(
+                        text = "لغو نوبت",
+                        onClick = { showCancelConfirmation = true },
+                        enabled = !isSubmitting,
+                    )
+                }
             }
         }
     }
@@ -303,6 +336,39 @@ private fun NotesSection(notes: String) {
             )
         }
     }
+}
+
+/**
+ * Final Blocker Closure Sprint: the explicit confirmation step cancellation requires (unlike
+ * Confirm/Complete, which are not destructive and need none) - a plain [AlertDialog], same
+ * standard Compose component every other confirmation prompt in this codebase would reach for;
+ * no existing Manager-specific dialog wrapper exists yet to mirror instead. [onConfirm] both
+ * dismisses this dialog and triggers the real cancellation; [onDismiss] (the dialog's own
+ * dismiss-request, the "انصراف" button, or a back-press) only dismisses it - no backend call.
+ */
+@Composable
+private fun CancelConfirmationDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = "لغو نوبت", style = RojanTypography.CardTitle, color = ManagerColors.TextPrimary) },
+        text = {
+            Text(
+                text = "آیا از لغو این نوبت مطمئن هستید؟ این عملیات قابل بازگشت نیست.",
+                style = RojanTypography.Body,
+                color = ManagerColors.TextPrimary,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(text = "تأیید لغو", style = RojanTypography.Body, color = RojanErrorText)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "انصراف", style = RojanTypography.Body, color = ManagerColors.TextSecondary)
+            }
+        },
+    )
 }
 
 @Preview(

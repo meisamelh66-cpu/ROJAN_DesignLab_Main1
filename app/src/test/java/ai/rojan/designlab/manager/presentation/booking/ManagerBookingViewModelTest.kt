@@ -283,7 +283,7 @@ private class FakeAppointmentRepository(private val createForCustomerResult: Res
     override suspend fun create(appointment: Appointment): Result<Appointment> = error("not used by these tests - superseded by createForCustomer (Master Integration Repair, Pass 4)")
     override fun update(appointment: Appointment): Appointment? = error("not used by these tests")
     override fun updateStatus(id: String, status: AppointmentStatus): Appointment? = error("not used by these tests")
-    override fun cancel(id: String): Appointment? = error("not used by these tests")
+    override suspend fun cancel(id: String): Result<Appointment> = error("not used by these tests")
 
     override suspend fun createForCustomer(
         customerId: String,
