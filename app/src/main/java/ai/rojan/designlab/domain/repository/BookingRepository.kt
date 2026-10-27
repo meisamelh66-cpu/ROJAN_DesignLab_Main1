@@ -33,6 +33,7 @@ data class Booking(
     val salonId: String,
     val serviceId: String,
     val specialistId: String,
+    /** TASK-003 (Walk-in Customer Booking): resolved from the wire DTO's nullable `customerId`/`crmCustomerId` pair - never itself null, falling back to [crmCustomerId] for a walk-in booking so every existing non-null consumer keeps working unchanged. See [crmCustomerId] to tell the two cases apart. */
     val customerId: String,
     val startTime: String,
     val endTime: String,
@@ -41,6 +42,8 @@ data class Booking(
     val service: ServiceSummary? = null,
     val specialist: SpecialistSummary? = null,
     val customer: CustomerSummary? = null,
+    /** TASK-003 (Walk-in Customer Booking): set only for a walk-in booking with no linked account - the real CRM customer id, also mirrored into [customerId] above so existing code keeps a usable id either way. */
+    val crmCustomerId: String? = null,
 )
 
 /** Talks to the ROJAN backend's Booking API (`ROJAN_Backend/API_CONTRACT.md`). */

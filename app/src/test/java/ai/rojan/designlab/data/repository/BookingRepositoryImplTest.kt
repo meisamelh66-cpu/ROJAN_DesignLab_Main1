@@ -161,6 +161,23 @@ class BookingRepositoryImplTest {
     }
 
     @Test
+    fun `TASK-003 - salonBookings maps a walk-in booking (null customerId, crmCustomerId set) without crashing, falling back to crmCustomerId`() = runBlocking {
+        val walkInResponse = sampleResponse.copy(customerId = null, crmCustomerId = "crm-customer-1")
+        val page = PagedResponseDto(content = listOf(walkInResponse), page = 0, size = 20, totalElements = 1, totalPages = 1)
+        val repository = bookingRepository(
+            FakeBookingApi(),
+            salonBookingApi = FakeSalonBookingApi(result = { page }),
+        )
+
+        val result = repository.salonBookings("salon-1")
+
+        assertTrue(result.isSuccess)
+        val booking = result.getOrNull()?.content?.first()
+        assertEquals("crm-customer-1", booking?.customerId)
+        assertEquals("crm-customer-1", booking?.crmCustomerId)
+    }
+
+    @Test
     fun `salonBookings 401 (unauthorized) becomes a real Result failure, not an empty or fabricated success`() = runBlocking {
         val repository = bookingRepository(
             FakeBookingApi(),

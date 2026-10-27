@@ -33,8 +33,10 @@ data class RescheduleBookingRequestDto(
  * Request body for `POST /api/v1/salons/{salonId}/bookings` — the owner-authorized counterpart to
  * [CreateBookingRequestDto], which always books the caller themself and has no `customerId` field
  * at all. [customerId] is a CRM `Customer` id (from `GET /salons/{salonId}/customers`), not a
- * `User` id — the target customer must already be linked to an account (backend returns 409
- * otherwise; see `ManagerBookingApi.createForCustomer`'s doc comment).
+ * `User` id. TASK-003 (Walk-in Customer Booking): the target customer no longer needs a linked
+ * account — a customer with none becomes a real walk-in booking (response `customerId` null,
+ * `crmCustomerId` set), never a 409 any more (see `ManagerBookingApi.createForCustomer`'s doc
+ * comment).
  */
 @Serializable
 data class CreateBookingForCustomerRequestDto(
@@ -63,6 +65,19 @@ data class CustomerSummaryDto(val id: String, val name: String, val phone: Strin
  * against `origin/feature/auth-rate-limit-finalization`); every real
  * response today omits them, and deserialization must not fail on their
  * absence. Do not synthesize a value client-side when these are `null`.
+ *
+ * TASK-003 (Walk-in Customer Booking): [customerId] became nullable the
+ * moment the real backend started supporting walk-in bookings (a booking
+ * for a CRM customer with no linked account) — exactly one of [customerId]/
+ * [crmCustomerId] is ever non-null, never both, never neither. This was a
+ * required fix, not a defensive one: kotlinx.serialization throws on an
+ * explicit JSON `null` for a non-nullable property with no default, so the
+ * previous non-nullable [customerId] would have crashed deserializing any
+ * booking list/detail response that happened to contain a walk-in booking
+ * (reachable today via `ManagerBookingApi`/`SalonBookingApi` — Manager's and
+ * Reception's own salon-wide booking views; never via the self-service
+ * `BookingApi`, which is scoped to the caller's own linked account and so
+ * can never return one).
  */
 @Serializable
 data class BookingResponseDto(
@@ -70,7 +85,9 @@ data class BookingResponseDto(
     val salonId: String,
     val serviceId: String,
     val specialistId: String,
-    val customerId: String,
+    val customerId: String?,
+    /** TASK-003: the booking's CRM customer id, set only for a walk-in booking with no linked account. `null` whenever [customerId] is set. */
+    val crmCustomerId: String? = null,
     val startTime: String,
     val endTime: String,
     val status: NetworkBookingStatus,

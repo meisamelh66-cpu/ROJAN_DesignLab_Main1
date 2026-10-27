@@ -33,10 +33,10 @@ interface ReceptionBookingRepository {
 
     /**
      * `customerId` is a CRM [ai.rojan.designlab.reception.domain.repository.ReceptionCustomer]
-     * id, not a `User` id — the target customer must already be linked to
-     * an account (backend returns `409 CUSTOMER_NOT_LINKED_TO_ACCOUNT`
-     * otherwise, per `ManagerBookingApi.createForCustomer`'s own doc
-     * comment, reused here since this is the same real endpoint).
+     * id, not a `User` id. TASK-003 (Walk-in Customer Booking): the target
+     * customer no longer needs a linked account — a customer with none
+     * becomes a real walk-in booking (per `ManagerBookingApi.createForCustomer`'s
+     * own doc comment, reused here since this is the same real endpoint).
      */
     suspend fun createBookingForCustomer(
         salonId: String,

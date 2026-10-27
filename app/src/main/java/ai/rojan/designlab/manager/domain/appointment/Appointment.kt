@@ -18,6 +18,7 @@ package ai.rojan.designlab.manager.domain.appointment
  */
 data class Appointment(
     val id: String,
+    /** TASK-003 (Walk-in Customer Booking): resolved from the backend's nullable `customerId`/`crmCustomerId` pair - never itself null, falling back to [crmCustomerId] for a walk-in booking so every existing non-null consumer keeps working unchanged. See [crmCustomerId] to tell the two cases apart. */
     val customerId: String,
     val serviceId: String,
     val specialistId: String,
@@ -26,4 +27,6 @@ data class Appointment(
     val status: AppointmentStatus,
     val endTime: String? = null,
     val notes: String? = null,
+    /** TASK-003 (Walk-in Customer Booking): set only for a walk-in booking with no linked account - the real CRM customer id, also mirrored into [customerId] above. */
+    val crmCustomerId: String? = null,
 )
