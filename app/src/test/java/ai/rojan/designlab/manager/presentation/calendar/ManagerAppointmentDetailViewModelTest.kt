@@ -5,6 +5,7 @@ import ai.rojan.designlab.data.remote.dto.ApiErrorDto
 import ai.rojan.designlab.manager.domain.appointment.Appointment
 import ai.rojan.designlab.manager.domain.appointment.AppointmentStatus
 import ai.rojan.designlab.manager.domain.repository.AppointmentRepository
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -19,8 +20,9 @@ import org.junit.Test
 
 /**
  * RBAC compatibility fix — Manager Android Pilot: hermetic coverage of
- * [ManagerAppointmentDetailViewModel]'s Confirm/Complete actions, using an
- * in-memory fake [AppointmentRepository] — same fake-repository approach
+ * [ManagerAppointmentDetailViewModel]'s Confirm/Complete/Cancel actions
+ * (Cancel added Final Blocker Closure Sprint), using an in-memory fake
+ * [AppointmentRepository] — same fake-repository approach
  * [ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModelTest]
  * already establishes.
  */
@@ -104,16 +106,86 @@ class ManagerAppointmentDetailViewModelTest {
         assertTrue(viewModel.errorMessage.value != null)
     }
 
+    @Test
+    fun `cancelBooking replaces the appointment with the real backend response on success`() = runTest {
+        val appointment = pendingAppointment().copy(status = AppointmentStatus.CONFIRMED)
+        val repository = FakeAppointmentRepository(initial = appointment)
+        val viewModel = ManagerAppointmentDetailViewModel(repository, appointment.id)
+
+        viewModel.cancelBooking()
+
+        assertEquals(AppointmentStatus.CANCELLED, viewModel.appointment.value?.status)
+        assertEquals(false, viewModel.isSubmitting.value)
+        assertEquals(null, viewModel.errorMessage.value)
+        assertEquals(1, repository.cancelCallCount)
+    }
+
+    @Test
+    fun `a rejected cancellation (e_g_ an already-completed booking) surfaces a Persian error and leaves the appointment unchanged`() = runTest {
+        val appointment = pendingAppointment().copy(status = AppointmentStatus.COMPLETED)
+        val repository = FakeAppointmentRepository(
+            initial = appointment,
+            cancelResult = {
+                Result.failure(
+                    BackendApiException(
+                        statusCode = 409,
+                        apiError = ApiErrorDto(
+                            timestamp = "2026-08-20T00:00:00Z",
+                            status = 409,
+                            error = "Conflict",
+                            errorCode = "INVALID_BOOKING_STATE",
+                            message = "Only a pending or confirmed booking can be cancelled",
+                            path = "/api/v1/bookings/${appointment.id}/cancel",
+                        ),
+                    ),
+                )
+            },
+        )
+        val viewModel = ManagerAppointmentDetailViewModel(repository, appointment.id)
+
+        viewModel.cancelBooking()
+
+        assertEquals(AppointmentStatus.COMPLETED, viewModel.appointment.value?.status)
+        assertTrue(viewModel.errorMessage.value != null)
+    }
+
+    @Test
+    fun `isSubmitting stays true for the whole in-flight duration, and a second cancelBooking call while it is true is a no-op`() = runTest {
+        val appointment = pendingAppointment().copy(status = AppointmentStatus.CONFIRMED)
+        val gate = CompletableDeferred<Result<Appointment>>()
+        val repository = FakeAppointmentRepository(initial = appointment, cancelResult = { gate.await() })
+        val viewModel = ManagerAppointmentDetailViewModel(repository, appointment.id)
+
+        viewModel.cancelBooking()
+        assertEquals(true, viewModel.isSubmitting.value)
+        assertEquals(1, repository.cancelCallCount)
+
+        // Simulates a second tap landing before the button has actually been disabled by
+        // recomposition - mutate()'s own isSubmitting guard must stop this from reaching the
+        // backend a second time, independent of the screen's `enabled = !isSubmitting` binding.
+        viewModel.cancelBooking()
+        assertEquals(1, repository.cancelCallCount)
+        assertEquals(true, viewModel.isSubmitting.value)
+
+        gate.complete(Result.success(appointment.copy(status = AppointmentStatus.CANCELLED)))
+
+        assertEquals(false, viewModel.isSubmitting.value)
+        assertEquals(AppointmentStatus.CANCELLED, viewModel.appointment.value?.status)
+    }
+
     private class FakeAppointmentRepository(
         initial: Appointment,
         private val confirmResult: (() -> Result<Appointment>)? = null,
         private val completeResult: (() -> Result<Appointment>)? = null,
+        private val cancelResult: (suspend () -> Result<Appointment>)? = null,
     ) : AppointmentRepository {
         private var stored = initial
 
         var confirmCallCount = 0
             private set
         var completeCallCount = 0
+            private set
+        var cancelCallCount = 0
             private set
 
         override fun getAll(): List<Appointment> = listOf(stored)
@@ -122,7 +194,14 @@ class ManagerAppointmentDetailViewModelTest {
         override suspend fun create(appointment: Appointment): Result<Appointment> = error("not used")
         override fun update(appointment: Appointment): Appointment? = null
         override fun updateStatus(id: String, status: AppointmentStatus): Appointment? = null
-        override fun cancel(id: String): Appointment? = null
+
+        override suspend fun cancel(id: String): Result<Appointment> {
+            cancelCallCount++
+            val result = cancelResult?.invoke() ?: Result.success(stored.copy(status = AppointmentStatus.CANCELLED))
+            result.getOrNull()?.let { stored = it }
+            return result
+        }
+
         override suspend fun createForCustomer(
             customerId: String,
             serviceId: String,

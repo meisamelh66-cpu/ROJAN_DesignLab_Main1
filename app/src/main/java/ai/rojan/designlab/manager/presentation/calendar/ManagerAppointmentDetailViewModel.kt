@@ -22,10 +22,17 @@ import kotlinx.coroutines.launch
  * for the same reason: real `Result`-returning repository calls need a place
  * to hold in-flight/error state that survives recomposition.
  *
+ * [cancelBooking] (Final Blocker Closure Sprint): adds the one action this
+ * class previously lacked - [AppointmentRepository.cancel] was already a
+ * real, backend-persistent repository method (same sprint, repository
+ * layer) but had zero callers anywhere in the app; this is that first
+ * caller.
+ *
  * [appointment] starts from [AppointmentRepository.getById] and is replaced
  * with the real, backend-returned row after a successful [confirmBooking]/
- * [completeBooking] — not just optimistically flipped locally — so the
- * screen always reflects what the backend actually persisted.
+ * [completeBooking]/[cancelBooking] — not just optimistically flipped
+ * locally — so the screen always reflects what the backend actually
+ * persisted.
  */
 class ManagerAppointmentDetailViewModel(
     private val appointmentRepository: AppointmentRepository,
@@ -47,7 +54,28 @@ class ManagerAppointmentDetailViewModel(
     /** Moves this booking from `CONFIRMED` to `COMPLETED` — only meaningful while [appointment] is `CONFIRMED`; the screen gates the button on that, this does not re-check it. */
     fun completeBooking() = mutate { appointmentRepository.complete(it) }
 
+    /**
+     * Final Blocker Closure Sprint - UI wiring: moves this booking to `CANCELLED` via the real
+     * backend endpoint ([AppointmentRepository.cancel], `PATCH /api/v1/bookings/{id}/cancel`) -
+     * only meaningful while [appointment] is `PENDING` or `CONFIRMED` (the backend's own
+     * `Booking.cancel()` invariant); the screen gates the button on that and additionally requires
+     * an explicit confirmation step before calling this, same as [confirmBooking]/[completeBooking]
+     * this does not re-check status itself. [appointment] is only ever replaced with the real,
+     * backend-returned row on success (via [mutate]) - a rejected cancellation leaves the booking's
+     * displayed state exactly as it was, never an optimistic "cancelled" flip.
+     */
+    fun cancelBooking() = mutate { appointmentRepository.cancel(it) }
+
+    /**
+     * Final Blocker Closure Sprint: guards against a duplicate in-flight submission at the source,
+     * not only via the screen's existing `enabled = !isSubmitting` button binding - that binding
+     * only stops a second *tap* once recomposition has actually disabled the button; this early
+     * return makes a second call to [confirmBooking]/[completeBooking]/[cancelBooking] a no-op
+     * for the whole duration a prior one is still in flight regardless of how it was triggered,
+     * so the real backend call-count guarantee does not depend on Compose recomposition timing.
+     */
     private fun mutate(call: suspend (id: String) -> Result<Appointment>) {
+        if (_isSubmitting.value) return
         val id = _appointment.value?.id ?: return
         _isSubmitting.value = true
         _errorMessage.value = null

@@ -183,7 +183,7 @@ class ManagerBookingViewModelSavedStateTest {
         override suspend fun create(appointment: Appointment): Result<Appointment> = error("not used by these tests")
         override fun update(appointment: Appointment): Appointment? = error("not used by these tests")
         override fun updateStatus(id: String, status: AppointmentStatus): Appointment? = error("not used by these tests")
-        override fun cancel(id: String): Appointment? = error("not used by these tests")
+        override suspend fun cancel(id: String): Result<Appointment> = error("not used by these tests")
         override suspend fun createForCustomer(
             customerId: String,
             serviceId: String,

@@ -32,10 +32,15 @@ import retrofit2.http.Query
  * wording, not the real enforcement). This correction supersedes this
  * interface's own previous doc comment, which had confirmed these absent
  * as of an earlier audit — reconfirmed present by direct backend source
- * inspection this pass. `cancel`/`reschedule` are still not added here:
- * unlike confirm/complete, those were not part of this fix's approved
- * scope, so their absence (and [ai.rojan.designlab.manager.data.BackendAppointmentRepository]'s
- * pre-existing local-cache-only handling of them) is left exactly as-is.
+ * inspection this pass.
+ *
+ * [cancel] (Final Blocker Closure Sprint): same RBAC-correct, top-level
+ * `/bookings/{id}/...` shape as [confirm]/[complete] — confirmed by direct
+ * read of `ai.rojan.backend.api.booking.BookingController.cancel`,
+ * `PATCH /api/v1/bookings/{bookingId}/cancel`, no request body. Replaces
+ * [ai.rojan.designlab.manager.data.BackendAppointmentRepository]'s
+ * pre-existing local-cache-only handling of cancel. `reschedule` is still
+ * not added here: out of this fix's approved scope, left exactly as-is.
  */
 interface ManagerBookingApi {
 
@@ -58,4 +63,7 @@ interface ManagerBookingApi {
 
     @PATCH("api/v1/bookings/{bookingId}/complete")
     suspend fun complete(@Path("bookingId") bookingId: String): BookingResponseDto
+
+    @PATCH("api/v1/bookings/{bookingId}/cancel")
+    suspend fun cancel(@Path("bookingId") bookingId: String): BookingResponseDto
 }

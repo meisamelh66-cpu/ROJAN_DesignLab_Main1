@@ -46,23 +46,17 @@ import java.time.format.DateTimeFormatter
  * so the wizard can show it instead of claiming a booking that didn't
  * happen.
  *
- * [confirm]/[complete] (RBAC compatibility fix — Manager Android Pilot)
- * are real too, via `PATCH /api/v1/bookings/{id}/confirm`|`/complete` -
- * see [ai.rojan.designlab.data.remote.ManagerBookingApi]'s own doc comment.
+ * [confirm]/[complete]/[cancel] (RBAC compatibility fix — Manager Android
+ * Pilot; [cancel] added Final Blocker Closure Sprint) are real too, via
+ * `PATCH /api/v1/bookings/{id}/confirm`|`/complete`|`/cancel` - see
+ * [ai.rojan.designlab.data.remote.ManagerBookingApi]'s own doc comment.
  *
- * `update`/`updateStatus`/`cancel` stay **local-cache only**, matching
- * the previous in-memory implementation's behavior, on purpose: the
- * backend still has no owner-side cancel-booking endpoint - only
- * [create]/[confirm]/[complete] are real. Confirmed still true and still unreferenced
- * by any call site as of Phase 11 Step 3 - see
- * [ai.rojan.designlab.manager.domain.repository.AppointmentRepository.cancel]'s
- * doc comment for the real `PATCH .../cancel` contract (Phase 11 Step 2's
- * backend specification) these three should be replaced with, not
- * extended in place, once that endpoint exists. That replacement should
- * follow [create]/[createForCustomer]'s exact existing shape immediately
- * below: `safeApiCall { managerBookingApi.<newMethod>(...) }.map { dto ->
- * dto.toDomain().also { updated -> cache = ... } }` - updating [cache]
- * from the real response rather than requiring a full [sync] afterward.
+ * `update`/`updateStatus` stay **local-cache only**, matching the
+ * previous in-memory implementation's behavior, on purpose: the backend
+ * has no owner-side generic update endpoint - only
+ * [create]/[confirm]/[complete]/[cancel] are real. Confirmed unreferenced
+ * by any call site - see [ai.rojan.designlab.manager.domain.repository.AppointmentRepository.update]'s
+ * doc comment.
  *
  * **Formerly a known pre-existing gap, closed in Phase 2, M7:**
  * [ai.rojan.designlab.manager.domain.appointment.ManagerCalendarWeek]
@@ -130,7 +124,17 @@ class BackendAppointmentRepository(
         return updated
     }
 
-    override fun cancel(id: String): Appointment? = updateStatus(id, AppointmentStatus.CANCELLED)
+    /**
+     * Real, backend-persistent (Final Blocker Closure Sprint): `PATCH
+     * /api/v1/bookings/{id}/cancel`, moving a booking to `CANCELLED`.
+     * Follows [confirm]'s exact pattern - [cache] is updated only inside
+     * the success [Result.map], so a backend failure (4xx/5xx) propagates
+     * as a failed [Result] and leaves [cache] (and whatever UI state reads
+     * it) unchanged, never a false "succeeded".
+     */
+    override suspend fun cancel(id: String): Result<Appointment> =
+        safeApiCall { managerBookingApi.cancel(id) }
+            .map { dto -> dto.toDomain().also { updated -> cache = cache.map { if (it.id == id) updated else it } } }
 
     override suspend fun createForCustomer(
         customerId: String,

@@ -80,7 +80,7 @@ class ManagerRepositoriesInitializeTest {
         override suspend fun create(appointment: Appointment) = error("unused")
         override fun update(appointment: Appointment): Appointment? = null
         override fun updateStatus(id: String, status: AppointmentStatus): Appointment? = null
-        override fun cancel(id: String): Appointment? = null
+        override suspend fun cancel(id: String) = error("unused")
         override suspend fun createForCustomer(
             customerId: String,
             serviceId: String,
