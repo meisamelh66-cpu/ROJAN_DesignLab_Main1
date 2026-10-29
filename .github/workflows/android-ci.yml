@@ -1,0 +1,70 @@
+name: Android CI (unit tests)
+
+# Trunk-agnostic by design: Android branch authority (main vs.
+# feature/android-first-salon-pilot) is an open owner decision, not yet
+# approved. This workflow does not presuppose an answer - pull_request has
+# no base-branch filter (it runs for a PR targeting either line, or any
+# future integration branch), and push explicitly covers both current
+# candidates so neither line goes CI-blind while the decision is pending.
+# Update the push branch list, not the overall design, once that decision
+# is made.
+on:
+  pull_request: {}
+  push:
+    branches:
+      - main
+      - feature/android-first-salon-pilot
+
+jobs:
+  unit-tests:
+    name: Unit tests (Customer, Manager, Reception)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # Provides ANDROID_HOME/ANDROID_SDK_ROOT - local.properties' sdk.dir
+      # is gitignored/per-machine and deliberately not relied on here;
+      # confirmed locally that a clean checkout with no local.properties
+      # compiles and runs the full unit-test suite correctly as long as
+      # these env vars are set, exactly as this action sets them.
+      #
+      # v3 fails on current ubuntu-latest runners: "Warning: Failed to find
+      # package 'tools'" -> sdkmanager exits 1 (android-actions/setup-android
+      # issue #537 - the action still tried to install Google's long-removed
+      # legacy `tools` package). Fixed upstream in PR #538, which landed in
+      # v4.0.4, not in any v3.x or even v4.0.0 (confirmed via the GitHub API
+      # compare endpoint before pinning this) - v3 cannot be patched around,
+      # v4 is required. Observed failing in this PR's own first real CI run,
+      # fixed here, not a precautionary bump.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # --continue: run every flavor's suite to completion and report all
+      # failures together, rather than stopping at the first one - this
+      # does not weaken the gate, the job still fails overall if any test
+      # fails, it only improves what a contributor sees in one CI run.
+      - name: Run unit tests (Customer/Manager/Reception, dev/debug)
+        run: >
+          ./gradlew
+          testCustomerDevDebugUnitTest
+          testManagerDevDebugUnitTest
+          testReceptionDevDebugUnitTest
+          --no-daemon --max-workers=1 --console=plain --continue
+
+      - name: Publish test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-unit-test-results
+          path: app/build/reports/tests/
+          retention-days: 14

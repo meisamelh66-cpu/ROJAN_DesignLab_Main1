@@ -14,16 +14,19 @@ import ai.rojan.designlab.domain.repository.AuthSessionRepository
 import ai.rojan.designlab.domain.repository.TokenRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.IOException
+import retrofit2.HttpException
+import retrofit2.Response as RetrofitResponse
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.TimeUnit
@@ -133,6 +136,18 @@ class TokenAuthenticatorTest {
         if (prior != null) builder.priorResponse(prior)
         return builder.build()
     }
+
+    /**
+     * A genuine-rejection refresh failure, as `safeApiCall` (`SafeApiCall.kt`) actually produces
+     * one: only its `catch (e: HttpException)` branch constructs a [BackendApiException] (from a
+     * real Retrofit [HttpException]'s status code) - throwing a [BackendApiException] directly from
+     * a fake API, as an earlier version of this test did, is caught by `safeApiCall`'s broader
+     * `catch (e: IOException)` branch instead (`BackendApiException` extends `IOException`) and
+     * silently becomes a non-genuine [NetworkUnavailableException], which is why that version of
+     * this test failed despite looking right.
+     */
+    private fun genuineRejection(code: Int): HttpException =
+        HttpException(RetrofitResponse.error<Any>(code, "{}".toResponseBody("application/json".toMediaType())))
 
     // ---- A. single 401 ------------------------------------------------
 
@@ -271,15 +286,21 @@ class TokenAuthenticatorTest {
 
     @Test
     fun `a failed refresh clears the token pair and the persisted person id`() {
-        // C2 (session-persistence fix): the current implementation clears
-        // BOTH the token pair and the persisted personId whenever the
-        // refresh call itself fails (any Throwable — transient or genuine).
-        // This test locks that behaviour in.
+        // C2 (session-persistence fix), corrected (Final Blocker Closure Sprint): the real
+        // implementation only clears the session on a *genuine* rejection - a BackendApiException
+        // whose statusCode is in GENUINE_REJECTION_STATUS_CODES (400/401/403), confirmed by direct
+        // read of TokenAuthenticator.authenticate(). A transient/transport failure (a plain
+        // IOException - offline, timeout, 5xx) must NOT clear the session, since the same refresh
+        // token may still work on a later attempt; this test previously simulated that transient
+        // case while asserting the genuine-rejection outcome, which is why it failed. Simulating the
+        // real genuine-rejection case here instead (see genuineRejection()'s own doc comment for why
+        // a plain BackendApiException throw doesn't work) - this test had zero actual coverage of
+        // that path before this fix.
         tokenRepo.seed(OLD_ACCESS, VALID_REFRESH)
         val refreshCount = AtomicInteger(0)
         fakeApi.onRefresh = {
             refreshCount.incrementAndGet()
-            throw IOException("simulated refresh failure")
+            throw genuineRejection(401)
         }
 
         val result = authenticator.authenticate(null, response401(bearer = OLD_ACCESS))
@@ -303,11 +324,16 @@ class TokenAuthenticatorTest {
         val releaseRefresh = CountDownLatch(1)
         val refreshCount = AtomicInteger(0)
 
+        // Same genuine-rejection correction as the test above - a plain IOException (or a
+        // BackendApiException thrown directly instead of via a real HttpException - see
+        // genuineRejection()'s doc comment) is intentionally non-clearing in the real
+        // implementation, so neither can be used to test that concurrent callers correctly observe
+        // a cleared session.
         fakeApi.onRefresh = {
             refreshCount.incrementAndGet()
             refreshEntered.countDown()
             assertTrue(releaseRefresh.await(10, TimeUnit.SECONDS))
-            throw IOException("simulated refresh failure")
+            throw genuineRejection(401)
         }
 
         val response = response401(bearer = OLD_ACCESS)
