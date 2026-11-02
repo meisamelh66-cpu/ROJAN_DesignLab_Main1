@@ -68,3 +68,57 @@ jobs:
           name: android-unit-test-results
           path: app/build/reports/tests/
           retention-days: 14
+
+  # Pass 62: report-only OWASP Dependency-Check baseline, mirroring ROJAN_Backend's own already-
+  # proven job/config shape exactly (same plugin version, same report-only failBuildOnCVSS=11.0f
+  # policy, same NVD-data cache strategy) rather than inventing a new one. Separate job from
+  # unit-tests so its own exit code is never masked by, or confused with, the test job's result.
+  dependency-check-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Compute cache week
+        id: week
+        run: echo "value=$(date -u +%Y-%U)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache NVD data feed
+        uses: actions/cache@v4
+        with:
+          path: .dependency-check-data
+          key: nvd-data-${{ steps.week.outputs.value }}
+          restore-keys: |
+            nvd-data-
+
+      - name: OWASP Dependency-Check (report-only baseline)
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: ./gradlew dependencyCheckAnalyze --no-daemon --console=plain --no-parallel
+
+      - name: Locate dependency-check reports
+        if: always()
+        run: |
+          echo "Dependency-Check report files found anywhere in the workspace:"
+          find . -type f \( -iname 'dependency-check-report.html' -o -iname 'dependency-check-report.json' \) -print || true
+          echo "(if nothing was printed above, no matching report file exists anywhere in the workspace)"
+
+      - name: Publish dependency-check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: |
+            **/dependency-check-report.html
+            **/dependency-check-report.json
+          if-no-files-found: warn
+          retention-days: 30
