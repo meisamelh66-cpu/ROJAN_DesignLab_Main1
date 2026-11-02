@@ -99,7 +99,35 @@ jobs:
           key: nvd-data-${{ steps.week.outputs.value }}
           restore-keys: |
             nvd-data-
+      - name: Diagnose NVD API access
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import urllib.request
+          import urllib.error
 
+          key = os.environ.get("NVD_API_KEY", "")
+          if not key:
+              print("NVD_API_KEY_PRESENT: false")
+              raise SystemExit(0)
+
+          url = "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2024-3094"
+          request = urllib.request.Request(
+              url,
+              headers={"apiKey": key},
+              method="GET",
+          )
+
+          try:
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  print(f"NVD_HTTP_STATUS: {response.status}")
+          except urllib.error.HTTPError as error:
+              print(f"NVD_HTTP_STATUS: {error.code}")
+          except Exception as error:
+              print(f"NVD_REQUEST_ERROR: {type(error).__name__}")
+          PY
       - name: OWASP Dependency-Check (report-only baseline)
         # --no-configuration-cache: the dependencyCheckAnalyze task's own `Analyze` type is not
         # configuration-cache-compatible (it calls `Task.project` at execution time and tries to
