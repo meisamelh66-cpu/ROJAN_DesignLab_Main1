@@ -101,9 +101,18 @@ jobs:
             nvd-data-
 
       - name: OWASP Dependency-Check (report-only baseline)
+        # --no-configuration-cache: the dependencyCheckAnalyze task's own `Analyze` type is not
+        # configuration-cache-compatible (it calls `Task.project` at execution time and tries to
+        # serialize `DefaultProject` into the cache entry - both unsupported) - confirmed from this
+        # job's own real run logs ("cannot serialize object of type 'DefaultProject'", "invocation
+        # of 'Task.project' at execution time is unsupported with the configuration cache"). This
+        # flag only disables the configuration cache for this one invocation; it does not touch the
+        # NVD-update path at all - a separate, still-open issue (NvdApiRetryExceededException /
+        # Invalid API Key, observed independently in this job's own real logs) that this change
+        # does not claim to fix.
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: ./gradlew dependencyCheckAnalyze --no-daemon --console=plain --no-parallel
+        run: ./gradlew dependencyCheckAnalyze --no-daemon --console=plain --no-parallel --no-configuration-cache
 
       - name: Locate dependency-check reports
         if: always()
