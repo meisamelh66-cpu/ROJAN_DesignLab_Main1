@@ -100,6 +100,15 @@ jobs:
           restore-keys: |
             nvd-data-
       - name: Diagnose NVD API access
+        # Single, bounded request (1 attempt, not a retry loop) to avoid hammering NVD. Never
+        # prints the key's own value or any substring of it - only safe, content-free facts
+        # (length, whitespace/control-character presence) and either a real HTTP status or a
+        # distinguished error category (header-format error vs. network/timeout vs. other).
+        # A previous run of this exact step failed with a bare "ValueError" before any network
+        # I/O occurred - that signature matches Python's http.client rejecting a header value
+        # containing a control character (most commonly a trailing newline from how the secret
+        # was originally pasted in), not an NVD-side problem. This revision tests that hypothesis
+        # safely instead of guessing.
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
@@ -107,16 +116,28 @@ jobs:
           import os
           import urllib.request
           import urllib.error
+          import http.client
 
-          key = os.environ.get("NVD_API_KEY", "")
-          if not key:
+          raw_key = os.environ.get("NVD_API_KEY", "")
+          if not raw_key:
               print("NVD_API_KEY_PRESENT: false")
               raise SystemExit(0)
 
+          print(f"NVD_API_KEY_LENGTH: {len(raw_key)}")
+          stripped_key = raw_key.strip()
+          print(f"NVD_API_KEY_HAS_LEADING_OR_TRAILING_WHITESPACE: {raw_key != stripped_key}")
+          control_chars = sum(1 for c in raw_key if ord(c) < 32 or ord(c) == 127)
+          print(f"NVD_API_KEY_CONTROL_CHAR_COUNT: {control_chars}")
+          non_hex_hyphen = sum(1 for c in stripped_key if c not in "0123456789abcdefABCDEF-")
+          print(f"NVD_API_KEY_UNEXPECTED_CHAR_COUNT: {non_hex_hyphen}")
+
+          # Use the stripped key for the actual request - if a trailing newline/space was the
+          # real cause, this is also the real, minimal fix; the boolean above already recorded
+          # whether that was even true, before using it.
           url = "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2024-3094"
           request = urllib.request.Request(
               url,
-              headers={"apiKey": key},
+              headers={"apiKey": stripped_key},
               method="GET",
           )
 
@@ -125,6 +146,10 @@ jobs:
                   print(f"NVD_HTTP_STATUS: {response.status}")
           except urllib.error.HTTPError as error:
               print(f"NVD_HTTP_STATUS: {error.code}")
+          except (urllib.error.URLError, TimeoutError) as error:
+              print(f"NVD_NETWORK_ERROR: {type(error).__name__}")
+          except ValueError:
+              print("NVD_REQUEST_ERROR: header_value_rejected_even_after_strip")
           except Exception as error:
               print(f"NVD_REQUEST_ERROR: {type(error).__name__}")
           PY
