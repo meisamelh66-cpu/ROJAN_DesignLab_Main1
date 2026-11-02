@@ -19,7 +19,12 @@ dependencyCheck {
     failBuildOnCVSS = 11.0f
     formats = listOf("HTML", "JSON")
     nvd {
-        apiKey = System.getenv("NVD_API_KEY")
+        // .trim(): the real stored secret value was confirmed (via a bounded, content-free CI
+        // diagnostic - length/whitespace checks only, never the value itself) to carry 2 trailing
+        // control characters beyond the real 36-character key. Stripped, the same key returned a
+        // genuine HTTP 200 from NVD's own API. This is a defensive trim at the point of
+        // consumption, not a workaround for an actually-invalid key - the key itself is valid.
+        apiKey = System.getenv("NVD_API_KEY")?.trim()
     }
     data {
         directory = "${rootProject.projectDir}/.dependency-check-data"
