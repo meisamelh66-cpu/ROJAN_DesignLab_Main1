@@ -127,6 +127,9 @@ jobs:
           echo
           echo "=== final analyze outcome line(s), if present ==="
           grep -iE "Found [0-9]+ vulnerabilities|BUILD SUCCESSFUL|BUILD FAILED|^> Task :dependencyCheckAnalyze" /tmp/dc_info.log | tail -10
+          echo
+          echo "=== why it failed with autoUpdate=false (exception/error context only) ==="
+          grep -iE "Exception|Caused by|ERROR|Unable to|database|h2|FAILURE:" /tmp/dc_info.log | head -30
           exit 0
 
       - name: Locate dependency-check reports
