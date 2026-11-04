@@ -16,11 +16,6 @@ plugins {
 // is read only from the environment at CI time (set via a GitHub Actions secret in the companion
 // workflow change) - never hardcoded, never printed, never logged.
 dependencyCheck {
-    // TEMP DIAGNOSTIC: skips the NVD data update (previously ~3h25m per run) so the
-    // configuration-collection/test-configuration-filter logging can be captured quickly via
-    // --info, without re-running a full real scan. Does not touch failBuildOnCVSS, formats, nvd
-    // settings, or report paths. Must be removed again once this diagnostic run completes.
-    autoUpdate = false
     failBuildOnCVSS = 11.0f
     formats = listOf("HTML", "JSON")
     nvd {
