@@ -111,24 +111,7 @@ jobs:
         # does not claim to fix.
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        # TEMP DIAGNOSTIC: --info, redirected to a file and grepped afterward for the plugin's own
-        # test-configuration classification lines only (configuration names, never dependency
-        # names/versions/secrets). Real NVD update stays enabled (no autoUpdate override this
-        # time) - a prior cheaper attempt with autoUpdate=false failed before reaching this
-        # logging, confirmed a structural dead end, already reverted. Must be removed again once
-        # this diagnostic run completes.
-        run: |
-          set +e
-          ./gradlew dependencyCheckAnalyze --no-daemon --console=plain --no-parallel --no-configuration-cache --info > /tmp/dc_info.log 2>&1
-          EXIT=$?
-          echo "gradlew exit code: $EXIT"
-          echo
-          echo "=== lines where the plugin classifies a configuration as a test configuration (configuration names only) ==="
-          grep -i "is considered a test configuration" /tmp/dc_info.log || echo "(no matches)"
-          echo
-          echo "=== final analyze outcome line(s), if present ==="
-          grep -iE "Found [0-9]+ vulnerabilities|BUILD SUCCESSFUL|BUILD FAILED|^> Task :dependencyCheckAnalyze" /tmp/dc_info.log | tail -10
-          exit 0
+        run: ./gradlew dependencyCheckAnalyze --no-daemon --console=plain --no-parallel --no-configuration-cache
 
       - name: Locate dependency-check reports
         if: always()
