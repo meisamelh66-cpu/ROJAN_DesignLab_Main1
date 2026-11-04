@@ -99,45 +99,6 @@ jobs:
           key: nvd-data-${{ steps.week.outputs.value }}
           restore-keys: |
             nvd-data-
-      - name: TEMP DIAGNOSTIC - verify app module dependency resolution
-        # Temporary, one-off diagnostic for the empty-dependency-scan investigation on PR #11.
-        # Does not touch Dependency-Check configuration, thresholds, or secrets. Intended to be
-        # removed again once the cause is identified - not a permanent addition.
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          echo "=== ./gradlew projects ==="
-          ./gradlew projects --no-daemon --console=plain --no-configuration-cache | tee /tmp/projects.txt
-          PROJECTS_EXIT=$?
-          echo "projects exit code: $PROJECTS_EXIT"
-          echo
-          echo "=== :app present in hierarchy? ==="
-          grep -c "Project ':app'" /tmp/projects.txt || echo "0"
-          echo
-          echo "=== ./gradlew :app:dependencies --configuration customerDevDebugRuntimeClasspath ==="
-          ./gradlew :app:dependencies --configuration customerDevDebugRuntimeClasspath \
-            --no-daemon --console=plain --no-configuration-cache | tee /tmp/app_deps.txt
-          DEPS_EXIT=$?
-          echo "dependencies task exit code: $DEPS_EXIT"
-          echo
-          echo "=== literal 'No dependencies' text present? (Gradle's own marker for a genuinely empty, successfully-resolved configuration) ==="
-          NODEPS_COUNT=$(grep -c "^No dependencies" /tmp/app_deps.txt || echo "0")
-          echo "No dependencies marker count: $NODEPS_COUNT"
-          echo
-          echo "=== diagnostic tree-entry count (any indentation depth; counts transitive + duplicate lines, NOT a unique-dependency count) ==="
-          TREE_COUNT=$(grep -cE '(\+---|\\---) ' /tmp/app_deps.txt || echo "0")
-          echo "diagnostic tree-entry count: $TREE_COUNT"
-          echo
-          if [ "$DEPS_EXIT" != "0" ]; then
-            echo "RESULT: dependencies task FAILED (exit $DEPS_EXIT) - resolution did not complete."
-          elif [ "$TREE_COUNT" = "0" ] && [ "$NODEPS_COUNT" = "0" ]; then
-            echo "RESULT: UNDETERMINED - task exited 0 but neither tree entries nor the 'No dependencies' marker were found; output format did not match expectations."
-          elif [ "$TREE_COUNT" = "0" ] && [ "$NODEPS_COUNT" != "0" ]; then
-            echo "RESULT: resolution SUCCEEDED and is genuinely empty (Gradle's own 'No dependencies' marker present)."
-          else
-            echo "RESULT: resolution SUCCEEDED with a non-empty dependency tree (diagnostic count: $TREE_COUNT)."
-          fi
-
       - name: OWASP Dependency-Check (report-only baseline)
         # --no-configuration-cache: the dependencyCheckAnalyze task's own `Analyze` type is not
         # configuration-cache-compatible (it calls `Task.project` at execution time and tries to
