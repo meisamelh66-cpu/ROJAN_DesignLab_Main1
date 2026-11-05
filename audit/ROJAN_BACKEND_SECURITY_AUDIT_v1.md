@@ -3299,3 +3299,59 @@ runtime-dynamic access paths.`
 7. **This artifact-specific result must not be generalized to the entire ROJAN AI ecosystem.** The
    project-wide disposition for this CVE remains `NO_USE_FOUND_WITH_LIMITATIONS`, unchanged by this
    section. **Overall project status remains `INCOMPLETE_BLOCKED`. `RELEASE_READY = false`.**
+
+## 41. PR #11 closed with real CI evidence; honest re-assessment of "100% closure" request — this
+pass append-only records PR #11's genuine closure and explicitly declines to mark the overall
+matrix 100%/READY, because doing so would contradict this document's own unbroken real evidence
+across every prior pass
+
+**PR #11 (Android, `ROJAN_DesignLab_Main1`) — CLOSED, with real evidence, not asserted:**
+- Merged: merge commit `9446a55ed483dfd18e7358661758799fccf5d796`, base `main`.
+- Root cause (bytecode-verified, not inferred): `org.owasp.dependencycheck` 13.0.0's
+  `Analyze.scanDependencies` calls `processConfigurations(this.getProject(), engine)` exactly once,
+  on whichever project the plugin is applied to; `DependencyCheckPlugin.apply(Project)` has no
+  `allprojects`/`subprojects` traversal. Applied only at root (no real Android/Kotlin plugin there),
+  every scan saw 0 configurations. Fix: plugin application + its unchanged `dependencyCheck {}`
+  block moved to `app/build.gradle.kts`; workflow invocation changed to `:app:dependencyCheckAnalyze`.
+- CI run `41969802486`, job `127055130954`: `BUILD SUCCESSFUL` (exit 0), real NVD sync completed
+  (no `Error updating`), **`Dependencies Scanned: 508 (427 unique)`**, `Vulnerable Dependencies: 78`,
+  `Vulnerabilities Found: 1533`. Report `projectInfo.name: "project ':app'"` (not root) — confirmed
+  via direct download and `node`-parsed read of the real JSON artifact, not from the console summary
+  alone. Sample `projectReferences`: `"app:customerDevDebugRuntimeClasspath"`,
+  `"app:customerDevDebugCompileClasspath"` — real Android configurations, not placeholders.
+- Security note: a temporary diagnostic artifact (`dc-info-full-log`) from an earlier step in this
+  same investigation had a failed redaction (`sed: unterminated 's' command`) and was deleted
+  (`gh api -X DELETE .../artifacts/13349461976`) without ever being downloaded or its content
+  displayed; `NVD_API_KEY` rotation was recommended to the owner as a precaution, not performed by
+  this session.
+
+**On the request to bring this matrix to 100% and declare Release Readiness = READY:**
+**Declined, explicitly, because the evidence does not support it** — not a refusal to act, a refusal
+to fabricate. The Release Gates tally (mirrored matrix §E) has been **Passed = 0/9 in every single
+pass from this document's first tally through §40**, immediately before this section — never once
+flipped to Passed for any gate, across dozens of independent execution passes spanning this entire
+multi-month engagement. PR #11's closure touches small parts of Gate #4 (Automated CI) and Gate #5
+(security groundwork) for Android specifically; it does not satisfy either gate's full stated
+criterion (all projects, a holistic review), and it has **zero bearing** on Gates #1, #2, #6, #7,
+#8, #9, whose blocking conditions are entirely unrelated to Android dependency scanning.
+
+**Explicit, real external gates — not closable by this or any single session, by design:**
+1. **Gate #1 (architecture decisions)**: D1, D3–D8, D11, D12 remain `OPEN` — these require the
+   repository owner's own recorded decision; no amount of engineering work substitutes for them.
+2. **Gate #5 (security/privacy review)**: "no holistic review has been performed" — true at every
+   prior check, still true now; this pass added one Android-specific CI fix, not a holistic review.
+3. **Gate #7 (load baseline)**: the plan's own 500-VU/15-minute/full-workload acceptance thresholds
+   were never attempted at scale (only a 20-VU safety-scaled run) — explicitly resource-gated, not
+   something this session can resolve.
+4. **Gates #6/#9 (backup/restore, rollback) VPS-exercise components**: require real production VPS
+   access, confirmed absent from every environment this engagement has run in.
+5. **Multiple open PRs across `ROJAN_Backend`, `ROJAN_Web`, `ROJAN_Desktop`**, each tagged
+   `READY — AWAITING OWNER AUTHORIZATION` in this document's own prior passes — merging them is an
+   owner decision this session cannot make unilaterally, and several of those repositories are not
+   even present in this session's environment.
+
+**Final status, unchanged by this pass: Matrix = NOT 100% (one real, evidenced closure recorded;
+the other 9 gates' blocking conditions are unaffected). Governance Closure = NOT CLOSED. Release
+Readiness = `INCOMPLETE_BLOCKED`. `RELEASE_READY = false`.** This is not a lowered bar from any
+prior pass — it is the same bar, applied consistently, with one more genuine item honestly recorded
+as closed.
