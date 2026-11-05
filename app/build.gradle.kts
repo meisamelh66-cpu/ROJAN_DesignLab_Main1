@@ -6,6 +6,12 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    // Moved here from the root build.gradle.kts: the plugin's own Analyze.scanDependencies only
+    // ever processes this.getProject()'s own configurations (confirmed via javap on the real
+    // plugin jar, no allprojects/subprojects traversal anywhere in the plugin). Applied at root
+    // (which has no real Android/Kotlin plugin) it only ever saw 0 configurations. This is the
+    // real project with the real Android runtime configurations to scan.
+    id("org.owasp.dependencycheck")
 }
 
 // Release signing (Release Blocker P0-2 fix, 2026-09-10). No secret ever
@@ -402,5 +408,29 @@ dependencies {
 tasks.withType<Test> {
     filter {
         excludeTestsMatching("ai.rojan.designlab.data.remote.BackendAuthFlowVerificationTest")
+    }
+}
+
+// Report-only baseline, same policy as ROJAN_Backend's own dependencyCheck block (unchanged from
+// the root build.gradle.kts version this was moved from - same failBuildOnCVSS, formats, nvd, and
+// data settings, nothing touched):
+// failBuildOnCVSS stays above the real 10.0 ceiling (11.0f) so this task can never fail the build
+// on severity - a deliberate, explicit policy choice (report-only, not yet a blocking gate),
+// matching the Backend precedent rather than inventing a stricter default unilaterally. NVD_API_KEY
+// is read only from the environment at CI time (set via a GitHub Actions secret in the companion
+// workflow change) - never hardcoded, never printed, never logged.
+dependencyCheck {
+    failBuildOnCVSS = 11.0f
+    formats = listOf("HTML", "JSON")
+    nvd {
+        // .trim(): the real stored secret value was confirmed (via a bounded, content-free CI
+        // diagnostic - length/whitespace checks only, never the value itself) to carry 2 trailing
+        // control characters beyond the real 36-character key. Stripped, the same key returned a
+        // genuine HTTP 200 from NVD's own API. This is a defensive trim at the point of
+        // consumption, not a workaround for an actually-invalid key - the key itself is valid.
+        apiKey = System.getenv("NVD_API_KEY")?.trim()
+    }
+    data {
+        directory = "${rootProject.projectDir}/.dependency-check-data"
     }
 }
