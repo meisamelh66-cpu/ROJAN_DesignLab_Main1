@@ -6,27 +6,14 @@ plugins {
     // reinvented): report-only OWASP Dependency-Check baseline. Android had no dependency-
     // vulnerability scanning at all before this (confirmed: zero prior reference to this plugin
     // anywhere in this file or app/build.gradle.kts).
-    id("org.owasp.dependencycheck") version "13.0.0"
-}
-
-// Report-only baseline, same policy as ROJAN_Backend's own dependencyCheck block:
-// failBuildOnCVSS stays above the real 10.0 ceiling (11.0f) so this task can never fail the build
-// on severity - a deliberate, explicit policy choice (report-only, not yet a blocking gate),
-// matching the Backend precedent rather than inventing a stricter default unilaterally. NVD_API_KEY
-// is read only from the environment at CI time (set via a GitHub Actions secret in the companion
-// workflow change) - never hardcoded, never printed, never logged.
-dependencyCheck {
-    failBuildOnCVSS = 11.0f
-    formats = listOf("HTML", "JSON")
-    nvd {
-        // .trim(): the real stored secret value was confirmed (via a bounded, content-free CI
-        // diagnostic - length/whitespace checks only, never the value itself) to carry 2 trailing
-        // control characters beyond the real 36-character key. Stripped, the same key returned a
-        // genuine HTTP 200 from NVD's own API. This is a defensive trim at the point of
-        // consumption, not a workaround for an actually-invalid key - the key itself is valid.
-        apiKey = System.getenv("NVD_API_KEY")?.trim()
-    }
-    data {
-        directory = "${rootProject.projectDir}/.dependency-check-data"
-    }
+    //
+    // apply false: root-cause investigation (bytecode inspection of the plugin's own Analyze.
+    // scanDependencies, confirmed real via javap) found that dependencyCheckAnalyze only ever
+    // calls processConfigurations(this.getProject(), engine) - exactly once, on whichever
+    // project the plugin is applied to, with no allprojects/subprojects traversal anywhere in
+    // the plugin itself (confirmed in DependencyCheckPlugin.apply too). Applied only here at
+    // root (which has no real Android/Kotlin plugin and so no real configurations), every past
+    // scan found 0 dependencies - never actually reaching :app's real configurations. Moved to
+    // app/build.gradle.kts, the real project, below.
+    id("org.owasp.dependencycheck") version "13.0.0" apply false
 }

@@ -111,7 +111,7 @@ jobs:
         # does not claim to fix.
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: ./gradlew dependencyCheckAnalyze --no-daemon --console=plain --no-parallel --no-configuration-cache
+        run: ./gradlew :app:dependencyCheckAnalyze --no-daemon --console=plain --no-parallel --no-configuration-cache
 
       - name: Locate dependency-check reports
         if: always()
