@@ -109,51 +109,9 @@ jobs:
         # NVD-update path at all - a separate, still-open issue (NvdApiRetryExceededException /
         # Invalid API Key, observed independently in this job's own real logs) that this change
         # does not claim to fix.
-        # TEMP DIAGNOSTIC: --info, saved in full to a workspace file (not /tmp, so it survives
-        # job failure and can be uploaded as an artifact below), then grepped for the specific
-        # NVD-failure patterns. The secret itself is redacted from the saved file via sed before
-        # upload, as a defensive second layer on top of Gradle/Actions already masking it in the
-        # console. Must be removed again, together with the artifact-upload step below, once this
-        # diagnostic run completes.
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: |
-          set +e
-          ./gradlew dependencyCheckAnalyze --no-daemon --console=plain --no-parallel --no-configuration-cache --info > dc_info_full.log 2>&1
-          EXIT=$?
-          echo "gradlew exit code: $EXIT"
-          if [ -n "$NVD_API_KEY" ]; then
-            sed -i "s/${NVD_API_KEY}/***REDACTED***/g" dc_info_full.log
-          fi
-          echo
-          echo "=== What went wrong ==="
-          grep -A 10 "^\* What went wrong:" dc_info_full.log || echo "(not found)"
-          echo
-          echo "=== Caused by (all) ==="
-          grep "^Caused by:" dc_info_full.log || echo "(not found)"
-          echo
-          echo "=== Error updating the NVD Data ==="
-          grep -i "Error updating the NVD Data" dc_info_full.log || echo "(not found)"
-          echo
-          echo "=== NVD Returned Status Code ==="
-          grep -i "NVD Returned Status Code" dc_info_full.log || echo "(not found)"
-          echo
-          echo "=== HTTP / timeout / connection / auth / database errors ==="
-          grep -iE "HTTP [0-9]{3}|timeout|timed out|connection (refused|reset)|UnknownHostException|SocketException|Unauthorized|Forbidden|SQLException|database.*lock|liquibase" dc_info_full.log || echo "(not found)"
-          echo
-          echo "=== lines where the plugin classifies a configuration as a test configuration ==="
-          grep -i "is considered a test configuration" dc_info_full.log || echo "(no matches)"
-          exit 0
-
-      - name: Upload full diagnostic log
-        # TEMP DIAGNOSTIC artifact - remove alongside the step above once evidence is collected.
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dc-info-full-log
-          path: dc_info_full.log
-          if-no-files-found: warn
-          retention-days: 7
+        run: ./gradlew dependencyCheckAnalyze --no-daemon --console=plain --no-parallel --no-configuration-cache
 
       - name: Locate dependency-check reports
         if: always()
