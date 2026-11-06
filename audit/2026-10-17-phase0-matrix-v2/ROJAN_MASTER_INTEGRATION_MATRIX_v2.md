@@ -188,7 +188,7 @@ role, and the evidence required to close it. **As of 2026-10-19: D9, D10, D13 ap
 | D8 | Is the SYNC-CROSS-CLIENT-01 contract (all 8 sub-requirements) approved as originally proposed? | Approve as proposed; rescope; defer indefinitely | No recommendation — this is a net-new, large contract requiring explicit human sign-off per this engagement's own governance rule | Nothing — zero code exists | Row 19 | Architecture owner | A dated, explicit sign-off on scope |
 | D9 | Is `main` or `feature/android-first-salon-pilot` the Android integration trunk? | (1) `main` as trunk, cherry-pick the 4 pilot-only features (media gallery, specialist↔service assignment, salon-invite management, Reception invite-acceptance); (2) pilot as trunk, lose 72 `main`-only commits; (3) formal reconciliation merge | **APPROVED: option (1), `main` as trunk** — owner decision recorded 2026-10-19 in this conversation. Reconciliation plan (cherry-pick the 4 pilot-only features) not yet executed — no merge/push performed | Planning the reconciliation (identifying exact commits/conflicts) | Actually executing the cherry-pick/merge — needs separate execution authorization | Product/architecture owner | **Closed** — reconciliation execution is now PR-06's own open item, not D9's |
 | D10 | How is the production-signed-artifact-vs-authorization-doc discrepancy resolved? | (a) Retroactively authorize the existing signed build; (b) rotate the signing key and rebuild; (c) correct the authorization document | **APPROVED 2026-10-19 by owner: option (c), executed, documentation-only.** Corrected in two passes. **Pass 2 found the fuller picture**: `SIGNING-SETUP-REPORT.md` (2026-09-10) shows the keystore was genuinely generated and working 16 days before the authorization doc's "no keystore present" claim — that claim was factually wrong when written, not just overtaken later. `RELEASE_ARTIFACT_MANIFEST.md` documents a 3-flavor signed build from commit `59fd2c19`, built 2026-09-26 16:29, "**confirmed by the user**" — its recorded cert SHA-256 is an exact match to the one independently verified via `apksigner` on the on-disk APK. **This was a documented, user-aware build, not an unexplained one.** Still unresolved per that manifest's own §3: Play-App-Signing-vs-self-managed key ownership; no real-device smoke test ever performed. Both corrections preserve the original document text unchanged | Nothing further code-level | **Owner has separately decided (2026-10-19): rebuild fresh rather than resolve the existing artifact's status** — see PR-04 | Governance/security owner | **Documentation correction: closed (both passes).** Rebuild tracked under PR-04 |
-| D11 | Does ADR-0024's MVP-era "accept no public-booking rate limiting" risk acceptance still hold for a real production launch at the mission's stated scale? | Accept as-is for this release; build abuse protection before launch | D13 is now decided (500 users) so this can be answered against a concrete figure, but no recommendation is offered on which option to pick. **Risk assessment delivered 2026-10-24 (§M Decision 5, §M.1, §N.3)** — not a decision, not a mitigation: public booking creation confirmed to have zero rate limiting at any layer; the realistic threat surface is narrower than originally framed (endpoint requires auth, not fully anonymous); per-specialist advisory locking is a structurally reasonable, un-measured design. Three concrete options presented (reuse `RedisRateLimiter`; nginx `limit_req`; accept as-is re-dated) | Nothing | PR-08 | Product/security owner | A dated decision, not inherited silently from the MVP-era ADR — **assessment exists, decision does not** |
+| D11 | Does ADR-0024's MVP-era "accept no public-booking rate limiting" risk acceptance still hold for a real production launch at the mission's stated scale? | Accept as-is for this release; build abuse protection before launch | **CLOSED 2026-11-06 by owner directive — see §AAJ. Option selected: build abuse protection.** Owner chose option (a) of the 3 costed in §M.1/§N.3 — reuse the existing `RateLimiterPort`/`RedisRateLimiter` pattern already proven on auth/OTP. Final policy: 10 booking-create attempts per authenticated customer / 15 minutes, 30 per caller IP / 15 minutes, both budgets dual-key-enforced and always consumed (same convention as login), either exhausted returns `429 TOO_MANY_REQUESTS` / `BOOKING_RATE_LIMITED`. Implemented, tested, and CI-verified | Nothing | PR-08 | Product/security owner | **Closed.** See §AAJ for full evidence: commit `46f050284cc9a7c42b85e72f85de7afd6053e531` on `ROJAN_Backend` branch `d7-privacy-review`, `BookingUseCasesTest` 30/30, `:application:test` and `:bootstrap:test` (243/243) both green, CI run `42239166086` ("Backend CI (baseline)") green on that exact commit |
 | D12 | Does Android add TLS certificate pinning, or accept standard OS trust-store risk? | Accept (current state); add pinning (new engineering work + a rejection test) | No recommendation — standard risk-acceptance call. **Security assessment delivered 2026-10-24 (§M Decision 6, §M.2, §N.4)** — not a decision: confirmed zero pinning exists today (standard OS trust-store only); no formal written threat model exists in either repo to judge whether pinning is justified; an already-proven mandatory-update channel would help any future pin rotation | Nothing | PR-09 | Security owner | A dated decision either way — **assessment exists, decision does not** |
 | D13 | What user-scale target governs this release — full "thousands of users" from day one, or a staged rollout at a lower initial target? | Full scale; staged rollout | **APPROVED 2026-10-19 by owner: staged rollout, initial load-test target = 500 concurrent users** (confirmed, no longer a placeholder). Load-test baseline required before launch — plan drafted this pass (see `ROJAN_PR02_Load_Test_Plan_v1.md`), **not yet executed** | PR-02's baseline test now fully scoped (plan exists) | Actually executing the load test; the re-confirmation plan for scaling past 500 | Product/business owner | PR-02 execution evidence against this 500-user plan |
 | D14 | **New finding, 2026-10-26 (§EE).** `ROJAN_DesignLab_Main1`'s local primary checkout's `main` (`ee49225`) and `origin/main` (`63ba30d`) have genuinely diverged — 7 commits exist only locally (manager notifications, booking-visibility fix, "master integration release", page-size-limit fix, OTP-test quarantine, onboardingStatus surfacing, salon-creation-via-onboarding), 8 commits exist only on `origin/main` (PRs #1–#4, already merged there). Neither side is an ancestor of the other. Structurally identical to D4 (`ROJAN_Web`'s divergence) — not a product decision, but a git-workflow question only the repo owner can safely answer, because the local `main` also carries 52 uncommitted dirty files this engagement has never touched or inspected | (1) Push the 7 local-only commits to `origin/main` first, then reconcile; (2) reset/rebase local `main` onto `origin/main` (would require resolving the 52 dirty files first — **not attempted, explicitly protected**); (3) treat local `main` as informational-only and always work from `origin/main` going forward (what this pass's new PRs #7/#8 already do) | No recommendation — this is the owner's own git-workflow intent to clarify, not an engineering call | Any work built fresh off `origin/main` in a new worktree (done this pass for Row 4/PR-10) | Row 15's Manager-cancellation fix specifically — its dirty files overlap 2 files with the 7 local-only commits, so it cannot be safely lifted onto `origin/main` without risking silently dropping content those local-only commits depend on | Repo owner (git workflow intent + the 52 dirty files' disposition) | A fresh `git merge-base --is-ancestor` check in either direction returning true, after the owner's chosen reconciliation |
@@ -7090,3 +7090,87 @@ identified:
 **D7: CLOSED.** (§C's own D7 row, above, is updated in place with this same evidence and a
 cross-reference to this section, per this document's existing convention for closing a Decision
 Register row — see D2/D4/D5/D9's own rows for precedent.)
+
+## AAJ — D11 CLOSED: real rate limiting built, tested, and CI-verified on `ROJAN_Backend` — owner-directed closure, scoped to D11 only
+
+**This section closes D11 only.** No other Decision Register row, no Release Gate (§E), the overall
+Matrix percentage, Governance Closure, or `RELEASE_READY` are touched here — every tally and status
+elsewhere in this document (including §AAH's own tallies, now superseded only for D7/D11 by §AAI/
+this section) is left exactly as written; it still reflects the state as of that pass, before
+these two. PR-08's own tracking row (§H/the Problem Register) is likewise left unchanged — out of
+scope for this pass, same discipline as §AAI applied to D7's own supplementary row.
+
+**Decision.** D11 asked whether ADR-0024's MVP-era "accept no public-booking rate limiting" risk
+acceptance still holds for a real production launch. The owner selected option (a) of the 3 costed
+in §M.1/§N.3 — build abuse protection by reusing the existing `RateLimiterPort`/`RedisRateLimiter`
+pattern already proven on auth/OTP — over accepting the risk as-is.
+
+**Policy (owner's own dated numbers, not engineering-chosen):**
+- 10 booking-create attempts per authenticated customer / 15 minutes.
+- 30 booking-create attempts per caller IP / 15 minutes.
+- Both budgets dual-key-enforced and always consumed regardless of which is already exhausted —
+  the exact convention already established for login (`AuthenticateUserUseCase`) and OTP
+  (`RequestOtpUseCase`), not a new mechanism.
+- Either budget exhausted → `429 TOO_MANY_REQUESTS`, error code `BOOKING_RATE_LIMITED`.
+
+**Implementation.** `GET`/`POST /api/v1/bookings` (`BookingController.create`) now threads
+`httpRequest.remoteAddr` into `CreateBookingCommand.callerIp`; `CreateBookingUseCase.enforceRateLimit`
+checks `booking:create:customer:{customerId}` (limit 10, 15m) and `booking:create:ip:{callerIp}`
+(limit 30, 15m) via the existing `RateLimiterPort`, before any booking-creation work, throwing the
+new `BookingRateLimitExceededException` if either trips; `GlobalExceptionHandler` maps it into the
+existing rate-limit handler group (`429`/`BOOKING_RATE_LIMITED`), same pattern as every other
+rate-limited exception in this codebase. `BookingUseCaseConfig` wires the existing `RateLimiterPort`
+bean in — `RedisRateLimiter` (`@Profile("!test")`) in production, `InMemoryRateLimiter`
+(`@Profile("test")`) in tests, identical autowiring to every other rate-limited use case; no new
+authorization scope, no Nginx change, no `RateLimiterPort`/`RedisRateLimiter` redesign.
+
+**Tests added.** 10 new cases in `BookingUseCasesTest.kt` (via a new `CountingRateLimiterTestFixture`
+— a real counting/windowed `RateLimiterPort` test double, since the codebase's existing
+`RecordingRateLimiter` only simulates static allow/deny-by-prefix, not genuine threshold/window
+behavior): below-limit allowed (customer and IP), exactly-at-limit allowed, one-over-limit rejected
+(customer and IP), customer-exhausted-but-IP-has-headroom still rejected, IP-exhausted-but-a-
+brand-new-customer still rejected, independent non-colliding keys across different customer/IP
+pairs, and allowed again after the 15-minute window elapses. 4 pre-existing test files
+(`GetAvailableSlotsUseCaseTest.kt`, `NotificationBookingTriggerTest.kt`,
+`CreateBookingForCustomerUseCaseTest.kt`, plus `BookingUseCasesTest.kt`'s own existing
+`CreateBookingUseCase` construction site) were updated only to pass the new constructor parameter —
+no assertion in any of them was weakened or changed.
+
+**Test evidence.**
+- `BookingUseCasesTest`: 30/30 passed (20 pre-existing + 10 new D11 cases), 0 failed.
+- `:application:test` (full module): `BUILD SUCCESSFUL`.
+- `:bootstrap:test` (full integration suite, `--no-daemon --no-parallel --no-configuration-cache`):
+  **243/243 tests, 0 failed, 0 errors, 0 skipped** — identical total to D7's own clean run,
+  confirming zero regression anywhere, including no existing test inadvertently exceeding the new
+  limits.
+
+**Git.** Exactly 10 files changed (`BookingController.kt`, `GlobalExceptionHandler.kt`,
+`BookingUseCaseConfig.kt`, `BookingUseCases.kt`, `BookingDomainExceptions.kt`,
+`BookingUseCasesTest.kt`, the new `CountingRateLimiterTestFixture.kt`, and the 3 other test-file
+construction-site updates); `git diff --check` clean. Commit `46f0502`
+(`46f050284cc9a7c42b85e72f85de7afd6053e531`) on `ROJAN_Backend` branch `d7-privacy-review` (same
+branch D7's own fix landed on, based on `origin/release/production-v24`@`89f703d`, PR #18's merge
+commit).
+
+**CI.** Workflow **"Backend CI (baseline)"**. A first dispatch, run `42237916174`, failed at Gradle
+build *configuration* — `Could not GET
+'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugins-bom/2.0.21/...'`,
+**HTTP 429 from Maven Central** — before a single line of this code was compiled or tested; an
+external, transient dependency-repository rate limit, not a code or test defect. Re-dispatched on
+the exact same, unmodified commit: run **`42239166086`**, same commit
+`46f050284cc9a7c42b85e72f85de7afd6053e531`, branch `d7-privacy-review`. Jobs: `build-test-report` →
+`success`; `dependency-check-baseline` → `success`. Run conclusion: **`success`**
+(2026-11-06T15:01:28Z–15:08:44Z), proving the first failure's external-cause diagnosis correct
+rather than merely asserting it.
+
+**Residual risk.** None identified in the rate-limiting logic itself. Two residual notes, both
+inherited from existing project-wide convention, not introduced here: (1) a Redis outage would make
+the rate-limiter call throw uncaught, same as every other rate-limited endpoint today — no new
+fail-open/fail-closed behavior was added, per explicit instruction; (2) this codebase has no
+real-Redis integration test for *any* component (confirmed by `RedisRateLimiter`'s own doc comment
+and a repo-wide search), so "Redis genuinely enforces this in production" rests on inspection of the
+`@Profile` wiring, identically to the existing standard already accepted for auth/OTP rate limiting.
+
+**D11: CLOSED.** (§C's own D11 row, above, is updated in place with this same evidence and a
+cross-reference to this section, per this document's existing convention for closing a Decision
+Register row — see D2/D4/D5/D9/D7's own rows for precedent.)
