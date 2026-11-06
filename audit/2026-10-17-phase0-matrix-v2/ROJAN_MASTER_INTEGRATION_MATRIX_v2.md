@@ -184,7 +184,7 @@ role, and the evidence required to close it. **As of 2026-10-19: D9, D10, D13 ap
 | D4 | Should `ROJAN_Web`'s local `master` be rebased onto `origin/master`, or vice versa? | Rebase/reset local onto origin (likely correct — origin has more commits local lacks); or the reverse — **not an engineering call, needs the repo owner's own git workflow knowledge** | No recommendation offered on the rebase direction itself — explicitly outside engineering judgment. **Progress 2026-10-24/25 (§M, §N–§V):** all 3 local-only commits resolved by evidence (`a220aa2`: clean, transferable; `09357f3`/`353f5a9`: superseded by richer, already-tested upstream work — discard recommended, no semantic conflict in either case). Owner authorized publishing `a220aa2` → **PR #16 merged into `origin/master` 2026-10-25** (§V). The local checkout itself was never rebased/reset (not authorized) — **see §V for the current, now-wider ahead/behind gap** | Nothing — merging row 2's fix against stale local `master` still risks reverting origin-only commits until reconciled | Row 2 | Repo owner (whoever manages `ROJAN_Web`'s git remotes) | The divergence resolved, confirmed via a fresh `git fetch` + ancestry check — **not yet done**; `a220aa2`'s content landing upstream via a separate publish path does not by itself resolve the local/origin divergence |
 | D5 | Is source-read evidence (no execution) acceptable for closing Manager's booking-cancellation fix, or must it be executed first? | Wait for ≥3GB free memory and execute `testManagerDevDebugUnitTest`; or accept inspection-only evidence as sufficient | **RESOLVED 2026-10-27 (§HH.1) — not an owner decision, an already-ratified governance rule found and applied.** `governance/07_RELEASE_POLICY.md` §7.4 "Validation gate **[NON-NEGOTIABLE]**", rule 4: *"For a client: the change is verified on a real device or real environment, with real evidence — not an unsupported checkmark. If verification cannot be performed, that is stated explicitly; it is never claimed."* This is Tier-0 ecosystem governance, already adopted (`governance/ADOPTED_VERSION`), not something this engagement can waive or an owner needs to re-rule on. Inspection-only was never acceptable; real execution (already performed, §BB/§GG) was always the correct and required standard | Nothing on this specific row | **Closed** | **No longer an owner item** — resolved by citation of existing, already-approved governance | The governance citation above, plus the real executed test result already on record |
 | D6 | Does Customer get a Gallery/Media feature (Backend/Website already support it)? | Build now; defer to a later release; drop from scope entirely | No recommendation — pure product/scope call | Nothing blocks either way | Row 17 | Product owner | A dated decision |
-| D7 | Should the 404 for "salon doesn't exist" and "salon exists but isn't active" be distinguished, given the privacy risk of leaking DRAFT-salon existence? | Distinguish (needs a privacy review first); keep unified | No recommendation — privacy review must happen before any technical choice | Nothing | Supplementary row (Issue-019) | Security/privacy owner | A completed privacy review, then a decision |
+| D7 | Should the 404 for "salon doesn't exist" and "salon exists but isn't active" be distinguished, given the privacy risk of leaking DRAFT-salon existence? | Distinguish (needs a privacy review first); keep unified | **CLOSED 2026-11-06 by owner directive — see §AAI.** The privacy review (§WW.3) found the anonymous/public path (`PublicSalonController`) already safe; this pass additionally found and fixed a real, separate authorization gap on the *authenticated* path (`GET /api/v1/salons/{salonId}` had authentication but no owner/member/specialist check — any logged-in caller could read any other salon by UUID, including DRAFT/suspended ones). Fixed, tested, CI-verified. The original UX-vs-privacy question (whether to ever surface a more specific status for onboarding UX) is unanswered and not needed to close this item — the owner directed closure on the basis of the remediated risk | Nothing | Supplementary row (Issue-019) | Security/privacy owner | **Closed.** See §AAI for full evidence: commit `1cec4b41fa22c95f81c39045baeeb78765a610e5` on `ROJAN_Backend` branch `d7-privacy-review`, 243/243 tests passing (0 failed/errors/skipped), CI run `42062642051` ("Backend CI (baseline)") green on that exact commit |
 | D8 | Is the SYNC-CROSS-CLIENT-01 contract (all 8 sub-requirements) approved as originally proposed? | Approve as proposed; rescope; defer indefinitely | No recommendation — this is a net-new, large contract requiring explicit human sign-off per this engagement's own governance rule | Nothing — zero code exists | Row 19 | Architecture owner | A dated, explicit sign-off on scope |
 | D9 | Is `main` or `feature/android-first-salon-pilot` the Android integration trunk? | (1) `main` as trunk, cherry-pick the 4 pilot-only features (media gallery, specialist↔service assignment, salon-invite management, Reception invite-acceptance); (2) pilot as trunk, lose 72 `main`-only commits; (3) formal reconciliation merge | **APPROVED: option (1), `main` as trunk** — owner decision recorded 2026-10-19 in this conversation. Reconciliation plan (cherry-pick the 4 pilot-only features) not yet executed — no merge/push performed | Planning the reconciliation (identifying exact commits/conflicts) | Actually executing the cherry-pick/merge — needs separate execution authorization | Product/architecture owner | **Closed** — reconciliation execution is now PR-06's own open item, not D9's |
 | D10 | How is the production-signed-artifact-vs-authorization-doc discrepancy resolved? | (a) Retroactively authorize the existing signed build; (b) rotate the signing key and rebuild; (c) correct the authorization document | **APPROVED 2026-10-19 by owner: option (c), executed, documentation-only.** Corrected in two passes. **Pass 2 found the fuller picture**: `SIGNING-SETUP-REPORT.md` (2026-09-10) shows the keystore was genuinely generated and working 16 days before the authorization doc's "no keystore present" claim — that claim was factually wrong when written, not just overtaken later. `RELEASE_ARTIFACT_MANIFEST.md` documents a 3-flavor signed build from commit `59fd2c19`, built 2026-09-26 16:29, "**confirmed by the user**" — its recorded cert SHA-256 is an exact match to the one independently verified via `apksigner` on the on-disk APK. **This was a documented, user-aware build, not an unexplained one.** Still unresolved per that manifest's own §3: Play-App-Signing-vs-self-managed key ownership; no real-device smoke test ever performed. Both corrections preserve the original document text unchanged | Nothing further code-level | **Owner has separately decided (2026-10-19): rebuild fresh rather than resolve the existing artifact's status** — see PR-04 | Governance/security owner | **Documentation correction: closed (both passes).** Rebuild tracked under PR-04 |
@@ -7004,3 +7004,89 @@ Remaining real blockers, each requiring something only the owner can supply: 10 
 (D1, D3, D4, D6, D7, D8, D11, D12, D14, D15); the VPS restore drill's specific operational
 parameters (§12 of its own runbook); a holistic security/privacy review; and the 500-VU/15-minute
 load-test's resourcing.
+
+## AAI — D7 CLOSED: a real authorization/IDOR gap found and fixed on `ROJAN_Backend`, tested, CI-verified — owner-directed closure, scoped to D7 only
+
+**This section closes D7 only.** Per the owner's explicit instruction for this pass, no other
+Decision Register row, no Release Gate (§E), the overall Matrix percentage, Governance Closure, or
+`RELEASE_READY` are touched here — every tally and status elsewhere in this document (including
+§AAH's own "10 named decisions" count and "Passed = 0/9" immediately above) is left exactly as
+written; it still reflects the state as of that pass, before this one.
+
+**Scope note on what D7 actually closed on.** D7's original question (§C) was a UX-vs-privacy
+product call: should the API ever distinguish a nonexistent salon from an inactive/DRAFT one. §WW.3
+(an earlier pass) found the public, anonymous path (`PublicSalonController`) already does not leak
+this distinction — `findSalonOrThrow` unifies nonexistent/inactive/draft into one identical 404
+there, confirmed by direct source read. That finding left the *original* UX question itself still
+open for the owner, with no live risk gating it.
+
+**This pass, scoped by the owner to D7 specifically, found a second, separate, previously
+undocumented authorization gap on the *authenticated* path** that no prior pass's D7 entry had
+identified:
+
+- **Root cause.** `GET /api/v1/salons/{salonId}` (`SalonController.get`,
+  `api/src/main/kotlin/ai/rojan/backend/api/salon/SalonController.kt`) had authentication
+  (`anyRequest().authenticated()` in `SecurityConfig.kt`) but no salon-level authorization check at
+  all. Any authenticated user — not just the owner, a salon member, or a linked specialist — could
+  fetch any other salon's full record by UUID, including its `active`/`onboardingStatus`/`ownerId`/
+  `phone`/`email`/`address` fields, regardless of whether that salon was ACTIVE, DRAFT, or suspended.
+  Since a customer's own `GET /api/v1/bookings/mine` response already contains that salon's
+  `salonId` (`BookingDtos.kt`), any past customer of a salon that was later suspended could learn its
+  current status and contact details this way — exactly the class of disclosure D7 exists to guard
+  against, just on a different endpoint than the original question named.
+- **Fix.** The existing `SalonPermissionResolver` (already used identically elsewhere in this
+  codebase, e.g. `SalonBookingController`) is now enforced in `SalonController.get()`: after
+  confirming the salon exists, the caller's resolved permission set
+  (`salonPermissionResolver.resolve(salon.id, callerId)`) must be non-empty (owner, any
+  `SalonRole` member, or a linked `Specialist`) or the existing `SalonAccessDeniedException`
+  (`403 ACCESS_DENIED`) is thrown. No new authorization mechanism was introduced; `PLATFORM_ADMIN`
+  was deliberately **not** added to the resolver, per the owner's explicit instruction for this pass.
+  Unauthorized-caller behavior is uniform regardless of the target salon's DRAFT/ACTIVE/suspended
+  status (`403 ACCESS_DENIED`, no salon fields in the body); a nonexistent salon still 404s
+  (`SALON_NOT_FOUND`), unchanged; owner/member/specialist access, including an owner viewing their
+  own DRAFT salon, is unchanged.
+- **D7 regression tests added.** `SalonManagementFlowIntegrationTest.kt` — one new test covering
+  owner-allowed, assigned-member-allowed, linked-specialist-allowed, unrelated-authenticated-caller-
+  denied (`403 ACCESS_DENIED`, on both a DRAFT and an otherwise-existing salon), and nonexistent-id-
+  404, with the response body for the 403 case asserted to be the generic `ApiError` shape (not
+  `SalonResponse`) — no salon field reaches an unrelated caller.
+- **Two pre-existing tests broke under the new check and were corrected, without expanding
+  authorization scope:**
+  1. `PlatformAuthoritySalonFlowIntegrationTest.kt` — a persistence re-check previously called this
+     endpoint with a `PLATFORM_ADMIN` token (which has no owner/member/specialist relationship);
+     corrected to use the salon's own `ownerToken`, which still exercises the same "was it really
+     persisted" assertion.
+  2. `PlatformManagementApiIntegrationTest.kt` — a similar re-check where the salon's owner account
+     is deliberately deactivated mid-test (no substitute owner token is possible); corrected to use
+     the already-existing, already role-gated `GET /api/v1/platform-authority/salons` list endpoint
+     instead of the now-protected generic one.
+  3. A third failure observed in one (anomalous) run, `ProductionReadinessValidationIntegrationTest.kt`,
+     was confirmed read-only to exercise an unrelated code path (`SpecialistController` /
+     `AssignServiceToSpecialistUseCase`) never touched by this fix, and did not recur in two
+     subsequent clean runs — not attributed to D7, not modified.
+- **Test evidence.** 3 targeted integration-test classes: `BUILD SUCCESSFUL`. Full `:bootstrap:test`
+  (`--no-daemon --no-parallel --no-configuration-cache`): `BUILD SUCCESSFUL`, **243/243 tests, 0
+  failed, 0 errors, 0 skipped** (real counts, summed from the freshly written JUnit XML reports, not
+  the console summary line).
+- **Git.** Exactly 4 files changed (`SalonController.kt` and the 3 test files named above);
+  `git diff --check` clean. Commit `1cec4b4` (`1cec4b41fa22c95f81c39045baeeb78765a610e5`) on
+  `ROJAN_Backend` branch `d7-privacy-review` (based on `origin/release/production-v24`@`89f703d`,
+  PR #18's merge commit).
+- **CI.** Workflow **"Backend CI (baseline)"**, run **`42062642051`**, same commit
+  `1cec4b41fa22c95f81c39045baeeb78765a610e5`, branch `d7-privacy-review`. Jobs: `build-test-report` →
+  `success`; `dependency-check-baseline` → `success`. Run conclusion: **`success`**
+  (2026-11-05T16:16:18Z–16:47:14Z). (A first dispatch, run `42042361303`, stalled 2 hours on
+  `dependency-check-baseline` — corroborated as a pre-existing, repo-wide pattern unrelated to this
+  fix by an earlier `workflow_dispatch` run on `release/production-v24` itself failing the same way
+  after 3h45m before this pass touched anything; that stalled run was cancelled and re-dispatched
+  clean on the identical commit.)
+- **Residual risk.** None identified for this specific authorization boundary. No Web/Android/
+  Desktop client was found calling `GET /api/v1/salons/{salonId}` with a non-owner token (confirmed
+  by a repo-wide search), so no client-side change was needed or made. The original D7 UX question
+  (whether to ever surface a more specific status for onboarding UX) remains formally unanswered,
+  but closing D7 no longer depends on answering it — the owner directed closure on the basis of the
+  remediated authorization risk, recorded here as an explicit decision, not inferred by this pass.
+
+**D7: CLOSED.** (§C's own D7 row, above, is updated in place with this same evidence and a
+cross-reference to this section, per this document's existing convention for closing a Decision
+Register row — see D2/D4/D5/D9's own rows for precedent.)
