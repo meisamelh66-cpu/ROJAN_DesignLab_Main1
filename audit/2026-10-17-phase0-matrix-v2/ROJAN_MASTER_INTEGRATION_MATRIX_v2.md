@@ -193,7 +193,7 @@ role, and the evidence required to close it. **As of 2026-10-19: D9, D10, D13 ap
 | D13 | What user-scale target governs this release — full "thousands of users" from day one, or a staged rollout at a lower initial target? | Full scale; staged rollout | **APPROVED 2026-10-19 by owner: staged rollout, initial load-test target = 500 concurrent users** (confirmed, no longer a placeholder). Load-test baseline required before launch — plan drafted this pass (see `ROJAN_PR02_Load_Test_Plan_v1.md`), **not yet executed** | PR-02's baseline test now fully scoped (plan exists) | Actually executing the load test; the re-confirmation plan for scaling past 500 | Product/business owner | PR-02 execution evidence against this 500-user plan |
 | D14 | **New finding, 2026-10-26 (§EE).** `ROJAN_DesignLab_Main1`'s local primary checkout's `main` (`ee49225`) and `origin/main` (`63ba30d`) have genuinely diverged — 7 commits exist only locally (manager notifications, booking-visibility fix, "master integration release", page-size-limit fix, OTP-test quarantine, onboardingStatus surfacing, salon-creation-via-onboarding), 8 commits exist only on `origin/main` (PRs #1–#4, already merged there). Neither side is an ancestor of the other. Structurally identical to D4 (`ROJAN_Web`'s divergence) — not a product decision, but a git-workflow question only the repo owner can safely answer, because the local `main` also carries 52 uncommitted dirty files this engagement has never touched or inspected | (1) Push the 7 local-only commits to `origin/main` first, then reconcile; (2) reset/rebase local `main` onto `origin/main` (would require resolving the 52 dirty files first — **not attempted, explicitly protected**); (3) treat local `main` as informational-only and always work from `origin/main` going forward (what this pass's new PRs #7/#8 already do) | **DECISION RECORDED 2026-11-07 by owner sign-off — see §AAL. Option selected: Option 3 — treat local `main` as informational-only; all new work is built from `origin/main` going forward.** No reconciliation (push/reset/rebase/merge/cherry-pick) was performed or requested — Option 3 is explicitly a going-forward workflow choice, not a history-convergence one. **Not marked CLOSED**: this row's own "evidence required to close" column (a passing ancestry check) presumes a reconciling option (1 or 2); Option 3 does not produce a converged history by design, so that literal criterion cannot be satisfied by this decision alone. See §AAL for the full note on this gap | Any work built fresh off `origin/main` in a new worktree (done this pass for Row 4/PR-10) — now also the owner-ratified standing practice, not merely a workaround | Row 15's Manager-cancellation fix specifically — already independently resolved on its own engineering merits (§FF.3, zero textual conflict found), not via this decision | Repo owner (git workflow intent + the 52 dirty files' disposition) | **Decision: recorded.** Technical closure: see §AAL — either (a) an ancestry-satisfying step is executed anyway (not requested this pass), or (b) owner confirmation that the decision itself, under Option 3, is sufficient to close this row without a passing ancestry check |
 
-| D15 | **New finding, 2026-10-27 (§GG.3).** `ROJAN_Desktop`'s local branch `main` (`c2dbc09`, not currently checked out in any worktree — the primary checkout is detached at `daea816`) has diverged from `origin/main` (`623a39b`): 11 commits local-only, **58 commits origin-only** — a materially larger gap than D14's Android case. Lower immediate risk than D4/D14 because no dirty/uncommitted working tree is attached to the local `main` ref itself | Same 3 options as D14 (push local-only work first; reset/rebase local onto origin; treat `origin/main` as the only source of truth going forward — already done for this pass's own new work, §GG.2) | No recommendation — owner's git-workflow intent | Any work built fresh off `origin/main` (done this pass for Row 4's Desktop layer, §GG.2) | Any future local-main-based Desktop work repeating D14's Android pattern | Repo owner (git workflow intent) | A fresh `git merge-base --is-ancestor` check in either direction returning true |
+| D15 | **New finding, 2026-10-27 (§GG.3).** `ROJAN_Desktop`'s local branch `main` (`c2dbc09`, not currently checked out in any worktree — the primary checkout is detached at `daea816`) has diverged from `origin/main` (`623a39b`): 11 commits local-only, **58 commits origin-only** — a materially larger gap than D14's Android case. Lower immediate risk than D4/D14 because no dirty/uncommitted working tree is attached to the local `main` ref itself | Same 3 options as D14 (push local-only work first; reset/rebase local onto origin; treat `origin/main` as the only source of truth going forward — already done for this pass's own new work, §GG.2) | **DECISION RECORDED 2026-11-07 by owner sign-off — see §AAM. Option selected: Option 3 — `origin/main` is the sole source of truth for all continuing work; local `main` is informational/historical only.** No reconciliation (push/reset/rebase/merge/cherry-pick) was performed or requested — this is a governance decision only, not authorization for any code or Git-operation change. Verified independently of D14's own Option 3 record — D15's own row text, and D15's own current technical state, were re-checked on their own terms, not inherited from D14 | Any work built fresh off `origin/main` (done this pass for Row 4's Desktop layer, §GG.2) — now also the owner-ratified standing practice | Any future local-`main`-based Desktop work repeating D14's Android pattern | Repo owner (git workflow intent) | **OWNER DECISION RECORDED — CLOSURE CRITERION NOT SATISFIED.** See §AAM: this row's own stated evidence (a passing ancestry check) presumes a reconciling option (1 or 2); Option 3 does not converge the two histories by design, so the literal criterion is not met by this decision alone. The criterion itself was not altered |
 
 **No decision above is presented as approved.** All recommendations are explicitly labeled as
 recommendations.
@@ -7275,3 +7275,55 @@ actual textual conflict) and does not depend on either path above.
 evidence and a cross-reference to this section — a documented owner decision without a satisfied
 technical closure criterion, distinct from D1/D2/D4/D5/D7/D9/D10/D11/D13's own rows, each of which
 either needed no technical follow-through or had one already completed before their own closure.)
+
+## AAM — D15 owner decision recorded (Option 3): `origin/main` sole source of truth for `ROJAN_Desktop`, local `main` informational-only — reconciliation NOT executed, technical closure criterion NOT satisfied, D15 stays OPEN by its own evidence standard
+
+**This section records an owner decision for D15 only, verified independently of D14 — D15's own
+decision text, and D15's own current technical state, were checked on their own terms, not inherited
+or substituted from D14's own record (§AAL), even though both items share the same structural shape
+and the same kind of closure-criterion mismatch.** No other Decision Register row, no Release Gate
+(§E), the overall Matrix percentage, Governance Closure, or `RELEASE_READY` are touched here. No
+reconciliation (push, reset, rebase, merge, cherry-pick) was performed; no code in `ROJAN_Desktop` or
+any other repository was changed; no test was run.
+
+**Verification performed before recording, per the owner's own explicit instruction not to guess:**
+D15's own row (§C) defines its options as *"same 3 options as D14"*, the third being *"treat
+`origin/main` as the only source of truth going forward."* The owner's stated decision — `origin/main`
+sole source of truth, local `main` informational/historical only, no reconciliation performed or
+authorized by this decision alone — was checked word-for-word against this text. It matches
+**Option 3** exactly; no discrepancy found.
+
+**Decision recorded:** Option 3. `origin/main` is the canonical, sole source of truth for all
+continuing `ROJAN_Desktop` work; local `main` (`c2dbc09`) is treated as informational/historical
+only. Dated, written owner sign-off: **2026-11-07**. This is a governance decision only — it does
+not by itself authorize any code change, merge, or other Git operation.
+
+**Current real divergence, independently re-verified this same day (read-only; no mutation,
+`ROJAN_Desktop` checkout untouched — still detached at `daea816`, working tree clean, 0 dirty
+files):** local `main` is still exactly `c2dbc09` (unchanged since §GG.3's 2026-10-27 recording);
+`origin/main` has since advanced to `1067b38` (D15's row still cites the older `623a39b`).
+`git merge-base --is-ancestor` confirms neither ref is an ancestor of the other, either direction —
+still a genuine two-way fork. The 11 local-only commits are unchanged (identical count to §GG.3's own
+finding); the origin-only side has grown from 58 to 64 commits — further apart, not closer. None of
+this needed to change, or was changed, for Option 3's own decision to take effect.
+
+**Why this is not a technical closure, and what that gap actually is (same structural issue as D14,
+re-derived here independently rather than assumed from it):** D15's own "evidence required to close"
+column states a passing `git merge-base --is-ancestor` check, written to fit a reconciling option (1
+or 2). Option 3's entire premise is that the fork is *not* reconciled — work simply stops being based
+on the local side. No technical action exists that would make the ancestry check return true while
+Option 3 remains the standing choice, short of one side later moving to make one an ancestor of the
+other (which would itself be Option 1 or 2). Per explicit instruction, this closure criterion was not
+altered, relaxed, or reinterpreted to force a CLOSED status.
+
+**What remains open, exactly:** the same two non-exclusive paths as D14, neither chosen here:
+1. Someone later executes an ancestry-satisfying step anyway (not requested or performed this pass);
+   or
+2. The owner separately confirms that, under Option 3's own nature, the recorded decision itself is
+   sufficient to consider this row's governance question answered — in which case D15's own
+   evidence-required text would need updating to reflect that, not silently treated as already met.
+
+**D15: decision recorded, NOT CLOSED — `OWNER DECISION RECORDED — CLOSURE CRITERION NOT SATISFIED`.**
+(§C's own D15 row, above, is updated in place with this same evidence and a cross-reference to this
+section. See §AAL for D14's parallel record in a different repository — noted here only as a reading
+aid; D15's own closure status rests entirely on this section's own verification, not on §AAL's.)
