@@ -178,7 +178,7 @@ role, and the evidence required to close it. **As of 2026-10-19: D9, D10, D13 ap
 
 | ID | Exact question | Options & consequences | Recommendation (rationale) | Can proceed independently | Must stay blocked | Approver | Evidence required to close |
 |---|---|---|---|---|---|---|---|
-| D1 | Is `Tenant.slug` (rojan-platform) the canonical identity for `Salon.slug` (ROJAN_Backend), and if not, how are the two reconciled? | (1) `Tenant.slug` canonical + sync to `Salon.slug`; (2) independent fields + a durable identity-mapping table [recommended]; (3) consolidate via an existing shared contract — ruled out, no such contract exists on either backend | (2), already delivered as a phased proposal this engagement (additive, reversible at every phase) | TASK-010's own documentation/design work; nothing code-level | Row 7; the future Website migration wave that depends on it | Product/architecture owner | A dated, written sign-off on one of the three options |
+| D1 | Is `Tenant.slug` (rojan-platform) the canonical identity for `Salon.slug` (ROJAN_Backend), and if not, how are the two reconciled? | (1) `Tenant.slug` canonical + sync to `Salon.slug`; (2) independent fields + a durable identity-mapping table [recommended]; (3) consolidate via an existing shared contract — ruled out, no such contract exists on either backend | **CLOSED 2026-11-07 by owner sign-off — see §AAK. Option selected: Option 1 — `Tenant.slug` canonical + sync to `Salon.slug`.** `Salon.slug` remains its own field in `ROJAN_Backend` (necessarily — a separate backend/table) but its value is kept synchronized from the canonical `Tenant.slug`, not independently authoritative. This is a documentation-only governance closure this pass — no implementation (sync mechanism, migration, contract change) has been built yet; TASK-010's own execution remains open, tracked separately | TASK-010's own documentation/design work; nothing code-level | Row 7; the future Website migration wave that depends on it | Product/architecture owner | **Closed.** See §AAK — dated, written sign-off recorded 2026-11-07. TASK-010's actual implementation (the sync mechanism itself) is a separate, still-open execution item, same pattern as D2/D9/D10/D13's own decision-vs-execution split |
 | D2 | Which walk-in-booking Backend design ships — additive `salonCustomerId`, or nullable `customerId`+`crmCustomerId` with an enforced invariant? | Option A: additive, less safe, no domain tests exist for it; Option B [recommended]: nullable+invariant, already 13/13 domain-tested in `ROJAN_Backend_walkin_v2` | **SELECTED 2026-10-24 by owner (§M Decision 2): Option B.** Invariant confirmed already implemented at both domain (`Booking.kt:125-127`) and DB (`V46__walkin_booking_crm_customer.sql`) layers; its business meaning grounded in a pre-existing doc (`ROJAN_Customer_CRM_Architecture_Plan_v1.md`); migration additive-only, safe. All 3 client worktrees re-verified 2026-10-24 (§N.1) already compatible — zero rework needed | Row 4's execution (test runs + commits); client DTO work is now unblocked | Actual commit + push of Backend `walkin_v2` and the 3 client fixes — not yet performed | Backend/architecture owner | **Closed.** Row 4/PR-10's own execution is the remaining open item, not D2 itself |
 | D3 | Does the Backend add a multi-value specialist-specialties field, or does the Website permanently show none? | Add (Backend schema+contract work); accept the permanent gap | No recommendation — pure product/scope call | Nothing blocks on this either way (Website already degrades safely) | Row 8 | Product owner | A dated decision either way |
 | D4 | Should `ROJAN_Web`'s local `master` be rebased onto `origin/master`, or vice versa? | Rebase/reset local onto origin (likely correct — origin has more commits local lacks); or the reverse — **not an engineering call, needs the repo owner's own git workflow knowledge** | No recommendation offered on the rebase direction itself — explicitly outside engineering judgment. **Progress 2026-10-24/25 (§M, §N–§V):** all 3 local-only commits resolved by evidence (`a220aa2`: clean, transferable; `09357f3`/`353f5a9`: superseded by richer, already-tested upstream work — discard recommended, no semantic conflict in either case). Owner authorized publishing `a220aa2` → **PR #16 merged into `origin/master` 2026-10-25** (§V). The local checkout itself was never rebased/reset (not authorized) — **see §V for the current, now-wider ahead/behind gap** | Nothing — merging row 2's fix against stale local `master` still risks reverting origin-only commits until reconciled | Row 2 | Repo owner (whoever manages `ROJAN_Web`'s git remotes) | The divergence resolved, confirmed via a fresh `git fetch` + ancestry check — **not yet done**; `a220aa2`'s content landing upstream via a separate publish path does not by itself resolve the local/origin divergence |
@@ -7174,3 +7174,46 @@ and a repo-wide search), so "Redis genuinely enforces this in production" rests 
 **D11: CLOSED.** (§C's own D11 row, above, is updated in place with this same evidence and a
 cross-reference to this section, per this document's existing convention for closing a Decision
 Register row — see D2/D4/D5/D9/D7's own rows for precedent.)
+
+## AAK — D1 CLOSED: owner sign-off on `Tenant.slug`/`Salon.slug` identity reconciliation (Option 1) — governance documentation only, no implementation performed this pass
+
+**This section closes D1 only.** No other Decision Register row, no Release Gate (§E), the overall
+Matrix percentage, Governance Closure, or `RELEASE_READY` are touched here. Unlike D7/D11 (§AAI/
+§AAJ), this closure is **documentation-only** — a recorded owner sign-off on an architecture
+question, not an engineering fix that was implemented, tested, or CI-verified this pass. No code, no
+repository other than this Matrix, and no test suite was touched to produce this closure.
+
+**Verification performed before closing, per the owner's own explicit instruction not to guess:**
+D1's own §C row (and its identical restatement at an earlier point in this document) defines three
+options verbatim:
+1. `Tenant.slug` canonical + sync to `Salon.slug`.
+2. independent fields + a durable identity-mapping table [this engagement's own non-binding
+   recommendation].
+3. consolidate via an existing shared contract — ruled out, no such contract exists on either
+   backend.
+
+The owner's final decision — `Tenant.slug` canonical, with `Salon.slug` remaining its own field (as
+it must, being a separate backend/table) but synchronized from the canonical value — was checked
+word-for-word against this text before any edit was made. It matches **option 1** exactly: canonical
+side (`Tenant.slug`) and reconciliation mechanism (sync to `Salon.slug`) both agree. This closure
+supersedes an earlier same-day exchange in this conversation where a *different* stated decision
+("Tenant.slug canonical" + "Salon.slug kept independent" + "synchronization," labeled by that
+message as "Option 2") did **not** match either option cleanly as written — that mismatch was
+reported and nothing was changed. The owner's final, corrected instruction explicitly identifies the
+decision as Option 1, and on direct comparison the text supports that unambiguously; no residual
+discrepancy remains.
+
+**Decision recorded:** Option 1 — `Tenant.slug` (rojan-platform) is the canonical identity;
+`Salon.slug` (ROJAN_Backend) remains a distinct field but its value is kept synchronized from
+`Tenant.slug`, never independently authoritative. Dated, written owner sign-off: **2026-11-07**.
+
+**What remains open, not closed by this decision:** TASK-010's own implementation — the actual sync
+mechanism, any migration, and the Website/Backend contract work the original proposal scoped as
+"documentation/design work; nothing code-level" at the decision stage — is separate execution work,
+not yet built, same decision-vs-execution split already established for D2 (Row 4/PR-10), D9
+(PR-06), D10 (PR-04), and D13 (PR-02). Row 7 (§A) and PR-11 (§B) still track that execution as open
+items; this section does not close either of them.
+
+**D1: CLOSED.** (§C's own D1 row, above, is updated in place with this same evidence and a
+cross-reference to this section, per this document's existing convention for closing a Decision
+Register row — see D2/D4/D5/D9/D7/D11's own rows for precedent.)
