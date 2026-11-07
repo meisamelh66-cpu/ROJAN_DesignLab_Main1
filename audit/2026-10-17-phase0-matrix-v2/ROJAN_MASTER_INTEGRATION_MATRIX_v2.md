@@ -181,7 +181,7 @@ role, and the evidence required to close it. **As of 2026-10-19: D9, D10, D13 ap
 | D1 | Is `Tenant.slug` (rojan-platform) the canonical identity for `Salon.slug` (ROJAN_Backend), and if not, how are the two reconciled? | (1) `Tenant.slug` canonical + sync to `Salon.slug`; (2) independent fields + a durable identity-mapping table [recommended]; (3) consolidate via an existing shared contract — ruled out, no such contract exists on either backend | **CLOSED 2026-11-07 by owner sign-off — see §AAK. Option selected: Option 1 — `Tenant.slug` canonical + sync to `Salon.slug`.** `Salon.slug` remains its own field in `ROJAN_Backend` (necessarily — a separate backend/table) but its value is kept synchronized from the canonical `Tenant.slug`, not independently authoritative. This is a documentation-only governance closure this pass — no implementation (sync mechanism, migration, contract change) has been built yet; TASK-010's own execution remains open, tracked separately | TASK-010's own documentation/design work; nothing code-level | Row 7; the future Website migration wave that depends on it | Product/architecture owner | **Closed.** See §AAK — dated, written sign-off recorded 2026-11-07. TASK-010's actual implementation (the sync mechanism itself) is a separate, still-open execution item, same pattern as D2/D9/D10/D13's own decision-vs-execution split |
 | D2 | Which walk-in-booking Backend design ships — additive `salonCustomerId`, or nullable `customerId`+`crmCustomerId` with an enforced invariant? | Option A: additive, less safe, no domain tests exist for it; Option B [recommended]: nullable+invariant, already 13/13 domain-tested in `ROJAN_Backend_walkin_v2` | **SELECTED 2026-10-24 by owner (§M Decision 2): Option B.** Invariant confirmed already implemented at both domain (`Booking.kt:125-127`) and DB (`V46__walkin_booking_crm_customer.sql`) layers; its business meaning grounded in a pre-existing doc (`ROJAN_Customer_CRM_Architecture_Plan_v1.md`); migration additive-only, safe. All 3 client worktrees re-verified 2026-10-24 (§N.1) already compatible — zero rework needed | Row 4's execution (test runs + commits); client DTO work is now unblocked | Actual commit + push of Backend `walkin_v2` and the 3 client fixes — not yet performed | Backend/architecture owner | **Closed.** Row 4/PR-10's own execution is the remaining open item, not D2 itself |
 | D3 | Does the Backend add a multi-value specialist-specialties field, or does the Website permanently show none? | Add (Backend schema+contract work); accept the permanent gap | **CLOSED 2026-11-07 by owner sign-off — see §AAO. Option selected: Add — a real Backend multi-value `specialties` field, with full contract/client alignment.** Implemented additively alongside the pre-existing single `specialty` field (never mutated or removed); `ROJAN_Backend` schema, domain, API, and `API_CONTRACT.md` updated; `ROJAN_Web`'s public specialist page now renders real values instead of a permanently-empty placeholder | Row 8 — now has a real backing field, no longer `BLOCKED_BY_DECISION` | Row 8 | Product owner | **Closed.** See §AAO for full evidence: commit `8907c0f938c8abff92c5680bbc8850e6c93352d7` on `ROJAN_Backend` branch `d3-specialist-specialties` (245/245 tests, 0 failed/errors/skipped) and commit `1b9be2db37512f3ed5716f1b38e9bfa9bef3dff1` on `ROJAN_Web` branch `d3-specialist-specialties-web` (1555/1555 tests, typecheck clean, production build clean). CI not yet run on either commit — both remain unpushed pending separate push authorization |
-| D4 | Should `ROJAN_Web`'s local `master` be rebased onto `origin/master`, or vice versa? | Rebase/reset local onto origin (likely correct — origin has more commits local lacks); or the reverse — **not an engineering call, needs the repo owner's own git workflow knowledge** | **DECISION RECORDED 2026-11-07 by owner sign-off — see §AAP. Option selected: Option 2 — reconcile `origin/master` onto local `master` via a standard merge** (`git merge origin/master` while on local `master`; no rebase of the 55 shared origin-only commits; no `reset --hard`; no existing commit deliberately discarded or rewritten). **Not executed this pass** — no merge, reset, rebase, stash, commit, clean, checkout, or push was performed. See §AAP for the full pre-execution readiness assessment (dirty-file classification, known-conflict inventory) | Nothing — merging row 2's fix against stale local `master` still risks reverting origin-only commits until reconciled | Row 2 | Repo owner (whoever manages `ROJAN_Web`'s git remotes) | **Decision: recorded. Execution: pending.** This row's own stated evidence (a fresh `git fetch` + ancestry check) is not yet satisfied — no merge has been performed. See §AAP for exactly what authorization is still needed before execution can proceed |
+| D4 | Should `ROJAN_Web`'s local `master` be rebased onto `origin/master`, or vice versa? | Rebase/reset local onto origin (likely correct — origin has more commits local lacks); or the reverse — **not an engineering call, needs the repo owner's own git workflow knowledge** | **CLOSED 2026-11-07 by owner sign-off — see §AAP/§AAR. Option selected: Option 2 — reconcile `origin/master` onto local `master` via a standard merge** (`git merge origin/master` while on local `master`; no rebase of the 55 shared origin-only commits; no `reset --hard`; no existing commit deliberately discarded or rewritten). **Executed 2026-11-07** — merge commit `8cdb8900414fe6fa3c57c3d63a74e0ffc2276122`, built on top of the owner-authorized dirty-file dispositions already recorded in §AAQ. See §AAR for full execution evidence (conflict resolutions, post-merge reconciliation, ancestry verification) | Row 2's fix against local `master` — no longer blocked by stale divergence | Nothing | Repo owner (whoever manages `ROJAN_Web`'s git remotes) | **Closed.** See §AAR — a fresh `git merge-base --is-ancestor origin/master master` returns `YES`, verified on current local HEAD `e0d1aa9cd809986b9737b0c21d8620343c5e87f7`. Push to `origin/master` has NOT been performed — a separate, still-open execution item, same decision-vs-execution split already used for D1/D2/D3/D9/D10/D13 |
 | D5 | Is source-read evidence (no execution) acceptable for closing Manager's booking-cancellation fix, or must it be executed first? | Wait for ≥3GB free memory and execute `testManagerDevDebugUnitTest`; or accept inspection-only evidence as sufficient | **RESOLVED 2026-10-27 (§HH.1) — not an owner decision, an already-ratified governance rule found and applied.** `governance/07_RELEASE_POLICY.md` §7.4 "Validation gate **[NON-NEGOTIABLE]**", rule 4: *"For a client: the change is verified on a real device or real environment, with real evidence — not an unsupported checkmark. If verification cannot be performed, that is stated explicitly; it is never claimed."* This is Tier-0 ecosystem governance, already adopted (`governance/ADOPTED_VERSION`), not something this engagement can waive or an owner needs to re-rule on. Inspection-only was never acceptable; real execution (already performed, §BB/§GG) was always the correct and required standard | Nothing on this specific row | **Closed** | **No longer an owner item** — resolved by citation of existing, already-approved governance | The governance citation above, plus the real executed test result already on record |
 | D6 | Does Customer get a Gallery/Media feature (Backend/Website already support it)? | Build now; defer to a later release; drop from scope entirely | No recommendation — pure product/scope call | Nothing blocks either way | Row 17 | Product owner | A dated decision |
 | D7 | Should the 404 for "salon doesn't exist" and "salon exists but isn't active" be distinguished, given the privacy risk of leaking DRAFT-salon existence? | Distinguish (needs a privacy review first); keep unified | **CLOSED 2026-11-06 by owner directive — see §AAI.** The privacy review (§WW.3) found the anonymous/public path (`PublicSalonController`) already safe; this pass additionally found and fixed a real, separate authorization gap on the *authenticated* path (`GET /api/v1/salons/{salonId}` had authentication but no owner/member/specialist check — any logged-in caller could read any other salon by UUID, including DRAFT/suspended ones). Fixed, tested, CI-verified. The original UX-vs-privacy question (whether to ever surface a more specific status for onboarding UX) is unanswered and not needed to close this item — the owner directed closure on the basis of the remediated risk | Nothing | Supplementary row (Issue-019) | Security/privacy owner | **Closed.** See §AAI for full evidence: commit `1cec4b41fa22c95f81c39045baeeb78765a610e5` on `ROJAN_Backend` branch `d7-privacy-review`, 243/243 tests passing (0 failed/errors/skipped), CI run `42062642051` ("Backend CI (baseline)") green on that exact commit |
@@ -7715,3 +7715,105 @@ further edited by this section — §AAP's own cross-reference stands. Execution
 discards, the 2 preserve-and-reconcile reviews, and the 2 review-before-discard holds all remain
 pending. This row's own closure criterion — a fresh ancestry check after reconciliation — is
 unaffected by recording these dispositions alone.)
+
+---
+
+## AAR — D4 CLOSED: real reconciliation executed — `origin/master` merged into `ROJAN_Web`'s local `master`, 10 real conflicts resolved, ancestry-verified, push not performed
+
+**This section closes D4.** Building directly on §AAQ's owner-authorized dirty-file dispositions
+(18 discards / 2 preserve / 2 review-before-discard / 1 flagged nested clone, none executed at that
+time), this pass actually executed the reconciliation Option 2 (§AAP) specified, across several
+owner-authorized sub-passes, each gated by its own explicit go-ahead — no step below was taken
+without a separate, specific authorization in the conversation.
+
+**1. Pre-flight discovery — 2 blockers git's own safety check caught that earlier analysis missed.**
+A first merge attempt (after discarding the 18 §AAQ-authorized paths) was safely aborted by git
+itself before touching any ref, citing `apps/website/components/account/auth-required-state.tsx`
+and `apps/website/app/sites/[tenant]/login/page.tsx` as dirty/untracked collisions. Real evidence
+(`git diff`, `git show origin/master:...` via a literal, non-regex pathspec — the first check of the
+`[tenant]` path had used an unescaped grep pattern and produced a false negative) showed both were
+byte-for-byte identical to what `origin/master` already had. **Owner-authorized: DISCARD both** — no
+unique content lost.
+
+**2. Second pre-flight abort — the already-known PRESERVE/REVIEW-BEFORE-DISCARD items.** Retrying the
+merge aborted again, this time on exactly the 4 items §AAQ had already classified as PRESERVE
+(`app-card.tsx`, `app-card.test.tsx`) or REVIEW-BEFORE-DISCARD (the customer and reception-android
+APKs) — not new findings, but git's pre-flight check blocking on *any* dirty path the merge would
+touch, discard-bound or not. **Owner-authorized: a targeted `git stash push -u -m
+"D4-pre-merge-preserve-review-2026-11-07"`** scoped to exactly these 4 paths (recorded pre-stash
+evidence: diffs for both `app-card.*` files, size/hash for both APKs) — content preserved, nothing
+discarded, nothing else touched.
+
+**3. The real merge — `git merge origin/master`, 10 genuine 3-way conflicts.** With the stash
+clearing the working tree of every remaining blocker, the merge actually started (`MERGE_HEAD`
+`ff210905eca8ca52653d58bb139a1482bc040c7a`) and produced exactly the 10 conflicts §WW.4's read-only
+`git merge-tree` dry run had already predicted:
+
+| # | Path | Conflict type | Owner-authorized resolution |
+|---|---|---|---|
+| 1 | `apps/website/app/rojan-admin/web/actions.test.ts` | modify/delete | Take origin (delete) |
+| 2 | `apps/website/app/rojan-admin/web/actions.ts` | modify/delete | Take origin (delete) |
+| 3 | `apps/website/components/onboarding/onboarding-orchestrator.tsx` | content | Take origin/master |
+| 4 | `apps/website/components/rojan-admin/admin-shell-nav.tsx` | content | Take origin/master |
+| 5 | `apps/website/components/rojan-admin/app-release-workspace.tsx` | add/add | Take origin/master |
+| 6 | `apps/website/components/rojan-admin/web-overview.test.tsx` | modify/delete | Take origin (delete) |
+| 7 | `apps/website/components/rojan-admin/web-overview.tsx` | modify/delete | Take origin (delete) |
+| 8 | `apps/website/lib/api/backend/app-releases.ts` | add/add | Take origin/master |
+| 9 | `apps/website/lib/api/backend/salon.test.ts` | content | Take origin/master |
+| 10 | `apps/website/lib/types/app-release.ts` | add/add | Take origin/master |
+
+All 4 modify/delete conflicts belong to the same real origin-side refactor: `rojan-admin/*` was
+reorganized into a `(protected)` route group and `web`/`web-overview.*` were superseded by a new
+`app-release-workspace`/`app-releases`/`app-release` family — observed and reported, not decided by
+this engagement. Resolved exactly as the owner's table specified; verified zero remaining unmerged
+paths and a clean `git diff --check` before committing. **Merge commit:
+`8cdb8900414fe6fa3c57c3d63a74e0ffc2276122`.**
+
+**4. Stash pop reconciliation — 2 real issues surfaced and resolved under explicit authorization.**
+Popping the §AAQ/step-2 stash onto the new merge commit surfaced two genuine problems, neither
+guessed through:
+
+- `app-card.tsx`: a real, substantive 3-way clash on the same lines — origin's own real production
+  click-handling fix (`active:not-aria-[haspopup]:translate-none`, fixing a reproduced-on-production
+  carousel hit-testing bug) against local's Manager-download notice-dialog feature. **Owner-authorized
+  resolution: preserve both** — the notice-dialog branching kept intact, the click-fix class and its
+  explanatory comment applied to the exact same anchor origin had fixed.
+- `apps/website/public/downloads/customer/archive/ROJAN-AI-Customer-1.0.0.apk`: git's rename-tracking
+  silently reapplied the stash's pre-merge local content onto the path the merge had renamed into
+  `archive/`, overwriting origin's own already-merged archived content (same byte size, different
+  hash: local `5bd44691...` vs. origin's committed `aa6a5748...`). **Owner-authorized: restore
+  origin's content** (`git checkout HEAD -- <path>`) — origin's version kept.
+- `apps/website/components/marketing/download/app-card.test.tsx` and the reception-android APK:
+  resolved cleanly on their own (test file auto-merged; the APK's stash copy was byte-for-byte
+  identical to what the merge had already added — no action needed).
+
+Committed as `eb9867d26971b143dc8fb69772ba2b0f41902cce`. Stash subsequently dropped per explicit
+owner instruction (`stash@{0}` only — the two unrelated pre-existing stashes on other branches were
+left untouched).
+
+**5. Final ancestry verification — the row's own stated closure criterion, satisfied.**
+
+```
+git merge-base --is-ancestor origin/master master   → YES
+git rev-parse master        → (current HEAD, see below)
+git rev-parse origin/master → ff210905eca8ca52653d58bb139a1482bc040c7a
+git diff --check            → clean, no conflict markers anywhere
+```
+
+`origin/master` is a real, verified ancestor of local `master` — the exact evidence D4's own row
+always required. Two further owner-authorized, D4-unrelated commits were made afterward in the same
+checkout (a Manager Dashboard Hero Banner feature, and discarding a superseded duplicate
+`rojan-admin/banners/` local copy plus stale tool-generated scratch artifacts) — **current HEAD
+`e0d1aa9cd809986b9737b0c21d8620343c5e87f7`**, still an `origin/master` descendant; the ancestry
+relationship is unaffected by commits made after it.
+
+**Not performed, explicitly:** no push to `origin/master` (local `master` is 6 commits ahead,
+unpublished); no `git clean`; the nested `ROJAN_Web/` clone (§AAP's own flagged artifact, still
+`DO NOT DELETE`) and `docs/uiux/` remain untouched and still present as untracked paths — neither is
+part of D4's own closure criterion, which concerns ancestry only, not full working-tree cleanliness.
+
+**D4 status: CLOSED.** Reconciliation decided (§AAP), dirty-file disposition authorized (§AAQ), and
+now actually executed and ancestry-verified (this section) — satisfying this row's own
+long-standing evidence requirement in full, for the first time. Push remains a separate, still-open,
+owner-gated execution item, consistent with every other decision-vs-execution split already used
+elsewhere in this register (D1, D2, D3, D9, D10, D13).
