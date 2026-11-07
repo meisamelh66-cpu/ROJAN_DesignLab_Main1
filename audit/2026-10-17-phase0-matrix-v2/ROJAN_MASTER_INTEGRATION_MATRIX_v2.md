@@ -183,7 +183,7 @@ role, and the evidence required to close it. **As of 2026-10-19: D9, D10, D13 ap
 | D3 | Does the Backend add a multi-value specialist-specialties field, or does the Website permanently show none? | Add (Backend schema+contract work); accept the permanent gap | **CLOSED 2026-11-07 by owner sign-off — see §AAO. Option selected: Add — a real Backend multi-value `specialties` field, with full contract/client alignment.** Implemented additively alongside the pre-existing single `specialty` field (never mutated or removed); `ROJAN_Backend` schema, domain, API, and `API_CONTRACT.md` updated; `ROJAN_Web`'s public specialist page now renders real values instead of a permanently-empty placeholder | Row 8 — now has a real backing field, no longer `BLOCKED_BY_DECISION` | Row 8 | Product owner | **Closed.** See §AAO for full evidence: commit `8907c0f938c8abff92c5680bbc8850e6c93352d7` on `ROJAN_Backend` branch `d3-specialist-specialties` (245/245 tests, 0 failed/errors/skipped) and commit `1b9be2db37512f3ed5716f1b38e9bfa9bef3dff1` on `ROJAN_Web` branch `d3-specialist-specialties-web` (1555/1555 tests, typecheck clean, production build clean). CI not yet run on either commit — both remain unpushed pending separate push authorization |
 | D4 | Should `ROJAN_Web`'s local `master` be rebased onto `origin/master`, or vice versa? | Rebase/reset local onto origin (likely correct — origin has more commits local lacks); or the reverse — **not an engineering call, needs the repo owner's own git workflow knowledge** | **CLOSED 2026-11-07 by owner sign-off — see §AAP/§AAR. Option selected: Option 2 — reconcile `origin/master` onto local `master` via a standard merge** (`git merge origin/master` while on local `master`; no rebase of the 55 shared origin-only commits; no `reset --hard`; no existing commit deliberately discarded or rewritten). **Executed 2026-11-07** — merge commit `8cdb8900414fe6fa3c57c3d63a74e0ffc2276122`, built on top of the owner-authorized dirty-file dispositions already recorded in §AAQ. See §AAR for full execution evidence (conflict resolutions, post-merge reconciliation, ancestry verification) | Row 2's fix against local `master` — no longer blocked by stale divergence | Nothing | Repo owner (whoever manages `ROJAN_Web`'s git remotes) | **Closed.** See §AAR — a fresh `git merge-base --is-ancestor origin/master master` returns `YES`, verified on current local HEAD `e0d1aa9cd809986b9737b0c21d8620343c5e87f7`. Push to `origin/master` has NOT been performed — a separate, still-open execution item, same decision-vs-execution split already used for D1/D2/D3/D9/D10/D13 |
 | D5 | Is source-read evidence (no execution) acceptable for closing Manager's booking-cancellation fix, or must it be executed first? | Wait for ≥3GB free memory and execute `testManagerDevDebugUnitTest`; or accept inspection-only evidence as sufficient | **RESOLVED 2026-10-27 (§HH.1) — not an owner decision, an already-ratified governance rule found and applied.** `governance/07_RELEASE_POLICY.md` §7.4 "Validation gate **[NON-NEGOTIABLE]**", rule 4: *"For a client: the change is verified on a real device or real environment, with real evidence — not an unsupported checkmark. If verification cannot be performed, that is stated explicitly; it is never claimed."* This is Tier-0 ecosystem governance, already adopted (`governance/ADOPTED_VERSION`), not something this engagement can waive or an owner needs to re-rule on. Inspection-only was never acceptable; real execution (already performed, §BB/§GG) was always the correct and required standard | Nothing on this specific row | **Closed** | **No longer an owner item** — resolved by citation of existing, already-approved governance | The governance citation above, plus the real executed test result already on record |
-| D6 | Does Customer get a Gallery/Media feature (Backend/Website already support it)? | Build now; defer to a later release; drop from scope entirely | **DECISION RECORDED 2026-11-07 by owner sign-off — see §AAS. Option selected: Option 1 — Build now.** Rationale: `ROJAN_Backend` and `ROJAN_Web` both already have a real, working Gallery/Media feature; only Android Customer lacks it. Backend migration/domain/storage are not to be rebuilt; the existing Website implementation is not to be redesigned; a new Android Customer implementation is to be built; the `API_CONTRACT.md` documentation gap for this endpoint is to be closed as part of that work. **Not executed this pass** — no Android code, Backend code, Website code, or `API_CONTRACT.md` edit has been made. See §AAS for the pre-implementation scope-discovery evidence | Row 17's Android-side scoping work | Row 17's actual Android implementation | Product owner | **Decision: recorded. Execution: pending.** Closure requires a real, working Android Customer Gallery implementation, verified against the real Backend contract — not yet built. See §AAS |
+| D6 | Does Customer get a Gallery/Media feature (Backend/Website already support it)? | Build now; defer to a later release; drop from scope entirely | **DECISION RECORDED 2026-11-07 by owner sign-off — see §AAS/§AAT. Option selected: Option 1 — Build now.** §AAS's original premise (Backend/Website already have a working Gallery/Media endpoint; only Android lacks it) was found, mid-execution, not to hold against `origin/main` — see §AAT for the real scope/architecture gate this surfaced and its resolution. **Scope amendment, owner-approved 2026-11-07 (§AAT): building a new, authenticated, `salonId`-based Backend Gallery endpoint (migration + domain aggregate + repository + controller) is explicitly approved as part of D6**, superseding §AAS's "Backend migration/domain/storage are not to be rebuilt" clause for this item specifically. **Executed** — see §AAT for both commits and full build/test evidence. **Not yet marked CLOSED** — closure is a separate, still-pending owner action, not implied by this scope approval alone | Row 17's Android-side scoping work | Nothing — implementation already matches the now-approved scope | Product owner | **Decision + scope amendment: recorded. Execution: done, scope-compliant.** Formal closure still requires an explicit owner "close D6" instruction — not given yet. See §AAT |
 | D7 | Should the 404 for "salon doesn't exist" and "salon exists but isn't active" be distinguished, given the privacy risk of leaking DRAFT-salon existence? | Distinguish (needs a privacy review first); keep unified | **CLOSED 2026-11-06 by owner directive — see §AAI.** The privacy review (§WW.3) found the anonymous/public path (`PublicSalonController`) already safe; this pass additionally found and fixed a real, separate authorization gap on the *authenticated* path (`GET /api/v1/salons/{salonId}` had authentication but no owner/member/specialist check — any logged-in caller could read any other salon by UUID, including DRAFT/suspended ones). Fixed, tested, CI-verified. The original UX-vs-privacy question (whether to ever surface a more specific status for onboarding UX) is unanswered and not needed to close this item — the owner directed closure on the basis of the remediated risk | Nothing | Supplementary row (Issue-019) | Security/privacy owner | **Closed.** See §AAI for full evidence: commit `1cec4b41fa22c95f81c39045baeeb78765a610e5` on `ROJAN_Backend` branch `d7-privacy-review`, 243/243 tests passing (0 failed/errors/skipped), CI run `42062642051` ("Backend CI (baseline)") green on that exact commit |
 | D8 | Is the SYNC-CROSS-CLIENT-01 contract (all 8 sub-requirements) approved as originally proposed? | Approve as proposed; rescope; defer indefinitely | No recommendation — this is a net-new, large contract requiring explicit human sign-off per this engagement's own governance rule | Nothing — zero code exists | Row 19 | Architecture owner | A dated, explicit sign-off on scope |
 | D9 | Is `main` or `feature/android-first-salon-pilot` the Android integration trunk? | (1) `main` as trunk, cherry-pick the 4 pilot-only features (media gallery, specialist↔service assignment, salon-invite management, Reception invite-acceptance); (2) pilot as trunk, lose 72 `main`-only commits; (3) formal reconciliation merge | **APPROVED: option (1), `main` as trunk** — owner decision recorded 2026-10-19 in this conversation. Reconciliation plan (cherry-pick the 4 pilot-only features) not yet executed — no merge/push performed | Planning the reconciliation (identifying exact commits/conflicts) | Actually executing the cherry-pick/merge — needs separate execution authorization | Product/architecture owner | **Closed** — reconciliation execution is now PR-06's own open item, not D9's |
@@ -7854,3 +7854,81 @@ was performed read-only and reported directly, not duplicated into this section.
 decision; its closure criterion — a real, working, verified Android Customer Gallery implementation
 — is unaffected by recording the decision alone, same pattern already used for D1/D3/D4/D14/D15's own
 decision-recorded-but-not-yet-executed steps.)
+
+---
+
+## AAT — D6 real scope/architecture gate found mid-execution and resolved by explicit owner approval (Option 1): a new, authenticated, `salonId`-based Backend Gallery endpoint — not the pre-existing public/slug one §AAS assumed — is now in scope. D6 still NOT CLOSED.
+
+**This section records a scope amendment to D6, not a closure.** Executing §AAS's Build-now decision
+surfaced a real, substantive mismatch between that decision's own stated premise and the actual state
+of `ROJAN_Backend`'s `origin/main`, which was reported in full before any further action and resolved
+only by the owner's own explicit choice — not guessed or assumed.
+
+### A) D6's original premise (§AAS, evidence discovery)
+
+- Backend already had a real, production, **public/unauthenticated**, **slug-based** gallery endpoint
+  (`GET /api/v1/public/salons/{slug}/gallery`, `PublicSalonController.gallery()`), part of a
+  general-purpose `MediaAsset` subsystem (migrations V16/V22, `MediaController`,
+  `MediaStoragePort`).
+- Website already consumed that same endpoint, real and wired.
+- Android's only real gap: a consumer. **No new Backend migration, domain model, or endpoint was
+  expected** — §AAS's own owner instruction: *"Backend migration/domain/storage ... not to be
+  rebuilt."*
+
+### B) What mid-execution investigation actually found
+
+Direct inspection of `ROJAN_Backend`'s real `origin/main` (not the branch the original evidence was
+read from) found: zero trace of `PublicSalonController`, the `MediaAsset` subsystem, or any `slug`
+field on `Salon` — none of it exists on `origin/main`. The entire capability lived only on a
+locally-diverged branch (`fix/refresh-token-race-test`, pushed to `origin` but never merged to
+`main` — 102 commits, **no common ancestor with `origin/main` at all**, confirmed via
+`git merge-base`). A real attempt to cherry-pick just the gallery-related commits onto `origin/main`
+was aborted after the very first commit produced 8 genuine content conflicts, including the `Salon`
+domain model itself — reported in full, not resolved by guessing.
+
+### C) Owner's resulting decisions, in sequence, each separately given
+
+1. **"Build the gallery endpoint fresh against current main"** — rejecting both the cherry-pick path
+   and leaving D6 blocked.
+2. **"Authenticated, under existing `/api/v1/salons/{salonId}/...`"** — chosen over the alternative
+   (public/unauthenticated, slug-based, mirroring the old branch) when presented as an explicit
+   decision point, specifically to avoid adding new unauthenticated attack surface and a new `slug`
+   field neither existed on `origin/main`.
+3. Implementation proceeded and was committed, tested, and built real-green (see §AAS's own
+   Implementation Report, reproduced in summary in part D below).
+4. **Scope/architecture gate raised**: before accepting this as D6 closure-eligible, the owner was
+   given an explicit comparison of (A) vs. (B) and a named decision request — *"آیا ساخت Backend
+   Gallery جدید با authenticated salonId endpoint به‌عنوان بخشی از D6 تأیید می‌شود؟"*
+5. **Owner decision, 2026-11-07: Option 1 — approved.** The new, authenticated, `salonId`-based
+   Backend Gallery endpoint is explicitly in scope as part of D6.
+
+### D) Scope deviation table (for the record — now resolved, not disputed)
+
+| Current implementation detail | In §AAS's original scope? | Status after this section |
+|---|---|---|
+| New DB migration (`V9__salon_gallery_images.sql`) | No | **Now approved** |
+| New domain aggregate/repository/adapter/controller | No | **Now approved** |
+| Authenticated access model (vs. public) | No | **Now approved** |
+| `salonId`-based routing (vs. slug-based) | No | **Now approved** |
+| New `API_CONTRACT.md` endpoint (net-new, not documenting a pre-existing one) | No | **Now approved** |
+
+### E) Real evidence already on record (unchanged by this section, reproduced here for completeness)
+
+- **Backend commit** `f4ac81b4931791fe1bb3195d164d40d5cdf24459` (branch `feature/d6-gallery-backend`,
+  off `origin/main`@`443a441`): migration, domain, JPA adapter, controller, `API_CONTRACT.md`.
+  `:bootstrap:test --tests SalonGalleryFlowIntegrationTest` — **4/4 passed**; `:application:test`
+  (full regression) — **127/127 passed**, 0 failed/errors/skipped.
+- **Android commit** `897ff33cc58ba8d6bd62b338ed0aedf01fa9c270` (branch `feature/d6-customer-gallery`,
+  off `origin/main`@`14b2d8e`): `SalonDetailsScreen`/`SalonDetailsViewModel`/`SalonRepository`
+  extended; 2 new test files; 9 existing test fakes mechanically updated (no behavior change).
+  `:app:testCustomerDevDebugUnitTest` (full regression) — **442/442 passed**, 1 pre-existing/unrelated
+  skip, 0 failed/errors.
+- One disclosed, **pre-existing, unrelated** gap surfaced (not fixed, not in scope):
+  `SearchScrollResetTest.kt`'s `FakeSalonRepository` was already missing a `myOwnedSalons()` override
+  on Android's `origin/main` before this change — its `androidTest` source set does not compile
+  independent of D6.
+- Neither commit has been pushed.
+
+**D6 status: scope amendment approved, implementation now scope-compliant. Still NOT CLOSED** — a
+separate, explicit owner "close D6" instruction has not been given. (§C's own D6 row is updated in
+place to reflect this scope amendment; its closure criterion is otherwise unchanged from §AAS.)
