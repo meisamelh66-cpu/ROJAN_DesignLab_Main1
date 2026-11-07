@@ -7633,3 +7633,85 @@ this row's own stated closure criterion — a fresh ancestry check — not yet s
 are. Distinct from D14/D15's own Option-3 closures: those decisions were self-executing by
 definition (a going-forward workflow choice needs no git operation to take effect); D4's Option 2
 is the opposite — a real merge must still happen before this item can close.)
+
+## AAQ — D4 dirty-worktree disposition: owner authorization recorded for 18 discards, 2 preservations, 2 review-before-discard holds, and 1 flagged nested-clone artifact — NONE executed
+
+**This section records owner disposition decisions for the 23 merge-blocking (plus 1 flagged
+non-blocking) `ROJAN_Web` working-tree entries identified in §AAP. It performs none of them.** No
+discard, reset, clean, stash, commit, checkout, merge, conflict resolution, or push was run against
+`ROJAN_Web`. No Release Gate, the overall Matrix percentage, Governance Closure, or `RELEASE_READY`
+are touched here. D4's own direction decision (Option 2, §AAP) is unchanged and not re-decided here.
+
+**(A) Discard authorized — 18 paths.** The owner reviewed §AAP's per-file evidence (each path's
+local content confirmed superseded, duplicated, or regressive relative to `origin/master`, per-file,
+not assumed) and explicitly authorizes their local changes to be discarded during reconciliation:
+
+1. `apps/website/app/rojan-admin/page.tsx`
+2. `apps/website/components/booking/booking-flow.test.tsx`
+3. `apps/website/components/booking/booking-flow.tsx`
+4. `apps/website/components/marketing/download/app-carousel-3d.test.tsx`
+5. `apps/website/components/marketing/login-form.tsx`
+6. `apps/website/components/rojan-admin/admin-shell-nav.tsx`
+7. `apps/website/lib/constants/app-showcase.ts`
+8. `apps/website/lib/downloads/release-registry.test.ts`
+9. `apps/website/lib/downloads/release-registry.ts`
+10. `apps/website/lib/format.ts`
+11. `apps/website/next.config.ts`
+12. `apps/website/proxy.ts`
+13. `apps/website/components/rojan-admin/banners-manager.tsx`
+14. `apps/website/components/rojan-admin/ui/`
+15. `apps/website/components/sections/customer-login-section.tsx`
+16. `apps/website/lib/api/backend/banner.ts`
+17. `apps/website/lib/types/banner.ts`
+18. `apps/website/public/downloads/manager/ROJAN-AI-Manager-1.0.0.apk`
+
+**Authorization recorded, execution deliberately not performed this pass** — none of the 18 have
+been discarded, reset, or cleaned. This is documentation-only, pending the actual reconciliation
+pass that will carry it out.
+
+**(B) Preserve — 2 paths.** The owner identified the notice-dialog download feature as genuinely
+unique to local (§AAP already confirmed: `origin/master`'s own `app-card.tsx` has no
+`Dialog`/`requiresDownloadNotice` reference at all, and its test file has zero dialog/notice
+assertions):
+
+19. `apps/website/components/marketing/download/app-card.tsx`
+20. `apps/website/components/marketing/download/app-card.test.tsx`
+
+**Disposition: `PRESERVE — do not discard.`** At merge time, these are to be reviewed and, where
+possible, reconciled with `origin/master`'s own version of the same files — if a real content
+conflict exists, the resolution must keep the notice-dialog feature unless the owner separately
+decides otherwise later. No resolution was performed this pass.
+
+**(C) Review before discard — 2 paths.**
+
+21. `apps/website/public/downloads/customer/ROJAN-AI-Customer-1.0.0.apk` — **`REVIEW BEFORE
+    DISCARD`**, not removed. §AAP could not meaningfully diff this binary beyond confirming it
+    differs byte-for-byte at the same file size; final disposition deferred.
+22. `apps/website/public/downloads/reception-android/` — **`REVIEW BEFORE DISCARD`**, not removed,
+    content preserved pending final review. §AAP confirmed `origin/master` already has at least one
+    file at this same path, but did not content-verify whether local's copy is identical, older, or
+    carries anything origin's doesn't.
+
+**(D) Flagged, not merge-blocking — 1 path.**
+
+23. `ROJAN_Web/` — a nested directory inside this same repository's own working tree, itself
+    containing `CHANGELOG.md`/`CONTRIBUTING.md`/etc., strongly resembling an accidental nested clone
+    (§AAP's own finding). **`DO NOT DELETE.`** Recorded here as a suspected repository artifact
+    requiring its own, separate owner decision — not part of this reconciliation's scope, and not
+    acted on in any way this pass.
+
+**(E) The remaining 9 non-blocking dirty entries — untouched, no new disposition recorded beyond
+§AAP's own classification:** `apps/website/app/no-tenant/dashboard/page.tsx`,
+`.playwright-mcp/`, `apps/website/app/rojan-admin/banners/`, `apps/website/app/sites/[tenant]/login/`,
+`apps/website/components/dashboard/manager-hero-banner.tsx`, `apps/website/npm_audit_err.txt`,
+`apps/website/npm_audit_web.json`, `docs/uiux/`.
+
+**Current real state, re-confirmed this same day (read-only; no mutation):** `ROJAN_Web`'s primary
+checkout remains exactly as §AAP described it — branch `master`, HEAD `09357f3e99eb7ce0cf40f7bb7fbe592eb4923b34`,
+32 dirty entries, all 32 still present and unmodified.
+
+**D4: decision + disposition authorization recorded, still NOT CLOSED.** (§C's own D4 row is not
+further edited by this section — §AAP's own cross-reference stands. Execution of the merge, the 18
+discards, the 2 preserve-and-reconcile reviews, and the 2 review-before-discard holds all remain
+pending. This row's own closure criterion — a fresh ancestry check after reconciliation — is
+unaffected by recording these dispositions alone.)
