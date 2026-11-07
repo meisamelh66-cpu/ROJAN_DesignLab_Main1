@@ -181,7 +181,7 @@ role, and the evidence required to close it. **As of 2026-10-19: D9, D10, D13 ap
 | D1 | Is `Tenant.slug` (rojan-platform) the canonical identity for `Salon.slug` (ROJAN_Backend), and if not, how are the two reconciled? | (1) `Tenant.slug` canonical + sync to `Salon.slug`; (2) independent fields + a durable identity-mapping table [recommended]; (3) consolidate via an existing shared contract — ruled out, no such contract exists on either backend | **CLOSED 2026-11-07 by owner sign-off — see §AAK. Option selected: Option 1 — `Tenant.slug` canonical + sync to `Salon.slug`.** `Salon.slug` remains its own field in `ROJAN_Backend` (necessarily — a separate backend/table) but its value is kept synchronized from the canonical `Tenant.slug`, not independently authoritative. This is a documentation-only governance closure this pass — no implementation (sync mechanism, migration, contract change) has been built yet; TASK-010's own execution remains open, tracked separately | TASK-010's own documentation/design work; nothing code-level | Row 7; the future Website migration wave that depends on it | Product/architecture owner | **Closed.** See §AAK — dated, written sign-off recorded 2026-11-07. TASK-010's actual implementation (the sync mechanism itself) is a separate, still-open execution item, same pattern as D2/D9/D10/D13's own decision-vs-execution split |
 | D2 | Which walk-in-booking Backend design ships — additive `salonCustomerId`, or nullable `customerId`+`crmCustomerId` with an enforced invariant? | Option A: additive, less safe, no domain tests exist for it; Option B [recommended]: nullable+invariant, already 13/13 domain-tested in `ROJAN_Backend_walkin_v2` | **SELECTED 2026-10-24 by owner (§M Decision 2): Option B.** Invariant confirmed already implemented at both domain (`Booking.kt:125-127`) and DB (`V46__walkin_booking_crm_customer.sql`) layers; its business meaning grounded in a pre-existing doc (`ROJAN_Customer_CRM_Architecture_Plan_v1.md`); migration additive-only, safe. All 3 client worktrees re-verified 2026-10-24 (§N.1) already compatible — zero rework needed | Row 4's execution (test runs + commits); client DTO work is now unblocked | Actual commit + push of Backend `walkin_v2` and the 3 client fixes — not yet performed | Backend/architecture owner | **Closed.** Row 4/PR-10's own execution is the remaining open item, not D2 itself |
 | D3 | Does the Backend add a multi-value specialist-specialties field, or does the Website permanently show none? | Add (Backend schema+contract work); accept the permanent gap | **CLOSED 2026-11-07 by owner sign-off — see §AAO. Option selected: Add — a real Backend multi-value `specialties` field, with full contract/client alignment.** Implemented additively alongside the pre-existing single `specialty` field (never mutated or removed); `ROJAN_Backend` schema, domain, API, and `API_CONTRACT.md` updated; `ROJAN_Web`'s public specialist page now renders real values instead of a permanently-empty placeholder | Row 8 — now has a real backing field, no longer `BLOCKED_BY_DECISION` | Row 8 | Product owner | **Closed.** See §AAO for full evidence: commit `8907c0f938c8abff92c5680bbc8850e6c93352d7` on `ROJAN_Backend` branch `d3-specialist-specialties` (245/245 tests, 0 failed/errors/skipped) and commit `1b9be2db37512f3ed5716f1b38e9bfa9bef3dff1` on `ROJAN_Web` branch `d3-specialist-specialties-web` (1555/1555 tests, typecheck clean, production build clean). CI not yet run on either commit — both remain unpushed pending separate push authorization |
-| D4 | Should `ROJAN_Web`'s local `master` be rebased onto `origin/master`, or vice versa? | Rebase/reset local onto origin (likely correct — origin has more commits local lacks); or the reverse — **not an engineering call, needs the repo owner's own git workflow knowledge** | No recommendation offered on the rebase direction itself — explicitly outside engineering judgment. **Progress 2026-10-24/25 (§M, §N–§V):** all 3 local-only commits resolved by evidence (`a220aa2`: clean, transferable; `09357f3`/`353f5a9`: superseded by richer, already-tested upstream work — discard recommended, no semantic conflict in either case). Owner authorized publishing `a220aa2` → **PR #16 merged into `origin/master` 2026-10-25** (§V). The local checkout itself was never rebased/reset (not authorized) — **see §V for the current, now-wider ahead/behind gap** | Nothing — merging row 2's fix against stale local `master` still risks reverting origin-only commits until reconciled | Row 2 | Repo owner (whoever manages `ROJAN_Web`'s git remotes) | The divergence resolved, confirmed via a fresh `git fetch` + ancestry check — **not yet done**; `a220aa2`'s content landing upstream via a separate publish path does not by itself resolve the local/origin divergence |
+| D4 | Should `ROJAN_Web`'s local `master` be rebased onto `origin/master`, or vice versa? | Rebase/reset local onto origin (likely correct — origin has more commits local lacks); or the reverse — **not an engineering call, needs the repo owner's own git workflow knowledge** | **DECISION RECORDED 2026-11-07 by owner sign-off — see §AAP. Option selected: Option 2 — reconcile `origin/master` onto local `master` via a standard merge** (`git merge origin/master` while on local `master`; no rebase of the 55 shared origin-only commits; no `reset --hard`; no existing commit deliberately discarded or rewritten). **Not executed this pass** — no merge, reset, rebase, stash, commit, clean, checkout, or push was performed. See §AAP for the full pre-execution readiness assessment (dirty-file classification, known-conflict inventory) | Nothing — merging row 2's fix against stale local `master` still risks reverting origin-only commits until reconciled | Row 2 | Repo owner (whoever manages `ROJAN_Web`'s git remotes) | **Decision: recorded. Execution: pending.** This row's own stated evidence (a fresh `git fetch` + ancestry check) is not yet satisfied — no merge has been performed. See §AAP for exactly what authorization is still needed before execution can proceed |
 | D5 | Is source-read evidence (no execution) acceptable for closing Manager's booking-cancellation fix, or must it be executed first? | Wait for ≥3GB free memory and execute `testManagerDevDebugUnitTest`; or accept inspection-only evidence as sufficient | **RESOLVED 2026-10-27 (§HH.1) — not an owner decision, an already-ratified governance rule found and applied.** `governance/07_RELEASE_POLICY.md` §7.4 "Validation gate **[NON-NEGOTIABLE]**", rule 4: *"For a client: the change is verified on a real device or real environment, with real evidence — not an unsupported checkmark. If verification cannot be performed, that is stated explicitly; it is never claimed."* This is Tier-0 ecosystem governance, already adopted (`governance/ADOPTED_VERSION`), not something this engagement can waive or an owner needs to re-rule on. Inspection-only was never acceptable; real execution (already performed, §BB/§GG) was always the correct and required standard | Nothing on this specific row | **Closed** | **No longer an owner item** — resolved by citation of existing, already-approved governance | The governance citation above, plus the real executed test result already on record |
 | D6 | Does Customer get a Gallery/Media feature (Backend/Website already support it)? | Build now; defer to a later release; drop from scope entirely | No recommendation — pure product/scope call | Nothing blocks either way | Row 17 | Product owner | A dated decision |
 | D7 | Should the 404 for "salon doesn't exist" and "salon exists but isn't active" be distinguished, given the privacy risk of leaking DRAFT-salon existence? | Distinguish (needs a privacy review first); keep unified | **CLOSED 2026-11-06 by owner directive — see §AAI.** The privacy review (§WW.3) found the anonymous/public path (`PublicSalonController`) already safe; this pass additionally found and fixed a real, separate authorization gap on the *authenticated* path (`GET /api/v1/salons/{salonId}` had authentication but no owner/member/specialist check — any logged-in caller could read any other salon by UUID, including DRAFT/suspended ones). Fixed, tested, CI-verified. The original UX-vs-privacy question (whether to ever surface a more specific status for onboarding UX) is unanswered and not needed to close this item — the owner directed closure on the basis of the remediated risk | Nothing | Supplementary row (Issue-019) | Security/privacy owner | **Closed.** See §AAI for full evidence: commit `1cec4b41fa22c95f81c39045baeeb78765a610e5` on `ROJAN_Backend` branch `d7-privacy-review`, 243/243 tests passing (0 failed/errors/skipped), CI run `42062642051` ("Backend CI (baseline)") green on that exact commit |
@@ -7548,3 +7548,88 @@ introduced or needs addressing by this change.
 **D3: CLOSED.** (§C's own D3 row, above, is updated in place with this same evidence and a
 cross-reference to this section, per this document's existing convention for closing a Decision
 Register row — see D1/D2/D4.../D7/D9/D10/D11/D13's own rows for precedent.)
+
+## AAP — D4 owner decision recorded (Option 2): standard merge of `origin/master` into local `master` — NOT executed, pre-execution readiness assessed, D4 stays OPEN by its own evidence standard
+
+**This section records an owner decision for D4 only and prepares for its eventual execution; it
+performs none of that execution.** No merge, reset, rebase, stash, commit, clean, checkout, or push
+was run against `ROJAN_Web`. No Release Gate, the overall Matrix percentage, Governance Closure, or
+`RELEASE_READY` are touched here.
+
+**Decision recorded:** Option 2 — reconcile `origin/master` onto local `master` via a standard
+merge (`git merge origin/master` while on local `master`). Explicitly **not** a rebase of the 55
+origin-only commits; explicitly **not** a `reset --hard`; no existing commit is deliberately
+discarded or rewritten by this choice. This decision governs direction only — it does not itself
+authorize a push to `origin/master`. Dated, written owner sign-off: **2026-11-07**.
+
+**Current real state, re-confirmed this same day (read-only; no mutation):**
+- Local `master`: `09357f3e99eb7ce0cf40f7bb7fbe592eb4923b34`
+- `origin/master`: `ff210905eca8ca52653d58bb139a1482bc040c7a`
+- Merge-base: `30b5c427c666fc68b9d157503723a2aa2e1bb4fe` (a real common ancestor exists)
+- 3 commits ahead (local-only, unchanged: `09357f3`, `a220aa2`, `353f5a9`) / 55 commits behind
+- `git merge-base --is-ancestor`, both directions: NO — still a genuine two-way fork
+- Working tree: 32 dirty entries (17 modified, 15 untracked)
+
+**Known conflicts — re-verified fresh this pass via a real, read-only `git merge-tree --write-tree
+--name-only master origin/master` dry run (no ref touched, no working-tree change), not quoted from
+an older summary:** exactly **10**, matching §WW.4's own original count exactly — confirming nothing
+has drifted undetected since that measurement:
+
+| # | File | Conflict type |
+|---|---|---|
+| 1 | `apps/website/app/rojan-admin/web/actions.test.ts` | modify/delete (deleted on `origin/master`, modified on local `master`) |
+| 2 | `apps/website/app/rojan-admin/web/actions.ts` | modify/delete |
+| 3 | `apps/website/components/onboarding/onboarding-orchestrator.tsx` | content |
+| 4 | `apps/website/components/rojan-admin/admin-shell-nav.tsx` | content — **also a currently-dirty file, see below** |
+| 5 | `apps/website/components/rojan-admin/app-release-workspace.tsx` | add/add |
+| 6 | `apps/website/components/rojan-admin/web-overview.test.tsx` | modify/delete |
+| 7 | `apps/website/components/rojan-admin/web-overview.tsx` | modify/delete |
+| 8 | `apps/website/lib/api/backend/app-releases.ts` | add/add |
+| 9 | `apps/website/lib/api/backend/salon.test.ts` | content |
+| 10 | `apps/website/lib/types/app-release.ts` | add/add |
+
+None of these 10 were resolved this pass — listed for the owner's/next pass's review only.
+
+**Dirty-file classification (32 total, categorized only — not modified):**
+
+*Merge-blocking (23)* — either the path's content genuinely differs between local `master` and
+`origin/master` (confirmed per-file via `git diff master origin/master -- <path>`, not assumed), or
+an untracked file's path collides with something `origin/master` would introduce:
+
+- 16 of the 17 modified (`M`) files: `app/rojan-admin/page.tsx`, `components/account/
+  auth-required-state.tsx`, `components/booking/booking-flow.test.tsx`, `components/booking/
+  booking-flow.tsx`, `components/marketing/download/app-card.test.tsx`, `components/marketing/
+  download/app-card.tsx`, `components/marketing/download/app-carousel-3d.test.tsx`, `components/
+  marketing/login-form.tsx`, **`components/rojan-admin/admin-shell-nav.tsx`** (the one direct overlap
+  with the 10-conflict table above — this exact file carries both an uncommitted local edit and a
+  real three-way content conflict), `lib/constants/app-showcase.ts`, `lib/downloads/
+  release-registry.test.ts`, `lib/downloads/release-registry.ts`, `lib/format.ts`, `next.config.ts`,
+  `proxy.ts`, `public/downloads/customer/ROJAN-AI-Customer-1.0.0.apk`.
+- 7 of the 15 untracked (`??`) entries, where `origin/master` already has at least one file at or
+  under that same path (confirmed via `git ls-tree -r origin/master`, not assumed): `components/
+  rojan-admin/banners-manager.tsx`, `components/rojan-admin/ui/` (7 files exist there on
+  `origin/master`), `components/sections/customer-login-section.tsx`, `lib/api/backend/banner.ts`,
+  `lib/types/banner.ts`, `public/downloads/manager/ROJAN-AI-Manager-1.0.0.apk`, `public/downloads/
+  reception-android/`.
+
+*Apparently independent of the merge (9)* — confirmed, not assumed, via the same per-file checks:
+
+- 1 modified file: `app/no-tenant/dashboard/page.tsx` — byte-identical content on both branches, so
+  a merge would not need to write a different version to this path at all.
+- 8 untracked entries with zero overlapping path on `origin/master`: `.playwright-mcp/`,
+  `ROJAN_Web/`, `app/rojan-admin/banners/`, `app/sites/[tenant]/login/`, `components/dashboard/
+  manager-hero-banner.tsx`, `npm_audit_err.txt`, `npm_audit_web.json`, `docs/uiux/`.
+
+**Dispositions needed for the 23 merge-blocking entries before a merge can run (not decided here):**
+preserve via commit; preserve via stash; explicitly discard (requires its own separate owner
+authorization, file by file — not implied by the Option 2 decision alone); or confirm the file can
+be safely left as-is because it turns out not to actually block the merge once attempted (only
+discoverable by the attempt itself, not predictable with certainty from this static analysis alone).
+
+**D4: decision recorded, NOT CLOSED.** (§C's own D4 row, above, is updated in place with this same
+evidence and a cross-reference to this section — a documented owner decision on *direction* only,
+with execution, the dirty-file dispositions, and the 10 conflict resolutions all still pending, and
+this row's own stated closure criterion — a fresh ancestry check — not yet satisfiable until they
+are. Distinct from D14/D15's own Option-3 closures: those decisions were self-executing by
+definition (a going-forward workflow choice needs no git operation to take effect); D4's Option 2
+is the opposite — a real merge must still happen before this item can close.)
