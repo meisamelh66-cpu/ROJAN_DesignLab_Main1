@@ -191,9 +191,9 @@ role, and the evidence required to close it. **As of 2026-10-19: D9, D10, D13 ap
 | D11 | Does ADR-0024's MVP-era "accept no public-booking rate limiting" risk acceptance still hold for a real production launch at the mission's stated scale? | Accept as-is for this release; build abuse protection before launch | **CLOSED 2026-11-06 by owner directive — see §AAJ. Option selected: build abuse protection.** Owner chose option (a) of the 3 costed in §M.1/§N.3 — reuse the existing `RateLimiterPort`/`RedisRateLimiter` pattern already proven on auth/OTP. Final policy: 10 booking-create attempts per authenticated customer / 15 minutes, 30 per caller IP / 15 minutes, both budgets dual-key-enforced and always consumed (same convention as login), either exhausted returns `429 TOO_MANY_REQUESTS` / `BOOKING_RATE_LIMITED`. Implemented, tested, and CI-verified | Nothing | PR-08 | Product/security owner | **Closed.** See §AAJ for full evidence: commit `46f050284cc9a7c42b85e72f85de7afd6053e531` on `ROJAN_Backend` branch `d7-privacy-review`, `BookingUseCasesTest` 30/30, `:application:test` and `:bootstrap:test` (243/243) both green, CI run `42239166086` ("Backend CI (baseline)") green on that exact commit |
 | D12 | Does Android add TLS certificate pinning, or accept standard OS trust-store risk? | Accept (current state); add pinning (new engineering work + a rejection test) | No recommendation — standard risk-acceptance call. **Security assessment delivered 2026-10-24 (§M Decision 6, §M.2, §N.4)** — not a decision: confirmed zero pinning exists today (standard OS trust-store only); no formal written threat model exists in either repo to judge whether pinning is justified; an already-proven mandatory-update channel would help any future pin rotation | Nothing | PR-09 | Security owner | A dated decision either way — **assessment exists, decision does not** |
 | D13 | What user-scale target governs this release — full "thousands of users" from day one, or a staged rollout at a lower initial target? | Full scale; staged rollout | **APPROVED 2026-10-19 by owner: staged rollout, initial load-test target = 500 concurrent users** (confirmed, no longer a placeholder). Load-test baseline required before launch — plan drafted this pass (see `ROJAN_PR02_Load_Test_Plan_v1.md`), **not yet executed** | PR-02's baseline test now fully scoped (plan exists) | Actually executing the load test; the re-confirmation plan for scaling past 500 | Product/business owner | PR-02 execution evidence against this 500-user plan |
-| D14 | **New finding, 2026-10-26 (§EE).** `ROJAN_DesignLab_Main1`'s local primary checkout's `main` (`ee49225`) and `origin/main` (`63ba30d`) have genuinely diverged — 7 commits exist only locally (manager notifications, booking-visibility fix, "master integration release", page-size-limit fix, OTP-test quarantine, onboardingStatus surfacing, salon-creation-via-onboarding), 8 commits exist only on `origin/main` (PRs #1–#4, already merged there). Neither side is an ancestor of the other. Structurally identical to D4 (`ROJAN_Web`'s divergence) — not a product decision, but a git-workflow question only the repo owner can safely answer, because the local `main` also carries 52 uncommitted dirty files this engagement has never touched or inspected | (1) Push the 7 local-only commits to `origin/main` first, then reconcile; (2) reset/rebase local `main` onto `origin/main` (would require resolving the 52 dirty files first — **not attempted, explicitly protected**); (3) treat local `main` as informational-only and always work from `origin/main` going forward (what this pass's new PRs #7/#8 already do) | **DECISION RECORDED 2026-11-07 by owner sign-off — see §AAL. Option selected: Option 3 — treat local `main` as informational-only; all new work is built from `origin/main` going forward.** No reconciliation (push/reset/rebase/merge/cherry-pick) was performed or requested — Option 3 is explicitly a going-forward workflow choice, not a history-convergence one. **Not marked CLOSED**: this row's own "evidence required to close" column (a passing ancestry check) presumes a reconciling option (1 or 2); Option 3 does not produce a converged history by design, so that literal criterion cannot be satisfied by this decision alone. See §AAL for the full note on this gap | Any work built fresh off `origin/main` in a new worktree (done this pass for Row 4/PR-10) — now also the owner-ratified standing practice, not merely a workaround | Row 15's Manager-cancellation fix specifically — already independently resolved on its own engineering merits (§FF.3, zero textual conflict found), not via this decision | Repo owner (git workflow intent + the 52 dirty files' disposition) | **Decision: recorded.** Technical closure: see §AAL — either (a) an ancestry-satisfying step is executed anyway (not requested this pass), or (b) owner confirmation that the decision itself, under Option 3, is sufficient to close this row without a passing ancestry check |
+| D14 | **New finding, 2026-10-26 (§EE).** `ROJAN_DesignLab_Main1`'s local primary checkout's `main` (`ee49225`) and `origin/main` (`63ba30d`) have genuinely diverged — 7 commits exist only locally (manager notifications, booking-visibility fix, "master integration release", page-size-limit fix, OTP-test quarantine, onboardingStatus surfacing, salon-creation-via-onboarding), 8 commits exist only on `origin/main` (PRs #1–#4, already merged there). Neither side is an ancestor of the other. Structurally identical to D4 (`ROJAN_Web`'s divergence) — not a product decision, but a git-workflow question only the repo owner can safely answer, because the local `main` also carries 52 uncommitted dirty files this engagement has never touched or inspected | (1) Push the 7 local-only commits to `origin/main` first, then reconcile; (2) reset/rebase local `main` onto `origin/main` (would require resolving the 52 dirty files first — **not attempted, explicitly protected**); (3) treat local `main` as informational-only and always work from `origin/main` going forward (what this pass's new PRs #7/#8 already do) | **CLOSED 2026-11-07 by owner sign-off — see §AAL/§AAN. Option selected: Option 3 — treat local `main` as informational-only; all new work is built from `origin/main` going forward.** No reconciliation (push/reset/rebase/merge/cherry-pick) was performed or ever authorized — Option 3 is explicitly a going-forward workflow choice, not a history-convergence one | Any work built fresh off `origin/main` in a new worktree (done this pass for Row 4/PR-10) — now also the owner-ratified standing practice, not merely a workaround | Row 15's Manager-cancellation fix specifically — already independently resolved on its own engineering merits (§FF.3, zero textual conflict found), not via this decision | Repo owner (git workflow intent + the 52 dirty files' disposition) | **Closed per §AAN's owner-authorized criterion correction** — superseding this row's original ancestry-check wording, which never fit a non-reconciling option. See §AAN for the corrected criterion text and the real evidence satisfying it |
 
-| D15 | **New finding, 2026-10-27 (§GG.3).** `ROJAN_Desktop`'s local branch `main` (`c2dbc09`, not currently checked out in any worktree — the primary checkout is detached at `daea816`) has diverged from `origin/main` (`623a39b`): 11 commits local-only, **58 commits origin-only** — a materially larger gap than D14's Android case. Lower immediate risk than D4/D14 because no dirty/uncommitted working tree is attached to the local `main` ref itself | Same 3 options as D14 (push local-only work first; reset/rebase local onto origin; treat `origin/main` as the only source of truth going forward — already done for this pass's own new work, §GG.2) | **DECISION RECORDED 2026-11-07 by owner sign-off — see §AAM. Option selected: Option 3 — `origin/main` is the sole source of truth for all continuing work; local `main` is informational/historical only.** No reconciliation (push/reset/rebase/merge/cherry-pick) was performed or requested — this is a governance decision only, not authorization for any code or Git-operation change. Verified independently of D14's own Option 3 record — D15's own row text, and D15's own current technical state, were re-checked on their own terms, not inherited from D14 | Any work built fresh off `origin/main` (done this pass for Row 4's Desktop layer, §GG.2) — now also the owner-ratified standing practice | Any future local-`main`-based Desktop work repeating D14's Android pattern | Repo owner (git workflow intent) | **OWNER DECISION RECORDED — CLOSURE CRITERION NOT SATISFIED.** See §AAM: this row's own stated evidence (a passing ancestry check) presumes a reconciling option (1 or 2); Option 3 does not converge the two histories by design, so the literal criterion is not met by this decision alone. The criterion itself was not altered |
+| D15 | **New finding, 2026-10-27 (§GG.3).** `ROJAN_Desktop`'s local branch `main` (`c2dbc09`, not currently checked out in any worktree — the primary checkout is detached at `daea816`) has diverged from `origin/main` (`623a39b`): 11 commits local-only, **58 commits origin-only** — a materially larger gap than D14's Android case. Lower immediate risk than D4/D14 because no dirty/uncommitted working tree is attached to the local `main` ref itself | Same 3 options as D14 (push local-only work first; reset/rebase local onto origin; treat `origin/main` as the only source of truth going forward — already done for this pass's own new work, §GG.2) | **CLOSED 2026-11-07 by owner sign-off — see §AAM/§AAN. Option selected: Option 3 — `origin/main` is the sole source of truth for all continuing work; local `main` is informational/historical only.** No reconciliation (push/reset/rebase/merge/cherry-pick) was performed or ever authorized — this is a governance decision only | Any work built fresh off `origin/main` (done this pass for Row 4's Desktop layer, §GG.2) — now also the owner-ratified standing practice | Any future local-`main`-based Desktop work repeating D14's Android pattern | Repo owner (git workflow intent) | **Closed per §AAN's owner-authorized criterion correction** — superseding this row's original ancestry-check wording, which never fit a non-reconciling option. See §AAN for the corrected criterion text and the real evidence satisfying it |
 
 **No decision above is presented as approved.** All recommendations are explicitly labeled as
 recommendations.
@@ -7327,3 +7327,108 @@ altered, relaxed, or reinterpreted to force a CLOSED status.
 (§C's own D15 row, above, is updated in place with this same evidence and a cross-reference to this
 section. See §AAL for D14's parallel record in a different repository — noted here only as a reading
 aid; D15's own closure status rests entirely on this section's own verification, not on §AAL's.)
+
+## AAN — Master Governance Closure Pass, 2026-11-07: D14/D15 closed via owner-authorized criterion correction; D4/D3/D6/D8/D12 explicitly NOT closed — a real governance conflict found and reported, not resolved unilaterally
+
+**This section executes a single, explicit owner instruction to perform a final closure pass across
+D3, D4, D6, D8, D12, D14, and D15.** Before acting on any of them, the actual governance documents
+(`governance/00_INDEX_AND_PRECEDENCE.md`, `governance/11_AI_AGENT_GOVERNANCE.md`,
+`governance/03_API_CONTRACT_RULES.md`, `governance/07_RELEASE_POLICY.md`) were read directly, not
+assumed, because the instruction itself asked that any remaining product/security decision be picked
+"only from the Rulebook/Plan/Evidence, never guessed" — which only has an answer if such a rule
+actually exists.
+
+### What the real governance text says
+
+`governance/11_AI_AGENT_GOVERNANCE.md` §11.1.2 **[NON-NEGOTIABLE]**: *"Report any conflict it finds —
+between tiers, between a request and a rule, or between two rules — and STOP. It does not resolve an
+architecture conflict on its own or 'work around' it."* §11.5: *"An agent does not fabricate user
+approval, git state, verification it did not perform, or progress that did not happen."*
+`governance/03_API_CONTRACT_RULES.md` §3.4 **[NON-NEGOTIABLE]** requires contract changes to go
+through actual review, not unilateral agent judgment. `governance/07_RELEASE_POLICY.md` §7.2
+**[NON-NEGOTIABLE]** requires a *named* human Owner role before any component releases — it does not
+define a mechanism by which a single instruction stands in for that role's judgment on an open
+product-scope or security-risk question.
+
+**No document in this governance set — nor anywhere else searched this pass — contains a rule that
+resolves D3 (add a specialties field, or accept the gap), D6 (build/defer/drop Customer Gallery/
+Media), D8 (approve/rescope/defer the SYNC-CROSS-CLIENT-01 contract), or D12 (accept standard TLS
+trust-store risk, or build certificate pinning).** Every occurrence of these four items across the
+entire Matrix, from first discovery through this session's own prior passes, states the same thing
+in different words: "pure product/scope call, no recommendation," "assessment exists, decision does
+not," "net-new contract requiring explicit human sign-off per this engagement's own governance rule."
+This is not an oversight to be filled in — it is these items' own defining property. Treating this
+instruction's own directive ("decide, but only from the Rulebook — don't guess") as itself supplying
+the missing product/security answer would be exactly the "work around the conflict" §11.1.2
+prohibits, and exactly the "fabricate... progress that did not happen" §11.5 prohibits. **D3, D6, D8,
+D12 are therefore left OPEN, unchanged, by explicit governance citation — not by oversight, and not
+by declining the task.**
+
+### D4 — re-examined specifically, found NOT eligible for the same treatment as D14/D15
+
+The instruction conditioned D4's closure on *"if the Plan/Rulebook allows treating `origin/master` as
+the continuing source of truth."* This was checked directly rather than assumed true by analogy to
+D14/D15: D4's own canonical row (§C) defines **exactly two** options — rebase/reset local `master`
+onto `origin/master`, or the reverse — both of which are active, history-changing operations requiring
+explicit destructive-operation authorization (per §X.5/§X.7, already on record as requested and never
+given) plus an explicit disposition decision for the 32 dirty files, neither supplied by this
+instruction. **D4 has never had a third, non-reconciling "treat origin as sole source of truth, do not
+rebase" option recorded anywhere** — unlike D14/D15, whose own rows explicitly enumerate exactly that
+as option 3. §WW.4's own text, when it discusses an option 3, names it only as *"D15's option 3"* —
+never D4's. Applying Option 3 to D4 here would mean inventing a choice never defined by the Matrix
+itself, which the instruction's own rule ("don't guess a technical/product decision") forbids as much
+as it forbids guessing D3/D6/D8/D12. **D4 is therefore left OPEN, unchanged** — no rebase, reset, or
+any other Git operation was performed on `ROJAN_Web`, consistent with the instruction's own explicit
+"no destructive operation without explicit authorization" rule.
+
+### D14 / D15 — closure criterion corrected per explicit owner authorization, then satisfied with real, already-existing evidence (not fabricated)
+
+This instruction explicitly authorizes exactly this action: *"if the current closure criterion is
+incompatible with Option 3, correct it per Governance Rule so the criterion fits the approved
+decision — not a fake ancestry check to force a PASS."* Both rows' own criterion text (a passing
+`git merge-base --is-ancestor` check) was written for the two reconciling options and was never
+updated when Option 3 — a deliberately *non*-reconciling choice — became the one actually selected
+and dated (§AAL, §AAM). This is a genuine internal inconsistency in the Matrix's own prior wording,
+not a product/technical decision being invented, and the owner's explicit authorization to correct
+it is squarely inside this pass's scope.
+
+**Corrected closure criterion for an Option-3 decision (D14 and D15 alike):** the dated, written
+owner decision itself, plus confirmation that no work has been built from the divergent local branch
+since the decision, and that this practice continues going forward. This is satisfied by real,
+already-on-record evidence, not newly fabricated for this pass: every fix touching Android or Desktop
+across this entire engagement was already built from a fresh `origin/main`-based worktree, never from
+local `main` — Row 4/PR-10's Android layer (PR #7/#8), Desktop's own walk-in layer (PR #5, §GG.2),
+and every D7/D11/D1/D14/D15 governance action this session itself performed, all exclusively from
+isolated worktrees based on `origin/release/production-v24`, `origin/main`, or equivalent. No new
+commit, push, or verification was fabricated to manufacture this — it is the same practice already
+documented across §GG.2 and this session's own prior work.
+
+**D14: CLOSED.** **D15: CLOSED.** (§C's own D14/D15 rows, above, are updated in place with a
+cross-reference to this section and to their own §AAL/§AAM records, which remain in place,
+unedited, as the original decision-recording evidence — this section records the criterion
+correction and the resulting closure, it does not rewrite or delete §AAL/§AAM.)
+
+### PR-02 / PR-03 / PR-04 / PR-10 — re-checked, found unchanged, not fabricated
+
+- **PR-02 (load test, 500 VU/15 min):** still blocked on environment — no ~8-16GB+ RAM resource has
+  appeared in this environment at any point. **BLOCKED**, unchanged.
+- **PR-03 (VPS restore drill):** still blocked on the runbook's own §12 authorization checklist
+  (exact backup file/checksum, maintenance window, responsible operator, communication plan,
+  explicit service-impact/rollback acceptance) — this instruction did not supply any of these
+  specific items. **BLOCKED**, unchanged.
+- **PR-04 (signed-artifact rebuild + device test):** still blocked on the Play-App-Signing-vs-
+  self-managed-key decision (itself gated on D1's execution, now unblocked in principle since D1
+  closed, but the key-custody call itself was never made) plus a real device/reliable emulator,
+  neither supplied. **BLOCKED**, unchanged.
+- **PR-10 (walk-in-booking execution: commit+push of already-tested Backend/client fixes):** this
+  instruction's authority is a governance/documentation decision pass, not a specific, named
+  `git push` authorization for these particular commits to these particular shared remotes — per
+  `governance/11_AI_AGENT_GOVERNANCE.md` §11.2 **[NON-NEGOTIABLE]**, `git push`... on a shared remote
+  requires explicit approval, which this instruction did not name. **Not executed this pass** —
+  remains pending a separate, specific push authorization.
+
+### Gates re-assessed with only the real evidence this pass actually produced
+
+D14/D15 closing does not, by itself, satisfy Gate #1 ("all decisions approved") — D3, D4, D6, D8,
+D12 remain genuinely open. No Gate changes status as a result of this section. Tally unchanged:
+**Passed = 0/9.**
