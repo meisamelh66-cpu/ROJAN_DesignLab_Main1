@@ -233,6 +233,7 @@ private class RescheduleFakeSalonRepository(private val result: Result<Salon>) :
 
     override suspend fun getSalon(salonId: String): Result<Salon> = result
     override suspend fun myOwnedSalons(): Result<List<Salon>> = error("not used by these tests")
+    override suspend fun getGallery(salonId: String): Result<List<ai.rojan.designlab.domain.repository.GalleryImage>> = error("not used by these tests")
 }
 
 private class RescheduleFakeSpecialistRepository(private val result: Result<Specialist>) : SpecialistRepository {

@@ -91,6 +91,7 @@ class BookingConfirmationViewModelTest {
     private class FakeSalonRepository(private val salon: Salon?) : SalonRepository {
         var getSalonCalls = 0
         override suspend fun browseSalons(page: Int, size: Int, nameFilter: String?, sortDirection: String) = error("unused")
+        override suspend fun getGallery(salonId: String): Result<List<ai.rojan.designlab.domain.repository.GalleryImage>> = error("unused")
         override suspend fun getSalon(salonId: String): Result<Salon> {
             getSalonCalls++
             return salon?.let { Result.success(it) } ?: Result.failure(IOException("no salon"))

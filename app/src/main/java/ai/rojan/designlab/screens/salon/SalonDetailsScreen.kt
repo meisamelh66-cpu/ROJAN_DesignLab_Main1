@@ -25,6 +25,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -45,13 +48,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -59,8 +65,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import coil.compose.AsyncImage
 
 import ai.rojan.designlab.di.BackendApiContainerHolder
+import ai.rojan.designlab.domain.repository.GalleryImage
 import ai.rojan.designlab.domain.repository.Salon
 import ai.rojan.designlab.domain.repository.SalonWorkingHours
 import ai.rojan.designlab.domain.repository.Service
@@ -179,11 +188,14 @@ private fun String.initial(): String = trim().firstOrNull()?.toString() ?: "?"
 /**
  * Journey 1, Screen 2: Salon Details. Backed by [SalonDetailsViewModel]
  * (`GET /api/v1/salons/{id}` + categories + services + specialists +
- * working-hours) and [SalonRelationshipViewModel] (follow / favourite).
+ * working-hours + gallery) and [SalonRelationshipViewModel] (follow / favourite).
  *
- * Sections whose data the backend doesn't model (ratings/reviews,
- * facilities, photo gallery) are absent by design — never faked or rendered
- * empty. `selectedServiceIds` (category-first flow) filters services;
+ * D6 (Customer Gallery/Media, Build now): the gallery section renders only
+ * when the backend actually returns images (`GET /api/v1/salons/{id}/gallery`,
+ * real rows only — never a fabricated placeholder); a salon with none simply
+ * omits the section, same "absent, not faked or rendered empty" treatment
+ * every other backend-unmodeled section here (ratings/reviews, facilities)
+ * still gets. `selectedServiceIds` (category-first flow) filters services;
  * `onContinueBooking` (only when the caller provides it) renders the bottom
  * CTA and auto-skips specialist selection when the salon has exactly one.
  */
@@ -348,6 +360,16 @@ fun SalonDetailsScreen(
                                         RefSpecialistItem(specialist) { onSpecialistClick(specialist.id) }
                                     }
                                 }
+                            }
+                        }
+
+                        if (data.gallery.isNotEmpty()) {
+                            item { RefSectionSpacer(); RefSectionLabel("گالری") }
+                            item {
+                                RefGalleryGrid(
+                                    images = data.gallery,
+                                    modifier = Modifier.padding(horizontal = RefScreenMargin, vertical = RojanDimens.SpaceSM),
+                                )
                             }
                         }
 
@@ -759,6 +781,71 @@ private fun RefSpecialistItem(specialist: Specialist, onClick: () -> Unit) {
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+// --- Gallery grid (D6: Customer Gallery/Media, Build now) --------------
+
+/**
+ * Fixed 3 columns, square cells, computed height — same pragmatic
+ * "LazyVerticalGrid inside a non-scrolling parent LazyColumn item" shape
+ * `ManagerSalonMediaScreen`'s own gallery grid already uses, so this real,
+ * backend-issued gallery renders as an actual tappable photo wall, not a
+ * placeholder.
+ */
+@Composable
+private fun RefGalleryGrid(images: List<GalleryImage>, modifier: Modifier = Modifier) {
+    var previewUrl by remember { mutableStateOf<String?>(null) }
+    val rows = (images.size + 2) / 3
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
+        modifier = modifier
+            .fillMaxWidth()
+            .height((rows * 104).dp),
+        horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+        verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+    ) {
+        gridItems(images, key = { it.id }) { image ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(104.dp)
+                    .clip(RoundedCornerShape(RojanDimens.SpaceXS))
+                    .background(RefSurfaceFill)
+                    .rojanPressable(onClick = { previewUrl = image.url }, role = Role.Button),
+            ) {
+                RojanRemoteImage(
+                    url = image.url,
+                    contentDescription = "تصویر گالری سالن",
+                    shape = RoundedCornerShape(RojanDimens.SpaceXS),
+                    modifier = Modifier.fillMaxSize(),
+                    fallback = {
+                        Icon(
+                            Icons.Outlined.Storefront,
+                            contentDescription = null,
+                            tint = HomeColors.TextMuted,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    previewUrl?.let { url ->
+        Dialog(onDismissRequest = { previewUrl = null }) {
+            AsyncImage(
+                model = url,
+                contentDescription = "تصویر گالری سالن",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(360.dp)
+                    .clip(RefCardShape)
+                    .rojanPressable(onClick = { previewUrl = null }, role = Role.Button),
+            )
+        }
     }
 }
 

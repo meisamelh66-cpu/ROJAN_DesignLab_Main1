@@ -51,6 +51,16 @@ data class Salon(
     val location: SalonLocation get() = SalonLocation(latitude = latitude, longitude = longitude, address = address)
 }
 
+/**
+ * D6 (Customer Gallery/Media, Build now): one photo in a salon's customer-facing gallery. Real,
+ * backend-issued rows only — the backend endpoint itself has no upload/reorder/delete yet, so an
+ * empty list is a genuine "no photos published," never a loading or error state mistaken for one.
+ */
+data class GalleryImage(
+    val id: String,
+    val url: String,
+)
+
 /** Talks to the ROJAN backend's Salon API (`ROJAN_Backend/API_CONTRACT.md`). */
 interface SalonRepository {
 
@@ -73,4 +83,7 @@ interface SalonRepository {
 
     /** TEAM2-002. Salons owned by the currently authenticated account — `GET /api/v1/salons/mine`. Not paginated (an owner's own salon count is always small). */
     suspend fun myOwnedSalons(): Result<List<Salon>>
+
+    /** D6 (Customer Gallery/Media, Build now). Always pre-sorted for display, server-side. */
+    suspend fun getGallery(salonId: String): Result<List<GalleryImage>>
 }

@@ -1,5 +1,6 @@
 package ai.rojan.designlab.presentation.salon
 
+import ai.rojan.designlab.domain.repository.GalleryImage
 import ai.rojan.designlab.domain.repository.Salon
 import ai.rojan.designlab.domain.repository.SalonRepository
 import ai.rojan.designlab.domain.repository.SalonWorkingHours
@@ -25,6 +26,7 @@ data class SalonDetailsData(
     val services: List<Service>,
     val specialists: List<Specialist>,
     val workingHours: List<SalonWorkingHours>,
+    val gallery: List<GalleryImage>,
 )
 
 /**
@@ -65,7 +67,11 @@ class SalonDetailsViewModel(
                 // applies to Salon): a working-hours fetch failure shouldn't take down the
                 // whole salon page, so it degrades to an empty list instead of getOrThrow().
                 val workingHours = workingHoursRepository.getWorkingHours(salonId).getOrDefault(emptyList())
-                SalonDetailsData(salon, categories, services, specialists, workingHours)
+                // D6 (Customer Gallery/Media, Build now): same enrichment treatment as
+                // workingHours above — a gallery fetch failure (or a salon with no published
+                // photos yet) must never take down the whole salon page.
+                val gallery = salonRepository.getGallery(salonId).getOrDefault(emptyList())
+                SalonDetailsData(salon, categories, services, specialists, workingHours, gallery)
             }
             state = result.fold(
                 onSuccess = { UiState.Success(it) },

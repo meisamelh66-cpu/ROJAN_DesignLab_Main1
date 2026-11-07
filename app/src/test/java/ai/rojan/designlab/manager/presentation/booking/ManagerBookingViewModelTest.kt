@@ -233,6 +233,7 @@ private class FakeSalonRepository(private val result: Result<Salon>) : SalonRepo
 
     override suspend fun getSalon(salonId: String): Result<Salon> = result
     override suspend fun myOwnedSalons(): Result<List<Salon>> = error("not used by these tests - ManagerBookingViewModel must never call the owner-only endpoint (Master Integration Repair, Pass 3)")
+    override suspend fun getGallery(salonId: String): Result<List<ai.rojan.designlab.domain.repository.GalleryImage>> = error("not used by these tests")
 }
 
 private class FakeActiveSalonContextRepository(initialSalonId: String?) : ActiveSalonContextRepository {

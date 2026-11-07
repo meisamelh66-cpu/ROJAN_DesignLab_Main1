@@ -55,6 +55,21 @@ data class CreateSalonRequestDto(
 )
 
 /**
+ * D6 (Customer Gallery/Media, Build now): `GalleryImageResponse` (backend,
+ * `GalleryController.list`, `GET /api/v1/salons/{salonId}/gallery`) — real,
+ * always pre-sorted by [displayOrder] ascending server-side. Any
+ * authenticated user, same authorization shape as the specialists list
+ * endpoint.
+ */
+@Serializable
+data class GalleryImageResponseDto(
+    val id: String,
+    val salonId: String,
+    val url: String,
+    val displayOrder: Int,
+)
+
+/**
  * `UpdateSalonRequest` (backend, `SalonController.update`) — owner-only,
  * full replace for `name`/`description`/`phone`/`email`/`address`.
  * [latitude]/[longitude] are real, live backend fields

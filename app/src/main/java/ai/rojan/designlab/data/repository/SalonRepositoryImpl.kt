@@ -1,8 +1,10 @@
 package ai.rojan.designlab.data.repository
 
 import ai.rojan.designlab.data.remote.SalonApi
+import ai.rojan.designlab.data.remote.dto.GalleryImageResponseDto
 import ai.rojan.designlab.data.remote.dto.SalonResponseDto
 import ai.rojan.designlab.data.remote.safeApiCall
+import ai.rojan.designlab.domain.repository.GalleryImage
 import ai.rojan.designlab.domain.repository.PagedResult
 import ai.rojan.designlab.domain.repository.Salon
 import ai.rojan.designlab.domain.repository.SalonRepository
@@ -35,6 +37,11 @@ class SalonRepositoryImpl(
 
     override suspend fun myOwnedSalons(): Result<List<Salon>> =
         safeApiCall { salonApi.mySalons() }.map { list -> list.map { it.toDomain() } }
+
+    override suspend fun getGallery(salonId: String): Result<List<GalleryImage>> =
+        safeApiCall { salonApi.getGallery(salonId) }.map { list -> list.map { it.toDomain() } }
+
+    private fun GalleryImageResponseDto.toDomain() = GalleryImage(id = id, url = url)
 
     private fun SalonResponseDto.toDomain() = Salon(
         id = id,
