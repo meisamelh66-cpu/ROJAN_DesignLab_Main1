@@ -180,7 +180,7 @@ role, and the evidence required to close it. **As of 2026-10-19: D9, D10, D13 ap
 |---|---|---|---|---|---|---|---|
 | D1 | Is `Tenant.slug` (rojan-platform) the canonical identity for `Salon.slug` (ROJAN_Backend), and if not, how are the two reconciled? | (1) `Tenant.slug` canonical + sync to `Salon.slug`; (2) independent fields + a durable identity-mapping table [recommended]; (3) consolidate via an existing shared contract — ruled out, no such contract exists on either backend | **CLOSED 2026-11-07 by owner sign-off — see §AAK. Option selected: Option 1 — `Tenant.slug` canonical + sync to `Salon.slug`.** `Salon.slug` remains its own field in `ROJAN_Backend` (necessarily — a separate backend/table) but its value is kept synchronized from the canonical `Tenant.slug`, not independently authoritative. This is a documentation-only governance closure this pass — no implementation (sync mechanism, migration, contract change) has been built yet; TASK-010's own execution remains open, tracked separately | TASK-010's own documentation/design work; nothing code-level | Row 7; the future Website migration wave that depends on it | Product/architecture owner | **Closed.** See §AAK — dated, written sign-off recorded 2026-11-07. TASK-010's actual implementation (the sync mechanism itself) is a separate, still-open execution item, same pattern as D2/D9/D10/D13's own decision-vs-execution split |
 | D2 | Which walk-in-booking Backend design ships — additive `salonCustomerId`, or nullable `customerId`+`crmCustomerId` with an enforced invariant? | Option A: additive, less safe, no domain tests exist for it; Option B [recommended]: nullable+invariant, already 13/13 domain-tested in `ROJAN_Backend_walkin_v2` | **SELECTED 2026-10-24 by owner (§M Decision 2): Option B.** Invariant confirmed already implemented at both domain (`Booking.kt:125-127`) and DB (`V46__walkin_booking_crm_customer.sql`) layers; its business meaning grounded in a pre-existing doc (`ROJAN_Customer_CRM_Architecture_Plan_v1.md`); migration additive-only, safe. All 3 client worktrees re-verified 2026-10-24 (§N.1) already compatible — zero rework needed | Row 4's execution (test runs + commits); client DTO work is now unblocked | Actual commit + push of Backend `walkin_v2` and the 3 client fixes — not yet performed | Backend/architecture owner | **Closed.** Row 4/PR-10's own execution is the remaining open item, not D2 itself |
-| D3 | Does the Backend add a multi-value specialist-specialties field, or does the Website permanently show none? | Add (Backend schema+contract work); accept the permanent gap | No recommendation — pure product/scope call | Nothing blocks on this either way (Website already degrades safely) | Row 8 | Product owner | A dated decision either way |
+| D3 | Does the Backend add a multi-value specialist-specialties field, or does the Website permanently show none? | Add (Backend schema+contract work); accept the permanent gap | **CLOSED 2026-11-07 by owner sign-off — see §AAO. Option selected: Add — a real Backend multi-value `specialties` field, with full contract/client alignment.** Implemented additively alongside the pre-existing single `specialty` field (never mutated or removed); `ROJAN_Backend` schema, domain, API, and `API_CONTRACT.md` updated; `ROJAN_Web`'s public specialist page now renders real values instead of a permanently-empty placeholder | Row 8 — now has a real backing field, no longer `BLOCKED_BY_DECISION` | Row 8 | Product owner | **Closed.** See §AAO for full evidence: commit `8907c0f938c8abff92c5680bbc8850e6c93352d7` on `ROJAN_Backend` branch `d3-specialist-specialties` (245/245 tests, 0 failed/errors/skipped) and commit `1b9be2db37512f3ed5716f1b38e9bfa9bef3dff1` on `ROJAN_Web` branch `d3-specialist-specialties-web` (1555/1555 tests, typecheck clean, production build clean). CI not yet run on either commit — both remain unpushed pending separate push authorization |
 | D4 | Should `ROJAN_Web`'s local `master` be rebased onto `origin/master`, or vice versa? | Rebase/reset local onto origin (likely correct — origin has more commits local lacks); or the reverse — **not an engineering call, needs the repo owner's own git workflow knowledge** | No recommendation offered on the rebase direction itself — explicitly outside engineering judgment. **Progress 2026-10-24/25 (§M, §N–§V):** all 3 local-only commits resolved by evidence (`a220aa2`: clean, transferable; `09357f3`/`353f5a9`: superseded by richer, already-tested upstream work — discard recommended, no semantic conflict in either case). Owner authorized publishing `a220aa2` → **PR #16 merged into `origin/master` 2026-10-25** (§V). The local checkout itself was never rebased/reset (not authorized) — **see §V for the current, now-wider ahead/behind gap** | Nothing — merging row 2's fix against stale local `master` still risks reverting origin-only commits until reconciled | Row 2 | Repo owner (whoever manages `ROJAN_Web`'s git remotes) | The divergence resolved, confirmed via a fresh `git fetch` + ancestry check — **not yet done**; `a220aa2`'s content landing upstream via a separate publish path does not by itself resolve the local/origin divergence |
 | D5 | Is source-read evidence (no execution) acceptable for closing Manager's booking-cancellation fix, or must it be executed first? | Wait for ≥3GB free memory and execute `testManagerDevDebugUnitTest`; or accept inspection-only evidence as sufficient | **RESOLVED 2026-10-27 (§HH.1) — not an owner decision, an already-ratified governance rule found and applied.** `governance/07_RELEASE_POLICY.md` §7.4 "Validation gate **[NON-NEGOTIABLE]**", rule 4: *"For a client: the change is verified on a real device or real environment, with real evidence — not an unsupported checkmark. If verification cannot be performed, that is stated explicitly; it is never claimed."* This is Tier-0 ecosystem governance, already adopted (`governance/ADOPTED_VERSION`), not something this engagement can waive or an owner needs to re-rule on. Inspection-only was never acceptable; real execution (already performed, §BB/§GG) was always the correct and required standard | Nothing on this specific row | **Closed** | **No longer an owner item** — resolved by citation of existing, already-approved governance | The governance citation above, plus the real executed test result already on record |
 | D6 | Does Customer get a Gallery/Media feature (Backend/Website already support it)? | Build now; defer to a later release; drop from scope entirely | No recommendation — pure product/scope call | Nothing blocks either way | Row 17 | Product owner | A dated decision |
@@ -7432,3 +7432,119 @@ correction and the resulting closure, it does not rewrite or delete §AAL/§AAM.
 D14/D15 closing does not, by itself, satisfy Gate #1 ("all decisions approved") — D3, D4, D6, D8,
 D12 remain genuinely open. No Gate changes status as a result of this section. Tally unchanged:
 **Passed = 0/9.**
+
+## AAO — D3 CLOSED: owner decision (Option "Add") implemented end-to-end on `ROJAN_Backend` and `ROJAN_Web`, tested, verified — CI pending a separate push authorization
+
+**This section closes D3 only.** No other Decision Register row, no Release Gate (§E), the overall
+Matrix percentage, Governance Closure, or `RELEASE_READY` are touched here.
+
+**Decision:** the owner selected "Add" — a real, multi-value `specialties` field on the Backend,
+additive alongside the pre-existing single `specialty` field (never mutated or removed, so every
+already-shipped client reading the old field keeps working unchanged), with full contract and
+client alignment. Dated, written owner sign-off: **2026-11-07**.
+
+**Investigation before implementation.** The existing single `specialty: String?` field
+(`Specialist.kt`, added by `V15__specialist_contact_and_specialty.sql`) was confirmed free text, not
+a constrained enum, in real use (e.g. "Hair Stylist"). The Website's own pre-existing
+`PublicSpecialist.specialties: Specialty[]` type was found to mirror a *different*, dormant module's
+ADR (`docs/adr/0024`, not `ROJAN_Backend`'s real contract) — its closed 7-value enum
+(`HAIR`/`COLOR`/.../`OTHER`) does not match the real backend data shape. Given no new-field type
+precedent (array/JSON column) exists anywhere in this schema, and the owner's "Add" decision names no
+specific representation, the minimal/additive choice was a single comma-joined `TEXT` column,
+split/joined only at the persistence-adapter boundary — never exposed as raw CSV past that layer.
+Android and Desktop were confirmed, by direct search, to have no concept of specialist specialties at
+all (Desktop's own `SpecialistSkill.cs` is an unrelated, pre-existing local domain concept) — D3's
+real scope is Backend + Website only, matching Row 8's own original framing.
+
+**Implementation — `ROJAN_Backend` (14 files, 1 new migration):**
+- `V46__specialist_specialties.sql` — additive `specialists.specialties TEXT` column, nullable, no
+  backfill, same precedent as V15's own migration.
+- `Specialist.kt` (domain) — new `specialties: List<String>` property; `create`/`update`/
+  `reconstitute` extended; `update`'s `specialties: List<String>? = null` follows the exact same
+  "`null` = leave untouched, empty list = explicit clear" semantics `mobileNumber`/`specialty`
+  already established.
+- `SpecialistJpaEntity.kt` / `SpecialistRepositoryAdapter.kt` (infrastructure) — raw CSV column,
+  comma-join/split confined to this one adapter file.
+- `SpecialistDtos.kt` (api) — `CreateSpecialistRequest`/`UpdateSpecialistRequest`/`SpecialistResponse`
+  extended; `@Size(max = 10)` list + per-element `@Size(max = 50)` + a no-comma `@Pattern` (the
+  storage delimiter), all defaulted to preserve every existing test/client call site's compilability.
+- `PublicSalonDtos.kt` / `PublicSalonController.kt` — `PublicSpecialistResponse.specialties` added;
+  the public, unauthenticated specialist listing now carries real values, never `specialty`,
+  `mobileNumber`, or any other staff-management field.
+- `CreateSpecialistUseCase.kt` / `UpdateSpecialistUseCase.kt` / `SpecialistController.kt` — the new
+  field threaded end-to-end from request to domain to response.
+- `API_CONTRACT.md` — the Specialists section updated to document `specialties` (and, as a
+  necessary side-effect of touching this section, the pre-existing but previously undocumented
+  `mobileNumber`/`specialty` fields — not a new finding, just closing a documentation gap directly
+  adjacent to this change).
+
+**Implementation — `ROJAN_Web` (10 files):**
+- `lib/types/specialists.ts` — `PublicSpecialist.specialties` changed from the dormant-module
+  `Specialty[]` enum to `string[]`, matching the real backend data shape. The `Specialty` enum type
+  itself was **not removed** — confirmed via a repo-wide search that `components/marketing/
+  popular-categories.tsx` (a static marketing section, unrelated to any real specialist's data) still
+  depends on it as a closed icon-dictionary key set; removing it would have been an out-of-scope
+  breaking change this pass correctly avoided.
+- `lib/format.ts` — new `formatSpecialistSpecialtyLabel(specialty: string): string` added alongside
+  the existing `formatSpecialtyLabel(specialty: Specialty)` (left untouched, still used by
+  `popular-categories.tsx`). Same "known-key lookup with a raw-string fallback" convention already
+  established by `formatBookingStatusLabel`/`formatVerificationStatusLabel`/`formatDocumentTypeLabel`
+  in this same file.
+- `lib/api/specialists.ts` — the mapper's hardcoded `specialties: []` replaced with the real backend
+  field, defensively defaulted (`response.specialties ?? []`) against an older cached response or a
+  backend rollback.
+- `specialist-card.tsx` / `specialist-detail.tsx` / `specialist-intro-poster.tsx` / `app/sites/
+  [tenant]/specialists/[specialistId]/page.tsx` / `lib/seo/metadata.ts` — all 5 real call sites
+  (confirmed exhaustively via `tsc --noEmit`, which caught 3 of these a plain-text search had missed)
+  updated to the new formatter.
+
+**A real mid-task error, corrected before it caused any damage:** one edit was made by mistake
+directly in the **primary** `ROJAN_Web` checkout (which carries 32 pre-existing, unrelated dirty
+files this engagement has never touched) instead of the isolated `d3-specialist-specialties-web`
+worktree. Caught immediately via `git diff --stat` on the primary checkout right after the edit;
+reverted with `git checkout --` before any further action; the primary checkout's dirty-file count
+was confirmed back to exactly 32 (unchanged) afterward. The correct edit was then made in the
+isolated worktree, where all of this section's real work actually happened.
+
+**Test evidence.**
+- `SpecialistUseCasesTest` (`ROJAN_Backend`, application layer): 18/18 passed (11 pre-existing + 7
+  new D3 cases — multi-specialty create, legacy-client default, replace-on-update, leave-untouched-
+  on-omit, explicit-clear-with-empty-list, blank/whitespace filtering, findById reload).
+- `:application:test` (`ROJAN_Backend`, full module): `BUILD SUCCESSFUL`.
+- `SalonManagementFlowIntegrationTest` / `PublicSalonDirectoryFlowIntegrationTest` /
+  `SalonPilotRbacIntegrationTest` (`ROJAN_Backend`, real HTTP + real embedded Postgres): 8/8, 20/20,
+  7/7 — 35/35 passed, including one new test exercising the real CSV-column persistence round-trip
+  through `SpecialistRepositoryAdapter` (not just an in-memory assumption) and one new test
+  confirming the public endpoint surfaces real specialties for an activated salon.
+- `:bootstrap:test` (`ROJAN_Backend`, full integration suite): **245/245 tests, 0 failed, 0 errors, 0
+  skipped** (243 baseline + 2 new cases).
+- `ROJAN_Web`: `npx tsc --noEmit` clean; `npx vitest run` — **194/194 test files, 1555/1555 tests**
+  passed (1552 baseline + 3 new cases: real-specialties mapping, missing-field-degrades-safely,
+  free-text-formatter passthrough); `npm run build` — exit 0, full production build clean.
+
+**Git.** `ROJAN_Backend`: exactly 14 files changed (13 modified + 1 new migration); `git diff --check`
+clean. Commit `8907c0f938c8abff92c5680bbc8850e6c93352d7` on branch `d3-specialist-specialties`
+(based on `origin/release/production-v24`@`a5ff8fd`, PR #19's merge commit — already carries D7/D11).
+`ROJAN_Web`: exactly 10 files changed; `git diff --check` clean. Commit
+`1b9be2db37512f3ed5716f1b38e9bfa9bef3dff1` on branch `d3-specialist-specialties-web` (based on
+`origin/master`@`ff21090`).
+
+**CI.** **Not yet run on either commit** — neither branch has been pushed. Per this pass's own
+explicit instruction ("اگر push نیاز به authorization جداگانه دارد، بدون آن push نکن"), a `git push`
+to a shared remote requires a separate, specific authorization this pass did not receive, consistent
+with `governance/11_AI_AGENT_GOVERNANCE.md` §11.2 **[NON-NEGOTIABLE]**. D3 is closed here on the
+strength of its own stated closure criterion ("a dated decision either way" — §C's own text, no CI
+requirement baked into it, unlike D7/D11's own criteria which explicitly required CI-verified
+evidence before this engagement closed them) plus the real local implementation/test evidence above.
+This is recorded transparently, not hidden: CI-verified status for these two specific commits remains
+an open item pending a push decision.
+
+**Residual risk.** None identified in the implementation itself. Two notes: (1) the comma-delimited
+storage format means an individual specialty value can never itself contain a comma — enforced at
+the API-validation layer (`@Pattern`), not silently stripped; (2) Android/Desktop clients were
+confirmed to have no specialist-specialties concept today, so no cross-client contract drift was
+introduced or needs addressing by this change.
+
+**D3: CLOSED.** (§C's own D3 row, above, is updated in place with this same evidence and a
+cross-reference to this section, per this document's existing convention for closing a Decision
+Register row — see D1/D2/D4.../D7/D9/D10/D11/D13's own rows for precedent.)
