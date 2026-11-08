@@ -1,5 +1,6 @@
 package ai.rojan.designlab.data.remote
 
+import ai.rojan.designlab.data.remote.dto.GalleryImageResponseDto
 import ai.rojan.designlab.data.remote.dto.PagedResponseDto
 import ai.rojan.designlab.data.remote.dto.SalonResponseDto
 import retrofit2.http.GET
@@ -23,4 +24,8 @@ interface SalonApi {
     /** TEAM2-002: salons owned by the authenticated caller — not paginated on the backend either. */
     @GET("api/v1/salons/mine")
     suspend fun mySalons(): List<SalonResponseDto>
+
+    /** D6 (Customer Gallery/Media, Build now). Any authenticated user. */
+    @GET("api/v1/salons/{salonId}/gallery")
+    suspend fun getGallery(@Path("salonId") salonId: String): List<GalleryImageResponseDto>
 }

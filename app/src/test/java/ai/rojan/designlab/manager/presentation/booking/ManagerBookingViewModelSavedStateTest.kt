@@ -138,6 +138,7 @@ class ManagerBookingViewModelSavedStateTest {
             error("not used by these tests")
         override suspend fun getSalon(salonId: String): Result<Salon> = error("not used by these tests - no active salon is configured, so this must never be called")
         override suspend fun myOwnedSalons(): Result<List<Salon>> = error("not used by these tests - ManagerBookingViewModel must never call the owner-only endpoint (Master Integration Repair, Pass 3)")
+        override suspend fun getGallery(salonId: String): Result<List<ai.rojan.designlab.domain.repository.GalleryImage>> = error("not used by these tests")
     }
 
     /** No active salon selected - these tests only exercise the wizard's SavedStateHandle-backed selection persistence, which is independent of [ManagerBookingViewModel.catalogState]. */
