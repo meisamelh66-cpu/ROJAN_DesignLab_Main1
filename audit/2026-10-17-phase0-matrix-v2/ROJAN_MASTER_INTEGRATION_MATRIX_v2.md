@@ -1334,7 +1334,7 @@ multiple sub-aspects at different maturity levels, the **least-resolved** sub-as
 | # | §B Item | Canonical status | Why |
 |---|---|---|---|
 | PR-01 | Android CI workflow | `COMPLETE` | Real GitHub Actions run, passing, PR #6 (§Z) — the row's own acceptance criterion ("a real CI run completes accurately on a real PR") is met; merging PR #6 is a separate, not-yet-requested step |
-| PR-02 | Load/performance baseline | `IN_PROGRESS` | D13 resolved; plan drafted; **partial, safety-scaled execution 2026-10-27 (§KK)** — real k6 run exists (20 VUs read-only, not the full 500-VU/5-scenario plan); the authoritative acceptance run itself remains unexecuted |
+| PR-02 | Load/performance baseline | `DEFERRED` | **Code-ready, execution pending / Deferred — 2026-11-08 by explicit owner decision (Option B), see §AAX.** Seed-generation code (`LoadTestSeedRunner`/`ManagerUnitSeeder`) complete, Safety-Review-PASS, committed (`8e9e027`), pushed, PR #21 open, real CI (`build-test-report`) PASS. **Real k6 execution was not run and is not claimed** — no disposable environment provisioned, no threshold evidence (p95/error-rate/5xx/DB-pool) exists. Execution itself is deferred to a future owner decision, not scheduled here |
 | PR-03 | Backup/restore procedure | `IN_PROGRESS` | Disposable-environment orchestration fully validated; real-VPS exercise blocked on access/authorization |
 | PR-04 | Signed-artifact governance | `NEEDS_OWNER_DECISION` | Documentation reconciled (D10); key-ownership decision and rebuild still open |
 | PR-05 | Ancestry-check process discipline | `COMPLETE` | Applied correctly every time it mattered this engagement (process gate, not a feature) |
@@ -8033,3 +8033,49 @@ environment was provisioned. No code was changed. No evidence is claimed that do
 not edited by this section). This is a Release Gate execution blocker, not an open governance
 decision.** D13 remains CLOSED. No `PASS`, no partial/substitute test result, and no threshold outcome
 is recorded here, because none was produced.
+
+---
+
+## AAX — PR-02: Code-ready, execution pending / Deferred — 2026-11-08, by explicit owner decision (Option B); MATRIX EXIT for PR-02
+
+**This section does not reopen, re-decide, or touch any of D1–D15.** D13 stays CLOSED exactly as
+§AAW left it. This is the final governance closure of the separate, already-tracked Release Gate
+execution item PR-02 (§B), following §AAW's real environment-readiness assessment and a subsequent
+owner-authorized implementation pass.
+
+**What is real and verified (not fabricated):**
+
+- A profile-gated seed-generation mechanism (`LoadTestSeedRunner` + `ManagerUnitSeeder`, package
+  `ai.rojan.backend.bootstrap.loadtest`) was implemented in worktree `rojan-backend-pr02-otp`,
+  strictly against canonical `origin/main`@`0d50ffaf37e82dcbd4a006b7a157044759c5a05f` — zero existing
+  files modified, inactive unless `SPRING_PROFILES_ACTIVE` includes `load-test-seed` **and**
+  `rojan.load-test-seed.confirm=true`.
+- A narrowly-scoped Safety Review (rollback correctness, idempotency/partial-state safety,
+  profile/safety isolation, scope isolation, test coverage) returned **PASS** on all reviewed
+  criteria before any commit was made.
+- Committed as `8e9e027` (exactly the 3 reviewed files: `LoadTestSeedRunner.kt`, `ManagerUnitSeeder.kt`,
+  `LoadTestSeedRunnerTest.kt`), pushed to `origin/feature/pr02-load-test-seed-runner`, opened as
+  **PR #21** against `ROJAN_Backend`'s `main`.
+- Real CI ran on PR #21: `build-test-report` → **PASS** (2m57s,
+  `https://github.com/meisamelh66-cpu/ROJAN_Backend/actions/runs/42485681573`).
+
+**What remains genuinely outstanding, and is explicitly NOT claimed here:**
+
+- **No real k6 load test has been executed.** No disposable load-test environment has been
+  provisioned. No threshold evidence (p95 latency, error rate, 5xx count, DB pool exhaustion) exists
+  anywhere. This CI result verifies only that the seed-generation *code* compiles and its own unit
+  tests pass — it is not, and is not recorded as, the executed/validated load test that
+  `ROJAN_PR02_Load_Test_Plan_v2.md` §13 (Pass/Fail Criteria) and §16 (Explicit Statement) require for
+  an acceptance result.
+
+**Owner decision (explicit, dated 2026-11-08): Option B — Defer.** Presented with exactly two options
+(A — authorize provisioning/execution now; B — defer execution to a future decision), the owner chose
+B. Real load-test execution is deferred indefinitely to a future, separate owner decision — not
+scheduled, not implied to follow automatically. PR #21 was deliberately **not merged** as part of this
+closure (merging was judged unnecessary for recording this status and was not separately authorized).
+
+**PR-02 status: `DEFERRED`** (§B's own row updated in place with this decision). **PR-02 — Code-ready,
+execution pending / Deferred — MATRIX EXIT COMPLETE.** This does not mean the load test passed or ran;
+it means PR-02's governance closure is complete on the basis of the owner's explicit Option B decision,
+with only the real evidence above recorded. No other section of this Matrix, and no other open or
+closed decision (D1–D15), was touched by this entry.
