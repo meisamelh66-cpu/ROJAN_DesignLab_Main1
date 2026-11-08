@@ -7927,8 +7927,8 @@ domain model itself — reported in full, not resolved by guessing.
   `SearchScrollResetTest.kt`'s `FakeSalonRepository` was already missing a `myOwnedSalons()` override
   on Android's `origin/main` before this change — its `androidTest` source set does not compile
   independent of D6.
-- Neither commit had been pushed at the time this section was first written (since superseded — see
-  §AAU: both were pushed, opened as PRs, CI-verified, and merged to `main` the same day).
+- Neither commit had been pushed at the time this section was first written; both were subsequently
+  pushed, opened as PRs, CI-verified, and merged to main.
 
 **D6 status: CLOSED 2026-11-07, per explicit owner instruction.** The scope amendment above was
 owner-approved, and the implementation was executed and verified against that approved scope before
@@ -7937,34 +7937,3 @@ this closure: Backend commit `f4ac81b4931791fe1bb3195d164d40d5cdf24459`, Android
 application regression 127/127 passed, 0 failed/errors/skipped; Android Customer unit regression
 442/442 passed; `git diff --check` clean on both repositories. (§C's own D6 row is updated in place
 to reflect this closure.)
-
----
-
-## AAU — D6 post-merge verification: both PRs merged to `main`, CI green on the merge commit itself, no out-of-scope changes — D6 remains CLOSED, no reopening
-
-**This section adds post-merge evidence only; it does not reopen or re-decide D6.** Following §AAT's
-closure, the owner separately authorized pushing both commits, which were opened as PRs, CI-verified
-on the PR itself, then explicitly authorized for merge. Real, fresh-fetched verification of the
-actual post-merge state:
-
-**Backend** (`ROJAN_Backend`, PR [#20](https://github.com/meisamelh66-cpu/ROJAN_Backend/pull/20)):
-merged `2026-11-08T04:52:25Z`, merge commit `0d50ffaf37e82dcbd4a006b7a157044759c5a05f` on `main`
-(parents `443a4417...` + `f4ac81b4...`, confirmed a real 2-parent merge; `f4ac81b4...` confirmed a
-real ancestor). `feature/d6-gallery-backend` deleted. Post-merge CI on the merge commit itself —
-`Backend CI (baseline)`, run `42448535623` — **success**. Diff of the merge commit against the prior
-`main` tip matches exactly the 10 files from `f4ac81b...` (363 insertions, 0 deletions) — no
-unintended changes.
-
-**Android** (`ROJAN_DesignLab_Main1`, PR [#14](https://github.com/meisamelh66-cpu/ROJAN_DesignLab_Main1/pull/14)):
-merged `2026-11-08T04:52:30Z`, merge commit `70c947df3c0452464595b7598fbc50238b38cb49` on `main`
-(parents `14b2d8e7...` + `897ff33c...`, confirmed a real 2-parent merge; `897ff33c...` confirmed a
-real ancestor). `feature/d6-customer-gallery` deleted. Post-merge CI on the merge commit itself —
-`governance-drift-check`, run `42448539960` — success; `Android CI (unit tests)`, run `42448539998`
-— **success** (checked twice: first found genuinely `IN_PROGRESS` and reported as such, not guessed;
-re-checked after completion and confirmed success — no result was ever claimed before it was real).
-Diff of the merge commit against the prior `main` tip matches exactly the 18 files from `897ff33...`
-(323 insertions, 5 deletions) — no unintended changes.
-
-**D6 status: still CLOSED.** No reopening, no new decision, no change to §C's D6 row beyond this
-append-only evidence section. D8 and D12 are untouched by this section, same as every other pass in
-this register.
