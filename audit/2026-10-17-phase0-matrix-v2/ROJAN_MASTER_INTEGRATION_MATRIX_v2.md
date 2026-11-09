@@ -178,22 +178,22 @@ role, and the evidence required to close it. **As of 2026-10-19: D9, D10, D13 ap
 
 | ID | Exact question | Options & consequences | Recommendation (rationale) | Can proceed independently | Must stay blocked | Approver | Evidence required to close |
 |---|---|---|---|---|---|---|---|
-| D1 | Is `Tenant.slug` (rojan-platform) the canonical identity for `Salon.slug` (ROJAN_Backend), and if not, how are the two reconciled? | (1) `Tenant.slug` canonical + sync to `Salon.slug`; (2) independent fields + a durable identity-mapping table [recommended]; (3) consolidate via an existing shared contract — ruled out, no such contract exists on either backend | (2), already delivered as a phased proposal this engagement (additive, reversible at every phase) | TASK-010's own documentation/design work; nothing code-level | Row 7; the future Website migration wave that depends on it | Product/architecture owner | A dated, written sign-off on one of the three options |
+| D1 | Is `Tenant.slug` (rojan-platform) the canonical identity for `Salon.slug` (ROJAN_Backend), and if not, how are the two reconciled? | (1) `Tenant.slug` canonical + sync to `Salon.slug`; (2) independent fields + a durable identity-mapping table [recommended]; (3) consolidate via an existing shared contract — ruled out, no such contract exists on either backend | **CLOSED 2026-11-07 by owner sign-off — see §AAK. Option selected: Option 1 — `Tenant.slug` canonical + sync to `Salon.slug`.** `Salon.slug` remains its own field in `ROJAN_Backend` (necessarily — a separate backend/table) but its value is kept synchronized from the canonical `Tenant.slug`, not independently authoritative. This is a documentation-only governance closure this pass — no implementation (sync mechanism, migration, contract change) has been built yet; TASK-010's own execution remains open, tracked separately | TASK-010's own documentation/design work; nothing code-level | Row 7; the future Website migration wave that depends on it | Product/architecture owner | **Closed.** See §AAK — dated, written sign-off recorded 2026-11-07. TASK-010's actual implementation (the sync mechanism itself) is a separate, still-open execution item, same pattern as D2/D9/D10/D13's own decision-vs-execution split |
 | D2 | Which walk-in-booking Backend design ships — additive `salonCustomerId`, or nullable `customerId`+`crmCustomerId` with an enforced invariant? | Option A: additive, less safe, no domain tests exist for it; Option B [recommended]: nullable+invariant, already 13/13 domain-tested in `ROJAN_Backend_walkin_v2` | **SELECTED 2026-10-24 by owner (§M Decision 2): Option B.** Invariant confirmed already implemented at both domain (`Booking.kt:125-127`) and DB (`V46__walkin_booking_crm_customer.sql`) layers; its business meaning grounded in a pre-existing doc (`ROJAN_Customer_CRM_Architecture_Plan_v1.md`); migration additive-only, safe. All 3 client worktrees re-verified 2026-10-24 (§N.1) already compatible — zero rework needed | Row 4's execution (test runs + commits); client DTO work is now unblocked | Actual commit + push of Backend `walkin_v2` and the 3 client fixes — not yet performed | Backend/architecture owner | **Closed.** Row 4/PR-10's own execution is the remaining open item, not D2 itself |
-| D3 | Does the Backend add a multi-value specialist-specialties field, or does the Website permanently show none? | Add (Backend schema+contract work); accept the permanent gap | No recommendation — pure product/scope call | Nothing blocks on this either way (Website already degrades safely) | Row 8 | Product owner | A dated decision either way |
-| D4 | Should `ROJAN_Web`'s local `master` be rebased onto `origin/master`, or vice versa? | Rebase/reset local onto origin (likely correct — origin has more commits local lacks); or the reverse — **not an engineering call, needs the repo owner's own git workflow knowledge** | No recommendation offered on the rebase direction itself — explicitly outside engineering judgment. **Progress 2026-10-24/25 (§M, §N–§V):** all 3 local-only commits resolved by evidence (`a220aa2`: clean, transferable; `09357f3`/`353f5a9`: superseded by richer, already-tested upstream work — discard recommended, no semantic conflict in either case). Owner authorized publishing `a220aa2` → **PR #16 merged into `origin/master` 2026-10-25** (§V). The local checkout itself was never rebased/reset (not authorized) — **see §V for the current, now-wider ahead/behind gap** | Nothing — merging row 2's fix against stale local `master` still risks reverting origin-only commits until reconciled | Row 2 | Repo owner (whoever manages `ROJAN_Web`'s git remotes) | The divergence resolved, confirmed via a fresh `git fetch` + ancestry check — **not yet done**; `a220aa2`'s content landing upstream via a separate publish path does not by itself resolve the local/origin divergence |
+| D3 | Does the Backend add a multi-value specialist-specialties field, or does the Website permanently show none? | Add (Backend schema+contract work); accept the permanent gap | **CLOSED 2026-11-07 by owner sign-off — see §AAO. Option selected: Add — a real Backend multi-value `specialties` field, with full contract/client alignment.** Implemented additively alongside the pre-existing single `specialty` field (never mutated or removed); `ROJAN_Backend` schema, domain, API, and `API_CONTRACT.md` updated; `ROJAN_Web`'s public specialist page now renders real values instead of a permanently-empty placeholder | Row 8 — now has a real backing field, no longer `BLOCKED_BY_DECISION` | Row 8 | Product owner | **Closed.** See §AAO for full evidence: commit `8907c0f938c8abff92c5680bbc8850e6c93352d7` on `ROJAN_Backend` branch `d3-specialist-specialties` (245/245 tests, 0 failed/errors/skipped) and commit `1b9be2db37512f3ed5716f1b38e9bfa9bef3dff1` on `ROJAN_Web` branch `d3-specialist-specialties-web` (1555/1555 tests, typecheck clean, production build clean). CI not yet run on either commit — both remain unpushed pending separate push authorization |
+| D4 | Should `ROJAN_Web`'s local `master` be rebased onto `origin/master`, or vice versa? | Rebase/reset local onto origin (likely correct — origin has more commits local lacks); or the reverse — **not an engineering call, needs the repo owner's own git workflow knowledge** | **CLOSED 2026-11-07 by owner sign-off — see §AAP/§AAR. Option selected: Option 2 — reconcile `origin/master` onto local `master` via a standard merge** (`git merge origin/master` while on local `master`; no rebase of the 55 shared origin-only commits; no `reset --hard`; no existing commit deliberately discarded or rewritten). **Executed 2026-11-07** — merge commit `8cdb8900414fe6fa3c57c3d63a74e0ffc2276122`, built on top of the owner-authorized dirty-file dispositions already recorded in §AAQ. See §AAR for full execution evidence (conflict resolutions, post-merge reconciliation, ancestry verification) | Row 2's fix against local `master` — no longer blocked by stale divergence | Nothing | Repo owner (whoever manages `ROJAN_Web`'s git remotes) | **Closed.** See §AAR — a fresh `git merge-base --is-ancestor origin/master master` returns `YES`, verified on current local HEAD `e0d1aa9cd809986b9737b0c21d8620343c5e87f7`. Push to `origin/master` has NOT been performed — a separate, still-open execution item, same decision-vs-execution split already used for D1/D2/D3/D9/D10/D13 |
 | D5 | Is source-read evidence (no execution) acceptable for closing Manager's booking-cancellation fix, or must it be executed first? | Wait for ≥3GB free memory and execute `testManagerDevDebugUnitTest`; or accept inspection-only evidence as sufficient | **RESOLVED 2026-10-27 (§HH.1) — not an owner decision, an already-ratified governance rule found and applied.** `governance/07_RELEASE_POLICY.md` §7.4 "Validation gate **[NON-NEGOTIABLE]**", rule 4: *"For a client: the change is verified on a real device or real environment, with real evidence — not an unsupported checkmark. If verification cannot be performed, that is stated explicitly; it is never claimed."* This is Tier-0 ecosystem governance, already adopted (`governance/ADOPTED_VERSION`), not something this engagement can waive or an owner needs to re-rule on. Inspection-only was never acceptable; real execution (already performed, §BB/§GG) was always the correct and required standard | Nothing on this specific row | **Closed** | **No longer an owner item** — resolved by citation of existing, already-approved governance | The governance citation above, plus the real executed test result already on record |
-| D6 | Does Customer get a Gallery/Media feature (Backend/Website already support it)? | Build now; defer to a later release; drop from scope entirely | No recommendation — pure product/scope call | Nothing blocks either way | Row 17 | Product owner | A dated decision |
-| D7 | Should the 404 for "salon doesn't exist" and "salon exists but isn't active" be distinguished, given the privacy risk of leaking DRAFT-salon existence? | Distinguish (needs a privacy review first); keep unified | No recommendation — privacy review must happen before any technical choice | Nothing | Supplementary row (Issue-019) | Security/privacy owner | A completed privacy review, then a decision |
-| D8 | Is the SYNC-CROSS-CLIENT-01 contract (all 8 sub-requirements) approved as originally proposed? | Approve as proposed; rescope; defer indefinitely | No recommendation — this is a net-new, large contract requiring explicit human sign-off per this engagement's own governance rule | Nothing — zero code exists | Row 19 | Architecture owner | A dated, explicit sign-off on scope |
+| D6 | Does Customer get a Gallery/Media feature (Backend/Website already support it)? | Build now; defer to a later release; drop from scope entirely | **CLOSED 2026-11-07 by owner sign-off — see §AAS/§AAT. Option selected: Option 1 — Build now.** §AAS's original premise (Backend/Website already have a working Gallery/Media endpoint; only Android lacks it) was found, mid-execution, not to hold against `origin/main` — see §AAT for the real scope/architecture gate this surfaced and its resolution. **Scope amendment, owner-approved 2026-11-07 (§AAT): building a new, authenticated, `salonId`-based Backend Gallery endpoint (migration + domain aggregate + repository + controller) is explicitly approved as part of D6**, superseding §AAS's "Backend migration/domain/storage are not to be rebuilt" clause for this item specifically. **Executed and verified against the owner-approved amended scope** — see §AAT for both commits and full build/test evidence | Row 17's Android-side scoping work | Nothing | Product owner | **Closed.** Scope amendment owner-approved; implementation executed and verified against it (Backend `f4ac81b4931791fe1bb3195d164d40d5cdf24459`, Android `897ff33cc58ba8d6bd62b338ed0aedf01fa9c270`; gallery integration test 4/4, backend regression 127/127, Android regression 442/442, `git diff --check` clean). See §AAT |
+| D7 | Should the 404 for "salon doesn't exist" and "salon exists but isn't active" be distinguished, given the privacy risk of leaking DRAFT-salon existence? | Distinguish (needs a privacy review first); keep unified | **CLOSED 2026-11-06 by owner directive — see §AAI.** The privacy review (§WW.3) found the anonymous/public path (`PublicSalonController`) already safe; this pass additionally found and fixed a real, separate authorization gap on the *authenticated* path (`GET /api/v1/salons/{salonId}` had authentication but no owner/member/specialist check — any logged-in caller could read any other salon by UUID, including DRAFT/suspended ones). Fixed, tested, CI-verified. The original UX-vs-privacy question (whether to ever surface a more specific status for onboarding UX) is unanswered and not needed to close this item — the owner directed closure on the basis of the remediated risk | Nothing | Supplementary row (Issue-019) | Security/privacy owner | **Closed.** See §AAI for full evidence: commit `1cec4b41fa22c95f81c39045baeeb78765a610e5` on `ROJAN_Backend` branch `d7-privacy-review`, 243/243 tests passing (0 failed/errors/skipped), CI run `42062642051` ("Backend CI (baseline)") green on that exact commit |
+| D8 | Is the SYNC-CROSS-CLIENT-01 contract (all 8 sub-requirements) approved as originally proposed? | Approve as proposed; rescope; defer indefinitely | **CLOSED 2026-11-08 by owner sign-off — see §AAV. Option selected: Option 3 — Defer indefinitely.** The SYNC-CROSS-CLIENT-01 contract is explicitly taken out of active execution scope and deferred to a future, separate need/decision — not approved as proposed, not rescoped. No implementation was performed or authorized; zero code exists for this contract, same as before this decision | Nothing — zero code exists, deferral changes nothing code-level | Row 19 | Architecture owner | **Closed.** A dated, explicit sign-off deferring the contract indefinitely — see §AAV |
 | D9 | Is `main` or `feature/android-first-salon-pilot` the Android integration trunk? | (1) `main` as trunk, cherry-pick the 4 pilot-only features (media gallery, specialist↔service assignment, salon-invite management, Reception invite-acceptance); (2) pilot as trunk, lose 72 `main`-only commits; (3) formal reconciliation merge | **APPROVED: option (1), `main` as trunk** — owner decision recorded 2026-10-19 in this conversation. Reconciliation plan (cherry-pick the 4 pilot-only features) not yet executed — no merge/push performed | Planning the reconciliation (identifying exact commits/conflicts) | Actually executing the cherry-pick/merge — needs separate execution authorization | Product/architecture owner | **Closed** — reconciliation execution is now PR-06's own open item, not D9's |
 | D10 | How is the production-signed-artifact-vs-authorization-doc discrepancy resolved? | (a) Retroactively authorize the existing signed build; (b) rotate the signing key and rebuild; (c) correct the authorization document | **APPROVED 2026-10-19 by owner: option (c), executed, documentation-only.** Corrected in two passes. **Pass 2 found the fuller picture**: `SIGNING-SETUP-REPORT.md` (2026-09-10) shows the keystore was genuinely generated and working 16 days before the authorization doc's "no keystore present" claim — that claim was factually wrong when written, not just overtaken later. `RELEASE_ARTIFACT_MANIFEST.md` documents a 3-flavor signed build from commit `59fd2c19`, built 2026-09-26 16:29, "**confirmed by the user**" — its recorded cert SHA-256 is an exact match to the one independently verified via `apksigner` on the on-disk APK. **This was a documented, user-aware build, not an unexplained one.** Still unresolved per that manifest's own §3: Play-App-Signing-vs-self-managed key ownership; no real-device smoke test ever performed. Both corrections preserve the original document text unchanged | Nothing further code-level | **Owner has separately decided (2026-10-19): rebuild fresh rather than resolve the existing artifact's status** — see PR-04 | Governance/security owner | **Documentation correction: closed (both passes).** Rebuild tracked under PR-04 |
-| D11 | Does ADR-0024's MVP-era "accept no public-booking rate limiting" risk acceptance still hold for a real production launch at the mission's stated scale? | Accept as-is for this release; build abuse protection before launch | D13 is now decided (500 users) so this can be answered against a concrete figure, but no recommendation is offered on which option to pick. **Risk assessment delivered 2026-10-24 (§M Decision 5, §M.1, §N.3)** — not a decision, not a mitigation: public booking creation confirmed to have zero rate limiting at any layer; the realistic threat surface is narrower than originally framed (endpoint requires auth, not fully anonymous); per-specialist advisory locking is a structurally reasonable, un-measured design. Three concrete options presented (reuse `RedisRateLimiter`; nginx `limit_req`; accept as-is re-dated) | Nothing | PR-08 | Product/security owner | A dated decision, not inherited silently from the MVP-era ADR — **assessment exists, decision does not** |
-| D12 | Does Android add TLS certificate pinning, or accept standard OS trust-store risk? | Accept (current state); add pinning (new engineering work + a rejection test) | No recommendation — standard risk-acceptance call. **Security assessment delivered 2026-10-24 (§M Decision 6, §M.2, §N.4)** — not a decision: confirmed zero pinning exists today (standard OS trust-store only); no formal written threat model exists in either repo to judge whether pinning is justified; an already-proven mandatory-update channel would help any future pin rotation | Nothing | PR-09 | Security owner | A dated decision either way — **assessment exists, decision does not** |
-| D13 | What user-scale target governs this release — full "thousands of users" from day one, or a staged rollout at a lower initial target? | Full scale; staged rollout | **APPROVED 2026-10-19 by owner: staged rollout, initial load-test target = 500 concurrent users** (confirmed, no longer a placeholder). Load-test baseline required before launch — plan drafted this pass (see `ROJAN_PR02_Load_Test_Plan_v1.md`), **not yet executed** | PR-02's baseline test now fully scoped (plan exists) | Actually executing the load test; the re-confirmation plan for scaling past 500 | Product/business owner | PR-02 execution evidence against this 500-user plan |
-| D14 | **New finding, 2026-10-26 (§EE).** `ROJAN_DesignLab_Main1`'s local primary checkout's `main` (`ee49225`) and `origin/main` (`63ba30d`) have genuinely diverged — 7 commits exist only locally (manager notifications, booking-visibility fix, "master integration release", page-size-limit fix, OTP-test quarantine, onboardingStatus surfacing, salon-creation-via-onboarding), 8 commits exist only on `origin/main` (PRs #1–#4, already merged there). Neither side is an ancestor of the other. Structurally identical to D4 (`ROJAN_Web`'s divergence) — not a product decision, but a git-workflow question only the repo owner can safely answer, because the local `main` also carries 52 uncommitted dirty files this engagement has never touched or inspected | (1) Push the 7 local-only commits to `origin/main` first, then reconcile; (2) reset/rebase local `main` onto `origin/main` (would require resolving the 52 dirty files first — **not attempted, explicitly protected**); (3) treat local `main` as informational-only and always work from `origin/main` going forward (what this pass's new PRs #7/#8 already do) | No recommendation — this is the owner's own git-workflow intent to clarify, not an engineering call | Any work built fresh off `origin/main` in a new worktree (done this pass for Row 4/PR-10) | Row 15's Manager-cancellation fix specifically — its dirty files overlap 2 files with the 7 local-only commits, so it cannot be safely lifted onto `origin/main` without risking silently dropping content those local-only commits depend on | Repo owner (git workflow intent + the 52 dirty files' disposition) | A fresh `git merge-base --is-ancestor` check in either direction returning true, after the owner's chosen reconciliation |
+| D11 | Does ADR-0024's MVP-era "accept no public-booking rate limiting" risk acceptance still hold for a real production launch at the mission's stated scale? | Accept as-is for this release; build abuse protection before launch | **CLOSED 2026-11-06 by owner directive — see §AAJ. Option selected: build abuse protection.** Owner chose option (a) of the 3 costed in §M.1/§N.3 — reuse the existing `RateLimiterPort`/`RedisRateLimiter` pattern already proven on auth/OTP. Final policy: 10 booking-create attempts per authenticated customer / 15 minutes, 30 per caller IP / 15 minutes, both budgets dual-key-enforced and always consumed (same convention as login), either exhausted returns `429 TOO_MANY_REQUESTS` / `BOOKING_RATE_LIMITED`. Implemented, tested, and CI-verified | Nothing | PR-08 | Product/security owner | **Closed.** See §AAJ for full evidence: commit `46f050284cc9a7c42b85e72f85de7afd6053e531` on `ROJAN_Backend` branch `d7-privacy-review`, `BookingUseCasesTest` 30/30, `:application:test` and `:bootstrap:test` (243/243) both green, CI run `42239166086` ("Backend CI (baseline)") green on that exact commit |
+| D12 | Does Android add TLS certificate pinning, or accept standard OS trust-store risk? | Accept (current state); add pinning (new engineering work + a rejection test) | **CLOSED 2026-11-08 by owner sign-off — see §AAV. Option selected: Option 1 — Accept current state.** Standard Android OS trust-store validation (the real, confirmed-as-is posture from §M Decision 6/§M.2/§N.4 — no `CertificatePinner`, no custom `TrustManager`/`HostnameVerifier` anywhere in `BackendApiContainer.kt`) is formally accepted as the transport-security posture. Certificate pinning is not built; no rejection test is added — Option 1 requires neither | Nothing | PR-09 | Security owner | **Closed.** A dated, explicit risk-acceptance of the existing security assessment — see §AAV |
+| D13 | What user-scale target governs this release — full "thousands of users" from day one, or a staged rollout at a lower initial target? | Full scale; staged rollout | **CLOSED 2026-10-19 by owner approval: staged rollout, initial load-test target = 500 concurrent users** (confirmed, no longer a placeholder). This decision is closed and unchanged — see §AAW for a 2026-11-08 environment-readiness assessment of its separate execution item (PR-02), which found real, specific prerequisites still outstanding (no fabricated pass/fail; no load test has been run) | PR-02's baseline test now fully scoped (plan exists; readiness assessed, see §AAW) | Actually executing the load test; the re-confirmation plan for scaling past 500 | Product/business owner | **Closed** (decision). PR-02's own load-test execution and acceptance evidence is a separate, still-open Release Gate item — tracked under PR-02 (§B), not a reopening of D13. See §AAW |
+| D14 | **New finding, 2026-10-26 (§EE).** `ROJAN_DesignLab_Main1`'s local primary checkout's `main` (`ee49225`) and `origin/main` (`63ba30d`) have genuinely diverged — 7 commits exist only locally (manager notifications, booking-visibility fix, "master integration release", page-size-limit fix, OTP-test quarantine, onboardingStatus surfacing, salon-creation-via-onboarding), 8 commits exist only on `origin/main` (PRs #1–#4, already merged there). Neither side is an ancestor of the other. Structurally identical to D4 (`ROJAN_Web`'s divergence) — not a product decision, but a git-workflow question only the repo owner can safely answer, because the local `main` also carries 52 uncommitted dirty files this engagement has never touched or inspected | (1) Push the 7 local-only commits to `origin/main` first, then reconcile; (2) reset/rebase local `main` onto `origin/main` (would require resolving the 52 dirty files first — **not attempted, explicitly protected**); (3) treat local `main` as informational-only and always work from `origin/main` going forward (what this pass's new PRs #7/#8 already do) | **CLOSED 2026-11-07 by owner sign-off — see §AAL/§AAN. Option selected: Option 3 — treat local `main` as informational-only; all new work is built from `origin/main` going forward.** No reconciliation (push/reset/rebase/merge/cherry-pick) was performed or ever authorized — Option 3 is explicitly a going-forward workflow choice, not a history-convergence one | Any work built fresh off `origin/main` in a new worktree (done this pass for Row 4/PR-10) — now also the owner-ratified standing practice, not merely a workaround | Row 15's Manager-cancellation fix specifically — already independently resolved on its own engineering merits (§FF.3, zero textual conflict found), not via this decision | Repo owner (git workflow intent + the 52 dirty files' disposition) | **Closed per §AAN's owner-authorized criterion correction** — superseding this row's original ancestry-check wording, which never fit a non-reconciling option. See §AAN for the corrected criterion text and the real evidence satisfying it |
 
-| D15 | **New finding, 2026-10-27 (§GG.3).** `ROJAN_Desktop`'s local branch `main` (`c2dbc09`, not currently checked out in any worktree — the primary checkout is detached at `daea816`) has diverged from `origin/main` (`623a39b`): 11 commits local-only, **58 commits origin-only** — a materially larger gap than D14's Android case. Lower immediate risk than D4/D14 because no dirty/uncommitted working tree is attached to the local `main` ref itself | Same 3 options as D14 (push local-only work first; reset/rebase local onto origin; treat `origin/main` as the only source of truth going forward — already done for this pass's own new work, §GG.2) | No recommendation — owner's git-workflow intent | Any work built fresh off `origin/main` (done this pass for Row 4's Desktop layer, §GG.2) | Any future local-main-based Desktop work repeating D14's Android pattern | Repo owner (git workflow intent) | A fresh `git merge-base --is-ancestor` check in either direction returning true |
+| D15 | **New finding, 2026-10-27 (§GG.3).** `ROJAN_Desktop`'s local branch `main` (`c2dbc09`, not currently checked out in any worktree — the primary checkout is detached at `daea816`) has diverged from `origin/main` (`623a39b`): 11 commits local-only, **58 commits origin-only** — a materially larger gap than D14's Android case. Lower immediate risk than D4/D14 because no dirty/uncommitted working tree is attached to the local `main` ref itself | Same 3 options as D14 (push local-only work first; reset/rebase local onto origin; treat `origin/main` as the only source of truth going forward — already done for this pass's own new work, §GG.2) | **CLOSED 2026-11-07 by owner sign-off — see §AAM/§AAN. Option selected: Option 3 — `origin/main` is the sole source of truth for all continuing work; local `main` is informational/historical only.** No reconciliation (push/reset/rebase/merge/cherry-pick) was performed or ever authorized — this is a governance decision only | Any work built fresh off `origin/main` (done this pass for Row 4's Desktop layer, §GG.2) — now also the owner-ratified standing practice | Any future local-`main`-based Desktop work repeating D14's Android pattern | Repo owner (git workflow intent) | **Closed per §AAN's owner-authorized criterion correction** — superseding this row's original ancestry-check wording, which never fit a non-reconciling option. See §AAN for the corrected criterion text and the real evidence satisfying it |
 
 **No decision above is presented as approved.** All recommendations are explicitly labeled as
 recommendations.
@@ -1334,9 +1334,9 @@ multiple sub-aspects at different maturity levels, the **least-resolved** sub-as
 | # | §B Item | Canonical status | Why |
 |---|---|---|---|
 | PR-01 | Android CI workflow | `COMPLETE` | Real GitHub Actions run, passing, PR #6 (§Z) — the row's own acceptance criterion ("a real CI run completes accurately on a real PR") is met; merging PR #6 is a separate, not-yet-requested step |
-| PR-02 | Load/performance baseline | `IN_PROGRESS` | D13 resolved; plan drafted; **partial, safety-scaled execution 2026-10-27 (§KK)** — real k6 run exists (20 VUs read-only, not the full 500-VU/5-scenario plan); the authoritative acceptance run itself remains unexecuted |
+| PR-02 | Load/performance baseline | `DEFERRED` | **Code-ready, execution pending / Deferred — 2026-11-08 by explicit owner decision (Option B), see §AAX.** Seed-generation code (`LoadTestSeedRunner`/`ManagerUnitSeeder`) complete, Safety-Review-PASS, committed (`8e9e027`), pushed, PR #21 open, real CI (`build-test-report`) PASS. **Real k6 execution was not run and is not claimed** — no disposable environment provisioned, no threshold evidence (p95/error-rate/5xx/DB-pool) exists. Execution itself is deferred to a future owner decision, not scheduled here |
 | PR-03 | Backup/restore procedure | `IN_PROGRESS` | Disposable-environment orchestration fully validated; real-VPS exercise blocked on access/authorization |
-| PR-04 | Signed-artifact governance | `NEEDS_OWNER_DECISION` | Documentation reconciled (D10); key-ownership decision and rebuild still open |
+| PR-04 | Signed-artifact governance | `NEEDS_OWNER_DECISION` | Documentation reconciled (D10); key-ownership decision and rebuild still open. **Updated 2026-11-09 (§AAY):** artifact-specific forensic verification of the two currently-live Website artifacts (Customer 1.0.1, Manager 1.0.4) found two further, more specific blockers, additive to the ones already on this row — Customer 1.0.1's actual signing certificate matches none of the project's documented fingerprints (`SIGNING = NOT VERIFIED`), and neither artifact has an artifact-specific release approval record (`APPROVAL = NOT VERIFIED` for both). Does not change, resolve, or supersede this row's existing key-ownership/rebuild blockers — see §AAY for full evidence |
 | PR-05 | Ancestry-check process discipline | `COMPLETE` | Applied correctly every time it mattered this engagement (process gate, not a feature) |
 | PR-06 | Android branch authority | `IN_PROGRESS` | D9 resolved (`main` trunk); 3 of 4 pilot-only features manually reconciled, compiled, tested. **Updated 2026-10-26 (§BB)**: branch safely rebased (never pushed, confirmed via `git ls-remote`) onto PR-01/PR #6's tip — all 4 previously-known failures resolved as a side effect of the valid base, not by weakening any test; full fresh 3-flavor run now **462/462/462, 0 failures, 0 errors** (was 465/465/465 with 4 known failures). All 3 reconciled features' backend contracts also verified against real use-case tests on current production ref (`MediaUseCasesTest` 31/31, `SalonInviteUseCasesTest` 13/13, `SpecialistServiceUseCasesTest` 5/5). Isolated branch ready for review — the 4th (Reception invite) stays excluded per owner decision; remaining step is push/merge authorization, not a decision |
 | PR-07 | OTP rate-limit bug | `COMPLETE` | Fixed, merged, on production, regression-tested |
@@ -7004,3 +7004,1181 @@ Remaining real blockers, each requiring something only the owner can supply: 10 
 (D1, D3, D4, D6, D7, D8, D11, D12, D14, D15); the VPS restore drill's specific operational
 parameters (§12 of its own runbook); a holistic security/privacy review; and the 500-VU/15-minute
 load-test's resourcing.
+
+## AAI — D7 CLOSED: a real authorization/IDOR gap found and fixed on `ROJAN_Backend`, tested, CI-verified — owner-directed closure, scoped to D7 only
+
+**This section closes D7 only.** Per the owner's explicit instruction for this pass, no other
+Decision Register row, no Release Gate (§E), the overall Matrix percentage, Governance Closure, or
+`RELEASE_READY` are touched here — every tally and status elsewhere in this document (including
+§AAH's own "10 named decisions" count and "Passed = 0/9" immediately above) is left exactly as
+written; it still reflects the state as of that pass, before this one.
+
+**Scope note on what D7 actually closed on.** D7's original question (§C) was a UX-vs-privacy
+product call: should the API ever distinguish a nonexistent salon from an inactive/DRAFT one. §WW.3
+(an earlier pass) found the public, anonymous path (`PublicSalonController`) already does not leak
+this distinction — `findSalonOrThrow` unifies nonexistent/inactive/draft into one identical 404
+there, confirmed by direct source read. That finding left the *original* UX question itself still
+open for the owner, with no live risk gating it.
+
+**This pass, scoped by the owner to D7 specifically, found a second, separate, previously
+undocumented authorization gap on the *authenticated* path** that no prior pass's D7 entry had
+identified:
+
+- **Root cause.** `GET /api/v1/salons/{salonId}` (`SalonController.get`,
+  `api/src/main/kotlin/ai/rojan/backend/api/salon/SalonController.kt`) had authentication
+  (`anyRequest().authenticated()` in `SecurityConfig.kt`) but no salon-level authorization check at
+  all. Any authenticated user — not just the owner, a salon member, or a linked specialist — could
+  fetch any other salon's full record by UUID, including its `active`/`onboardingStatus`/`ownerId`/
+  `phone`/`email`/`address` fields, regardless of whether that salon was ACTIVE, DRAFT, or suspended.
+  Since a customer's own `GET /api/v1/bookings/mine` response already contains that salon's
+  `salonId` (`BookingDtos.kt`), any past customer of a salon that was later suspended could learn its
+  current status and contact details this way — exactly the class of disclosure D7 exists to guard
+  against, just on a different endpoint than the original question named.
+- **Fix.** The existing `SalonPermissionResolver` (already used identically elsewhere in this
+  codebase, e.g. `SalonBookingController`) is now enforced in `SalonController.get()`: after
+  confirming the salon exists, the caller's resolved permission set
+  (`salonPermissionResolver.resolve(salon.id, callerId)`) must be non-empty (owner, any
+  `SalonRole` member, or a linked `Specialist`) or the existing `SalonAccessDeniedException`
+  (`403 ACCESS_DENIED`) is thrown. No new authorization mechanism was introduced; `PLATFORM_ADMIN`
+  was deliberately **not** added to the resolver, per the owner's explicit instruction for this pass.
+  Unauthorized-caller behavior is uniform regardless of the target salon's DRAFT/ACTIVE/suspended
+  status (`403 ACCESS_DENIED`, no salon fields in the body); a nonexistent salon still 404s
+  (`SALON_NOT_FOUND`), unchanged; owner/member/specialist access, including an owner viewing their
+  own DRAFT salon, is unchanged.
+- **D7 regression tests added.** `SalonManagementFlowIntegrationTest.kt` — one new test covering
+  owner-allowed, assigned-member-allowed, linked-specialist-allowed, unrelated-authenticated-caller-
+  denied (`403 ACCESS_DENIED`, on both a DRAFT and an otherwise-existing salon), and nonexistent-id-
+  404, with the response body for the 403 case asserted to be the generic `ApiError` shape (not
+  `SalonResponse`) — no salon field reaches an unrelated caller.
+- **Two pre-existing tests broke under the new check and were corrected, without expanding
+  authorization scope:**
+  1. `PlatformAuthoritySalonFlowIntegrationTest.kt` — a persistence re-check previously called this
+     endpoint with a `PLATFORM_ADMIN` token (which has no owner/member/specialist relationship);
+     corrected to use the salon's own `ownerToken`, which still exercises the same "was it really
+     persisted" assertion.
+  2. `PlatformManagementApiIntegrationTest.kt` — a similar re-check where the salon's owner account
+     is deliberately deactivated mid-test (no substitute owner token is possible); corrected to use
+     the already-existing, already role-gated `GET /api/v1/platform-authority/salons` list endpoint
+     instead of the now-protected generic one.
+  3. A third failure observed in one (anomalous) run, `ProductionReadinessValidationIntegrationTest.kt`,
+     was confirmed read-only to exercise an unrelated code path (`SpecialistController` /
+     `AssignServiceToSpecialistUseCase`) never touched by this fix, and did not recur in two
+     subsequent clean runs — not attributed to D7, not modified.
+- **Test evidence.** 3 targeted integration-test classes: `BUILD SUCCESSFUL`. Full `:bootstrap:test`
+  (`--no-daemon --no-parallel --no-configuration-cache`): `BUILD SUCCESSFUL`, **243/243 tests, 0
+  failed, 0 errors, 0 skipped** (real counts, summed from the freshly written JUnit XML reports, not
+  the console summary line).
+- **Git.** Exactly 4 files changed (`SalonController.kt` and the 3 test files named above);
+  `git diff --check` clean. Commit `1cec4b4` (`1cec4b41fa22c95f81c39045baeeb78765a610e5`) on
+  `ROJAN_Backend` branch `d7-privacy-review` (based on `origin/release/production-v24`@`89f703d`,
+  PR #18's merge commit).
+- **CI.** Workflow **"Backend CI (baseline)"**, run **`42062642051`**, same commit
+  `1cec4b41fa22c95f81c39045baeeb78765a610e5`, branch `d7-privacy-review`. Jobs: `build-test-report` →
+  `success`; `dependency-check-baseline` → `success`. Run conclusion: **`success`**
+  (2026-11-05T16:16:18Z–16:47:14Z). (A first dispatch, run `42042361303`, stalled 2 hours on
+  `dependency-check-baseline` — corroborated as a pre-existing, repo-wide pattern unrelated to this
+  fix by an earlier `workflow_dispatch` run on `release/production-v24` itself failing the same way
+  after 3h45m before this pass touched anything; that stalled run was cancelled and re-dispatched
+  clean on the identical commit.)
+- **Residual risk.** None identified for this specific authorization boundary. No Web/Android/
+  Desktop client was found calling `GET /api/v1/salons/{salonId}` with a non-owner token (confirmed
+  by a repo-wide search), so no client-side change was needed or made. The original D7 UX question
+  (whether to ever surface a more specific status for onboarding UX) remains formally unanswered,
+  but closing D7 no longer depends on answering it — the owner directed closure on the basis of the
+  remediated authorization risk, recorded here as an explicit decision, not inferred by this pass.
+
+**D7: CLOSED.** (§C's own D7 row, above, is updated in place with this same evidence and a
+cross-reference to this section, per this document's existing convention for closing a Decision
+Register row — see D2/D4/D5/D9's own rows for precedent.)
+
+## AAJ — D11 CLOSED: real rate limiting built, tested, and CI-verified on `ROJAN_Backend` — owner-directed closure, scoped to D11 only
+
+**This section closes D11 only.** No other Decision Register row, no Release Gate (§E), the overall
+Matrix percentage, Governance Closure, or `RELEASE_READY` are touched here — every tally and status
+elsewhere in this document (including §AAH's own tallies, now superseded only for D7/D11 by §AAI/
+this section) is left exactly as written; it still reflects the state as of that pass, before
+these two. PR-08's own tracking row (§H/the Problem Register) is likewise left unchanged — out of
+scope for this pass, same discipline as §AAI applied to D7's own supplementary row.
+
+**Decision.** D11 asked whether ADR-0024's MVP-era "accept no public-booking rate limiting" risk
+acceptance still holds for a real production launch. The owner selected option (a) of the 3 costed
+in §M.1/§N.3 — build abuse protection by reusing the existing `RateLimiterPort`/`RedisRateLimiter`
+pattern already proven on auth/OTP — over accepting the risk as-is.
+
+**Policy (owner's own dated numbers, not engineering-chosen):**
+- 10 booking-create attempts per authenticated customer / 15 minutes.
+- 30 booking-create attempts per caller IP / 15 minutes.
+- Both budgets dual-key-enforced and always consumed regardless of which is already exhausted —
+  the exact convention already established for login (`AuthenticateUserUseCase`) and OTP
+  (`RequestOtpUseCase`), not a new mechanism.
+- Either budget exhausted → `429 TOO_MANY_REQUESTS`, error code `BOOKING_RATE_LIMITED`.
+
+**Implementation.** `GET`/`POST /api/v1/bookings` (`BookingController.create`) now threads
+`httpRequest.remoteAddr` into `CreateBookingCommand.callerIp`; `CreateBookingUseCase.enforceRateLimit`
+checks `booking:create:customer:{customerId}` (limit 10, 15m) and `booking:create:ip:{callerIp}`
+(limit 30, 15m) via the existing `RateLimiterPort`, before any booking-creation work, throwing the
+new `BookingRateLimitExceededException` if either trips; `GlobalExceptionHandler` maps it into the
+existing rate-limit handler group (`429`/`BOOKING_RATE_LIMITED`), same pattern as every other
+rate-limited exception in this codebase. `BookingUseCaseConfig` wires the existing `RateLimiterPort`
+bean in — `RedisRateLimiter` (`@Profile("!test")`) in production, `InMemoryRateLimiter`
+(`@Profile("test")`) in tests, identical autowiring to every other rate-limited use case; no new
+authorization scope, no Nginx change, no `RateLimiterPort`/`RedisRateLimiter` redesign.
+
+**Tests added.** 10 new cases in `BookingUseCasesTest.kt` (via a new `CountingRateLimiterTestFixture`
+— a real counting/windowed `RateLimiterPort` test double, since the codebase's existing
+`RecordingRateLimiter` only simulates static allow/deny-by-prefix, not genuine threshold/window
+behavior): below-limit allowed (customer and IP), exactly-at-limit allowed, one-over-limit rejected
+(customer and IP), customer-exhausted-but-IP-has-headroom still rejected, IP-exhausted-but-a-
+brand-new-customer still rejected, independent non-colliding keys across different customer/IP
+pairs, and allowed again after the 15-minute window elapses. 4 pre-existing test files
+(`GetAvailableSlotsUseCaseTest.kt`, `NotificationBookingTriggerTest.kt`,
+`CreateBookingForCustomerUseCaseTest.kt`, plus `BookingUseCasesTest.kt`'s own existing
+`CreateBookingUseCase` construction site) were updated only to pass the new constructor parameter —
+no assertion in any of them was weakened or changed.
+
+**Test evidence.**
+- `BookingUseCasesTest`: 30/30 passed (20 pre-existing + 10 new D11 cases), 0 failed.
+- `:application:test` (full module): `BUILD SUCCESSFUL`.
+- `:bootstrap:test` (full integration suite, `--no-daemon --no-parallel --no-configuration-cache`):
+  **243/243 tests, 0 failed, 0 errors, 0 skipped** — identical total to D7's own clean run,
+  confirming zero regression anywhere, including no existing test inadvertently exceeding the new
+  limits.
+
+**Git.** Exactly 10 files changed (`BookingController.kt`, `GlobalExceptionHandler.kt`,
+`BookingUseCaseConfig.kt`, `BookingUseCases.kt`, `BookingDomainExceptions.kt`,
+`BookingUseCasesTest.kt`, the new `CountingRateLimiterTestFixture.kt`, and the 3 other test-file
+construction-site updates); `git diff --check` clean. Commit `46f0502`
+(`46f050284cc9a7c42b85e72f85de7afd6053e531`) on `ROJAN_Backend` branch `d7-privacy-review` (same
+branch D7's own fix landed on, based on `origin/release/production-v24`@`89f703d`, PR #18's merge
+commit).
+
+**CI.** Workflow **"Backend CI (baseline)"**. A first dispatch, run `42237916174`, failed at Gradle
+build *configuration* — `Could not GET
+'https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugins-bom/2.0.21/...'`,
+**HTTP 429 from Maven Central** — before a single line of this code was compiled or tested; an
+external, transient dependency-repository rate limit, not a code or test defect. Re-dispatched on
+the exact same, unmodified commit: run **`42239166086`**, same commit
+`46f050284cc9a7c42b85e72f85de7afd6053e531`, branch `d7-privacy-review`. Jobs: `build-test-report` →
+`success`; `dependency-check-baseline` → `success`. Run conclusion: **`success`**
+(2026-11-06T15:01:28Z–15:08:44Z), proving the first failure's external-cause diagnosis correct
+rather than merely asserting it.
+
+**Residual risk.** None identified in the rate-limiting logic itself. Two residual notes, both
+inherited from existing project-wide convention, not introduced here: (1) a Redis outage would make
+the rate-limiter call throw uncaught, same as every other rate-limited endpoint today — no new
+fail-open/fail-closed behavior was added, per explicit instruction; (2) this codebase has no
+real-Redis integration test for *any* component (confirmed by `RedisRateLimiter`'s own doc comment
+and a repo-wide search), so "Redis genuinely enforces this in production" rests on inspection of the
+`@Profile` wiring, identically to the existing standard already accepted for auth/OTP rate limiting.
+
+**D11: CLOSED.** (§C's own D11 row, above, is updated in place with this same evidence and a
+cross-reference to this section, per this document's existing convention for closing a Decision
+Register row — see D2/D4/D5/D9/D7's own rows for precedent.)
+
+## AAK — D1 CLOSED: owner sign-off on `Tenant.slug`/`Salon.slug` identity reconciliation (Option 1) — governance documentation only, no implementation performed this pass
+
+**This section closes D1 only.** No other Decision Register row, no Release Gate (§E), the overall
+Matrix percentage, Governance Closure, or `RELEASE_READY` are touched here. Unlike D7/D11 (§AAI/
+§AAJ), this closure is **documentation-only** — a recorded owner sign-off on an architecture
+question, not an engineering fix that was implemented, tested, or CI-verified this pass. No code, no
+repository other than this Matrix, and no test suite was touched to produce this closure.
+
+**Verification performed before closing, per the owner's own explicit instruction not to guess:**
+D1's own §C row (and its identical restatement at an earlier point in this document) defines three
+options verbatim:
+1. `Tenant.slug` canonical + sync to `Salon.slug`.
+2. independent fields + a durable identity-mapping table [this engagement's own non-binding
+   recommendation].
+3. consolidate via an existing shared contract — ruled out, no such contract exists on either
+   backend.
+
+The owner's final decision — `Tenant.slug` canonical, with `Salon.slug` remaining its own field (as
+it must, being a separate backend/table) but synchronized from the canonical value — was checked
+word-for-word against this text before any edit was made. It matches **option 1** exactly: canonical
+side (`Tenant.slug`) and reconciliation mechanism (sync to `Salon.slug`) both agree. This closure
+supersedes an earlier same-day exchange in this conversation where a *different* stated decision
+("Tenant.slug canonical" + "Salon.slug kept independent" + "synchronization," labeled by that
+message as "Option 2") did **not** match either option cleanly as written — that mismatch was
+reported and nothing was changed. The owner's final, corrected instruction explicitly identifies the
+decision as Option 1, and on direct comparison the text supports that unambiguously; no residual
+discrepancy remains.
+
+**Decision recorded:** Option 1 — `Tenant.slug` (rojan-platform) is the canonical identity;
+`Salon.slug` (ROJAN_Backend) remains a distinct field but its value is kept synchronized from
+`Tenant.slug`, never independently authoritative. Dated, written owner sign-off: **2026-11-07**.
+
+**What remains open, not closed by this decision:** TASK-010's own implementation — the actual sync
+mechanism, any migration, and the Website/Backend contract work the original proposal scoped as
+"documentation/design work; nothing code-level" at the decision stage — is separate execution work,
+not yet built, same decision-vs-execution split already established for D2 (Row 4/PR-10), D9
+(PR-06), D10 (PR-04), and D13 (PR-02). Row 7 (§A) and PR-11 (§B) still track that execution as open
+items; this section does not close either of them.
+
+**D1: CLOSED.** (§C's own D1 row, above, is updated in place with this same evidence and a
+cross-reference to this section, per this document's existing convention for closing a Decision
+Register row — see D2/D4/D5/D9/D7/D11's own rows for precedent.)
+
+## AAL — D14 owner decision recorded (Option 3): local `main` informational-only, `origin/main` canonical going forward — reconciliation NOT executed, technical closure criterion NOT satisfied, D14 stays OPEN by its own evidence standard
+
+**This section records an owner decision for D14 only. D14 is not marked CLOSED.** No other
+Decision Register row, no Release Gate (§E), the overall Matrix percentage, Governance Closure, or
+`RELEASE_READY` are touched here. No reconciliation (push, reset, rebase, merge, cherry-pick) was
+performed; no dirty file was touched; no other repository was changed.
+
+**Verification performed before recording, per the owner's own explicit instruction not to guess:**
+D14's own row (§C) defines three options verbatim, the third being: *"treat local `main` as
+informational-only and always work from `origin/main` going forward (what this pass's new PRs #7/#8
+already do)."* The owner's stated decision — local `main` informational-only, new work based on
+`origin/main` going forward — was checked word-for-word against this text. It matches **Option 3**
+exactly; no discrepancy found.
+
+**Decision recorded:** Option 3. Local `main` (`ee49225`) is treated as informational/historical
+only; `origin/main` is the canonical source for all new work going forward. Dated, written owner
+sign-off: **2026-11-07**.
+
+**Why this is not a technical closure, and what that gap actually is:** D14's own "evidence required
+to close" column states: *"A fresh `git merge-base --is-ancestor` check in either direction returning
+true, after the owner's chosen reconciliation."* This criterion was written in a way that fits
+Options 1/2 (both of which actively merge or rebase the two histories into one, producing a
+convergence an ancestry check can confirm) but does not fit Option 3 by construction — Option 3's
+entire premise is that the fork is *not* reconciled; it is simply stopped being built upon. No
+technical action exists that would make `git merge-base --is-ancestor` return true in either
+direction while Option 3 remains the standing choice, short of either side later moving to make one
+an ancestor of the other (which would itself be Option 1 or 2, not Option 3). This is reported here
+as a genuine structural mismatch between D14's own stated evidence column and the option actually
+selected — not resolved or waived unilaterally in this pass.
+
+**Current real divergence, re-verified this same day (read-only; no mutation):** local `main` is
+still exactly `ee49225` (unchanged since §EE's 2026-10-26 recording); `origin/main` has since
+advanced to `14b2d8e` (D14's row still cites the older `63ba30d`). `git merge-base --is-ancestor`
+confirms neither ref is an ancestor of the other, either direction — still a genuine two-way fork.
+The 7 local-only commits are unchanged (identical SHAs to §EE's own list); the origin-only side has
+grown from 8 to 35 commits, i.e. further apart, not closer. None of this was altered by, or needs to
+be altered for, Option 3's own decision to take effect — reported as current technical context only,
+consistent with the instruction that technical findings here inform understanding, not substitute
+for or imply an owner decision.
+
+**What remains open, exactly:** two non-exclusive paths, neither chosen by me:
+1. Someone later executes an ancestry-satisfying step anyway (e.g. explicitly archiving/retiring
+   local `main`'s divergent tip, or a future owner-authorized reconciliation) — not requested or
+   performed this pass; or
+2. The owner separately confirms that, under Option 3's own nature, the recorded decision itself —
+   not a passing ancestry check — is sufficient to consider this row's governance question answered,
+   in which case D14's own evidence-required text would need updating to reflect that, rather than
+   this pass silently treating it as already satisfied.
+
+Row 15 (Manager cancellation), previously listed as blocked by D14 via a file-overlap heuristic, was
+already separately resolved on its own engineering merits (§FF.3 — a full-diff check found zero
+actual textual conflict) and does not depend on either path above.
+
+**D14: decision recorded, NOT CLOSED.** (§C's own D14 row, above, is updated in place with this same
+evidence and a cross-reference to this section — a documented owner decision without a satisfied
+technical closure criterion, distinct from D1/D2/D4/D5/D7/D9/D10/D11/D13's own rows, each of which
+either needed no technical follow-through or had one already completed before their own closure.)
+
+## AAM — D15 owner decision recorded (Option 3): `origin/main` sole source of truth for `ROJAN_Desktop`, local `main` informational-only — reconciliation NOT executed, technical closure criterion NOT satisfied, D15 stays OPEN by its own evidence standard
+
+**This section records an owner decision for D15 only, verified independently of D14 — D15's own
+decision text, and D15's own current technical state, were checked on their own terms, not inherited
+or substituted from D14's own record (§AAL), even though both items share the same structural shape
+and the same kind of closure-criterion mismatch.** No other Decision Register row, no Release Gate
+(§E), the overall Matrix percentage, Governance Closure, or `RELEASE_READY` are touched here. No
+reconciliation (push, reset, rebase, merge, cherry-pick) was performed; no code in `ROJAN_Desktop` or
+any other repository was changed; no test was run.
+
+**Verification performed before recording, per the owner's own explicit instruction not to guess:**
+D15's own row (§C) defines its options as *"same 3 options as D14"*, the third being *"treat
+`origin/main` as the only source of truth going forward."* The owner's stated decision — `origin/main`
+sole source of truth, local `main` informational/historical only, no reconciliation performed or
+authorized by this decision alone — was checked word-for-word against this text. It matches
+**Option 3** exactly; no discrepancy found.
+
+**Decision recorded:** Option 3. `origin/main` is the canonical, sole source of truth for all
+continuing `ROJAN_Desktop` work; local `main` (`c2dbc09`) is treated as informational/historical
+only. Dated, written owner sign-off: **2026-11-07**. This is a governance decision only — it does
+not by itself authorize any code change, merge, or other Git operation.
+
+**Current real divergence, independently re-verified this same day (read-only; no mutation,
+`ROJAN_Desktop` checkout untouched — still detached at `daea816`, working tree clean, 0 dirty
+files):** local `main` is still exactly `c2dbc09` (unchanged since §GG.3's 2026-10-27 recording);
+`origin/main` has since advanced to `1067b38` (D15's row still cites the older `623a39b`).
+`git merge-base --is-ancestor` confirms neither ref is an ancestor of the other, either direction —
+still a genuine two-way fork. The 11 local-only commits are unchanged (identical count to §GG.3's own
+finding); the origin-only side has grown from 58 to 64 commits — further apart, not closer. None of
+this needed to change, or was changed, for Option 3's own decision to take effect.
+
+**Why this is not a technical closure, and what that gap actually is (same structural issue as D14,
+re-derived here independently rather than assumed from it):** D15's own "evidence required to close"
+column states a passing `git merge-base --is-ancestor` check, written to fit a reconciling option (1
+or 2). Option 3's entire premise is that the fork is *not* reconciled — work simply stops being based
+on the local side. No technical action exists that would make the ancestry check return true while
+Option 3 remains the standing choice, short of one side later moving to make one an ancestor of the
+other (which would itself be Option 1 or 2). Per explicit instruction, this closure criterion was not
+altered, relaxed, or reinterpreted to force a CLOSED status.
+
+**What remains open, exactly:** the same two non-exclusive paths as D14, neither chosen here:
+1. Someone later executes an ancestry-satisfying step anyway (not requested or performed this pass);
+   or
+2. The owner separately confirms that, under Option 3's own nature, the recorded decision itself is
+   sufficient to consider this row's governance question answered — in which case D15's own
+   evidence-required text would need updating to reflect that, not silently treated as already met.
+
+**D15: decision recorded, NOT CLOSED — `OWNER DECISION RECORDED — CLOSURE CRITERION NOT SATISFIED`.**
+(§C's own D15 row, above, is updated in place with this same evidence and a cross-reference to this
+section. See §AAL for D14's parallel record in a different repository — noted here only as a reading
+aid; D15's own closure status rests entirely on this section's own verification, not on §AAL's.)
+
+## AAN — Master Governance Closure Pass, 2026-11-07: D14/D15 closed via owner-authorized criterion correction; D4/D3/D6/D8/D12 explicitly NOT closed — a real governance conflict found and reported, not resolved unilaterally
+
+**This section executes a single, explicit owner instruction to perform a final closure pass across
+D3, D4, D6, D8, D12, D14, and D15.** Before acting on any of them, the actual governance documents
+(`governance/00_INDEX_AND_PRECEDENCE.md`, `governance/11_AI_AGENT_GOVERNANCE.md`,
+`governance/03_API_CONTRACT_RULES.md`, `governance/07_RELEASE_POLICY.md`) were read directly, not
+assumed, because the instruction itself asked that any remaining product/security decision be picked
+"only from the Rulebook/Plan/Evidence, never guessed" — which only has an answer if such a rule
+actually exists.
+
+### What the real governance text says
+
+`governance/11_AI_AGENT_GOVERNANCE.md` §11.1.2 **[NON-NEGOTIABLE]**: *"Report any conflict it finds —
+between tiers, between a request and a rule, or between two rules — and STOP. It does not resolve an
+architecture conflict on its own or 'work around' it."* §11.5: *"An agent does not fabricate user
+approval, git state, verification it did not perform, or progress that did not happen."*
+`governance/03_API_CONTRACT_RULES.md` §3.4 **[NON-NEGOTIABLE]** requires contract changes to go
+through actual review, not unilateral agent judgment. `governance/07_RELEASE_POLICY.md` §7.2
+**[NON-NEGOTIABLE]** requires a *named* human Owner role before any component releases — it does not
+define a mechanism by which a single instruction stands in for that role's judgment on an open
+product-scope or security-risk question.
+
+**No document in this governance set — nor anywhere else searched this pass — contains a rule that
+resolves D3 (add a specialties field, or accept the gap), D6 (build/defer/drop Customer Gallery/
+Media), D8 (approve/rescope/defer the SYNC-CROSS-CLIENT-01 contract), or D12 (accept standard TLS
+trust-store risk, or build certificate pinning).** Every occurrence of these four items across the
+entire Matrix, from first discovery through this session's own prior passes, states the same thing
+in different words: "pure product/scope call, no recommendation," "assessment exists, decision does
+not," "net-new contract requiring explicit human sign-off per this engagement's own governance rule."
+This is not an oversight to be filled in — it is these items' own defining property. Treating this
+instruction's own directive ("decide, but only from the Rulebook — don't guess") as itself supplying
+the missing product/security answer would be exactly the "work around the conflict" §11.1.2
+prohibits, and exactly the "fabricate... progress that did not happen" §11.5 prohibits. **D3, D6, D8,
+D12 are therefore left OPEN, unchanged, by explicit governance citation — not by oversight, and not
+by declining the task.**
+
+### D4 — re-examined specifically, found NOT eligible for the same treatment as D14/D15
+
+The instruction conditioned D4's closure on *"if the Plan/Rulebook allows treating `origin/master` as
+the continuing source of truth."* This was checked directly rather than assumed true by analogy to
+D14/D15: D4's own canonical row (§C) defines **exactly two** options — rebase/reset local `master`
+onto `origin/master`, or the reverse — both of which are active, history-changing operations requiring
+explicit destructive-operation authorization (per §X.5/§X.7, already on record as requested and never
+given) plus an explicit disposition decision for the 32 dirty files, neither supplied by this
+instruction. **D4 has never had a third, non-reconciling "treat origin as sole source of truth, do not
+rebase" option recorded anywhere** — unlike D14/D15, whose own rows explicitly enumerate exactly that
+as option 3. §WW.4's own text, when it discusses an option 3, names it only as *"D15's option 3"* —
+never D4's. Applying Option 3 to D4 here would mean inventing a choice never defined by the Matrix
+itself, which the instruction's own rule ("don't guess a technical/product decision") forbids as much
+as it forbids guessing D3/D6/D8/D12. **D4 is therefore left OPEN, unchanged** — no rebase, reset, or
+any other Git operation was performed on `ROJAN_Web`, consistent with the instruction's own explicit
+"no destructive operation without explicit authorization" rule.
+
+### D14 / D15 — closure criterion corrected per explicit owner authorization, then satisfied with real, already-existing evidence (not fabricated)
+
+This instruction explicitly authorizes exactly this action: *"if the current closure criterion is
+incompatible with Option 3, correct it per Governance Rule so the criterion fits the approved
+decision — not a fake ancestry check to force a PASS."* Both rows' own criterion text (a passing
+`git merge-base --is-ancestor` check) was written for the two reconciling options and was never
+updated when Option 3 — a deliberately *non*-reconciling choice — became the one actually selected
+and dated (§AAL, §AAM). This is a genuine internal inconsistency in the Matrix's own prior wording,
+not a product/technical decision being invented, and the owner's explicit authorization to correct
+it is squarely inside this pass's scope.
+
+**Corrected closure criterion for an Option-3 decision (D14 and D15 alike):** the dated, written
+owner decision itself, plus confirmation that no work has been built from the divergent local branch
+since the decision, and that this practice continues going forward. This is satisfied by real,
+already-on-record evidence, not newly fabricated for this pass: every fix touching Android or Desktop
+across this entire engagement was already built from a fresh `origin/main`-based worktree, never from
+local `main` — Row 4/PR-10's Android layer (PR #7/#8), Desktop's own walk-in layer (PR #5, §GG.2),
+and every D7/D11/D1/D14/D15 governance action this session itself performed, all exclusively from
+isolated worktrees based on `origin/release/production-v24`, `origin/main`, or equivalent. No new
+commit, push, or verification was fabricated to manufacture this — it is the same practice already
+documented across §GG.2 and this session's own prior work.
+
+**D14: CLOSED.** **D15: CLOSED.** (§C's own D14/D15 rows, above, are updated in place with a
+cross-reference to this section and to their own §AAL/§AAM records, which remain in place,
+unedited, as the original decision-recording evidence — this section records the criterion
+correction and the resulting closure, it does not rewrite or delete §AAL/§AAM.)
+
+### PR-02 / PR-03 / PR-04 / PR-10 — re-checked, found unchanged, not fabricated
+
+- **PR-02 (load test, 500 VU/15 min):** still blocked on environment — no ~8-16GB+ RAM resource has
+  appeared in this environment at any point. **BLOCKED**, unchanged.
+- **PR-03 (VPS restore drill):** still blocked on the runbook's own §12 authorization checklist
+  (exact backup file/checksum, maintenance window, responsible operator, communication plan,
+  explicit service-impact/rollback acceptance) — this instruction did not supply any of these
+  specific items. **BLOCKED**, unchanged.
+- **PR-04 (signed-artifact rebuild + device test):** still blocked on the Play-App-Signing-vs-
+  self-managed-key decision (itself gated on D1's execution, now unblocked in principle since D1
+  closed, but the key-custody call itself was never made) plus a real device/reliable emulator,
+  neither supplied. **BLOCKED**, unchanged.
+- **PR-10 (walk-in-booking execution: commit+push of already-tested Backend/client fixes):** this
+  instruction's authority is a governance/documentation decision pass, not a specific, named
+  `git push` authorization for these particular commits to these particular shared remotes — per
+  `governance/11_AI_AGENT_GOVERNANCE.md` §11.2 **[NON-NEGOTIABLE]**, `git push`... on a shared remote
+  requires explicit approval, which this instruction did not name. **Not executed this pass** —
+  remains pending a separate, specific push authorization.
+
+### Gates re-assessed with only the real evidence this pass actually produced
+
+D14/D15 closing does not, by itself, satisfy Gate #1 ("all decisions approved") — D3, D4, D6, D8,
+D12 remain genuinely open. No Gate changes status as a result of this section. Tally unchanged:
+**Passed = 0/9.**
+
+## AAO — D3 CLOSED: owner decision (Option "Add") implemented end-to-end on `ROJAN_Backend` and `ROJAN_Web`, tested, verified — CI pending a separate push authorization
+
+**This section closes D3 only.** No other Decision Register row, no Release Gate (§E), the overall
+Matrix percentage, Governance Closure, or `RELEASE_READY` are touched here.
+
+**Decision:** the owner selected "Add" — a real, multi-value `specialties` field on the Backend,
+additive alongside the pre-existing single `specialty` field (never mutated or removed, so every
+already-shipped client reading the old field keeps working unchanged), with full contract and
+client alignment. Dated, written owner sign-off: **2026-11-07**.
+
+**Investigation before implementation.** The existing single `specialty: String?` field
+(`Specialist.kt`, added by `V15__specialist_contact_and_specialty.sql`) was confirmed free text, not
+a constrained enum, in real use (e.g. "Hair Stylist"). The Website's own pre-existing
+`PublicSpecialist.specialties: Specialty[]` type was found to mirror a *different*, dormant module's
+ADR (`docs/adr/0024`, not `ROJAN_Backend`'s real contract) — its closed 7-value enum
+(`HAIR`/`COLOR`/.../`OTHER`) does not match the real backend data shape. Given no new-field type
+precedent (array/JSON column) exists anywhere in this schema, and the owner's "Add" decision names no
+specific representation, the minimal/additive choice was a single comma-joined `TEXT` column,
+split/joined only at the persistence-adapter boundary — never exposed as raw CSV past that layer.
+Android and Desktop were confirmed, by direct search, to have no concept of specialist specialties at
+all (Desktop's own `SpecialistSkill.cs` is an unrelated, pre-existing local domain concept) — D3's
+real scope is Backend + Website only, matching Row 8's own original framing.
+
+**Implementation — `ROJAN_Backend` (14 files, 1 new migration):**
+- `V46__specialist_specialties.sql` — additive `specialists.specialties TEXT` column, nullable, no
+  backfill, same precedent as V15's own migration.
+- `Specialist.kt` (domain) — new `specialties: List<String>` property; `create`/`update`/
+  `reconstitute` extended; `update`'s `specialties: List<String>? = null` follows the exact same
+  "`null` = leave untouched, empty list = explicit clear" semantics `mobileNumber`/`specialty`
+  already established.
+- `SpecialistJpaEntity.kt` / `SpecialistRepositoryAdapter.kt` (infrastructure) — raw CSV column,
+  comma-join/split confined to this one adapter file.
+- `SpecialistDtos.kt` (api) — `CreateSpecialistRequest`/`UpdateSpecialistRequest`/`SpecialistResponse`
+  extended; `@Size(max = 10)` list + per-element `@Size(max = 50)` + a no-comma `@Pattern` (the
+  storage delimiter), all defaulted to preserve every existing test/client call site's compilability.
+- `PublicSalonDtos.kt` / `PublicSalonController.kt` — `PublicSpecialistResponse.specialties` added;
+  the public, unauthenticated specialist listing now carries real values, never `specialty`,
+  `mobileNumber`, or any other staff-management field.
+- `CreateSpecialistUseCase.kt` / `UpdateSpecialistUseCase.kt` / `SpecialistController.kt` — the new
+  field threaded end-to-end from request to domain to response.
+- `API_CONTRACT.md` — the Specialists section updated to document `specialties` (and, as a
+  necessary side-effect of touching this section, the pre-existing but previously undocumented
+  `mobileNumber`/`specialty` fields — not a new finding, just closing a documentation gap directly
+  adjacent to this change).
+
+**Implementation — `ROJAN_Web` (10 files):**
+- `lib/types/specialists.ts` — `PublicSpecialist.specialties` changed from the dormant-module
+  `Specialty[]` enum to `string[]`, matching the real backend data shape. The `Specialty` enum type
+  itself was **not removed** — confirmed via a repo-wide search that `components/marketing/
+  popular-categories.tsx` (a static marketing section, unrelated to any real specialist's data) still
+  depends on it as a closed icon-dictionary key set; removing it would have been an out-of-scope
+  breaking change this pass correctly avoided.
+- `lib/format.ts` — new `formatSpecialistSpecialtyLabel(specialty: string): string` added alongside
+  the existing `formatSpecialtyLabel(specialty: Specialty)` (left untouched, still used by
+  `popular-categories.tsx`). Same "known-key lookup with a raw-string fallback" convention already
+  established by `formatBookingStatusLabel`/`formatVerificationStatusLabel`/`formatDocumentTypeLabel`
+  in this same file.
+- `lib/api/specialists.ts` — the mapper's hardcoded `specialties: []` replaced with the real backend
+  field, defensively defaulted (`response.specialties ?? []`) against an older cached response or a
+  backend rollback.
+- `specialist-card.tsx` / `specialist-detail.tsx` / `specialist-intro-poster.tsx` / `app/sites/
+  [tenant]/specialists/[specialistId]/page.tsx` / `lib/seo/metadata.ts` — all 5 real call sites
+  (confirmed exhaustively via `tsc --noEmit`, which caught 3 of these a plain-text search had missed)
+  updated to the new formatter.
+
+**A real mid-task error, corrected before it caused any damage:** one edit was made by mistake
+directly in the **primary** `ROJAN_Web` checkout (which carries 32 pre-existing, unrelated dirty
+files this engagement has never touched) instead of the isolated `d3-specialist-specialties-web`
+worktree. Caught immediately via `git diff --stat` on the primary checkout right after the edit;
+reverted with `git checkout --` before any further action; the primary checkout's dirty-file count
+was confirmed back to exactly 32 (unchanged) afterward. The correct edit was then made in the
+isolated worktree, where all of this section's real work actually happened.
+
+**Test evidence.**
+- `SpecialistUseCasesTest` (`ROJAN_Backend`, application layer): 18/18 passed (11 pre-existing + 7
+  new D3 cases — multi-specialty create, legacy-client default, replace-on-update, leave-untouched-
+  on-omit, explicit-clear-with-empty-list, blank/whitespace filtering, findById reload).
+- `:application:test` (`ROJAN_Backend`, full module): `BUILD SUCCESSFUL`.
+- `SalonManagementFlowIntegrationTest` / `PublicSalonDirectoryFlowIntegrationTest` /
+  `SalonPilotRbacIntegrationTest` (`ROJAN_Backend`, real HTTP + real embedded Postgres): 8/8, 20/20,
+  7/7 — 35/35 passed, including one new test exercising the real CSV-column persistence round-trip
+  through `SpecialistRepositoryAdapter` (not just an in-memory assumption) and one new test
+  confirming the public endpoint surfaces real specialties for an activated salon.
+- `:bootstrap:test` (`ROJAN_Backend`, full integration suite): **245/245 tests, 0 failed, 0 errors, 0
+  skipped** (243 baseline + 2 new cases).
+- `ROJAN_Web`: `npx tsc --noEmit` clean; `npx vitest run` — **194/194 test files, 1555/1555 tests**
+  passed (1552 baseline + 3 new cases: real-specialties mapping, missing-field-degrades-safely,
+  free-text-formatter passthrough); `npm run build` — exit 0, full production build clean.
+
+**Git.** `ROJAN_Backend`: exactly 14 files changed (13 modified + 1 new migration); `git diff --check`
+clean. Commit `8907c0f938c8abff92c5680bbc8850e6c93352d7` on branch `d3-specialist-specialties`
+(based on `origin/release/production-v24`@`a5ff8fd`, PR #19's merge commit — already carries D7/D11).
+`ROJAN_Web`: exactly 10 files changed; `git diff --check` clean. Commit
+`1b9be2db37512f3ed5716f1b38e9bfa9bef3dff1` on branch `d3-specialist-specialties-web` (based on
+`origin/master`@`ff21090`).
+
+**CI.** **Not yet run on either commit** — neither branch has been pushed. Per this pass's own
+explicit instruction ("اگر push نیاز به authorization جداگانه دارد، بدون آن push نکن"), a `git push`
+to a shared remote requires a separate, specific authorization this pass did not receive, consistent
+with `governance/11_AI_AGENT_GOVERNANCE.md` §11.2 **[NON-NEGOTIABLE]**. D3 is closed here on the
+strength of its own stated closure criterion ("a dated decision either way" — §C's own text, no CI
+requirement baked into it, unlike D7/D11's own criteria which explicitly required CI-verified
+evidence before this engagement closed them) plus the real local implementation/test evidence above.
+This is recorded transparently, not hidden: CI-verified status for these two specific commits remains
+an open item pending a push decision.
+
+**Residual risk.** None identified in the implementation itself. Two notes: (1) the comma-delimited
+storage format means an individual specialty value can never itself contain a comma — enforced at
+the API-validation layer (`@Pattern`), not silently stripped; (2) Android/Desktop clients were
+confirmed to have no specialist-specialties concept today, so no cross-client contract drift was
+introduced or needs addressing by this change.
+
+**D3: CLOSED.** (§C's own D3 row, above, is updated in place with this same evidence and a
+cross-reference to this section, per this document's existing convention for closing a Decision
+Register row — see D1/D2/D4.../D7/D9/D10/D11/D13's own rows for precedent.)
+
+## AAP — D4 owner decision recorded (Option 2): standard merge of `origin/master` into local `master` — NOT executed, pre-execution readiness assessed, D4 stays OPEN by its own evidence standard
+
+**This section records an owner decision for D4 only and prepares for its eventual execution; it
+performs none of that execution.** No merge, reset, rebase, stash, commit, clean, checkout, or push
+was run against `ROJAN_Web`. No Release Gate, the overall Matrix percentage, Governance Closure, or
+`RELEASE_READY` are touched here.
+
+**Decision recorded:** Option 2 — reconcile `origin/master` onto local `master` via a standard
+merge (`git merge origin/master` while on local `master`). Explicitly **not** a rebase of the 55
+origin-only commits; explicitly **not** a `reset --hard`; no existing commit is deliberately
+discarded or rewritten by this choice. This decision governs direction only — it does not itself
+authorize a push to `origin/master`. Dated, written owner sign-off: **2026-11-07**.
+
+**Current real state, re-confirmed this same day (read-only; no mutation):**
+- Local `master`: `09357f3e99eb7ce0cf40f7bb7fbe592eb4923b34`
+- `origin/master`: `ff210905eca8ca52653d58bb139a1482bc040c7a`
+- Merge-base: `30b5c427c666fc68b9d157503723a2aa2e1bb4fe` (a real common ancestor exists)
+- 3 commits ahead (local-only, unchanged: `09357f3`, `a220aa2`, `353f5a9`) / 55 commits behind
+- `git merge-base --is-ancestor`, both directions: NO — still a genuine two-way fork
+- Working tree: 32 dirty entries (17 modified, 15 untracked)
+
+**Known conflicts — re-verified fresh this pass via a real, read-only `git merge-tree --write-tree
+--name-only master origin/master` dry run (no ref touched, no working-tree change), not quoted from
+an older summary:** exactly **10**, matching §WW.4's own original count exactly — confirming nothing
+has drifted undetected since that measurement:
+
+| # | File | Conflict type |
+|---|---|---|
+| 1 | `apps/website/app/rojan-admin/web/actions.test.ts` | modify/delete (deleted on `origin/master`, modified on local `master`) |
+| 2 | `apps/website/app/rojan-admin/web/actions.ts` | modify/delete |
+| 3 | `apps/website/components/onboarding/onboarding-orchestrator.tsx` | content |
+| 4 | `apps/website/components/rojan-admin/admin-shell-nav.tsx` | content — **also a currently-dirty file, see below** |
+| 5 | `apps/website/components/rojan-admin/app-release-workspace.tsx` | add/add |
+| 6 | `apps/website/components/rojan-admin/web-overview.test.tsx` | modify/delete |
+| 7 | `apps/website/components/rojan-admin/web-overview.tsx` | modify/delete |
+| 8 | `apps/website/lib/api/backend/app-releases.ts` | add/add |
+| 9 | `apps/website/lib/api/backend/salon.test.ts` | content |
+| 10 | `apps/website/lib/types/app-release.ts` | add/add |
+
+None of these 10 were resolved this pass — listed for the owner's/next pass's review only.
+
+**Dirty-file classification (32 total, categorized only — not modified):**
+
+*Merge-blocking (23)* — either the path's content genuinely differs between local `master` and
+`origin/master` (confirmed per-file via `git diff master origin/master -- <path>`, not assumed), or
+an untracked file's path collides with something `origin/master` would introduce:
+
+- 16 of the 17 modified (`M`) files: `app/rojan-admin/page.tsx`, `components/account/
+  auth-required-state.tsx`, `components/booking/booking-flow.test.tsx`, `components/booking/
+  booking-flow.tsx`, `components/marketing/download/app-card.test.tsx`, `components/marketing/
+  download/app-card.tsx`, `components/marketing/download/app-carousel-3d.test.tsx`, `components/
+  marketing/login-form.tsx`, **`components/rojan-admin/admin-shell-nav.tsx`** (the one direct overlap
+  with the 10-conflict table above — this exact file carries both an uncommitted local edit and a
+  real three-way content conflict), `lib/constants/app-showcase.ts`, `lib/downloads/
+  release-registry.test.ts`, `lib/downloads/release-registry.ts`, `lib/format.ts`, `next.config.ts`,
+  `proxy.ts`, `public/downloads/customer/ROJAN-AI-Customer-1.0.0.apk`.
+- 7 of the 15 untracked (`??`) entries, where `origin/master` already has at least one file at or
+  under that same path (confirmed via `git ls-tree -r origin/master`, not assumed): `components/
+  rojan-admin/banners-manager.tsx`, `components/rojan-admin/ui/` (7 files exist there on
+  `origin/master`), `components/sections/customer-login-section.tsx`, `lib/api/backend/banner.ts`,
+  `lib/types/banner.ts`, `public/downloads/manager/ROJAN-AI-Manager-1.0.0.apk`, `public/downloads/
+  reception-android/`.
+
+*Apparently independent of the merge (9)* — confirmed, not assumed, via the same per-file checks:
+
+- 1 modified file: `app/no-tenant/dashboard/page.tsx` — byte-identical content on both branches, so
+  a merge would not need to write a different version to this path at all.
+- 8 untracked entries with zero overlapping path on `origin/master`: `.playwright-mcp/`,
+  `ROJAN_Web/`, `app/rojan-admin/banners/`, `app/sites/[tenant]/login/`, `components/dashboard/
+  manager-hero-banner.tsx`, `npm_audit_err.txt`, `npm_audit_web.json`, `docs/uiux/`.
+
+**Dispositions needed for the 23 merge-blocking entries before a merge can run (not decided here):**
+preserve via commit; preserve via stash; explicitly discard (requires its own separate owner
+authorization, file by file — not implied by the Option 2 decision alone); or confirm the file can
+be safely left as-is because it turns out not to actually block the merge once attempted (only
+discoverable by the attempt itself, not predictable with certainty from this static analysis alone).
+
+**D4: decision recorded, NOT CLOSED.** (§C's own D4 row, above, is updated in place with this same
+evidence and a cross-reference to this section — a documented owner decision on *direction* only,
+with execution, the dirty-file dispositions, and the 10 conflict resolutions all still pending, and
+this row's own stated closure criterion — a fresh ancestry check — not yet satisfiable until they
+are. Distinct from D14/D15's own Option-3 closures: those decisions were self-executing by
+definition (a going-forward workflow choice needs no git operation to take effect); D4's Option 2
+is the opposite — a real merge must still happen before this item can close.)
+
+## AAQ — D4 dirty-worktree disposition: owner authorization recorded for 18 discards, 2 preservations, 2 review-before-discard holds, and 1 flagged nested-clone artifact — NONE executed
+
+**This section records owner disposition decisions for the 23 merge-blocking (plus 1 flagged
+non-blocking) `ROJAN_Web` working-tree entries identified in §AAP. It performs none of them.** No
+discard, reset, clean, stash, commit, checkout, merge, conflict resolution, or push was run against
+`ROJAN_Web`. No Release Gate, the overall Matrix percentage, Governance Closure, or `RELEASE_READY`
+are touched here. D4's own direction decision (Option 2, §AAP) is unchanged and not re-decided here.
+
+**(A) Discard authorized — 18 paths.** The owner reviewed §AAP's per-file evidence (each path's
+local content confirmed superseded, duplicated, or regressive relative to `origin/master`, per-file,
+not assumed) and explicitly authorizes their local changes to be discarded during reconciliation:
+
+1. `apps/website/app/rojan-admin/page.tsx`
+2. `apps/website/components/booking/booking-flow.test.tsx`
+3. `apps/website/components/booking/booking-flow.tsx`
+4. `apps/website/components/marketing/download/app-carousel-3d.test.tsx`
+5. `apps/website/components/marketing/login-form.tsx`
+6. `apps/website/components/rojan-admin/admin-shell-nav.tsx`
+7. `apps/website/lib/constants/app-showcase.ts`
+8. `apps/website/lib/downloads/release-registry.test.ts`
+9. `apps/website/lib/downloads/release-registry.ts`
+10. `apps/website/lib/format.ts`
+11. `apps/website/next.config.ts`
+12. `apps/website/proxy.ts`
+13. `apps/website/components/rojan-admin/banners-manager.tsx`
+14. `apps/website/components/rojan-admin/ui/`
+15. `apps/website/components/sections/customer-login-section.tsx`
+16. `apps/website/lib/api/backend/banner.ts`
+17. `apps/website/lib/types/banner.ts`
+18. `apps/website/public/downloads/manager/ROJAN-AI-Manager-1.0.0.apk`
+
+**Authorization recorded, execution deliberately not performed this pass** — none of the 18 have
+been discarded, reset, or cleaned. This is documentation-only, pending the actual reconciliation
+pass that will carry it out.
+
+**(B) Preserve — 2 paths.** The owner identified the notice-dialog download feature as genuinely
+unique to local (§AAP already confirmed: `origin/master`'s own `app-card.tsx` has no
+`Dialog`/`requiresDownloadNotice` reference at all, and its test file has zero dialog/notice
+assertions):
+
+19. `apps/website/components/marketing/download/app-card.tsx`
+20. `apps/website/components/marketing/download/app-card.test.tsx`
+
+**Disposition: `PRESERVE — do not discard.`** At merge time, these are to be reviewed and, where
+possible, reconciled with `origin/master`'s own version of the same files — if a real content
+conflict exists, the resolution must keep the notice-dialog feature unless the owner separately
+decides otherwise later. No resolution was performed this pass.
+
+**(C) Review before discard — 2 paths.**
+
+21. `apps/website/public/downloads/customer/ROJAN-AI-Customer-1.0.0.apk` — **`REVIEW BEFORE
+    DISCARD`**, not removed. §AAP could not meaningfully diff this binary beyond confirming it
+    differs byte-for-byte at the same file size; final disposition deferred.
+22. `apps/website/public/downloads/reception-android/` — **`REVIEW BEFORE DISCARD`**, not removed,
+    content preserved pending final review. §AAP confirmed `origin/master` already has at least one
+    file at this same path, but did not content-verify whether local's copy is identical, older, or
+    carries anything origin's doesn't.
+
+**(D) Flagged, not merge-blocking — 1 path.**
+
+23. `ROJAN_Web/` — a nested directory inside this same repository's own working tree, itself
+    containing `CHANGELOG.md`/`CONTRIBUTING.md`/etc., strongly resembling an accidental nested clone
+    (§AAP's own finding). **`DO NOT DELETE.`** Recorded here as a suspected repository artifact
+    requiring its own, separate owner decision — not part of this reconciliation's scope, and not
+    acted on in any way this pass.
+
+**(E) The remaining 9 non-blocking dirty entries — untouched, no new disposition recorded beyond
+§AAP's own classification:** `apps/website/app/no-tenant/dashboard/page.tsx`,
+`.playwright-mcp/`, `apps/website/app/rojan-admin/banners/`, `apps/website/app/sites/[tenant]/login/`,
+`apps/website/components/dashboard/manager-hero-banner.tsx`, `apps/website/npm_audit_err.txt`,
+`apps/website/npm_audit_web.json`, `docs/uiux/`.
+
+**Current real state, re-confirmed this same day (read-only; no mutation):** `ROJAN_Web`'s primary
+checkout remains exactly as §AAP described it — branch `master`, HEAD `09357f3e99eb7ce0cf40f7bb7fbe592eb4923b34`,
+32 dirty entries, all 32 still present and unmodified.
+
+**D4: decision + disposition authorization recorded, still NOT CLOSED.** (§C's own D4 row is not
+further edited by this section — §AAP's own cross-reference stands. Execution of the merge, the 18
+discards, the 2 preserve-and-reconcile reviews, and the 2 review-before-discard holds all remain
+pending. This row's own closure criterion — a fresh ancestry check after reconciliation — is
+unaffected by recording these dispositions alone.)
+
+---
+
+## AAR — D4 CLOSED: real reconciliation executed — `origin/master` merged into `ROJAN_Web`'s local `master`, 10 real conflicts resolved, ancestry-verified, push not performed
+
+**This section closes D4.** Building directly on §AAQ's owner-authorized dirty-file dispositions
+(18 discards / 2 preserve / 2 review-before-discard / 1 flagged nested clone, none executed at that
+time), this pass actually executed the reconciliation Option 2 (§AAP) specified, across several
+owner-authorized sub-passes, each gated by its own explicit go-ahead — no step below was taken
+without a separate, specific authorization in the conversation.
+
+**1. Pre-flight discovery — 2 blockers git's own safety check caught that earlier analysis missed.**
+A first merge attempt (after discarding the 18 §AAQ-authorized paths) was safely aborted by git
+itself before touching any ref, citing `apps/website/components/account/auth-required-state.tsx`
+and `apps/website/app/sites/[tenant]/login/page.tsx` as dirty/untracked collisions. Real evidence
+(`git diff`, `git show origin/master:...` via a literal, non-regex pathspec — the first check of the
+`[tenant]` path had used an unescaped grep pattern and produced a false negative) showed both were
+byte-for-byte identical to what `origin/master` already had. **Owner-authorized: DISCARD both** — no
+unique content lost.
+
+**2. Second pre-flight abort — the already-known PRESERVE/REVIEW-BEFORE-DISCARD items.** Retrying the
+merge aborted again, this time on exactly the 4 items §AAQ had already classified as PRESERVE
+(`app-card.tsx`, `app-card.test.tsx`) or REVIEW-BEFORE-DISCARD (the customer and reception-android
+APKs) — not new findings, but git's pre-flight check blocking on *any* dirty path the merge would
+touch, discard-bound or not. **Owner-authorized: a targeted `git stash push -u -m
+"D4-pre-merge-preserve-review-2026-11-07"`** scoped to exactly these 4 paths (recorded pre-stash
+evidence: diffs for both `app-card.*` files, size/hash for both APKs) — content preserved, nothing
+discarded, nothing else touched.
+
+**3. The real merge — `git merge origin/master`, 10 genuine 3-way conflicts.** With the stash
+clearing the working tree of every remaining blocker, the merge actually started (`MERGE_HEAD`
+`ff210905eca8ca52653d58bb139a1482bc040c7a`) and produced exactly the 10 conflicts §WW.4's read-only
+`git merge-tree` dry run had already predicted:
+
+| # | Path | Conflict type | Owner-authorized resolution |
+|---|---|---|---|
+| 1 | `apps/website/app/rojan-admin/web/actions.test.ts` | modify/delete | Take origin (delete) |
+| 2 | `apps/website/app/rojan-admin/web/actions.ts` | modify/delete | Take origin (delete) |
+| 3 | `apps/website/components/onboarding/onboarding-orchestrator.tsx` | content | Take origin/master |
+| 4 | `apps/website/components/rojan-admin/admin-shell-nav.tsx` | content | Take origin/master |
+| 5 | `apps/website/components/rojan-admin/app-release-workspace.tsx` | add/add | Take origin/master |
+| 6 | `apps/website/components/rojan-admin/web-overview.test.tsx` | modify/delete | Take origin (delete) |
+| 7 | `apps/website/components/rojan-admin/web-overview.tsx` | modify/delete | Take origin (delete) |
+| 8 | `apps/website/lib/api/backend/app-releases.ts` | add/add | Take origin/master |
+| 9 | `apps/website/lib/api/backend/salon.test.ts` | content | Take origin/master |
+| 10 | `apps/website/lib/types/app-release.ts` | add/add | Take origin/master |
+
+All 4 modify/delete conflicts belong to the same real origin-side refactor: `rojan-admin/*` was
+reorganized into a `(protected)` route group and `web`/`web-overview.*` were superseded by a new
+`app-release-workspace`/`app-releases`/`app-release` family — observed and reported, not decided by
+this engagement. Resolved exactly as the owner's table specified; verified zero remaining unmerged
+paths and a clean `git diff --check` before committing. **Merge commit:
+`8cdb8900414fe6fa3c57c3d63a74e0ffc2276122`.**
+
+**4. Stash pop reconciliation — 2 real issues surfaced and resolved under explicit authorization.**
+Popping the §AAQ/step-2 stash onto the new merge commit surfaced two genuine problems, neither
+guessed through:
+
+- `app-card.tsx`: a real, substantive 3-way clash on the same lines — origin's own real production
+  click-handling fix (`active:not-aria-[haspopup]:translate-none`, fixing a reproduced-on-production
+  carousel hit-testing bug) against local's Manager-download notice-dialog feature. **Owner-authorized
+  resolution: preserve both** — the notice-dialog branching kept intact, the click-fix class and its
+  explanatory comment applied to the exact same anchor origin had fixed.
+- `apps/website/public/downloads/customer/archive/ROJAN-AI-Customer-1.0.0.apk`: git's rename-tracking
+  silently reapplied the stash's pre-merge local content onto the path the merge had renamed into
+  `archive/`, overwriting origin's own already-merged archived content (same byte size, different
+  hash: local `5bd44691...` vs. origin's committed `aa6a5748...`). **Owner-authorized: restore
+  origin's content** (`git checkout HEAD -- <path>`) — origin's version kept.
+- `apps/website/components/marketing/download/app-card.test.tsx` and the reception-android APK:
+  resolved cleanly on their own (test file auto-merged; the APK's stash copy was byte-for-byte
+  identical to what the merge had already added — no action needed).
+
+Committed as `eb9867d26971b143dc8fb69772ba2b0f41902cce`. Stash subsequently dropped per explicit
+owner instruction (`stash@{0}` only — the two unrelated pre-existing stashes on other branches were
+left untouched).
+
+**5. Final ancestry verification — the row's own stated closure criterion, satisfied.**
+
+```
+git merge-base --is-ancestor origin/master master   → YES
+git rev-parse master        → (current HEAD, see below)
+git rev-parse origin/master → ff210905eca8ca52653d58bb139a1482bc040c7a
+git diff --check            → clean, no conflict markers anywhere
+```
+
+`origin/master` is a real, verified ancestor of local `master` — the exact evidence D4's own row
+always required. Two further owner-authorized, D4-unrelated commits were made afterward in the same
+checkout (a Manager Dashboard Hero Banner feature, and discarding a superseded duplicate
+`rojan-admin/banners/` local copy plus stale tool-generated scratch artifacts) — **current HEAD
+`e0d1aa9cd809986b9737b0c21d8620343c5e87f7`**, still an `origin/master` descendant; the ancestry
+relationship is unaffected by commits made after it.
+
+**Not performed, explicitly:** no push to `origin/master` (local `master` is 6 commits ahead,
+unpublished); no `git clean`; the nested `ROJAN_Web/` clone (§AAP's own flagged artifact, still
+`DO NOT DELETE`) and `docs/uiux/` remain untouched and still present as untracked paths — neither is
+part of D4's own closure criterion, which concerns ancestry only, not full working-tree cleanliness.
+
+**D4 status: CLOSED.** Reconciliation decided (§AAP), dirty-file disposition authorized (§AAQ), and
+now actually executed and ancestry-verified (this section) — satisfying this row's own
+long-standing evidence requirement in full, for the first time. Push remains a separate, still-open,
+owner-gated execution item, consistent with every other decision-vs-execution split already used
+elsewhere in this register (D1, D2, D3, D9, D10, D13).
+
+---
+
+## AAS — D6 owner decision recorded (Option 1 — Build now): Android Customer Gallery/Media — NOT executed, pre-implementation scope discovery performed, D6 stays OPEN by its own evidence standard
+
+**This section records an owner decision for D6 only; it does not close D6.** A prior read-only
+evidence-discovery pass (not recorded in the Matrix, per that pass's own explicit instruction)
+confirmed: `ROJAN_Backend` has a real, production public gallery endpoint
+(`PublicSalonController.gallery()`, `GET /api/v1/public/salons/{slug}/gallery`) and a real
+authenticated management API (`MediaController`); `ROJAN_Web` has a real, fully-wired Customer-facing
+gallery page, preview section, and grid component, all backed by that same endpoint; Android
+Customer has zero client-side code for this feature anywhere (confirmed by a full grep of its `data/`
+layer), and its own `SalonDetailsScreen.kt` doc comment already states photo gallery is "absent by
+design." No real blocker exists on the Backend side — the gap is Android-only.
+
+**Owner decision: Option 1 — Build now.** Rationale, as given: Backend and Website already really
+support Gallery/Media; Android Customer does not; therefore Android Customer Gallery/Media is to be
+built. Scope constraints the owner set alongside the decision:
+
+- Backend migration/domain/storage — **already exist, not to be rebuilt.**
+- Website implementation — **already exists, not to be redesigned.**
+- Android Customer implementation — **to be newly built** (this is the actual work item).
+- `API_CONTRACT.md`'s documentation gap for the gallery endpoint (confirmed empty of any `gallery`
+  reference) — **to be closed as part of this implementation**, not deferred.
+
+This is a Product/Schedule decision, made by the Product owner — consistent with this row's own
+approver role, same as every other Decision Register entry.
+
+**Not executed this pass.** No Android code, Backend code, Website code, or `API_CONTRACT.md` edit
+has been made. A separate pre-implementation scope-discovery pass (Android architecture conventions,
+the real Backend contract shape, Website's reference behavior, and the exact `API_CONTRACT.md` gap)
+was performed read-only and reported directly, not duplicated into this section.
+
+**D6 status: decision recorded, NOT CLOSED.** (§C's own D6 row, above, is updated in place with this
+decision; its closure criterion — a real, working, verified Android Customer Gallery implementation
+— is unaffected by recording the decision alone, same pattern already used for D1/D3/D4/D14/D15's own
+decision-recorded-but-not-yet-executed steps.)
+
+---
+
+## AAT — D6 CLOSED: real scope/architecture gate found mid-execution and resolved by explicit owner approval (Option 1) — a new, authenticated, `salonId`-based Backend Gallery endpoint, not the pre-existing public/slug one §AAS assumed, is in scope; implementation executed and verified against it
+
+**This section records a scope amendment to D6, not a closure.** Executing §AAS's Build-now decision
+surfaced a real, substantive mismatch between that decision's own stated premise and the actual state
+of `ROJAN_Backend`'s `origin/main`, which was reported in full before any further action and resolved
+only by the owner's own explicit choice — not guessed or assumed.
+
+### A) D6's original premise (§AAS, evidence discovery)
+
+- Backend already had a real, production, **public/unauthenticated**, **slug-based** gallery endpoint
+  (`GET /api/v1/public/salons/{slug}/gallery`, `PublicSalonController.gallery()`), part of a
+  general-purpose `MediaAsset` subsystem (migrations V16/V22, `MediaController`,
+  `MediaStoragePort`).
+- Website already consumed that same endpoint, real and wired.
+- Android's only real gap: a consumer. **No new Backend migration, domain model, or endpoint was
+  expected** — §AAS's own owner instruction: *"Backend migration/domain/storage ... not to be
+  rebuilt."*
+
+### B) What mid-execution investigation actually found
+
+Direct inspection of `ROJAN_Backend`'s real `origin/main` (not the branch the original evidence was
+read from) found: zero trace of `PublicSalonController`, the `MediaAsset` subsystem, or any `slug`
+field on `Salon` — none of it exists on `origin/main`. The entire capability lived only on a
+locally-diverged branch (`fix/refresh-token-race-test`, pushed to `origin` but never merged to
+`main` — 102 commits, **no common ancestor with `origin/main` at all**, confirmed via
+`git merge-base`). A real attempt to cherry-pick just the gallery-related commits onto `origin/main`
+was aborted after the very first commit produced 8 genuine content conflicts, including the `Salon`
+domain model itself — reported in full, not resolved by guessing.
+
+### C) Owner's resulting decisions, in sequence, each separately given
+
+1. **"Build the gallery endpoint fresh against current main"** — rejecting both the cherry-pick path
+   and leaving D6 blocked.
+2. **"Authenticated, under existing `/api/v1/salons/{salonId}/...`"** — chosen over the alternative
+   (public/unauthenticated, slug-based, mirroring the old branch) when presented as an explicit
+   decision point, specifically to avoid adding new unauthenticated attack surface and a new `slug`
+   field neither existed on `origin/main`.
+3. Implementation proceeded and was committed, tested, and built real-green (see §AAS's own
+   Implementation Report, reproduced in summary in part D below).
+4. **Scope/architecture gate raised**: before accepting this as D6 closure-eligible, the owner was
+   given an explicit comparison of (A) vs. (B) and a named decision request — *"آیا ساخت Backend
+   Gallery جدید با authenticated salonId endpoint به‌عنوان بخشی از D6 تأیید می‌شود؟"*
+5. **Owner decision, 2026-11-07: Option 1 — approved.** The new, authenticated, `salonId`-based
+   Backend Gallery endpoint is explicitly in scope as part of D6.
+
+### D) Scope deviation table (for the record — now resolved, not disputed)
+
+| Current implementation detail | In §AAS's original scope? | Status after this section |
+|---|---|---|
+| New DB migration (`V9__salon_gallery_images.sql`) | No | **Now approved** |
+| New domain aggregate/repository/adapter/controller | No | **Now approved** |
+| Authenticated access model (vs. public) | No | **Now approved** |
+| `salonId`-based routing (vs. slug-based) | No | **Now approved** |
+| New `API_CONTRACT.md` endpoint (net-new, not documenting a pre-existing one) | No | **Now approved** |
+
+### E) Real evidence already on record (unchanged by this section, reproduced here for completeness)
+
+- **Backend commit** `f4ac81b4931791fe1bb3195d164d40d5cdf24459` (branch `feature/d6-gallery-backend`,
+  off `origin/main`@`443a441`): migration, domain, JPA adapter, controller, `API_CONTRACT.md`.
+  `:bootstrap:test --tests SalonGalleryFlowIntegrationTest` — **4/4 passed**; `:application:test`
+  (full regression) — **127/127 passed**, 0 failed/errors/skipped.
+- **Android commit** `897ff33cc58ba8d6bd62b338ed0aedf01fa9c270` (branch `feature/d6-customer-gallery`,
+  off `origin/main`@`14b2d8e`): `SalonDetailsScreen`/`SalonDetailsViewModel`/`SalonRepository`
+  extended; 2 new test files; 9 existing test fakes mechanically updated (no behavior change).
+  `:app:testCustomerDevDebugUnitTest` (full regression) — **442/442 passed**, 1 pre-existing/unrelated
+  skip, 0 failed/errors.
+- One disclosed, **pre-existing, unrelated** gap surfaced (not fixed, not in scope):
+  `SearchScrollResetTest.kt`'s `FakeSalonRepository` was already missing a `myOwnedSalons()` override
+  on Android's `origin/main` before this change — its `androidTest` source set does not compile
+  independent of D6.
+- Neither commit had been pushed at the time this section was first written; both were subsequently
+  pushed, opened as PRs, CI-verified, and merged to main.
+
+**D6 status: CLOSED 2026-11-07, per explicit owner instruction.** The scope amendment above was
+owner-approved, and the implementation was executed and verified against that approved scope before
+this closure: Backend commit `f4ac81b4931791fe1bb3195d164d40d5cdf24459`, Android commit
+`897ff33cc58ba8d6bd62b338ed0aedf01fa9c270`; Backend Gallery integration test 4/4 passed; Backend
+application regression 127/127 passed, 0 failed/errors/skipped; Android Customer unit regression
+442/442 passed; `git diff --check` clean on both repositories. (§C's own D6 row is updated in place
+to reflect this closure.)
+
+---
+
+## AAV — D8 CLOSED (Option 3 — Defer indefinitely) and D12 CLOSED (Option 1 — Accept current state): both by explicit, dated owner sign-off; no code changed for either
+
+**This section closes D8 and D12 only.** Both had stood `OPEN — OWNER DECISION` since first
+discovery, confirmed still open and re-reported in full (current status, required decision, evidence,
+options as already defined in §C — no new option invented for either) immediately before this pass.
+The owner then gave both decisions explicitly and directly, choosing only from the options §C's own
+rows already defined.
+
+### D8 — SYNC-CROSS-CLIENT-01: Option 3 — Defer indefinitely
+
+**Owner decision, 2026-11-08: Defer indefinitely.** Of the three options §C's own row has always
+offered (approve as proposed / rescope / defer indefinitely), the owner selected deferral — the
+contract is explicitly taken out of active execution scope, not approved and not rescoped. This is a
+scope decision, not a technical one: it requires no engineering work to take effect, same reasoning
+D14/D15's own "going-forward workflow choice" closures already established for a decision that changes
+status without changing code.
+
+**Evidence, unchanged from before this decision (re-confirmed, not re-derived):** zero code exists
+anywhere in Backend or any client for SYNC-CROSS-CLIENT-01 — Row 19 (§D): `GENUINELY_UNIMPLEMENTED` /
+`BLOCKED_BY_DECISION`. **No implementation was performed or authorized as part of this closure** —
+deferring the contract changes nothing code-level; Row 19's own status is unaffected by this decision
+alone (it was never gated on anything but this exact sign-off, and deferral does not unblock or build
+anything).
+
+**D8 status: CLOSED.** (§C's own D8 row is updated in place with this decision.)
+
+### D12 — Android TLS certificate pinning: Option 1 — Accept current state
+
+**Owner decision, 2026-11-08: Accept current state.** Of the two options §C's own row has always
+offered (accept current state / add pinning + a rejection test), the owner selected acceptance. The
+real, already-confirmed security assessment (§M Decision 6, §M.2, §N.4) is formally accepted as this
+item's closing evidence, not superseded by anything new:
+
+- `BackendApiContainer.kt:364-367`'s `baseOkHttpClientBuilder()` — confirmed, no `CertificatePinner`,
+  no custom `TrustManager`, no custom `HostnameVerifier` anywhere. Standard Android OS trust-store
+  (CA-chain) validation is the accepted transport-security posture, formally and on the record, not
+  merely a default nobody decided on.
+- No formal written threat model existed to justify pinning (§M.2) — this gap is not resolved by this
+  decision and is not required to be, since Option 1 does not depend on one.
+- **No certificate pinning was built. No rejection test was added.** Option 1 requires neither, and
+  none was created.
+
+**D12 status: CLOSED.** (§C's own D12 row is updated in place with this decision.)
+
+### Scope of this section
+
+Only D8 and D12 were decided or touched. D1–D7, D9–D11, D13–D15 were not re-audited, re-opened, or
+re-decided. D6 remains CLOSED exactly as §AAS/§AAT/§AAR left it, untouched by this section. No Backend,
+Android, or Website code was changed — this is a governance-only closure pass, consistent with every
+decision-only closure already in this register that required no implementation (D9/D10/D13's own
+trunk/documentation/rollout-target decisions).
+
+---
+
+## AAW — PR-02 (D13's execution item): real environment-readiness assessment, 2026-11-08 — no load test run, no acceptance evidence, D13 itself remains CLOSED and untouched
+
+**This section does not reopen, re-decide, or touch D13.** D13 (staged rollout, 500-concurrent-user
+target) was approved 2026-10-19 and stays closed. PR-02 — the separate, already-tracked Release Gate
+execution item that depends on D13's target but is not itself a governance decision — was assessed
+read-only this pass to determine real readiness for the acceptance load-test run the plan
+(`ROJAN_PR02_Load_Test_Plan_v1.md`) requires. **No load test was executed. No k6 was installed. No
+environment was provisioned. No code was changed. No evidence is claimed that does not exist.**
+
+**What this assessment confirmed as real (not fabricated):**
+
+- Canonical Backend commit to test: `origin/main`@`0d50ffaf37e82dcbd4a006b7a157044759c5a05f`.
+- A genuine, already-existing, test-safe SMS mechanism (`LoggingSmsProvider`, `@Profile("test")`,
+  infrastructure code — not something invented for this assessment) that can satisfy the plan's own
+  SMS-safety requirement without touching the real MeliPayamak provider, with one real, unresolved
+  tension flagged (not resolved): activating it also loosens OTP/auth rate limits via the same `test`
+  profile, which may or may not be acceptable for a realistic OTP-load scenario — an owner choice, not
+  decided here.
+- A real, existing build/deploy mechanism (`ghcr.io/.../rojan-backend:<tag>` + `scripts/deploy-production.sh`)
+  capable of deploying the exact canonical commit to a disposable environment, once one exists.
+
+**What remains genuinely outstanding (real blockers, not invented):**
+
+- No independent, correctly-sized disposable environment exists — only a stale (image dated
+  `2026-09-23`, predating the canonical commit by weeks), shared local Docker stack was found, the
+  same "shared machine, ~3GB free RAM" condition already flagged as insufficient in §X.2/§X.4/§KK.
+- k6 is not installed anywhere and no version is pinned.
+- No seed-data script/dataset exists for the plan's 5 workloads.
+- Four real choices still require an explicit Owner decision before provisioning or execution can
+  proceed: (1) the OTP safe-SMS-vs-rate-limit tension above; (2) seed-data volume (no number is
+  derivable from existing evidence — none invented); (3) k6 runner option (self-hosted Docker /
+  native binary / k6 Cloud) and version to pin; (4) infrastructure provisioning authorization and
+  budget (cost: **unknown** — no pricing or budget evidence exists anywhere in this repository or
+  Matrix to derive one from).
+
+**PR-02 status: unchanged — `OPEN`, `BLOCKING`, "decision closed, execution remains" (§B's own row,
+not edited by this section). This is a Release Gate execution blocker, not an open governance
+decision.** D13 remains CLOSED. No `PASS`, no partial/substitute test result, and no threshold outcome
+is recorded here, because none was produced.
+
+---
+
+## AAX — PR-02: Code-ready, execution pending / Deferred — 2026-11-08, by explicit owner decision (Option B); MATRIX EXIT for PR-02
+
+**This section does not reopen, re-decide, or touch any of D1–D15.** D13 stays CLOSED exactly as
+§AAW left it. This is the final governance closure of the separate, already-tracked Release Gate
+execution item PR-02 (§B), following §AAW's real environment-readiness assessment and a subsequent
+owner-authorized implementation pass.
+
+**What is real and verified (not fabricated):**
+
+- A profile-gated seed-generation mechanism (`LoadTestSeedRunner` + `ManagerUnitSeeder`, package
+  `ai.rojan.backend.bootstrap.loadtest`) was implemented in worktree `rojan-backend-pr02-otp`,
+  strictly against canonical `origin/main`@`0d50ffaf37e82dcbd4a006b7a157044759c5a05f` — zero existing
+  files modified, inactive unless `SPRING_PROFILES_ACTIVE` includes `load-test-seed` **and**
+  `rojan.load-test-seed.confirm=true`.
+- A narrowly-scoped Safety Review (rollback correctness, idempotency/partial-state safety,
+  profile/safety isolation, scope isolation, test coverage) returned **PASS** on all reviewed
+  criteria before any commit was made.
+- Committed as `8e9e027` (exactly the 3 reviewed files: `LoadTestSeedRunner.kt`, `ManagerUnitSeeder.kt`,
+  `LoadTestSeedRunnerTest.kt`), pushed to `origin/feature/pr02-load-test-seed-runner`, opened as
+  **PR #21** against `ROJAN_Backend`'s `main`.
+- Real CI ran on PR #21: `build-test-report` → **PASS** (2m57s,
+  `https://github.com/meisamelh66-cpu/ROJAN_Backend/actions/runs/42485681573`).
+
+**What remains genuinely outstanding, and is explicitly NOT claimed here:**
+
+- **No real k6 load test has been executed.** No disposable load-test environment has been
+  provisioned. No threshold evidence (p95 latency, error rate, 5xx count, DB pool exhaustion) exists
+  anywhere. This CI result verifies only that the seed-generation *code* compiles and its own unit
+  tests pass — it is not, and is not recorded as, the executed/validated load test that
+  `ROJAN_PR02_Load_Test_Plan_v2.md` §13 (Pass/Fail Criteria) and §16 (Explicit Statement) require for
+  an acceptance result.
+
+**Owner decision (explicit, dated 2026-11-08): Option B — Defer.** Presented with exactly two options
+(A — authorize provisioning/execution now; B — defer execution to a future decision), the owner chose
+B. Real load-test execution is deferred indefinitely to a future, separate owner decision — not
+scheduled, not implied to follow automatically. PR #21 was deliberately **not merged** as part of this
+closure (merging was judged unnecessary for recording this status and was not separately authorized).
+
+**PR-02 status: `DEFERRED`** (§B's own row updated in place with this decision). **PR-02 — Code-ready,
+execution pending / Deferred — MATRIX EXIT COMPLETE.** This does not mean the load test passed or ran;
+it means PR-02's governance closure is complete on the basis of the owner's explicit Option B decision,
+with only the real evidence above recorded. No other section of this Matrix, and no other open or
+closed decision (D1–D15), was touched by this entry.
+
+---
+
+## AAY — PR-04 (Gate #8): two artifact-specific forensic blockers recorded for the currently-live
+Website artifacts, Customer 1.0.1 and Manager 1.0.4 — 2026-11-09, evidence-only, no decision made
+
+**This section does not reopen, re-decide, or resolve any of D1–D15, and does not alter PR-04's
+existing, already-open blockers (key-ownership decision; rebuild source-commit ambiguity; no
+real-device test ever performed — §A's PR-04 row, §VV.3, §WW.5).** It adds two further, narrower,
+artifact-specific findings from a dedicated read-only forensic pass, scoped exactly to the two APKs
+currently live on the Website. **Gate #8 remains `NOT PASSED`, unchanged** — these findings are
+additional reasons it is not passed, not new reasons where it previously had none.
+
+**Scope distinction, preserved deliberately:** the historical Manager v1.0.2 finding (`SHA-256
+7b80a960a3bcacfaef066c3f823f17f6143866befaf5468cb6565919ba89b040`, embedded revision
+`ee492250b356974cf8724bc580a24bf1b23c1432`, CVE-2020-29582, §AAF) is a transient/local Gradle build
+output, never a published release artifact — it is **not** carried forward as a blocker on Manager
+1.0.4 here, and §AAF itself is left unedited as historical evidence.
+
+### Customer 1.0.1 (`ai.rojan.designlab`, versionCode 2, APK SHA-256 `aea86d2ae6ac316497dddf8dc8c60a2d24318dc63d0c9bd57849e04553d17e24`)
+
+**Signing: `NOT VERIFIED`. Signing contradiction: `YES`. Key identity contradiction: `YES`.**
+
+- Real signing certificate (extracted directly via `apksigner verify --print-certs`): SHA-256
+  `0bb8de3d48e67fac0023cbea7267a76551e9f626bbc3fc6b6aae3508dadcbcdd`, SHA-1
+  `e36d40e6ccaa07a956f501d9cfa364ce7ab63767`, RSA 4096-bit, signer count 1, `v2`/`v3` present.
+- Three fingerprints exist across this project's history: `637e29ea...` (`SIGNING-SETUP-REPORT.md`,
+  2026-09-10), `0bb8de3d...` (Customer 1.0.1's actual certificate — not recorded in any official
+  signing document), and `ca9cea27...` (`RELEASE_ARTIFACT_MANIFEST.md` and the Manager lineage, see
+  below). **Customer 1.0.1's real certificate matches none of the three documented fingerprints.**
+- This is evidence only of a documentation/signing-record gap — it does not establish, and this entry
+  does not claim, that the key is forged, that the APK is unauthorized, or any other conclusion beyond
+  `NOT VERIFIED`.
+
+**Release Approval: `NOT VERIFIED`.** No artifact-specific approval record exists linking any of:
+version `1.0.1`, versionCode `2`, SHA-256 `aea86d2a...`, or certificate fingerprint `0bb8de3d...`. None
+of these four identifiers appears in `ROJAN_MOBILE_RELEASE_AUTHORIZATION_v1.md`,
+`RELEASE_ARTIFACT_MANIFEST.md`, or elsewhere in this Matrix.
+
+**Provenance chain:** `APK → revision VERIFIED → branch off-main → CI NOT VERIFIED → signing NOT
+VERIFIED → approval NOT VERIFIED → Website VERIFIED`.
+
+### Manager 1.0.4 (`ai.rojan.designlab.manager`, versionCode 4, APK SHA-256 `c4a87f9209a77ddd8343be70aa626d9836056a67481ea0f645ca2085d845491d`)
+
+**Signing: `PARTIALLY VERIFIED`.**
+
+- Real signing certificate: SHA-256 `ca9cea2717822dbb87c49a4db58e0e71319ba91a69813af927980244d74ae389`
+  — this matches a documented key/certificate lineage that is consistent across Manager 1.0.0 through
+  1.0.4 (and `RELEASE_ARTIFACT_MANIFEST.md`'s record), independently verified this pass.
+- The signing **lineage** is documented; the **release approval for this specific version is not** —
+  these are kept separate, per instruction, rather than treating a verified key as a verified release.
+
+**Release Approval: `NOT VERIFIED`.** The only artifact-specific approval record found anywhere is for
+**Manager 1.0.0**, not 1.0.4: `RELEASE_ARTIFACT_MANIFEST.md`, commit `59fd2c19`, dated 2026-09-26,
+stating the build was "confirmed by the user against the verified Final Release Gate output." This
+approval is **not** generalized to Manager 1.0.4 here — a different version, not independently
+approved.
+
+**Provenance chain:** `APK → embedded revision NOT FOUND → source PARTIAL → CI NOT VERIFIED → signing
+PARTIALLY VERIFIED → approval NOT VERIFIED → Website VERIFIED`.
+
+### `ROJAN_MOBILE_RELEASE_AUTHORIZATION_v1.md`
+
+Recorded as `NOT AN AUTHORIZATION RECORD FOR THESE ARTIFACTS`: neither Customer 1.0.1 nor Manager 1.0.4
+is mentioned in it; the document's own correction text states it does not authorize an artifact; and
+its current on-disk content is locally modified/uncommitted, not a finalized, committed record. This
+is recorded as evidence about the document; the document itself was not edited by this entry.
+
+### CI provenance (both artifacts)
+
+No CI workflow in either `ROJAN_DesignLab_Main1` or `ROJAN_Web` builds, signs, or uploads a production
+APK — both Customer 1.0.1 and Manager 1.0.4 are `LOCAL BUILD ONLY`, re-confirmed this pass by reading
+the actual workflow files, not assumed.
+
+### Gate #8 — reasons, consolidated (existing + this entry's additions)
+
+1. Key-ownership decision (Play App Signing vs. self-managed) — still open (pre-existing).
+2. No real-device/emulator smoke test has ever been performed — still open (pre-existing).
+3. Customer 1.0.1 signing identity — `NOT VERIFIED` (this entry).
+4. Customer 1.0.1 artifact-specific release approval — `NOT VERIFIED` (this entry).
+5. Manager 1.0.4 artifact-specific release approval — `NOT VERIFIED` (this entry).
+
+No pre-existing blocker was removed, weakened, or marked resolved by this entry.
+
+**Release readiness, evidence-based, as of this entry:**
+
+```
+CUSTOMER 1.0.1 → BLOCKED
+MANAGER 1.0.4  → BLOCKED
+GATE #8        → NOT PASSED (unchanged)
+RELEASE_READY  → FALSE (unchanged — this Matrix's existing `INCOMPLETE_BLOCKED` ecosystem status stands)
+```
+
+**Minimum evidence that would close each new blocker (not created here, not implied to be coming):**
+for Customer 1.0.1 — a signing document for fingerprint `0bb8de3d...`, plus a dated, named-owner
+approval record tying version `1.0.1`/versionCode `2`/SHA `aea86d2a...` together; for Manager 1.0.4 —
+a dated, named-owner approval record tying version `1.0.4`/versionCode `4`/SHA `c4a87f92...` together,
+or an explicit owner statement that the 1.0.0 approval is intended to cover every subsequent build on
+the same unchanged key.
+
+No code, APK, Website, Production, release configuration, or signing configuration was changed by this
+entry. No prior section of this Matrix was edited beyond the single §B PR-04 row cross-reference noted
+above.
