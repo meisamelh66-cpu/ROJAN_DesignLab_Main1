@@ -1336,7 +1336,7 @@ multiple sub-aspects at different maturity levels, the **least-resolved** sub-as
 | PR-01 | Android CI workflow | `COMPLETE` | Real GitHub Actions run, passing, PR #6 (§Z) — the row's own acceptance criterion ("a real CI run completes accurately on a real PR") is met; merging PR #6 is a separate, not-yet-requested step |
 | PR-02 | Load/performance baseline | `DEFERRED` | **Code-ready, execution pending / Deferred — 2026-11-08 by explicit owner decision (Option B), see §AAX.** Seed-generation code (`LoadTestSeedRunner`/`ManagerUnitSeeder`) complete, Safety-Review-PASS, committed (`8e9e027`), pushed, PR #21 open, real CI (`build-test-report`) PASS. **Real k6 execution was not run and is not claimed** — no disposable environment provisioned, no threshold evidence (p95/error-rate/5xx/DB-pool) exists. Execution itself is deferred to a future owner decision, not scheduled here |
 | PR-03 | Backup/restore procedure | `IN_PROGRESS` | Disposable-environment orchestration fully validated; real-VPS exercise blocked on access/authorization |
-| PR-04 | Signed-artifact governance | `NEEDS_OWNER_DECISION` | Documentation reconciled (D10); key-ownership decision and rebuild still open |
+| PR-04 | Signed-artifact governance | `NEEDS_OWNER_DECISION` | Documentation reconciled (D10); key-ownership decision and rebuild still open. **Updated 2026-11-09 (§AAY):** artifact-specific forensic verification of the two currently-live Website artifacts (Customer 1.0.1, Manager 1.0.4) found two further, more specific blockers, additive to the ones already on this row — Customer 1.0.1's actual signing certificate matches none of the project's documented fingerprints (`SIGNING = NOT VERIFIED`), and neither artifact has an artifact-specific release approval record (`APPROVAL = NOT VERIFIED` for both). Does not change, resolve, or supersede this row's existing key-ownership/rebuild blockers — see §AAY for full evidence |
 | PR-05 | Ancestry-check process discipline | `COMPLETE` | Applied correctly every time it mattered this engagement (process gate, not a feature) |
 | PR-06 | Android branch authority | `IN_PROGRESS` | D9 resolved (`main` trunk); 3 of 4 pilot-only features manually reconciled, compiled, tested. **Updated 2026-10-26 (§BB)**: branch safely rebased (never pushed, confirmed via `git ls-remote`) onto PR-01/PR #6's tip — all 4 previously-known failures resolved as a side effect of the valid base, not by weakening any test; full fresh 3-flavor run now **462/462/462, 0 failures, 0 errors** (was 465/465/465 with 4 known failures). All 3 reconciled features' backend contracts also verified against real use-case tests on current production ref (`MediaUseCasesTest` 31/31, `SalonInviteUseCasesTest` 13/13, `SpecialistServiceUseCasesTest` 5/5). Isolated branch ready for review — the 4th (Reception invite) stays excluded per owner decision; remaining step is push/merge authorization, not a decision |
 | PR-07 | OTP rate-limit bug | `COMPLETE` | Fixed, merged, on production, regression-tested |
@@ -8079,3 +8079,106 @@ execution pending / Deferred — MATRIX EXIT COMPLETE.** This does not mean the 
 it means PR-02's governance closure is complete on the basis of the owner's explicit Option B decision,
 with only the real evidence above recorded. No other section of this Matrix, and no other open or
 closed decision (D1–D15), was touched by this entry.
+
+---
+
+## AAY — PR-04 (Gate #8): two artifact-specific forensic blockers recorded for the currently-live
+Website artifacts, Customer 1.0.1 and Manager 1.0.4 — 2026-11-09, evidence-only, no decision made
+
+**This section does not reopen, re-decide, or resolve any of D1–D15, and does not alter PR-04's
+existing, already-open blockers (key-ownership decision; rebuild source-commit ambiguity; no
+real-device test ever performed — §A's PR-04 row, §VV.3, §WW.5).** It adds two further, narrower,
+artifact-specific findings from a dedicated read-only forensic pass, scoped exactly to the two APKs
+currently live on the Website. **Gate #8 remains `NOT PASSED`, unchanged** — these findings are
+additional reasons it is not passed, not new reasons where it previously had none.
+
+**Scope distinction, preserved deliberately:** the historical Manager v1.0.2 finding (`SHA-256
+7b80a960a3bcacfaef066c3f823f17f6143866befaf5468cb6565919ba89b040`, embedded revision
+`ee492250b356974cf8724bc580a24bf1b23c1432`, CVE-2020-29582, §AAF) is a transient/local Gradle build
+output, never a published release artifact — it is **not** carried forward as a blocker on Manager
+1.0.4 here, and §AAF itself is left unedited as historical evidence.
+
+### Customer 1.0.1 (`ai.rojan.designlab`, versionCode 2, APK SHA-256 `aea86d2ae6ac316497dddf8dc8c60a2d24318dc63d0c9bd57849e04553d17e24`)
+
+**Signing: `NOT VERIFIED`. Signing contradiction: `YES`. Key identity contradiction: `YES`.**
+
+- Real signing certificate (extracted directly via `apksigner verify --print-certs`): SHA-256
+  `0bb8de3d48e67fac0023cbea7267a76551e9f626bbc3fc6b6aae3508dadcbcdd`, SHA-1
+  `e36d40e6ccaa07a956f501d9cfa364ce7ab63767`, RSA 4096-bit, signer count 1, `v2`/`v3` present.
+- Three fingerprints exist across this project's history: `637e29ea...` (`SIGNING-SETUP-REPORT.md`,
+  2026-09-10), `0bb8de3d...` (Customer 1.0.1's actual certificate — not recorded in any official
+  signing document), and `ca9cea27...` (`RELEASE_ARTIFACT_MANIFEST.md` and the Manager lineage, see
+  below). **Customer 1.0.1's real certificate matches none of the three documented fingerprints.**
+- This is evidence only of a documentation/signing-record gap — it does not establish, and this entry
+  does not claim, that the key is forged, that the APK is unauthorized, or any other conclusion beyond
+  `NOT VERIFIED`.
+
+**Release Approval: `NOT VERIFIED`.** No artifact-specific approval record exists linking any of:
+version `1.0.1`, versionCode `2`, SHA-256 `aea86d2a...`, or certificate fingerprint `0bb8de3d...`. None
+of these four identifiers appears in `ROJAN_MOBILE_RELEASE_AUTHORIZATION_v1.md`,
+`RELEASE_ARTIFACT_MANIFEST.md`, or elsewhere in this Matrix.
+
+**Provenance chain:** `APK → revision VERIFIED → branch off-main → CI NOT VERIFIED → signing NOT
+VERIFIED → approval NOT VERIFIED → Website VERIFIED`.
+
+### Manager 1.0.4 (`ai.rojan.designlab.manager`, versionCode 4, APK SHA-256 `c4a87f9209a77ddd8343be70aa626d9836056a67481ea0f645ca2085d845491d`)
+
+**Signing: `PARTIALLY VERIFIED`.**
+
+- Real signing certificate: SHA-256 `ca9cea2717822dbb87c49a4db58e0e71319ba91a69813af927980244d74ae389`
+  — this matches a documented key/certificate lineage that is consistent across Manager 1.0.0 through
+  1.0.4 (and `RELEASE_ARTIFACT_MANIFEST.md`'s record), independently verified this pass.
+- The signing **lineage** is documented; the **release approval for this specific version is not** —
+  these are kept separate, per instruction, rather than treating a verified key as a verified release.
+
+**Release Approval: `NOT VERIFIED`.** The only artifact-specific approval record found anywhere is for
+**Manager 1.0.0**, not 1.0.4: `RELEASE_ARTIFACT_MANIFEST.md`, commit `59fd2c19`, dated 2026-09-26,
+stating the build was "confirmed by the user against the verified Final Release Gate output." This
+approval is **not** generalized to Manager 1.0.4 here — a different version, not independently
+approved.
+
+**Provenance chain:** `APK → embedded revision NOT FOUND → source PARTIAL → CI NOT VERIFIED → signing
+PARTIALLY VERIFIED → approval NOT VERIFIED → Website VERIFIED`.
+
+### `ROJAN_MOBILE_RELEASE_AUTHORIZATION_v1.md`
+
+Recorded as `NOT AN AUTHORIZATION RECORD FOR THESE ARTIFACTS`: neither Customer 1.0.1 nor Manager 1.0.4
+is mentioned in it; the document's own correction text states it does not authorize an artifact; and
+its current on-disk content is locally modified/uncommitted, not a finalized, committed record. This
+is recorded as evidence about the document; the document itself was not edited by this entry.
+
+### CI provenance (both artifacts)
+
+No CI workflow in either `ROJAN_DesignLab_Main1` or `ROJAN_Web` builds, signs, or uploads a production
+APK — both Customer 1.0.1 and Manager 1.0.4 are `LOCAL BUILD ONLY`, re-confirmed this pass by reading
+the actual workflow files, not assumed.
+
+### Gate #8 — reasons, consolidated (existing + this entry's additions)
+
+1. Key-ownership decision (Play App Signing vs. self-managed) — still open (pre-existing).
+2. No real-device/emulator smoke test has ever been performed — still open (pre-existing).
+3. Customer 1.0.1 signing identity — `NOT VERIFIED` (this entry).
+4. Customer 1.0.1 artifact-specific release approval — `NOT VERIFIED` (this entry).
+5. Manager 1.0.4 artifact-specific release approval — `NOT VERIFIED` (this entry).
+
+No pre-existing blocker was removed, weakened, or marked resolved by this entry.
+
+**Release readiness, evidence-based, as of this entry:**
+
+```
+CUSTOMER 1.0.1 → BLOCKED
+MANAGER 1.0.4  → BLOCKED
+GATE #8        → NOT PASSED (unchanged)
+RELEASE_READY  → FALSE (unchanged — this Matrix's existing `INCOMPLETE_BLOCKED` ecosystem status stands)
+```
+
+**Minimum evidence that would close each new blocker (not created here, not implied to be coming):**
+for Customer 1.0.1 — a signing document for fingerprint `0bb8de3d...`, plus a dated, named-owner
+approval record tying version `1.0.1`/versionCode `2`/SHA `aea86d2a...` together; for Manager 1.0.4 —
+a dated, named-owner approval record tying version `1.0.4`/versionCode `4`/SHA `c4a87f92...` together,
+or an explicit owner statement that the 1.0.0 approval is intended to cover every subsequent build on
+the same unchanged key.
+
+No code, APK, Website, Production, release configuration, or signing configuration was changed by this
+entry. No prior section of this Matrix was edited beyond the single §B PR-04 row cross-reference noted
+above.
