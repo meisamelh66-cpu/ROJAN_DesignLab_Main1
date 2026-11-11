@@ -1,5 +1,6 @@
 package ai.rojan.designlab.data.remote.dto
 
+import ai.rojan.designlab.domain.booking.PaymentMethod
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -17,6 +18,8 @@ data class CreateBookingRequestDto(
     val specialistId: String,
     /** ISO-8601 local date-time, e.g. `"2026-09-01T10:00:00"` — one of the windows returned by the availability endpoint. */
     val startTime: String,
+    /** P0-7: the customer's choice on `BookingConfirmationScreen` — mirrors the backend's `CreateBookingRequest.paymentMethod`, same enum names on both sides. */
+    val paymentMethod: PaymentMethod = PaymentMethod.WALLET,
     val notes: String? = null,
     /** Manager Booking Creation Integrity follow-up: set only when a salon owner is booking on behalf of a customer returned by `GET /salons/{salonId}/customers`. Omitted for the normal self-booking case. */
     val customerId: String? = null,

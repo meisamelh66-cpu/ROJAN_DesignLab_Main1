@@ -162,6 +162,7 @@ private class FakeBookingRepository(private val result: Result<PagedResult<Booki
         notes: String?,
         idempotencyKey: String?,
         customerId: String?,
+        paymentMethod: ai.rojan.designlab.domain.booking.PaymentMethod,
     ): Result<Booking> = error("not used by these tests")
 
     override suspend fun myBookings(page: Int, size: Int, status: BookingStatus?): Result<PagedResult<Booking>> =

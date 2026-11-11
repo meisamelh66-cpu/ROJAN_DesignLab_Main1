@@ -1,5 +1,7 @@
 package ai.rojan.designlab.domain.repository
 
+import ai.rojan.designlab.domain.booking.PaymentMethod
+
 enum class BookingStatus {
     PENDING,
     CONFIRMED,
@@ -63,6 +65,8 @@ interface BookingRepository {
         idempotencyKey: String?,
         /** Manager Booking Creation Integrity follow-up: set only when the caller is the salon's owner booking on behalf of an existing customer. Backend rejects it (403) for any other caller, and 404s if it doesn't resolve to a real customer account. */
         customerId: String? = null,
+        /** P0-7: the customer's choice on `BookingConfirmationScreen` — forwarded to `CreateBookingRequestDto.paymentMethod`. */
+        paymentMethod: PaymentMethod = PaymentMethod.WALLET,
     ): Result<Booking>
 
     suspend fun myBookings(page: Int = 0, size: Int = 20, status: BookingStatus? = null): Result<PagedResult<Booking>>

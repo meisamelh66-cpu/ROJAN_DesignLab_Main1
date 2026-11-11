@@ -143,6 +143,7 @@ fun BookingConfirmationScreen(
                             specialistId = state.specialistId,
                             dateKey = state.selectedDateKey,
                             time = state.selectedTime,
+                            paymentMethod = state.paymentMethod,
                             onSuccess = { backendBookingId ->
                                 onConfirmClick(backendBookingId, confirmationViewModel.summary)
                             },
