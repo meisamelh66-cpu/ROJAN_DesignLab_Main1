@@ -71,6 +71,8 @@ class SearchScrollResetTest {
 
         override suspend fun getSalon(salonId: String): Result<Salon> = error("not used")
         override suspend fun getGallery(salonId: String): Result<List<ai.rojan.designlab.domain.repository.GalleryImage>> = error("not used")
+        override suspend fun myOwnedSalons(): Result<List<Salon>> =
+            Result.success(emptyList())
 
         companion object {
             fun salons(prefix: String, count: Int) = List(count) { i ->
