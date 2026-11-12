@@ -6,6 +6,7 @@ import ai.rojan.designlab.data.remote.dto.CreateBookingRequestDto
 import ai.rojan.designlab.data.remote.dto.RescheduleBookingRequestDto
 import ai.rojan.designlab.data.remote.dto.toDomain
 import ai.rojan.designlab.data.remote.safeApiCall
+import ai.rojan.designlab.domain.booking.PaymentMethod
 import ai.rojan.designlab.domain.repository.Booking
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.BookingStatus
@@ -24,6 +25,7 @@ class BookingRepositoryImpl(
         notes: String?,
         idempotencyKey: String?,
         customerId: String?,
+        paymentMethod: PaymentMethod,
     ): Result<Booking> = safeApiCall {
         bookingApi.createBooking(
             request = CreateBookingRequestDto(
@@ -31,6 +33,7 @@ class BookingRepositoryImpl(
                 serviceId = serviceId,
                 specialistId = specialistId,
                 startTime = startTime,
+                paymentMethod = paymentMethod,
                 notes = notes,
                 customerId = customerId,
             ),

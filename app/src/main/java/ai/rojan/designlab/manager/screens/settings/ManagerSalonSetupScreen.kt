@@ -17,6 +17,7 @@ import ai.rojan.designlab.ui.theme.RojanShapes
 import ai.rojan.designlab.ui.theme.RojanSuccessText
 import ai.rojan.designlab.ui.theme.RojanTypography
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -59,11 +60,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Manager App workspace — Owner Salon Identity setup/edit (First Salon
@@ -426,7 +425,7 @@ private suspend fun runLocationCaptureFlow(
     }
 
     onStarted()
-    val location = awaitAccurateLocation(locationManager)
+    val location = awaitAccurateLocation(context, locationManager)
     if (location != null) {
         offerMapAppChooser(context, location.latitude, location.longitude)
         onCaptured(location.latitude, location.longitude, location.accuracy)
@@ -479,51 +478,58 @@ private const val LOCATION_TIMEOUT_MS = 20_000L
  * that `null` case is a genuine failure, surfaced as an error, never
  * silently treated as success with a placeholder coordinate.
  */
-private suspend fun awaitAccurateLocation(locationManager: LocationManager): Location? {
+// Real runtime permission check happens below, before requestLocationUpdates()
+// (both ACCESS_FINE_LOCATION and ACCESS_COARSE_LOCATION), and SecurityException
+// is also caught as a second layer - this is not an unguarded call. Suppressed
+// only because lint 9.3.1 does not recognize this guard: confirmed by testing
+// a brand-new, minimal, textbook-identical check+call elsewhere in this file,
+// which lint flagged the same way (see P0-7 audit record). Suppression is for
+// this one false positive only, not a safety bypass.
+@SuppressLint("MissingPermission")
+private suspend fun awaitAccurateLocation(
+    context: Context,
+    locationManager: LocationManager,
+): Location? {
     val criteria = Criteria().apply { accuracy = Criteria.ACCURACY_FINE }
     @Suppress("DEPRECATION")
     val provider = locationManager.getBestProvider(criteria, true) ?: return null
 
-    return suspendCancellableCoroutine { continuation ->
-        var bestLocation: Location? = null
-        lateinit var listener: LocationListener
-        lateinit var timeoutJob: Job
+    val hasFineLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    val hasCoarseLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    if (!hasFineLocation && !hasCoarseLocation) {
+        return null
+    }
 
-        listener = object : LocationListener {
-            override fun onLocationChanged(location: Location) {
-                val currentBest = bestLocation
-                if (currentBest == null || location.accuracy < currentBest.accuracy) {
-                    bestLocation = location
-                }
-                if (location.accuracy <= LOCATION_ACCURACY_THRESHOLD_METERS) {
-                    timeoutJob.cancel()
-                    locationManager.removeUpdates(this)
-                    if (continuation.isActive) continuation.resume(location, onCancellation = null)
-                }
+    var bestLocation: Location? = null
+    val earlyResult = CompletableDeferred<Location>()
+
+    val listener = object : LocationListener {
+        override fun onLocationChanged(location: Location) {
+            val currentBest = bestLocation
+            if (currentBest == null || location.accuracy < currentBest.accuracy) {
+                bestLocation = location
             }
-
-            @Deprecated("Deprecated in Java, still part of the LocationListener interface on minSdk 24")
-            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
-            override fun onProviderEnabled(provider: String) = Unit
-            override fun onProviderDisabled(provider: String) = Unit
+            if (location.accuracy <= LOCATION_ACCURACY_THRESHOLD_METERS) {
+                earlyResult.complete(location)
+            }
         }
 
-        continuation.invokeOnCancellation {
-            locationManager.removeUpdates(listener)
-        }
+        @Deprecated("Deprecated in Java, still part of the LocationListener interface on minSdk 24")
+        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
+        override fun onProviderEnabled(provider: String) = Unit
+        override fun onProviderDisabled(provider: String) = Unit
+    }
 
-        timeoutJob = CoroutineScope(continuation.context).launch {
-            delay(LOCATION_TIMEOUT_MS)
-            locationManager.removeUpdates(listener)
-            if (continuation.isActive) continuation.resume(bestLocation, onCancellation = null)
-        }
+    try {
+        locationManager.requestLocationUpdates(provider, 1000L, 0f, listener, Looper.getMainLooper())
+    } catch (_: SecurityException) {
+        return null
+    }
 
-        try {
-            locationManager.requestLocationUpdates(provider, 1000L, 0f, listener, Looper.getMainLooper())
-        } catch (_: SecurityException) {
-            timeoutJob.cancel()
-            if (continuation.isActive) continuation.resume(null, onCancellation = null)
-        }
+    return try {
+        withTimeoutOrNull(LOCATION_TIMEOUT_MS) { earlyResult.await() } ?: bestLocation
+    } finally {
+        locationManager.removeUpdates(listener)
     }
 }
 

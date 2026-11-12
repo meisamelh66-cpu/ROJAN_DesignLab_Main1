@@ -191,6 +191,7 @@ private class RescheduleFakeBookingRepository(
         notes: String?,
         idempotencyKey: String?,
         customerId: String?,
+        paymentMethod: ai.rojan.designlab.domain.booking.PaymentMethod,
     ): Result<Booking> = error("not used by RescheduleAppointmentViewModel")
 
     override suspend fun myBookings(page: Int, size: Int, status: BookingStatus?): Result<PagedResult<Booking>> =

@@ -9,6 +9,7 @@ import ai.rojan.designlab.data.remote.dto.CreateBookingRequestDto
 import ai.rojan.designlab.data.remote.dto.NetworkBookingStatus
 import ai.rojan.designlab.data.remote.dto.PagedResponseDto
 import ai.rojan.designlab.data.remote.dto.RescheduleBookingRequestDto
+import ai.rojan.designlab.domain.booking.PaymentMethod
 import ai.rojan.designlab.domain.repository.BookingStatus
 import kotlinx.coroutines.runBlocking
 import okhttp3.MediaType.Companion.toMediaType
@@ -77,6 +78,34 @@ class BookingRepositoryImplTest {
 
         assertTrue(result.isSuccess)
         assertEquals(BookingStatus.COMPLETED, result.getOrNull()?.status)
+    }
+
+    // P0-7: the customer's PaymentMethod choice on BookingConfirmationScreen must reach the
+    // backend request body, not be dropped at the repository layer.
+    @Test
+    fun `createBooking sends the selected non-null paymentMethod in the request DTO`() = runBlocking {
+        var capturedRequest: CreateBookingRequestDto? = null
+        val repository = bookingRepository(
+            FakeBookingApi(
+                create = { request ->
+                    capturedRequest = request
+                    sampleResponse
+                },
+            ),
+        )
+
+        val result = repository.createBooking(
+            salonId = "salon-1",
+            serviceId = "service-1",
+            specialistId = "specialist-1",
+            startTime = "2026-09-20T10:00:00",
+            notes = null,
+            idempotencyKey = null,
+            paymentMethod = PaymentMethod.PAY_AT_SALON,
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals(PaymentMethod.PAY_AT_SALON, capturedRequest?.paymentMethod)
     }
 
     @Test
@@ -181,6 +210,7 @@ class BookingRepositoryImplTest {
 }
 
 private class FakeBookingApi(
+    private val create: (CreateBookingRequestDto) -> BookingResponseDto = { error("createBooking not used by this test") },
     private val confirm: () -> BookingResponseDto = { error("confirmBooking not used by this test") },
     private val complete: () -> BookingResponseDto = { error("completeBooking not used by this test") },
     private val reschedule: (RescheduleBookingRequestDto) -> BookingResponseDto =
@@ -188,7 +218,7 @@ private class FakeBookingApi(
     private val cancel: () -> BookingResponseDto = { error("cancelBooking not used by this test") },
 ) : BookingApi {
     override suspend fun createBooking(request: CreateBookingRequestDto, idempotencyKey: String?): BookingResponseDto =
-        error("createBooking not used by this test")
+        create(request)
 
     override suspend fun myBookings(page: Int, size: Int, status: String?): PagedResponseDto<BookingResponseDto> =
         error("myBookings not used by this test")

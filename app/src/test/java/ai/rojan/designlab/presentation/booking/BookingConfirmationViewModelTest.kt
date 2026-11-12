@@ -1,5 +1,6 @@
 package ai.rojan.designlab.presentation.booking
 
+import ai.rojan.designlab.domain.booking.PaymentMethod
 import ai.rojan.designlab.domain.repository.Booking
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.BookingStatus
@@ -64,6 +65,7 @@ class BookingConfirmationViewModelTest {
             val specialistId: String,
             val startTime: String,
             val idempotencyKey: String?,
+            val paymentMethod: PaymentMethod,
         )
 
         override suspend fun createBooking(
@@ -74,8 +76,9 @@ class BookingConfirmationViewModelTest {
             notes: String?,
             idempotencyKey: String?,
             customerId: String?,
+            paymentMethod: PaymentMethod,
         ): Result<Booking> {
-            createCalls += CreateArgs(salonId, serviceId, specialistId, startTime, idempotencyKey)
+            createCalls += CreateArgs(salonId, serviceId, specialistId, startTime, idempotencyKey, paymentMethod)
             return onCreate()
         }
 
@@ -136,7 +139,7 @@ class BookingConfirmationViewModelTest {
         val vm = viewModel(booking = repo)
         var confirmedId: String? = null
 
-        vm.confirmBooking("salon-1", "svc-1", "spec-1", "2026/09/01", "10:00") { confirmedId = it }
+        vm.confirmBooking("salon-1", "svc-1", "spec-1", "2026/09/01", "10:00", PaymentMethod.PAY_AT_SALON) { confirmedId = it }
         advanceUntilIdle()
 
         assertEquals("backend-42", confirmedId)
@@ -144,6 +147,7 @@ class BookingConfirmationViewModelTest {
         assertNull(vm.submitError)
         assertEquals(1, repo.createCalls.size)
         assertEquals("2026/09/01T10:00:00", repo.createCalls.single().startTime)
+        assertEquals("the selected PaymentMethod must reach the repository call", PaymentMethod.PAY_AT_SALON, repo.createCalls.single().paymentMethod)
     }
 
     // ---- confirmBooking: failure recovery -----------------
@@ -154,7 +158,7 @@ class BookingConfirmationViewModelTest {
         val vm = viewModel(booking = repo)
         var onSuccessCalled = false
 
-        vm.confirmBooking("salon-1", "svc-1", "spec-1", "2026/09/01", "10:00") { onSuccessCalled = true }
+        vm.confirmBooking("salon-1", "svc-1", "spec-1", "2026/09/01", "10:00", PaymentMethod.PAY_AT_SALON) { onSuccessCalled = true }
         advanceUntilIdle()
 
         assertFalse("must not claim success on a failed booking", onSuccessCalled)
@@ -164,7 +168,7 @@ class BookingConfirmationViewModelTest {
         // retry is possible after a failure
         repo.onCreate = { Result.success(booking("b-2")) }
         var retriedId: String? = null
-        vm.confirmBooking("salon-1", "svc-1", "spec-1", "2026/09/01", "10:00") { retriedId = it }
+        vm.confirmBooking("salon-1", "svc-1", "spec-1", "2026/09/01", "10:00", PaymentMethod.PAY_AT_SALON) { retriedId = it }
         advanceUntilIdle()
         assertEquals("b-2", retriedId)
         assertEquals(2, repo.createCalls.size)
@@ -178,11 +182,11 @@ class BookingConfirmationViewModelTest {
         val repo = FakeBookingRepository { gate.await() }
         val vm = viewModel(booking = repo)
 
-        vm.confirmBooking("salon-1", "svc-1", "spec-1", "2026/09/01", "10:00") {}
+        vm.confirmBooking("salon-1", "svc-1", "spec-1", "2026/09/01", "10:00", PaymentMethod.PAY_AT_SALON) {}
         advanceUntilIdle()
         assertTrue("first submit is in flight", vm.isSubmitting)
 
-        vm.confirmBooking("salon-1", "svc-1", "spec-1", "2026/09/01", "10:00") {} // must be ignored
+        vm.confirmBooking("salon-1", "svc-1", "spec-1", "2026/09/01", "10:00", PaymentMethod.PAY_AT_SALON) {} // must be ignored
 
         gate.complete(Result.success(booking("b-1")))
         advanceUntilIdle()
@@ -199,7 +203,7 @@ class BookingConfirmationViewModelTest {
         val vm = viewModel(booking = repo)
         var onSuccessCalled = false
 
-        vm.confirmBooking("salon-1", "svc-1", specialistId = null, "2026/09/01", "10:00") { onSuccessCalled = true }
+        vm.confirmBooking("salon-1", "svc-1", specialistId = null, "2026/09/01", "10:00", PaymentMethod.PAY_AT_SALON) { onSuccessCalled = true }
         advanceUntilIdle()
 
         assertTrue(vm.submitError != null)
@@ -319,12 +323,12 @@ class BookingConfirmationViewModelTest {
         val repo = FakeBookingRepository { Result.failure(IOException("network down")) }
         val vm = viewModel(booking = repo)
 
-        vm.confirmBooking("salon-1", "svc-1", "spec-1", "2026/09/01", "10:00") {}
+        vm.confirmBooking("salon-1", "svc-1", "spec-1", "2026/09/01", "10:00", PaymentMethod.PAY_AT_SALON) {}
         advanceUntilIdle()
         assertTrue(vm.submitError != null)
 
         repo.onCreate = { Result.success(booking("b-ok")) }
-        vm.confirmBooking("salon-1", "svc-1", "spec-1", "2026/09/01", "10:00") {}
+        vm.confirmBooking("salon-1", "svc-1", "spec-1", "2026/09/01", "10:00", PaymentMethod.PAY_AT_SALON) {}
         advanceUntilIdle()
 
         assertNull("retry success must clear the earlier error message", vm.submitError)

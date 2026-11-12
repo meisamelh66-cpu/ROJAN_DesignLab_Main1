@@ -1,5 +1,6 @@
 package ai.rojan.designlab.presentation.booking
 
+import ai.rojan.designlab.domain.booking.PaymentMethod
 import ai.rojan.designlab.domain.repository.BookingRepository
 import ai.rojan.designlab.domain.repository.Salon
 import ai.rojan.designlab.domain.repository.SalonRepository
@@ -108,6 +109,7 @@ class BookingConfirmationViewModel(
         specialistId: String?,
         dateKey: String?,
         time: String?,
+        paymentMethod: PaymentMethod,
         onSuccess: (backendBookingId: String) -> Unit,
     ) {
         if (isSubmitting) return
@@ -125,6 +127,7 @@ class BookingConfirmationViewModel(
                 startTime = "${dateKey}T$time:00",
                 notes = null,
                 idempotencyKey = UUID.randomUUID().toString(),
+                paymentMethod = paymentMethod,
             ).onSuccess { booking ->
                 isSubmitting = false
                 onSuccess(booking.id)

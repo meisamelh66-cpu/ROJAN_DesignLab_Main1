@@ -42,15 +42,23 @@ val keystoreProperties = Properties().apply {
 fun signingCredential(key: String): String? =
     (keystoreProperties.getProperty(key) ?: System.getenv(key))?.takeIf { it.isNotBlank() }
 
-// True only when all four credentials resolve AND the keystore file actually
-// exists on disk. Drives whether the `release` signingConfig is populated
-// and whether `buildTypes.release` attaches it.
-val releaseSigningReady: Boolean = run {
-    val storeFilePath = signingCredential("RELEASE_STORE_FILE") ?: return@run false
-    val hasAllCreds = listOf("RELEASE_STORE_PASSWORD", "RELEASE_KEY_ALIAS", "RELEASE_KEY_PASSWORD")
+// Customer and Manager each have their own verified, already-live production
+// signing identity (forensically confirmed by certificate SHA-256 against
+// the live APKs) — a single shared keystore cannot represent both, so
+// credentials are resolved per flavor via a distinct property-name prefix
+// (CUSTOMER_RELEASE_* / MANAGER_RELEASE_*) rather than one shared RELEASE_*
+// set. True only when all four of a flavor's own credentials resolve AND its
+// keystore file actually exists on disk. Drives whether that flavor's own
+// "*Release" signingConfig is populated and the production-release guard
+// below.
+fun releaseSigningReadyFor(prefix: String): Boolean {
+    val storeFilePath = signingCredential("${prefix}_RELEASE_STORE_FILE") ?: return false
+    val hasAllCreds = listOf("${prefix}_RELEASE_STORE_PASSWORD", "${prefix}_RELEASE_KEY_ALIAS", "${prefix}_RELEASE_KEY_PASSWORD")
         .all { signingCredential(it) != null }
-    hasAllCreds && rootProject.file(storeFilePath).exists()
+    return hasAllCreds && rootProject.file(storeFilePath).exists()
 }
+val customerReleaseSigningReady: Boolean = releaseSigningReadyFor("CUSTOMER")
+val managerReleaseSigningReady: Boolean = releaseSigningReadyFor("MANAGER")
 
 // Environment Configuration (ADR-003): DEV_API_BASE_URL is read from
 // `local.properties` (repo root, gitignored — see .gitignore) rather than
@@ -96,8 +104,8 @@ android {
         applicationId = "ai.rojan.designlab"
         minSdk = 24
         targetSdk = 37
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 5
+        versionName = "1.0.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -138,19 +146,57 @@ android {
     // NetworkConfig.kt fails loudly at first use if a flavor's URL was
     // left unset, rather than silently falling back to a fake-looking
     // default - true for all three environments now, dev included.
+
+    // Moved ahead of productFlavors (below) so each target flavor can
+    // reference its own release signingConfig by name.
+    signingConfigs {
+        create("customerRelease") {
+            if (customerReleaseSigningReady) {
+                storeFile = rootProject.file(signingCredential("CUSTOMER_RELEASE_STORE_FILE")!!)
+                storePassword = signingCredential("CUSTOMER_RELEASE_STORE_PASSWORD")
+                keyAlias = signingCredential("CUSTOMER_RELEASE_KEY_ALIAS")
+                keyPassword = signingCredential("CUSTOMER_RELEASE_KEY_PASSWORD")
+                // v1/JAR signing stays off — it only matters below API 24 and
+                // minSdk is 24. v2 is the AGP default; v3 is enabled
+                // explicitly so the artifact carries a rotation-capable
+                // signing block (relevant only for self-managed signing —
+                // Play App Signing handles rotation itself).
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+        create("managerRelease") {
+            if (managerReleaseSigningReady) {
+                storeFile = rootProject.file(signingCredential("MANAGER_RELEASE_STORE_FILE")!!)
+                storePassword = signingCredential("MANAGER_RELEASE_STORE_PASSWORD")
+                keyAlias = signingCredential("MANAGER_RELEASE_KEY_ALIAS")
+                keyPassword = signingCredential("MANAGER_RELEASE_KEY_PASSWORD")
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
     flavorDimensions += "target"
     flavorDimensions += "environment"
     productFlavors {
         create("customer") {
             dimension = "target"
+            signingConfig = signingConfigs.getByName("customerRelease")
         }
         create("manager") {
             dimension = "target"
             applicationId = "ai.rojan.designlab.manager"
+            signingConfig = signingConfigs.getByName("managerRelease")
         }
         create("reception") {
             dimension = "target"
             applicationId = "ai.rojan.designlab.reception"
+            // No production signing identity exists for Reception —
+            // intentionally left without a signingConfig; the
+            // production-release guard below refuses any
+            // ReceptionProductionRelease task outright rather than ever
+            // emitting it unsigned.
         }
 
         create("dev") {
@@ -183,24 +229,6 @@ android {
         }
     }
 
-    signingConfigs {
-        create("release") {
-            if (releaseSigningReady) {
-                storeFile = rootProject.file(signingCredential("RELEASE_STORE_FILE")!!)
-                storePassword = signingCredential("RELEASE_STORE_PASSWORD")
-                keyAlias = signingCredential("RELEASE_KEY_ALIAS")
-                keyPassword = signingCredential("RELEASE_KEY_PASSWORD")
-                // v1/JAR signing stays off — it only matters below API 24 and
-                // minSdk is 24. v2 is the AGP default; v3 is enabled
-                // explicitly so the artifact carries a rotation-capable
-                // signing block (relevant only for self-managed signing —
-                // Play App Signing handles rotation itself).
-                enableV2Signing = true
-                enableV3Signing = true
-            }
-        }
-    }
-
     buildTypes {
         release {
             // R8 code shrinking/obfuscation + resource shrinking (Sprint 5A-2).
@@ -221,9 +249,11 @@ android {
             optimization {
                 enable = false
             }
-            if (releaseSigningReady) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            // signingConfig is no longer attached here — Customer and
+            // Manager each carry their own ("customerRelease" /
+            // "managerRelease") on their product flavor instead, since a
+            // build-type-level signingConfig would otherwise take
+            // precedence over a flavor-level one for every flavor alike.
         }
     }
 
@@ -295,8 +325,8 @@ configurations.matching {
 // so a stale "it was fine last time" can't mask a broken build today.
 // Dev/staging are untouched by both checks.
 gradle.taskGraph.whenReady {
-    val buildsProductionRelease = allTasks.any { it.name.contains("ProductionRelease") }
-    if (buildsProductionRelease) {
+    val productionReleaseTasks = allTasks.filter { it.name.contains("ProductionRelease") }
+    if (productionReleaseTasks.isNotEmpty()) {
 
         // P0-1 — the API URL that will be compiled in must be well-formed.
         // (`productionApiBaseUrl` defaults to https://api.rojanai.ir/; this
@@ -311,20 +341,32 @@ gradle.taskGraph.whenReady {
             )
         }
 
-        // P0-2 — never emit an unsigned production APK/AAB. Debug and
-        // dev/staging release builds are unaffected.
-        if (!releaseSigningReady) {
-            throw GradleException(
-                "Production release signing is not configured — refusing to build an UNSIGNED " +
-                    "production APK/AAB.\n" +
-                    "\n" +
-                    "Provide the release keystore via ONE of:\n" +
-                    "  • keystore.properties at the repo root (gitignored) — see keystore.properties.sample\n" +
-                    "  • env vars: RELEASE_STORE_FILE, RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD\n" +
-                    "\n" +
-                    "All four values must resolve and RELEASE_STORE_FILE must point to an existing .jks.\n" +
-                    "See SIGNING-SETUP-REPORT.md for the full setup.",
-            )
+        // P0-2 — never emit an unsigned production APK/AAB, for any flavor.
+        // Customer and Manager each have their own verified production
+        // keystore; any other flavor (e.g. Reception) has no production
+        // signing identity at all, so it is refused outright rather than
+        // silently built unsigned. Debug and dev/staging release builds are
+        // unaffected.
+        for (task in productionReleaseTasks) {
+            val ready = when {
+                task.name.contains("Customer") -> customerReleaseSigningReady
+                task.name.contains("Manager") -> managerReleaseSigningReady
+                else -> false
+            }
+            if (!ready) {
+                throw GradleException(
+                    "Production release signing is not configured for '${task.name}' — refusing to build an " +
+                        "UNSIGNED production APK/AAB.\n" +
+                        "\n" +
+                        "Provide the matching release keystore via ONE of:\n" +
+                        "  • keystore.properties at the repo root (gitignored) — see keystore.properties.sample\n" +
+                        "  • env vars: CUSTOMER_RELEASE_STORE_FILE / _STORE_PASSWORD / _KEY_ALIAS / _KEY_PASSWORD (Customer)\n" +
+                        "             MANAGER_RELEASE_STORE_FILE / _STORE_PASSWORD / _KEY_ALIAS / _KEY_PASSWORD (Manager)\n" +
+                        "\n" +
+                        "All four values for the relevant flavor must resolve and its own *_RELEASE_STORE_FILE must\n" +
+                        "point to an existing .jks. See SIGNING-SETUP-REPORT.md and keystore.properties.sample.",
+                )
+            }
         }
     }
 }
