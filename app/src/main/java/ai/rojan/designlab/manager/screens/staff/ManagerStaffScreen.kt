@@ -63,6 +63,7 @@ fun ManagerStaffScreen(
     onBackClick: (() -> Unit)? = null,
     onAddClick: () -> Unit = {},
     onSpecialistClick: (String) -> Unit = {},
+    onInviteReceptionClick: (() -> Unit)? = null,
 ) {
     var query by remember { mutableStateOf("") }
     val filteredSpecialists = remember(query) {
@@ -85,6 +86,10 @@ fun ManagerStaffScreen(
             }
 
             item { AddSpecialistRow(onClick = onAddClick) }
+
+            if (onInviteReceptionClick != null) {
+                item { InviteReceptionRow(onClick = onInviteReceptionClick) }
+            }
 
             item {
                 StaffSearchField(
@@ -129,6 +134,40 @@ private fun AddSpecialistRow(onClick: () -> Unit) {
                 tint = ManagerColors.Gold,
             )
             Text(text = "افزودن متخصص", style = RojanTypography.Body, color = ManagerColors.TextPrimary)
+        }
+    }
+}
+
+/**
+ * Gap P0-3-REC-INVITE-UI - only rendered when [ManagerStaffScreen.onInviteReceptionClick] is
+ * non-null, same "optional callback = hidden otherwise" visibility convention
+ * [ai.rojan.designlab.manager.screens.settings.ManagerSalonSetupScreen] already uses for its own
+ * owner/manager-gated entry rows. Distinct from [AddSpecialistRow] on purpose - this issues a real
+ * `SalonMembership` (owner-only on the backend), [AddSpecialistRow] only ever creates a scheduling
+ * roster entry with no account/role of any kind.
+ */
+@Composable
+private fun InviteReceptionRow(onClick: () -> Unit) {
+    ManagerGlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .rojanPressable(onClick = onClick),
+        shape = RojanShapes.Small,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+        ) {
+            RojanIconContainer(
+                imageVector = Icons.Filled.PersonAdd,
+                contentDescription = "دعوت پذیرش",
+                size = RojanIconSize.Medium,
+                tint = ManagerColors.Gold,
+            )
+            Text(text = "دعوت پذیرش", style = RojanTypography.Body, color = ManagerColors.TextPrimary)
         }
     }
 }

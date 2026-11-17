@@ -12,6 +12,7 @@ import ai.rojan.designlab.data.remote.BookingApi
 import ai.rojan.designlab.data.remote.ManagerBookingApi
 import ai.rojan.designlab.data.remote.ManagerCustomerApi
 import ai.rojan.designlab.data.remote.ManagerDashboardApi
+import ai.rojan.designlab.data.remote.ManagerInviteApi
 import ai.rojan.designlab.data.remote.ManagerMediaApi
 import ai.rojan.designlab.data.remote.UserMediaApi
 import ai.rojan.designlab.data.remote.ManagerSalonApi
@@ -72,6 +73,7 @@ import ai.rojan.designlab.domain.repository.TokenRepository
 import ai.rojan.designlab.domain.repository.UserProfileRepository
 import ai.rojan.designlab.domain.repository.WorkingHoursRepository
 import ai.rojan.designlab.manager.data.BackendManagerMediaRepository
+import ai.rojan.designlab.manager.data.BackendManagerInviteRepository
 import ai.rojan.designlab.manager.data.BackendManagerSalonRepository
 import ai.rojan.designlab.manager.data.BackendManagerPaymentGatewayRepository
 import ai.rojan.designlab.manager.data.BackendManagerWorkingHoursRepository
@@ -82,6 +84,7 @@ import ai.rojan.designlab.manager.domain.ai.ManagerCrmInsightProvider
 import ai.rojan.designlab.manager.domain.ai.VipCustomerInsightProvider
 import ai.rojan.designlab.manager.domain.ai.VipWithoutAppointmentsInsightProvider
 import ai.rojan.designlab.manager.domain.repository.ManagerMediaRepository
+import ai.rojan.designlab.manager.domain.repository.ManagerInviteRepository
 import ai.rojan.designlab.manager.domain.repository.ManagerSalonRepository
 import ai.rojan.designlab.manager.domain.repository.ManagerPaymentGatewayRepository
 import ai.rojan.designlab.manager.domain.repository.ManagerWorkingHoursRepository
@@ -252,6 +255,15 @@ class BackendApiContainer(context: Context) {
 
     val managerPaymentGatewayRepository: ManagerPaymentGatewayRepository =
         BackendManagerPaymentGatewayRepository(paymentGatewayConfigApi)
+
+    // Gap P0-3-REC-INVITE-UI (Manager, owner-only) - real backend
+    // `SalonInviteController` surface, same "manager*Api wired here, wrapped in its own
+    // repository" convention as every other manager*Repository in this container.
+    private val managerInviteApi: ManagerInviteApi =
+        retrofit.create(ManagerInviteApi::class.java)
+
+    val managerInviteRepository: ManagerInviteRepository =
+        BackendManagerInviteRepository(managerInviteApi)
 
     val customerRelationshipRepository: CustomerRelationshipRepository =
         CustomerRelationshipRepositoryImpl(retrofit.create(SalonRelationshipApi::class.java))

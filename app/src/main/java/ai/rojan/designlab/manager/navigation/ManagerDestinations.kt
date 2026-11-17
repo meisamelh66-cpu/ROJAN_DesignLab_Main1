@@ -64,6 +64,9 @@ object ManagerDestinations {
     const val STAFF_EDIT = "manager_staff_edit/{specialistId}"
     fun staffEdit(specialistId: String) = "manager_staff_edit/$specialistId"
     const val NEW_SPECIALIST_ID = "new"
+
+    /** Gap P0-3-REC-INVITE-UI — reached from [STAFF]'s new "دعوت پذیرش" entry point, same standalone-screen shape as [WORKING_HOURS]. Owner-only in effect (see `ManagerInviteReceptionViewModel`'s own doc comment). */
+    const val INVITE_RECEPTION = "manager_invite_reception"
     const val SETTINGS = "manager_settings"
 
     /** Owner Salon Profile Completion (Android-only) — reached from [SETTINGS]'s new "ساعات کاری" entry point. */

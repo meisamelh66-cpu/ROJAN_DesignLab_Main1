@@ -1,6 +1,7 @@
 package ai.rojan.designlab.manager.navigation
 
 import ai.rojan.designlab.di.BackendApiContainerHolder
+import ai.rojan.designlab.domain.repository.SalonPermissions
 import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.domain.auth.ActiveSalonUiState
 import ai.rojan.designlab.manager.domain.customer.CustomerTag
@@ -15,6 +16,8 @@ import ai.rojan.designlab.manager.presentation.settings.ManagerSalonSetupViewMod
 import ai.rojan.designlab.manager.presentation.settings.ManagerSalonSetupViewModelFactory
 import ai.rojan.designlab.manager.presentation.settings.ManagerWorkingHoursViewModel
 import ai.rojan.designlab.manager.presentation.settings.ManagerWorkingHoursViewModelFactory
+import ai.rojan.designlab.manager.presentation.staff.ManagerInviteReceptionViewModel
+import ai.rojan.designlab.manager.presentation.staff.ManagerInviteReceptionViewModelFactory
 import ai.rojan.designlab.manager.screens.booking.ManagerBookingCustomerScreen
 import ai.rojan.designlab.manager.screens.booking.ManagerBookingDateTimeScreen
 import ai.rojan.designlab.manager.screens.booking.ManagerBookingReviewScreen
@@ -38,6 +41,7 @@ import ai.rojan.designlab.manager.screens.settings.ManagerPaymentGatewayScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerSalonMediaScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerSalonSetupScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerWorkingHoursScreen
+import ai.rojan.designlab.manager.screens.staff.ManagerInviteReceptionScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerStaffEditScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerStaffScreen
 import ai.rojan.designlab.ui.navigation.navigateHomeAfterBooking
@@ -262,10 +266,33 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
     }
 
     composable(ManagerDestinations.STAFF) {
+        // Gap P0-3-REC-INVITE-UI: visible only when the active salon's real, backend-resolved
+        // permission set actually carries MANAGE_MEMBERSHIP (owner-only there too) - never
+        // inferred from SalonAccessType alone, same source of truth every other permission-gated
+        // entry point in this app already reads.
+        val canManageMembership = (authViewModel.activeSalonState.value as? ActiveSalonUiState.Active)
+            ?.context?.permissions?.contains(SalonPermissions.MANAGE_MEMBERSHIP) == true
         ManagerStaffScreen(
             onBackClick = { navController.popBackStack() },
             onAddClick = { navController.navigate(ManagerDestinations.staffEdit(ManagerDestinations.NEW_SPECIALIST_ID)) },
             onSpecialistClick = { specialistId -> navController.navigate(ManagerDestinations.staffEdit(specialistId)) },
+            onInviteReceptionClick = if (canManageMembership) {
+                { navController.navigate(ManagerDestinations.INVITE_RECEPTION) }
+            } else null,
+        )
+    }
+
+    // Gap P0-3-REC-INVITE-UI — same standalone, per-back-stack-entry ViewModel scoping as
+    // [ManagerDestinations.WORKING_HOURS] above.
+    composable(ManagerDestinations.INVITE_RECEPTION) { backStackEntry ->
+        val context = LocalContext.current
+        val viewModel: ManagerInviteReceptionViewModel = viewModel(
+            viewModelStoreOwner = backStackEntry,
+            factory = ManagerInviteReceptionViewModelFactory(context),
+        )
+        ManagerInviteReceptionScreen(
+            viewModel = viewModel,
+            onBackClick = { navController.popBackStack() },
         )
     }
 
