@@ -71,6 +71,9 @@ object ManagerDestinations {
 
     /** Central Salon Management — Salon Media UI — reached from [SETTINGS]'s "لوگو و تصویر کاور" entry point, same standalone-screen shape as [WORKING_HOURS]. */
     const val SALON_MEDIA = "manager_salon_media"
+
+    /** P1 Per-Salon Payment Gateway Configuration — reached from [SETTINGS]'s new "درگاه پرداخت" entry point, same standalone-screen shape as [WORKING_HOURS]. */
+    const val PAYMENT_GATEWAY = "manager_payment_gateway"
     const val PROFILE = "manager_profile"
 
     // Booking Journey Phase 2 — "نوبت جدید" quick action's flow. Nested

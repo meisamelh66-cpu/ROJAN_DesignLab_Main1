@@ -7,6 +7,8 @@ import ai.rojan.designlab.manager.domain.customer.CustomerTag
 import ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModel
 import ai.rojan.designlab.manager.presentation.booking.ManagerBookingViewModelFactory
+import ai.rojan.designlab.manager.presentation.settings.ManagerPaymentGatewayViewModel
+import ai.rojan.designlab.manager.presentation.settings.ManagerPaymentGatewayViewModelFactory
 import ai.rojan.designlab.manager.presentation.settings.ManagerSalonMediaViewModel
 import ai.rojan.designlab.manager.presentation.settings.ManagerSalonMediaViewModelFactory
 import ai.rojan.designlab.manager.presentation.settings.ManagerSalonSetupViewModel
@@ -32,6 +34,7 @@ import ai.rojan.designlab.manager.screens.dashboard.ManagerDashboardScreen
 import ai.rojan.designlab.manager.screens.profile.ManagerProfileScreen
 import ai.rojan.designlab.manager.screens.services.ManagerServiceEditScreen
 import ai.rojan.designlab.manager.screens.services.ManagerServicesScreen
+import ai.rojan.designlab.manager.screens.settings.ManagerPaymentGatewayScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerSalonMediaScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerSalonSetupScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerWorkingHoursScreen
@@ -192,6 +195,7 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
             onSaved = { navController.popBackStack() },
             onWorkingHoursClick = { navController.navigate(ManagerDestinations.WORKING_HOURS) },
             onSalonMediaClick = { navController.navigate(ManagerDestinations.SALON_MEDIA) },
+            onPaymentGatewayClick = { navController.navigate(ManagerDestinations.PAYMENT_GATEWAY) },
         )
     }
 
@@ -204,6 +208,20 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
             factory = ManagerWorkingHoursViewModelFactory(context),
         )
         ManagerWorkingHoursScreen(
+            viewModel = viewModel,
+            onBackClick = { navController.popBackStack() },
+        )
+    }
+
+    // P1 Per-Salon Payment Gateway Configuration — same standalone,
+    // per-back-stack-entry ViewModel scoping as [ManagerDestinations.WORKING_HOURS] above.
+    composable(ManagerDestinations.PAYMENT_GATEWAY) { backStackEntry ->
+        val context = LocalContext.current
+        val viewModel: ManagerPaymentGatewayViewModel = viewModel(
+            viewModelStoreOwner = backStackEntry,
+            factory = ManagerPaymentGatewayViewModelFactory(context),
+        )
+        ManagerPaymentGatewayScreen(
             viewModel = viewModel,
             onBackClick = { navController.popBackStack() },
         )

@@ -43,6 +43,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
@@ -103,6 +104,7 @@ fun ManagerSalonSetupScreen(
     onSaved: () -> Unit = {},
     onWorkingHoursClick: (() -> Unit)? = null,
     onSalonMediaClick: (() -> Unit)? = null,
+    onPaymentGatewayClick: (() -> Unit)? = null,
 ) {
     val loadState by viewModel.loadState.collectAsStateWithLifecycle()
     val form by viewModel.formState.collectAsStateWithLifecycle()
@@ -144,6 +146,10 @@ fun ManagerSalonSetupScreen(
                     // media is salon-scoped, so there's nothing to upload
                     // against until the salon exists.
                     onSalonMediaClick = if (state is UiState.Success) onSalonMediaClick else null,
+                    // P1 Per-Salon Payment Gateway Configuration: same edit-mode-only gating as
+                    // onWorkingHoursClick/onSalonMediaClick above - the gateway config is
+                    // salon-scoped, so there's nothing to configure until the salon exists.
+                    onPaymentGatewayClick = if (state is UiState.Success) onPaymentGatewayClick else null,
                 )
             }
         }
@@ -197,6 +203,7 @@ private fun SalonSetupForm(
     onSaveClick: () -> Unit,
     onWorkingHoursClick: (() -> Unit)? = null,
     onSalonMediaClick: (() -> Unit)? = null,
+    onPaymentGatewayClick: (() -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier
@@ -246,6 +253,10 @@ private fun SalonSetupForm(
 
         if (onSalonMediaClick != null) {
             SalonMediaEntryRow(onClick = onSalonMediaClick)
+        }
+
+        if (onPaymentGatewayClick != null) {
+            PaymentGatewayEntryRow(onClick = onPaymentGatewayClick)
         }
 
         if (submitError != null) {
@@ -590,6 +601,38 @@ private fun SalonMediaEntryRow(onClick: () -> Unit) {
                 ManagerIconContainer(imageVector = Icons.Filled.Image, contentDescription = "لوگو و تصویر کاور", containerSize = 32.dp)
                 Text(
                     text = "لوگو، کاور و گالری تصاویر",
+                    style = RojanTypography.CardTitle,
+                    color = ManagerColors.TextPrimary,
+                )
+            }
+            Icon(imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = null, tint = ManagerColors.TextSecondary)
+        }
+    }
+}
+
+/**
+ * P1 Per-Salon Payment Gateway Configuration navigation entry point, same shape as
+ * [WorkingHoursEntryRow]/[SalonMediaEntryRow] above. Routes to
+ * [ai.rojan.designlab.manager.screens.settings.ManagerPaymentGatewayScreen].
+ */
+@Composable
+private fun PaymentGatewayEntryRow(onClick: () -> Unit) {
+    ManagerGlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .rojanPressable(onClick = onClick),
+        shape = RojanShapes.Small,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(RojanDimens.SpaceMD),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM)) {
+                ManagerIconContainer(imageVector = Icons.Filled.Payment, contentDescription = "درگاه پرداخت", containerSize = 32.dp)
+                Text(
+                    text = "درگاه پرداخت",
                     style = RojanTypography.CardTitle,
                     color = ManagerColors.TextPrimary,
                 )

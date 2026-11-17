@@ -18,6 +18,7 @@ import ai.rojan.designlab.data.remote.ManagerSalonApi
 import ai.rojan.designlab.data.remote.ManagerServiceApi
 import ai.rojan.designlab.data.remote.ManagerSpecialistApi
 import ai.rojan.designlab.data.remote.NetworkConfig
+import ai.rojan.designlab.data.remote.PaymentGatewayConfigApi
 import ai.rojan.designlab.data.remote.PublicBannerApi
 import ai.rojan.designlab.data.remote.PublicSalonApi
 import ai.rojan.designlab.data.remote.SalonApi
@@ -72,6 +73,7 @@ import ai.rojan.designlab.domain.repository.UserProfileRepository
 import ai.rojan.designlab.domain.repository.WorkingHoursRepository
 import ai.rojan.designlab.manager.data.BackendManagerMediaRepository
 import ai.rojan.designlab.manager.data.BackendManagerSalonRepository
+import ai.rojan.designlab.manager.data.BackendManagerPaymentGatewayRepository
 import ai.rojan.designlab.manager.data.BackendManagerWorkingHoursRepository
 import ai.rojan.designlab.manager.data.BackendSalonMembershipRepository
 import ai.rojan.designlab.manager.domain.ai.CompositeManagerCrmInsightProvider
@@ -81,6 +83,7 @@ import ai.rojan.designlab.manager.domain.ai.VipCustomerInsightProvider
 import ai.rojan.designlab.manager.domain.ai.VipWithoutAppointmentsInsightProvider
 import ai.rojan.designlab.manager.domain.repository.ManagerMediaRepository
 import ai.rojan.designlab.manager.domain.repository.ManagerSalonRepository
+import ai.rojan.designlab.manager.domain.repository.ManagerPaymentGatewayRepository
 import ai.rojan.designlab.manager.domain.repository.ManagerWorkingHoursRepository
 import ai.rojan.designlab.manager.domain.repository.SalonMembershipRepository
 import android.content.Context
@@ -240,6 +243,15 @@ class BackendApiContainer(context: Context) {
     // endpoint" shape [managerSalonRepository] already establishes.
     val managerWorkingHoursRepository: ManagerWorkingHoursRepository =
         BackendManagerWorkingHoursRepository(workingHoursApi)
+
+    // P1 Per-Salon Payment Gateway Configuration (Manager, owner-only) - real backend
+    // `PaymentGatewayConfigController` surface, same "manager*Api wired here, wrapped in its own
+    // repository" convention as every other manager*Repository in this container.
+    private val paymentGatewayConfigApi: PaymentGatewayConfigApi =
+        retrofit.create(PaymentGatewayConfigApi::class.java)
+
+    val managerPaymentGatewayRepository: ManagerPaymentGatewayRepository =
+        BackendManagerPaymentGatewayRepository(paymentGatewayConfigApi)
 
     val customerRelationshipRepository: CustomerRelationshipRepository =
         CustomerRelationshipRepositoryImpl(retrofit.create(SalonRelationshipApi::class.java))
