@@ -87,6 +87,22 @@ data class CustomerResponseDto(
 
 
 /**
+ * Backend `GET /api/v1/salons/{salonId}/customers/identity` response - the narrower,
+ * Reception-eligible shape (`ai.rojan.backend.api.customer.CustomerIdentityResponse`):
+ * identity only, no CRM-intelligence fields (no `status`/`lifetimeValue`/`tags`/`company`).
+ */
+@Serializable
+data class CustomerIdentityResponseDto(
+    val id: String,
+    val salonId: String,
+    val fullName: String,
+    val phoneNumber: String? = null,
+    val email: String? = null,
+    val active: Boolean,
+)
+
+
+/**
  * CRM Customer -> User Account Linking, Phase 2. Request body for
  * POST /api/v1/salons/{salonId}/customers/{customerId}/link
  * (`ROJAN_Backend`'s `LinkCustomerToUserRequest`).

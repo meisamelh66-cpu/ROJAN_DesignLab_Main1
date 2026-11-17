@@ -3,6 +3,7 @@ package ai.rojan.designlab.data.remote
 import ai.rojan.designlab.data.remote.dto.BookingResponseDto
 import ai.rojan.designlab.data.remote.dto.CreateCustomerNoteRequestDto
 import ai.rojan.designlab.data.remote.dto.CreateCustomerRequestDto
+import ai.rojan.designlab.data.remote.dto.CustomerIdentityResponseDto
 import ai.rojan.designlab.data.remote.dto.CustomerNoteResponseDto
 import ai.rojan.designlab.data.remote.dto.CustomerResponseDto
 import ai.rojan.designlab.data.remote.dto.LinkCustomerToUserRequestDto
@@ -41,6 +42,22 @@ interface ManagerCustomerApi {
         @Query("search") search: String? = null,
         @Query("sortDirection") sortDirection: String = "ASC",
     ): PagedResponseDto<CustomerResponseDto>
+
+
+    /**
+     * `GET /api/v1/salons/{salonId}/customers/identity` - the narrower, Reception-eligible
+     * surface (`ai.rojan.backend.api.customer.CustomerController.searchIdentity`,
+     * `Permission.VIEW_CUSTOMER_IDENTITY`/`VIEW_CRM`) - identity only, never the full CRM
+     * [CustomerResponseDto] shape [list] returns. Despite this interface's "owner-only" class
+     * doc comment, this one endpoint is the documented exception.
+     */
+    @GET("api/v1/salons/{salonId}/customers/identity")
+    suspend fun searchIdentity(
+        @Path("salonId") salonId: String,
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20,
+        @Query("search") search: String? = null,
+    ): PagedResponseDto<CustomerIdentityResponseDto>
 
 
     @GET("api/v1/salons/{salonId}/customers/{customerId}")

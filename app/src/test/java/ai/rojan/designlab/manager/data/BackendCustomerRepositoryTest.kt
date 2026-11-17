@@ -4,6 +4,7 @@ import ai.rojan.designlab.data.remote.ManagerCustomerApi
 import ai.rojan.designlab.data.remote.dto.BookingResponseDto
 import ai.rojan.designlab.data.remote.dto.CreateCustomerNoteRequestDto
 import ai.rojan.designlab.data.remote.dto.CreateCustomerRequestDto
+import ai.rojan.designlab.data.remote.dto.CustomerIdentityResponseDto
 import ai.rojan.designlab.data.remote.dto.CustomerNoteResponseDto
 import ai.rojan.designlab.data.remote.dto.CustomerResponseDto
 import ai.rojan.designlab.data.remote.dto.LinkCustomerToUserRequestDto
@@ -186,6 +187,7 @@ class BackendCustomerRepositoryTest {
         private val listResult: () -> PagedResponseDto<CustomerResponseDto> = { error("not used by these tests") },
     ) : ManagerCustomerApi {
         override suspend fun list(salonId: String, page: Int, size: Int, status: String?, tag: String?, search: String?, sortDirection: String): PagedResponseDto<CustomerResponseDto> = listResult()
+        override suspend fun searchIdentity(salonId: String, page: Int, size: Int, search: String?): PagedResponseDto<CustomerIdentityResponseDto> = error("not used by these tests")
         override suspend fun get(salonId: String, customerId: String): CustomerResponseDto = error("not used by these tests")
         override suspend fun notes(salonId: String, customerId: String): List<CustomerNoteResponseDto> = error("not used by these tests")
         override suspend fun bookings(salonId: String, customerId: String, page: Int, size: Int, status: String?, sortDirection: String): PagedResponseDto<BookingResponseDto> = error("not used by these tests")
