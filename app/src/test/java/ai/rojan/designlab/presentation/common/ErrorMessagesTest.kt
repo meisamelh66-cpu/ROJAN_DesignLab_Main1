@@ -94,4 +94,25 @@ class ErrorMessagesTest {
     fun `repeated calls for the same category are stable`() {
         assertEquals(userMessageFor(apiException(400)), userMessageFor(apiException(400, message = "a different raw message")))
     }
+
+    /**
+     * Staff Access E2E OTP diagnostic: a real-device OTP attempt surfaced a 429
+     * (rate-limited) response, which this file's `when` previously had no explicit
+     * branch for - it fell into the generic `else` "connection error" fallback,
+     * identical to any other unrecognized status. A rate-limited request reached
+     * the server and was understood just as clearly as a 400/403/409 - it deserves
+     * its own distinct, accurate message, not a vague "connection" one that wrongly
+     * suggests the request never got there.
+     */
+    @Test
+    fun `a 429 rate-limit error gets its own distinct message, not the generic fallback`() {
+        val rateLimitMessage = userMessageFor(apiException(429))
+        val genericOtherMessage = userMessageFor(apiException(418))
+
+        assertNotEquals(
+            "a 429 must not fall into the generic 'connection error' fallback message",
+            genericOtherMessage,
+            rateLimitMessage,
+        )
+    }
 }
