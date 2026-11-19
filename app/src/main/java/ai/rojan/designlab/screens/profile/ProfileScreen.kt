@@ -38,6 +38,7 @@ import androidx.compose.material.icons.outlined.RateReview
 import androidx.compose.material.icons.outlined.Spa
 import androidx.compose.material.icons.outlined.Stars
 import androidx.compose.material.icons.outlined.Verified
+import androidx.compose.ui.platform.testTag
 import androidx.compose.material.icons.outlined.WorkspacePremium
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -639,6 +640,12 @@ private fun SessionActionRow(isGuest: Boolean, onLoginClick: () -> Unit, onLogou
             icon = Icons.AutoMirrored.Outlined.Login,
             tint = CustomerAccent,
             onClick = onLoginClick,
+            // P0-3 Staff Access source-only continuation: a coordinate-estimated
+            // tap on this exact row (adjacent to "کدهای تخفیف" above it) caused
+            // a real on-device navigation incident during E2E testing — this
+            // testTag gives automation a stable, bounds-independent way to find
+            // this row instead of ever estimating its position again.
+            testTag = "profile_login_row",
         )
     } else {
         AuthActionRow(
@@ -651,7 +658,7 @@ private fun SessionActionRow(isGuest: Boolean, onLoginClick: () -> Unit, onLogou
 }
 
 @Composable
-private fun AuthActionRow(label: String, icon: ImageVector, tint: Color, onClick: () -> Unit) {
+private fun AuthActionRow(label: String, icon: ImageVector, tint: Color, onClick: () -> Unit, testTag: String? = null) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -660,6 +667,7 @@ private fun AuthActionRow(label: String, icon: ImageVector, tint: Color, onClick
             .background(CustomerSurfaceFill)
             .border(1.dp, CustomerHairline, CustomerCardShape)
             .heightIn(min = RojanDimens.MinTouchTarget)
+            .then(if (testTag != null) Modifier.testTag(testTag) else Modifier)
             .rojanPressable(onClick = onClick, role = Role.Button)
             .padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceMD),
         contentAlignment = Alignment.Center,

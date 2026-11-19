@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.KeyboardType
@@ -65,6 +66,13 @@ fun CustomerTextField(
     leadingIcon: ImageVector? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
     enabled: Boolean = true,
+    // P0-3 Staff Access source-only continuation: [modifier] lands on the
+    // outer Column (layout only) — a plain Column never merges descendant
+    // semantics the way a `clickable` does, so a tag placed there would not
+    // expose the actual BasicTextField's text-input actions to a test.
+    // This reaches the real input node directly. Optional/null for every
+    // existing call site; only AuthScreen's two fields pass it.
+    fieldTestTag: String? = null,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         if (label != null) {
@@ -101,7 +109,9 @@ fun CustomerTextField(
                 onValueChange = onValueChange,
                 enabled = enabled,
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(if (fieldTestTag != null) Modifier.testTag(fieldTestTag) else Modifier),
                 textStyle = RojanTypography.Body
                     .copy(color = HomeColors.TextPrimary)
                     .withDirectionFor(value.ifEmpty { placeholder ?: label ?: "" }),

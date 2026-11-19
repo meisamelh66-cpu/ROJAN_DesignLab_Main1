@@ -30,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -161,6 +162,7 @@ fun AuthScreen(
                         placeholder = "09123456789",
                         keyboardType = KeyboardType.Phone,
                         enabled = !isSubmitting,
+                        fieldTestTag = "auth_phone_field",
                     )
                 }
 
@@ -171,6 +173,7 @@ fun AuthScreen(
                         label = "کد تایید",
                         keyboardType = KeyboardType.NumberPassword,
                         enabled = !isSubmitting,
+                        fieldTestTag = "auth_otp_field",
                     )
                     Spacer(Modifier.height(RojanDimens.SpaceMD))
                     AuthField(
@@ -206,6 +209,12 @@ fun AuthScreen(
                         is CustomerOtpStep.AwaitingCode -> authViewModel.verifyOtp(code, fullName)
                     }
                 },
+                modifier = Modifier.testTag(
+                    when (otpStep) {
+                        CustomerOtpStep.EnteringPhone -> "auth_request_otp_button"
+                        is CustomerOtpStep.AwaitingCode -> "auth_verify_button"
+                    },
+                ),
                 enabled = !isSubmitting,
                 // Root-cause fix: this button previously gave no feedback while
                 // a real (bounded, but multi-second) OTP request/verify call was
@@ -327,6 +336,7 @@ private fun AuthField(
     placeholder: String? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
     enabled: Boolean = true,
+    fieldTestTag: String? = null,
 ) = CustomerTextField(
     value = value,
     onValueChange = onValueChange,
@@ -335,4 +345,5 @@ private fun AuthField(
     placeholder = placeholder,
     keyboardType = keyboardType,
     enabled = enabled,
+    fieldTestTag = fieldTestTag,
 )

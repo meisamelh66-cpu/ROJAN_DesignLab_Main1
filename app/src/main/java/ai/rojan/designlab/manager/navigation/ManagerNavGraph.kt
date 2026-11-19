@@ -18,6 +18,8 @@ import ai.rojan.designlab.manager.presentation.settings.ManagerWorkingHoursViewM
 import ai.rojan.designlab.manager.presentation.settings.ManagerWorkingHoursViewModelFactory
 import ai.rojan.designlab.manager.presentation.staff.ManagerInviteReceptionViewModel
 import ai.rojan.designlab.manager.presentation.staff.ManagerInviteReceptionViewModelFactory
+import ai.rojan.designlab.manager.presentation.staff.ManagerStaffAccessViewModel
+import ai.rojan.designlab.manager.presentation.staff.ManagerStaffAccessViewModelFactory
 import ai.rojan.designlab.manager.screens.booking.ManagerBookingCustomerScreen
 import ai.rojan.designlab.manager.screens.booking.ManagerBookingDateTimeScreen
 import ai.rojan.designlab.manager.screens.booking.ManagerBookingReviewScreen
@@ -42,6 +44,7 @@ import ai.rojan.designlab.manager.screens.settings.ManagerSalonMediaScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerSalonSetupScreen
 import ai.rojan.designlab.manager.screens.settings.ManagerWorkingHoursScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerInviteReceptionScreen
+import ai.rojan.designlab.manager.screens.staff.ManagerStaffAccessScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerStaffEditScreen
 import ai.rojan.designlab.manager.screens.staff.ManagerStaffScreen
 import ai.rojan.designlab.ui.navigation.navigateHomeAfterBooking
@@ -279,6 +282,9 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
             onInviteReceptionClick = if (canManageMembership) {
                 { navController.navigate(ManagerDestinations.INVITE_RECEPTION) }
             } else null,
+            onStaffAccessClick = if (canManageMembership) {
+                { navController.navigate(ManagerDestinations.STAFF_ACCESS) }
+            } else null,
         )
     }
 
@@ -291,6 +297,20 @@ fun NavGraphBuilder.managerNavGraph(navController: NavController, authViewModel:
             factory = ManagerInviteReceptionViewModelFactory(context),
         )
         ManagerInviteReceptionScreen(
+            viewModel = viewModel,
+            onBackClick = { navController.popBackStack() },
+        )
+    }
+
+    // Staff Access Phase 1 — same standalone, per-back-stack-entry ViewModel scoping as
+    // [ManagerDestinations.INVITE_RECEPTION] above.
+    composable(ManagerDestinations.STAFF_ACCESS) { backStackEntry ->
+        val context = LocalContext.current
+        val viewModel: ManagerStaffAccessViewModel = viewModel(
+            viewModelStoreOwner = backStackEntry,
+            factory = ManagerStaffAccessViewModelFactory(context),
+        )
+        ManagerStaffAccessScreen(
             viewModel = viewModel,
             onBackClick = { navController.popBackStack() },
         )

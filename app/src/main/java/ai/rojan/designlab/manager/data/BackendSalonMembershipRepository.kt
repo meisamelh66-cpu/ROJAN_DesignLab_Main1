@@ -4,9 +4,12 @@ import ai.rojan.designlab.data.remote.SalonMembershipApi
 import ai.rojan.designlab.data.remote.dto.AssignMembershipRequestDto
 import ai.rojan.designlab.data.remote.dto.NetworkSalonRole
 import ai.rojan.designlab.data.remote.dto.SalonMembershipResponseDto
+import ai.rojan.designlab.data.remote.dto.SetMembershipActiveRequestDto
+import ai.rojan.designlab.data.remote.dto.StaffLookupResponseDto
 import ai.rojan.designlab.data.remote.safeApiCall
 import ai.rojan.designlab.manager.domain.membership.SalonMember
 import ai.rojan.designlab.manager.domain.membership.SalonMemberRole
+import ai.rojan.designlab.manager.domain.membership.StaffCandidate
 import ai.rojan.designlab.manager.domain.repository.SalonMembershipRepository
 
 /**
@@ -25,9 +28,17 @@ class BackendSalonMembershipRepository(
     override suspend fun listMembers(salonId: String): Result<List<SalonMember>> =
         safeApiCall { salonMembershipApi.list(salonId) }.map { list -> list.map { it.toDomain() } }
 
+    override suspend fun lookupByPhone(salonId: String, phone: String): Result<StaffCandidate> =
+        safeApiCall { salonMembershipApi.lookup(salonId, phone) }.map { it.toDomain() }
+
     override suspend fun assignRole(salonId: String, userId: String, role: SalonMemberRole): Result<SalonMember> =
         safeApiCall {
             salonMembershipApi.assign(salonId, userId, AssignMembershipRequestDto(role = role.toNetwork()))
+        }.map { it.toDomain() }
+
+    override suspend fun setActive(salonId: String, userId: String, active: Boolean): Result<SalonMember> =
+        safeApiCall {
+            salonMembershipApi.setActive(salonId, userId, SetMembershipActiveRequestDto(active = active))
         }.map { it.toDomain() }
 
     override suspend fun removeMember(salonId: String, userId: String): Result<Unit> =
@@ -38,6 +49,15 @@ class BackendSalonMembershipRepository(
         salonId = salonId,
         userId = userId,
         role = role.toDomain(),
+        active = active,
+        fullName = fullName,
+        phoneNumber = phoneNumber,
+    )
+
+    private fun StaffLookupResponseDto.toDomain() = StaffCandidate(
+        userId = userId,
+        fullName = fullName,
+        phoneNumber = phoneNumber,
     )
 
     private fun NetworkSalonRole.toDomain(): SalonMemberRole = when (this) {

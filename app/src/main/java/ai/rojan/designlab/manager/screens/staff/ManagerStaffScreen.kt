@@ -64,6 +64,7 @@ fun ManagerStaffScreen(
     onAddClick: () -> Unit = {},
     onSpecialistClick: (String) -> Unit = {},
     onInviteReceptionClick: (() -> Unit)? = null,
+    onStaffAccessClick: (() -> Unit)? = null,
 ) {
     var query by remember { mutableStateOf("") }
     val filteredSpecialists = remember(query) {
@@ -89,6 +90,10 @@ fun ManagerStaffScreen(
 
             if (onInviteReceptionClick != null) {
                 item { InviteReceptionRow(onClick = onInviteReceptionClick) }
+            }
+
+            if (onStaffAccessClick != null) {
+                item { StaffAccessRow(onClick = onStaffAccessClick) }
             }
 
             item {
@@ -168,6 +173,40 @@ private fun InviteReceptionRow(onClick: () -> Unit) {
                 tint = ManagerColors.Gold,
             )
             Text(text = "دعوت پذیرش", style = RojanTypography.Body, color = ManagerColors.TextPrimary)
+        }
+    }
+}
+
+/**
+ * Staff Access Phase 1 (Phone -> OTP -> User -> SalonMembership -> Role -> Permissions ->
+ * Active/Disabled) - only rendered when [ManagerStaffScreen.onStaffAccessClick] is non-null, same
+ * "optional callback = hidden otherwise" visibility convention as [InviteReceptionRow]. Distinct
+ * from both [AddSpecialistRow] (catalog/scheduling, no account/role) and [InviteReceptionRow]
+ * (invite-token, kept as-is) - this opens the real existing-staff list plus the direct
+ * phone-lookup grant/role/active-state management flow.
+ */
+@Composable
+private fun StaffAccessRow(onClick: () -> Unit) {
+    ManagerGlassSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .rojanPressable(onClick = onClick),
+        shape = RojanShapes.Small,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = RojanDimens.SpaceMD, vertical = RojanDimens.SpaceSM),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+        ) {
+            RojanIconContainer(
+                imageVector = Icons.Filled.Person,
+                contentDescription = "دسترسی کارکنان",
+                size = RojanIconSize.Medium,
+                tint = ManagerColors.Turquoise,
+            )
+            Text(text = "دسترسی کارکنان", style = RojanTypography.Body, color = ManagerColors.TextPrimary)
         }
     }
 }

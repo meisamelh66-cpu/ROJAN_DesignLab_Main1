@@ -67,6 +67,9 @@ object ManagerDestinations {
 
     /** Gap P0-3-REC-INVITE-UI — reached from [STAFF]'s new "دعوت پذیرش" entry point, same standalone-screen shape as [WORKING_HOURS]. Owner-only in effect (see `ManagerInviteReceptionViewModel`'s own doc comment). */
     const val INVITE_RECEPTION = "manager_invite_reception"
+
+    /** Staff Access Phase 1 (Phone -> OTP -> User -> SalonMembership -> Role -> Permissions -> Active/Disabled) — reached from [STAFF]'s new "دسترسی کارکنان" entry point, same standalone-screen shape as [WORKING_HOURS]. Owner-only in effect (see `ManagerStaffAccessViewModel`'s own doc comment). Deliberately separate from [INVITE_RECEPTION] - this is the direct-grant path, not the invite-token one. */
+    const val STAFF_ACCESS = "manager_staff_access"
     const val SETTINGS = "manager_settings"
 
     /** Owner Salon Profile Completion (Android-only) — reached from [SETTINGS]'s new "ساعات کاری" entry point. */
