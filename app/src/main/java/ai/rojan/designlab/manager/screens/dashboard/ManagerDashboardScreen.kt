@@ -13,14 +13,12 @@ import ai.rojan.designlab.manager.components.ManagerQuickAction
 import ai.rojan.designlab.manager.components.ManagerSalonDraftBanner
 import ai.rojan.designlab.manager.components.ManagerScaffold
 import ai.rojan.designlab.manager.components.QuickActionsSection
-import ai.rojan.designlab.manager.components.SalonIdentityCard
 import ai.rojan.designlab.manager.components.TodayOverviewSection
 import ai.rojan.designlab.manager.data.ManagerRepositories
 import ai.rojan.designlab.manager.domain.ai.ManagerCrmInsightCategory
 import ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewModel
 import ai.rojan.designlab.manager.presentation.dashboard.ManagerDashboardViewModelFactory
 import ai.rojan.designlab.presentation.common.UiState
-import ai.rojan.designlab.ui.theme.RojanDimens
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 
 /**
  * Manager App workspace — Dashboard v1.0 UI.
@@ -128,12 +127,12 @@ fun ManagerDashboardScreen(
     ManagerScaffold(modifier = modifier, onBackClick = onBackClick) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            // Spacing-cleanup pass: tightened from the shared
-            // SpaceSectionToSection (16dp) to SpaceSM (8dp, an existing
-            // token, not an arbitrary value) — this dashboard specifically
-            // reads as one continuous, premium surface rather than
-            // separated islands, per explicit request.
-            verticalArrangement = Arrangement.spacedBy(RojanDimens.SpaceSM),
+            // Spacing-cleanup pass: tightened to 0dp (previously SpaceSM,
+            // 8dp) - every section/card/banner on this dashboard now abuts
+            // the next, per explicit request. Only the gap between adjacent
+            // LazyColumn items; each item's own internal padding is
+            // untouched.
+            verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
             item {
                 ManagerHeader(
@@ -167,13 +166,6 @@ fun ManagerDashboardScreen(
                 }
                 is UiState.Success -> {
                     val data = dashboardState.data
-                    item {
-                        SalonIdentityCard(
-                            salonName = data.salonName,
-                            salonCategory = data.salonDescription ?: "زیبایی و سلامت",
-                            isActive = data.isActive,
-                        )
-                    }
                     // Salon Activation Awareness (Sprint 1 / P0 Master Integration
                     // Repair, PASS 1): this screen's data always comes from
                     // `myOwnedSalons()`, so reaching this branch means the current
