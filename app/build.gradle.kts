@@ -141,6 +141,19 @@ android {
         create("manager") {
             dimension = "target"
             applicationId = "ai.rojan.designlab.manager"
+            // Manager-only override of defaultConfig's versionCode/versionName.
+            // The real shipped Manager release is already at Android
+            // versionCode 6 / versionName "1.0.6" (confirmed live); this
+            // build's own Dashboard-spacing change (commit 9bd40ee) is a
+            // genuinely different APK, so it gets its own next identity -
+            // versionCode 7 / "1.0.7" - never reusing 6, since Cafe Bazaar
+            // review already rejected one reused versionCode in this
+            // project's history (see ROJAN_Web's release-registry.ts, the
+            // manager entry's own comment). Customer/Reception are
+            // untouched - they keep inheriting defaultConfig's own value,
+            // out of scope for this change.
+            versionCode = 7
+            versionName = "1.0.7"
         }
         create("reception") {
             dimension = "target"
