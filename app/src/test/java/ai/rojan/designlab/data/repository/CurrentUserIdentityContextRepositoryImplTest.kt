@@ -73,7 +73,7 @@ class CurrentUserIdentityContextRepositoryImplTest {
     fun `manager membership permissions are carried through exactly as returned`() = runTest {
         val dto = SalonAccessResponseDto(
             ownedSalons = emptyList(),
-            memberships = listOf(MembershipAccessDto("m-1", "salon-2", "Luxe", true, "MANAGER", setOf(SalonPermissions.MANAGE_CATALOG, SalonPermissions.MANAGE_STAFF))),
+            memberships = listOf(MembershipAccessDto("m-1", "salon-2", "Luxe", true, true, "MANAGER", setOf(SalonPermissions.MANAGE_CATALOG, SalonPermissions.MANAGE_STAFF))),
             specialistLinks = emptyList(),
         )
 
@@ -88,7 +88,7 @@ class CurrentUserIdentityContextRepositoryImplTest {
     fun `receptionist membership permissions are carried through exactly as returned`() = runTest {
         val dto = SalonAccessResponseDto(
             ownedSalons = emptyList(),
-            memberships = listOf(MembershipAccessDto("m-2", "salon-3", "Bloom", true, "RECEPTIONIST", setOf(SalonPermissions.MANAGE_BOOKINGS))),
+            memberships = listOf(MembershipAccessDto("m-2", "salon-3", "Bloom", true, true, "RECEPTIONIST", setOf(SalonPermissions.MANAGE_BOOKINGS))),
             specialistLinks = emptyList(),
         )
 
@@ -99,10 +99,24 @@ class CurrentUserIdentityContextRepositoryImplTest {
     }
 
     @Test
+    fun `a disabled membership's membershipActive flag is carried through, distinct from the salon's own active flag`() = runTest {
+        val dto = SalonAccessResponseDto(
+            ownedSalons = emptyList(),
+            memberships = listOf(MembershipAccessDto("m-2", "salon-3", "Bloom", true, false, "RECEPTIONIST", emptySet())),
+            specialistLinks = emptyList(),
+        )
+
+        val context = repository(dto).getCurrentUserIdentityContext().getOrThrow()
+
+        assertEquals(true, context.memberships[0].active)
+        assertEquals(false, context.memberships[0].membershipActive)
+    }
+
+    @Test
     fun `specialist link is consumed separately from memberships`() = runTest {
         val dto = SalonAccessResponseDto(
             ownedSalons = emptyList(),
-            memberships = listOf(MembershipAccessDto("m-3", "salon-4", "Studio", true, "MANAGER", setOf(SalonPermissions.MANAGE_CATALOG))),
+            memberships = listOf(MembershipAccessDto("m-3", "salon-4", "Studio", true, true, "MANAGER", setOf(SalonPermissions.MANAGE_CATALOG))),
             specialistLinks = listOf(SpecialistAccessDto("sp-1", "salon-5", "Chic", true, setOf(SalonPermissions.MANAGE_SCHEDULE_OWN))),
         )
 
@@ -118,7 +132,7 @@ class CurrentUserIdentityContextRepositoryImplTest {
     fun `multiple salon relationships are all preserved`() = runTest {
         val dto = SalonAccessResponseDto(
             ownedSalons = listOf(OwnedSalonAccessDto("salon-1", "A", true, setOf(SalonPermissions.MANAGE_SALON))),
-            memberships = listOf(MembershipAccessDto("m-1", "salon-2", "B", true, "MANAGER", setOf(SalonPermissions.MANAGE_CATALOG))),
+            memberships = listOf(MembershipAccessDto("m-1", "salon-2", "B", true, true, "MANAGER", setOf(SalonPermissions.MANAGE_CATALOG))),
             specialistLinks = listOf(SpecialistAccessDto("sp-1", "salon-3", "C", true, setOf(SalonPermissions.MANAGE_SCHEDULE_OWN))),
         )
 
@@ -146,7 +160,7 @@ class CurrentUserIdentityContextRepositoryImplTest {
     fun `an unrecognized permission value is carried through but never matches a known permission`() = runTest {
         val dto = SalonAccessResponseDto(
             ownedSalons = emptyList(),
-            memberships = listOf(MembershipAccessDto("m-1", "salon-1", "A", true, "MANAGER", setOf("SOME_FUTURE_PERMISSION_NOT_YET_KNOWN"))),
+            memberships = listOf(MembershipAccessDto("m-1", "salon-1", "A", true, true, "MANAGER", setOf("SOME_FUTURE_PERMISSION_NOT_YET_KNOWN"))),
             specialistLinks = emptyList(),
         )
 

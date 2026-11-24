@@ -83,6 +83,7 @@ class BookingConfirmationViewModelTest {
         override suspend fun getBooking(bookingId: String): Result<Booking> = error("unused")
         override suspend fun cancelBooking(bookingId: String): Result<Booking> = error("unused")
         override suspend fun confirmBooking(bookingId: String): Result<Booking> = error("unused")
+        override suspend fun checkInBooking(bookingId: String): Result<Booking> = error("unused")
         override suspend fun completeBooking(bookingId: String): Result<Booking> = error("unused")
         override suspend fun rescheduleBooking(bookingId: String, newStartTime: String): Result<Booking> = error("unused")
         override suspend fun salonBookings(salonId: String, page: Int, size: Int, status: BookingStatus?): Result<PagedResult<Booking>> = error("unused")

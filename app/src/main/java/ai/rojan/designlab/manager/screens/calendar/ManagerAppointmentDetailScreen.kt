@@ -127,7 +127,25 @@ fun ManagerAppointmentDetailScreen(
                         enabled = !isSubmitting,
                     )
                 }
-                AppointmentStatus.CONFIRMED -> item {
+                AppointmentStatus.CONFIRMED -> {
+                    // Reception Check-in (Phase 4): optional - either button is valid from
+                    // CONFIRMED. Both use MANAGE_BOOKINGS, same as confirm above.
+                    item {
+                        ManagerPrimaryButton(
+                            text = "ورود مشتری",
+                            onClick = viewModel::checkInBooking,
+                            enabled = !isSubmitting,
+                        )
+                    }
+                    item {
+                        ManagerPrimaryButton(
+                            text = "انجام‌شده علامت بزن",
+                            onClick = viewModel::completeBooking,
+                            enabled = !isSubmitting,
+                        )
+                    }
+                }
+                AppointmentStatus.CHECKED_IN -> item {
                     ManagerPrimaryButton(
                         text = "انجام‌شده علامت بزن",
                         onClick = viewModel::completeBooking,
@@ -144,6 +162,7 @@ fun ManagerAppointmentDetailScreen(
 private fun AppointmentStatus.displayLabelAndColor(): Pair<String, Color> = when (this) {
     AppointmentStatus.CONFIRMED -> "تایید شده" to ManagerColors.Turquoise
     AppointmentStatus.PENDING -> "در انتظار" to ManagerColors.Gold
+    AppointmentStatus.CHECKED_IN -> "مشتری حاضر است" to ManagerColors.Turquoise
     AppointmentStatus.COMPLETED -> "انجام شده" to ManagerColors.Turquoise
     AppointmentStatus.CANCELLED -> "لغو شده" to RojanErrorText
     AppointmentStatus.NO_SHOW -> "عدم حضور" to RojanErrorText

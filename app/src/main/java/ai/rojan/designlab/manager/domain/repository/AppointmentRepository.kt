@@ -84,6 +84,13 @@ interface AppointmentRepository {
      */
     suspend fun confirm(id: String): Result<Appointment>
 
-    /** Real, backend-persistent — same shape as [confirm]: `PATCH /api/v1/bookings/{id}/complete`, moving a `CONFIRMED` booking to `COMPLETED`. */
+    /**
+     * Reception Check-in (Phase 4): real, backend-persistent — same shape as [confirm]:
+     * `PATCH /api/v1/bookings/{id}/check-in`, moving a `CONFIRMED` booking to `CHECKED_IN`.
+     * Optional step - [complete] still accepts a booking straight from `CONFIRMED`.
+     */
+    suspend fun checkIn(id: String): Result<Appointment>
+
+    /** Real, backend-persistent — same shape as [confirm]: `PATCH /api/v1/bookings/{id}/complete`, moving a `CONFIRMED` (or [checkIn]'d) booking to `COMPLETED`. */
     suspend fun complete(id: String): Result<Appointment>
 }

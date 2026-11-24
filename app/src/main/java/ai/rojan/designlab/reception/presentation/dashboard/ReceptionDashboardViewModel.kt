@@ -13,16 +13,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Loads the salon's real booking list (`GET /api/v1/salons/{salonId}/bookings`)
- * — owner-only today, so this will genuinely surface an authorization
- * [UiState.Error] until `ROJAN_System1_Backend_Decision_v2.md` §4 item 6
- * ships. That is the correct, honest behavior — this class does not fall
- * back to any mock/fake list on failure.
+ * Loads the salon's real booking list (`GET /api/v1/salons/{salonId}/bookings`).
+ * Authorized today by `Permission.MANAGE_BOOKINGS` at the booking's salon — the
+ * salon owner, `SalonRole.MANAGER`, and `SalonRole.RECEPTIONIST` all hold it
+ * (confirmed in current backend source — Reception Authentication Fix, Phase 4).
+ * This class does not fall back to any mock/fake list on a genuine failure.
  *
- * [confirmBooking]/[completeBooking] (review-fixes phase, fix 3) call the
- * real, existing `PATCH /bookings/{id}/confirm|complete` endpoints via the
- * flavor-agnostic [genericBookingRepository] — same "will legitimately
- * fail authorization until §4 item 6 ships" status as [bookingRepository].
+ * [confirmBooking]/[checkInBooking]/[completeBooking] call the real, existing
+ * `PATCH /bookings/{id}/confirm|check-in|complete` endpoints via the
+ * flavor-agnostic [genericBookingRepository] — same authorization as
+ * [bookingRepository] above.
  */
 class ReceptionDashboardViewModel(
     private val salonId: String,
@@ -57,7 +57,10 @@ class ReceptionDashboardViewModel(
     /** `PENDING -> CONFIRMED`. Re-[refresh]es the list on success so the row's status reflects the real, new state rather than an optimistic guess. */
     fun confirmBooking(bookingId: String) = performAction(bookingId) { genericBookingRepository.confirmBooking(bookingId) }
 
-    /** `CONFIRMED -> COMPLETED`. Same reasoning as [confirmBooking]. */
+    /** Reception Check-in (Phase 4): `CONFIRMED -> CHECKED_IN` — the real action this role exists to perform. Optional; [completeBooking] still works directly from `CONFIRMED`. Same reasoning as [confirmBooking]. */
+    fun checkInBooking(bookingId: String) = performAction(bookingId) { genericBookingRepository.checkInBooking(bookingId) }
+
+    /** `CONFIRMED` (or `CHECKED_IN`) `-> COMPLETED`. Same reasoning as [confirmBooking]. */
     fun completeBooking(bookingId: String) = performAction(bookingId) { genericBookingRepository.completeBooking(bookingId) }
 
     private fun performAction(bookingId: String, action: suspend () -> Result<Booking>) {

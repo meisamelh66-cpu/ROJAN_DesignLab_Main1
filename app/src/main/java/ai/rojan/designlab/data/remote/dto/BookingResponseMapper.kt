@@ -35,6 +35,7 @@ fun BookingResponseDto.toDomain(): Booking = Booking(
 fun NetworkBookingStatus.toDomain(): BookingStatus = when (this) {
     NetworkBookingStatus.PENDING -> BookingStatus.PENDING
     NetworkBookingStatus.CONFIRMED -> BookingStatus.CONFIRMED
+    NetworkBookingStatus.CHECKED_IN -> BookingStatus.CHECKED_IN
     NetworkBookingStatus.CANCELLED -> BookingStatus.CANCELLED
     NetworkBookingStatus.COMPLETED -> BookingStatus.COMPLETED
 }

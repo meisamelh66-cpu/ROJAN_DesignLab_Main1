@@ -36,17 +36,19 @@ interface BookingApi {
     suspend fun cancelBooking(@Path("bookingId") bookingId: String): BookingResponseDto
 
     /**
-     * `PATCH /api/v1/bookings/{bookingId}/confirm` — owner only today;
-     * Reception needs `MANAGE_BOOKINGS` per `ROJAN_System1_Backend_Decision_v2.md`
-     * §1c, not yet broadened backend-side (§4 item 6). The endpoint itself
-     * is real and already existed backend-side (`API_CONTRACT.md`) — this
-     * binding was simply missing client-side until now, per
-     * `ROJAN_System2_Android_Integration_Clarification_v1.md` §4.
+     * `PATCH /api/v1/bookings/{bookingId}/confirm` — real and already existed backend-side
+     * (`API_CONTRACT.md`). Authorized by `Permission.MANAGE_BOOKINGS` at the booking's salon -
+     * owner, `SalonRole.MANAGER`, and `SalonRole.RECEPTIONIST` all hold it (confirmed in current
+     * backend source — Reception Authentication Fix, Phase 4).
      */
     @PATCH("api/v1/bookings/{bookingId}/confirm")
     suspend fun confirmBooking(@Path("bookingId") bookingId: String): BookingResponseDto
 
-    /** `PATCH /api/v1/bookings/{bookingId}/complete` — same status as [confirmBooking] above. */
+    /** Reception Check-in (Phase 4): `PATCH /api/v1/bookings/{bookingId}/check-in` — same authorization as [confirmBooking] above. */
+    @PATCH("api/v1/bookings/{bookingId}/check-in")
+    suspend fun checkInBooking(@Path("bookingId") bookingId: String): BookingResponseDto
+
+    /** `PATCH /api/v1/bookings/{bookingId}/complete` — same authorization as [confirmBooking] above. */
     @PATCH("api/v1/bookings/{bookingId}/complete")
     suspend fun completeBooking(@Path("bookingId") bookingId: String): BookingResponseDto
 

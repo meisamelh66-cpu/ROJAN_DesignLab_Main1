@@ -54,6 +54,7 @@ class CurrentUserIdentityContextRepositoryImpl(
         salonId = salonId,
         salonName = salonName,
         active = active,
+        membershipActive = membershipActive,
         role = role,
         permissions = permissions,
     )

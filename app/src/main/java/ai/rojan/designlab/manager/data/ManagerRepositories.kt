@@ -65,6 +65,8 @@ private object EmptyAppointmentRepository : AppointmentRepository {
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
     override suspend fun confirm(id: String): Result<Appointment> =
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
+    override suspend fun checkIn(id: String): Result<Appointment> =
+        Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
     override suspend fun complete(id: String): Result<Appointment> =
         Result.failure(IllegalStateException("ManagerRepositories.initialize() has not completed yet"))
 }

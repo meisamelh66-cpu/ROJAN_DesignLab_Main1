@@ -42,7 +42,7 @@ class ActiveSalonContextTest {
     fun `active relations across all three sources are all offered`() {
         val context = identityContext.copy(
             ownedSalons = listOf(OwnedSalonAccess(salonId = "s1", salonName = "Salon One", active = true, permissions = setOf("MANAGE_SALON"))),
-            memberships = listOf(SalonMembershipAccess(membershipId = "m1", salonId = "s2", salonName = "Salon Two", active = true, role = "STAFF", permissions = emptySet())),
+            memberships = listOf(SalonMembershipAccess(membershipId = "m1", salonId = "s2", salonName = "Salon Two", active = true, membershipActive = true, role = "STAFF", permissions = emptySet())),
             specialistLinks = listOf(SpecialistAccess(specialistId = "sp1", salonId = "s3", salonName = "Salon Three", active = true, permissions = emptySet())),
         )
 
@@ -59,7 +59,7 @@ class ActiveSalonContextTest {
     fun `the same salon reachable via more than one relation is deduped, keeping the highest-access relation`() {
         val context = identityContext.copy(
             ownedSalons = listOf(OwnedSalonAccess(salonId = "s1", salonName = "Salon One", active = true, permissions = setOf("MANAGE_SALON"))),
-            memberships = listOf(SalonMembershipAccess(membershipId = "m1", salonId = "s1", salonName = "Salon One", active = true, role = "STAFF", permissions = emptySet())),
+            memberships = listOf(SalonMembershipAccess(membershipId = "m1", salonId = "s1", salonName = "Salon One", active = true, membershipActive = true, role = "STAFF", permissions = emptySet())),
             specialistLinks = listOf(SpecialistAccess(specialistId = "sp1", salonId = "s1", salonName = "Salon One", active = true, permissions = emptySet())),
         )
 
@@ -73,7 +73,7 @@ class ActiveSalonContextTest {
     fun `an inactive owned salon does not shadow an active membership for the same id`() {
         val context = identityContext.copy(
             ownedSalons = listOf(OwnedSalonAccess(salonId = "s1", salonName = "Salon One", active = false, permissions = emptySet())),
-            memberships = listOf(SalonMembershipAccess(membershipId = "m1", salonId = "s1", salonName = "Salon One", active = true, role = "STAFF", permissions = emptySet())),
+            memberships = listOf(SalonMembershipAccess(membershipId = "m1", salonId = "s1", salonName = "Salon One", active = true, membershipActive = true, role = "STAFF", permissions = emptySet())),
         )
 
         val available = context.availableSalons()

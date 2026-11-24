@@ -172,7 +172,7 @@ class ManagerCustomerProfileViewModelTest {
     @Test
     fun `a manager with membership-only access resolves the customer to Success, not a false no-salon state`() = runBlocking {
         val membershipOnly = identityContext(
-            memberships = listOf(SalonMembershipAccess("membership-1", "salon-1", "سالن رویان", active = true, role = "MANAGER", permissions = emptySet())),
+            memberships = listOf(SalonMembershipAccess("membership-1", "salon-1", "سالن رویان", active = true, membershipActive = true, role = "MANAGER", permissions = emptySet())),
         )
         val viewModel = viewModel(identityContextRepository = ProfileFakeIdentityContextRepository { Result.success(membershipOnly) })
 
