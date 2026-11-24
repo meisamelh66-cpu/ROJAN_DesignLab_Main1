@@ -357,7 +357,7 @@ class ManagerAuthViewModelTest {
         val backendAuthRepository = FakeBackendAuthRepository(currentUserResult = Result.success(managerUser))
         val tokenRepository = FakeTokenRepository()
         val owned = OwnedSalonAccess(salonId = "s1", salonName = "Salon One", active = true, permissions = emptySet())
-        val membership = SalonMembershipAccess(membershipId = "m1", salonId = "s2", salonName = "Salon Two", active = true, role = "STAFF", permissions = emptySet())
+        val membership = SalonMembershipAccess(membershipId = "m1", salonId = "s2", salonName = "Salon Two", active = true, membershipActive = true, role = "STAFF", permissions = emptySet())
         val identityContextRepository = FakeCurrentUserIdentityContextRepository(
             Result.success(emptyIdentityContext().copy(ownedSalons = listOf(owned), memberships = listOf(membership))),
         )
@@ -377,7 +377,7 @@ class ManagerAuthViewModelTest {
         val backendAuthRepository = FakeBackendAuthRepository(currentUserResult = Result.success(managerUser))
         val tokenRepository = FakeTokenRepository()
         val owned = OwnedSalonAccess(salonId = "s1", salonName = "Salon One", active = true, permissions = emptySet())
-        val membership = SalonMembershipAccess(membershipId = "m1", salonId = "s2", salonName = "Salon Two", active = true, role = "STAFF", permissions = emptySet())
+        val membership = SalonMembershipAccess(membershipId = "m1", salonId = "s2", salonName = "Salon Two", active = true, membershipActive = true, role = "STAFF", permissions = emptySet())
         val identityContextRepository = FakeCurrentUserIdentityContextRepository(
             Result.success(emptyIdentityContext().copy(ownedSalons = listOf(owned), memberships = listOf(membership))),
         )
@@ -410,7 +410,7 @@ class ManagerAuthViewModelTest {
         val backendAuthRepository = FakeBackendAuthRepository(currentUserResult = Result.success(managerUser))
         val tokenRepository = FakeTokenRepository()
         val owned = OwnedSalonAccess(salonId = "s1", salonName = "Salon One", active = true, permissions = emptySet())
-        val membership = SalonMembershipAccess(membershipId = "m1", salonId = "s2", salonName = "Salon Two", active = true, role = "STAFF", permissions = emptySet())
+        val membership = SalonMembershipAccess(membershipId = "m1", salonId = "s2", salonName = "Salon Two", active = true, membershipActive = true, role = "STAFF", permissions = emptySet())
         val identityContextRepository = FakeCurrentUserIdentityContextRepository(
             Result.success(emptyIdentityContext().copy(ownedSalons = listOf(owned), memberships = listOf(membership))),
         )

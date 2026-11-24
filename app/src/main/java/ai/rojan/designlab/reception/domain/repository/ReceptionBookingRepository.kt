@@ -9,18 +9,20 @@ import ai.rojan.designlab.domain.repository.PagedResult
  * bookings and creating one on behalf of an existing (linked) customer.
  * Distinct from the top-level [ai.rojan.designlab.domain.repository.BookingRepository]
  * (customer self-service `createBooking`/`myBookings`, plus the
- * booking-id-scoped `cancelBooking`/`confirmBooking`/`completeBooking`/
- * `rescheduleBooking`, all reused as-is by Reception — no need to
- * duplicate those here).
+ * booking-id-scoped `cancelBooking`/`confirmBooking`/`checkInBooking`/
+ * `completeBooking`/`rescheduleBooking`, all reused as-is by Reception —
+ * no need to duplicate those here).
  *
- * Backed by real, already-existing backend endpoints
- * (`SalonBookingController` — `GET`/`POST /api/v1/salons/{salonId}/bookings`,
- * verified against `origin/feature/auth-rate-limit-finalization`) that are
- * owner-only today. Calling this as a receptionist will legitimately fail
- * authorization until `ROJAN_System1_Backend_Decision_v2.md` §4 item 6
- * (authorization broadening) ships — that is the correct, honest outcome,
- * not a bug to work around client-side. No mock, no fake data: every
- * implementation of this interface must call the real endpoint.
+ * Backed by real, already-existing backend endpoints (`SalonBookingController`
+ * — `GET`/`POST /api/v1/salons/{salonId}/bookings`). Reception Authentication
+ * Fix (Phase 4), source-verified: `Permission.MANAGE_BOOKINGS` is granted to
+ * the salon owner, `SalonRole.MANAGER`, and `SalonRole.RECEPTIONIST` alike
+ * (`SalonPermissionResolver`/`SalonRole.permissions()`) — calling these as an
+ * actual `SalonRole.RECEPTIONIST` member succeeds; this was previously
+ * (incorrectly) documented here as "owner-only today, will legitimately
+ * fail authorization" — that was true of an earlier backend state, not the
+ * current one. No mock, no fake data: every implementation of this
+ * interface must call the real endpoint.
  */
 interface ReceptionBookingRepository {
 

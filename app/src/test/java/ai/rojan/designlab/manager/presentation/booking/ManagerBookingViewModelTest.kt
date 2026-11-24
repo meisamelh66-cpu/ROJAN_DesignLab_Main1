@@ -243,6 +243,7 @@ private class FakeBookingRepository(private val createBookingResult: Result<Book
     override suspend fun getBooking(bookingId: String): Result<Booking> = error("not used by these tests")
     override suspend fun cancelBooking(bookingId: String): Result<Booking> = error("not used by these tests")
     override suspend fun confirmBooking(bookingId: String): Result<Booking> = error("not used by these tests")
+    override suspend fun checkInBooking(bookingId: String): Result<Booking> = error("not used by these tests")
     override suspend fun completeBooking(bookingId: String): Result<Booking> = error("not used by these tests")
     override suspend fun rescheduleBooking(bookingId: String, newStartTime: String): Result<Booking> =
         error("not used by these tests")

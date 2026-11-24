@@ -3,6 +3,9 @@ package ai.rojan.designlab.domain.repository
 enum class BookingStatus {
     PENDING,
     CONFIRMED,
+
+    /** Reception Check-in (Phase 4): optional - a booking can also go straight from CONFIRMED to COMPLETED. */
+    CHECKED_IN,
     CANCELLED,
     COMPLETED,
 }
@@ -72,16 +75,22 @@ interface BookingRepository {
     suspend fun cancelBooking(bookingId: String): Result<Booking>
 
     /**
-     * `PATCH /bookings/{bookingId}/confirm` — owner only today; Reception
-     * needs `MANAGE_BOOKINGS`, not yet broadened backend-side (see
-     * `ROJAN_System1_Backend_Decision_v2.md` §4 item 6). The endpoint
-     * itself already existed backend-side — only this binding was missing.
-     * Backend returns 403 for any other caller, 409 if the booking isn't
-     * currently PENDING.
+     * `PATCH /bookings/{bookingId}/confirm` — real, backend-persistent. Authorized by
+     * `Permission.MANAGE_BOOKINGS` at the booking's salon (owner, `SalonRole.MANAGER`, or
+     * `SalonRole.RECEPTIONIST` all hold it, confirmed in current backend source — Reception
+     * Authentication Fix, Phase 4). Backend returns 403 for any other caller, 409 if the booking
+     * isn't currently PENDING.
      */
     suspend fun confirmBooking(bookingId: String): Result<Booking>
 
-    /** `PATCH /bookings/{bookingId}/complete` — same status as [confirmBooking]; salon owner only, backend returns 403 for any other caller. */
+    /**
+     * Reception Check-in (Phase 4): `PATCH /bookings/{bookingId}/check-in` — same authorization
+     * as [confirmBooking]; moves a CONFIRMED booking to CHECKED_IN. Optional step -
+     * [completeBooking] still accepts a booking straight from CONFIRMED.
+     */
+    suspend fun checkInBooking(bookingId: String): Result<Booking>
+
+    /** `PATCH /bookings/{bookingId}/complete` — same authorization as [confirmBooking]; moves a CONFIRMED (or [checkInBooking]'d) booking to COMPLETED. */
     suspend fun completeBooking(bookingId: String): Result<Booking>
 
     /**

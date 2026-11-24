@@ -56,6 +56,10 @@ interface ManagerBookingApi {
     @PATCH("api/v1/bookings/{bookingId}/confirm")
     suspend fun confirm(@Path("bookingId") bookingId: String): BookingResponseDto
 
+    /** Reception Check-in (Phase 4): `PATCH /api/v1/bookings/{bookingId}/check-in` - Reception/Manager/owner, CONFIRMED -> CHECKED_IN only. */
+    @PATCH("api/v1/bookings/{bookingId}/check-in")
+    suspend fun checkIn(@Path("bookingId") bookingId: String): BookingResponseDto
+
     @PATCH("api/v1/bookings/{bookingId}/complete")
     suspend fun complete(@Path("bookingId") bookingId: String): BookingResponseDto
 }

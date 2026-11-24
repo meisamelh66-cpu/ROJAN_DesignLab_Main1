@@ -158,6 +158,10 @@ class BackendAppointmentRepository(
         safeApiCall { managerBookingApi.confirm(id) }
             .map { dto -> dto.toDomain().also { updated -> cache = cache.map { if (it.id == id) updated else it } } }
 
+    override suspend fun checkIn(id: String): Result<Appointment> =
+        safeApiCall { managerBookingApi.checkIn(id) }
+            .map { dto -> dto.toDomain().also { updated -> cache = cache.map { if (it.id == id) updated else it } } }
+
     override suspend fun complete(id: String): Result<Appointment> =
         safeApiCall { managerBookingApi.complete(id) }
             .map { dto -> dto.toDomain().also { updated -> cache = cache.map { if (it.id == id) updated else it } } }
@@ -182,6 +186,7 @@ class BackendAppointmentRepository(
     private fun NetworkBookingStatus.toDomain(): AppointmentStatus = when (this) {
         NetworkBookingStatus.PENDING -> AppointmentStatus.PENDING
         NetworkBookingStatus.CONFIRMED -> AppointmentStatus.CONFIRMED
+        NetworkBookingStatus.CHECKED_IN -> AppointmentStatus.CHECKED_IN
         NetworkBookingStatus.CANCELLED -> AppointmentStatus.CANCELLED
         NetworkBookingStatus.COMPLETED -> AppointmentStatus.COMPLETED
     }

@@ -25,18 +25,26 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * CONFIRMED — `ROJAN_System1_Backend_Decision_v2.md` §1b (`ROJAN_Backend`):
- * System 1 decided **no** new global `UserRole.RECEPTIONIST` will be
- * added. Reception, Manager, and Owner accounts all authenticate under the
- * existing `UserRole.MANAGER` value permanently — ownership is resolved
- * via `Salon.ownerId`, and per-salon role/authorization is resolved via
- * `SalonMembership.role` (see [ActiveSalonUiState]/`SalonAccessType.MEMBER`),
- * never the global role. This was previously flagged provisional in this
- * file (`ROJAN_Reception_Implementation_Plan_v1.md` §4 item 5, open at the
- * time); that question is now closed, and this constant's value was
- * correct all along — no code change was needed here, only this comment.
+ * Reception Authentication Fix (Phase 4): the real gate is an active
+ * [ai.rojan.backend.domain.salon.SalonRole.RECEPTIONIST]-equivalent salon
+ * membership, resolved server-side via `GET /users/me/salon-access`
+ * ([CurrentUserIdentityContextRepository], already real and working -
+ * see [refreshIdentityContext]'s corrected doc comment below) - never the
+ * global `User.role`.
+ *
+ * Supersedes the prior approach of comparing [AuthenticatedUser.role] to
+ * the literal string `"MANAGER"`: that check was wrong on its own terms -
+ * every account is created via phone/OTP with a permanent global role of
+ * `CUSTOMER` ([ai.rojan.backend.application.auth.VerifyOtpUseCase] - no
+ * code path anywhere promotes it, accepting a [ai.rojan.backend.domain.salon.SalonInvite]
+ * included), so it rejected every real OTP-created receptionist outright,
+ * while granting nothing extra in return (the backend's own authorization
+ * for booking endpoints has always been membership-based, never global-role-based).
+ * Widening the old constant's value would still be wrong for the same
+ * reason the task that introduced this fix forbids it: the global role was
+ * never the right signal to gate on in the first place, in either direction.
  */
-private const val RECEPTION_GATE_ROLE = "MANAGER"
+private const val RECEPTIONIST_ROLE = "RECEPTIONIST"
 
 /**
  * Owns the Reception App's entire authentication lifecycle — cold-start
@@ -97,39 +105,53 @@ class ReceptionAuthViewModel(
 
         backendAuthRepository.currentUser()
             .onSuccess { user ->
-                if (user.role == RECEPTION_GATE_ROLE) {
-                    _authState.value = ReceptionAuthState.Authenticated(user.id, user.fullName)
-                    refreshIdentityContext()
-                } else {
-                    clearSession()
-                }
+                _authState.value = ReceptionAuthState.Authenticated(user.id, user.fullName)
+                refreshIdentityContext()
             }
             .onFailure { clearSession() }
     }
 
     /**
-     * `GET /users/me/salon-access` — see [ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel.refreshIdentityContext]
-     * for the identical reasoning. Not yet real on the backend (plan §4 item
-     * 1) — fails, does not silently grant access, until it is.
+     * `GET /users/me/salon-access` — real and working on the backend
+     * (`ai.rojan.backend.api.user.UserController.salonAccess`, backed by
+     * `ai.rojan.backend.application.salon.ResolveMySalonAccessUseCase`) -
+     * see [ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel.refreshIdentityContext]
+     * for the identical fetch/populate reasoning.
      *
-     * Phase 1 (Authentication completion, resilient blocked-state UX): the
-     * failure branch also resolves [_activeSalonState] to
-     * [ActiveSalonUiState.Error] — previously left it stuck at
-     * [ActiveSalonUiState.Loading] forever, which meant
+     * Reception Authentication Fix (Phase 4): this is also the one place
+     * the real Reception gate lives now — a fetch that *succeeds* but
+     * shows no active [RECEPTIONIST_ROLE] membership anywhere is a genuine,
+     * expected rejection (a plain customer, or a manager/owner with no
+     * Reception membership of their own), not a bug — logged out with a
+     * clear message rather than silently shown that account's owner/manager
+     * salons. Applying the check here, not only at login, closes the gap
+     * [retryIdentityResolution] would otherwise leave: a retry after a
+     * transient failure must re-apply the same gate, never skip it.
+     *
+     * Phase 1 (Authentication completion, resilient blocked-state UX): a
+     * genuine fetch *failure* (network/server error - membership truly
+     * unknown, not "confirmed absent") still resolves [_activeSalonState]
+     * to [ActiveSalonUiState.Error], deliberately leaving [_authState]
+     * untouched (already [ReceptionAuthState.Authenticated] by the time
+     * this runs) so [retryIdentityResolution] stays reachable — previously
+     * leaving it stuck at [ActiveSalonUiState.Loading] forever meant
      * [ai.rojan.designlab.reception.navigation.ReceptionRootGraph]'s
-     * `activeSalonPending` gate (waiting specifically for `Loading` to end)
-     * never released, so a real `/salon-access` failure showed an infinite
-     * splash screen with no error and no way out short of force-quitting.
-     * Both state flows must reach a terminal, observable value on every
-     * path — success or failure — or the gate that watches them can hang.
+     * `activeSalonPending` gate never released. Both state flows must
+     * reach a terminal, observable value on every path.
      */
     private suspend fun refreshIdentityContext() {
         _identityContext.value = UiState.Loading
         _activeSalonState.value = ActiveSalonUiState.Loading
         currentUserIdentityContextRepository.getCurrentUserIdentityContext()
             .onSuccess { context ->
-                _identityContext.value = UiState.Success(context)
-                resolveActiveSalon(context)
+                val isReceptionist = context.memberships.any { it.membershipActive && it.role == RECEPTIONIST_ROLE }
+                if (isReceptionist) {
+                    _identityContext.value = UiState.Success(context)
+                    resolveActiveSalon(context)
+                } else {
+                    clearSession()
+                    _errorMessage.value = "این حساب برای پذیرش هیچ سالنی ثبت نشده است"
+                }
             }
             .onFailure { error ->
                 val message = userMessageFor(error)
@@ -223,17 +245,15 @@ class ReceptionAuthViewModel(
         }
     }
 
+    /**
+     * Reception Authentication Fix (Phase 4): unconditional, same shape as
+     * [ai.rojan.designlab.manager.presentation.auth.ManagerAuthViewModel]'s
+     * own `onVerified` — the real Reception-vs-everyone-else decision now
+     * lives entirely in [refreshIdentityContext], applied uniformly to
+     * login, cold-start restore, and retry alike, so it can never drift
+     * between those three call sites.
+     */
     private suspend fun onVerified(user: AuthenticatedUser) {
-        if (user.role != RECEPTION_GATE_ROLE) {
-            // See RECEPTION_GATE_ROLE's own doc comment — a successfully
-            // verified but non-gated-role account is a real, expected
-            // outcome, not a bug; rejected client-side rather than granting
-            // Dashboard access.
-            tokenRepository.clearTokens()
-            _errorMessage.value = "این شماره برای پذیرش ثبت نشده است"
-            return
-        }
-
         authSessionRepository.savePersonId(user.id)
         _authState.value = ReceptionAuthState.Authenticated(user.id, user.fullName)
         refreshIdentityContext()

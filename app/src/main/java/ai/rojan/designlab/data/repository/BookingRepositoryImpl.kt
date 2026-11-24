@@ -59,6 +59,9 @@ class BookingRepositoryImpl(
     override suspend fun confirmBooking(bookingId: String): Result<Booking> =
         safeApiCall { bookingApi.confirmBooking(bookingId) }.map { it.toDomain() }
 
+    override suspend fun checkInBooking(bookingId: String): Result<Booking> =
+        safeApiCall { bookingApi.checkInBooking(bookingId) }.map { it.toDomain() }
+
     override suspend fun completeBooking(bookingId: String): Result<Booking> =
         safeApiCall { bookingApi.completeBooking(bookingId) }.map { it.toDomain() }
 
