@@ -8,6 +8,7 @@ import ai.rojan.designlab.domain.repository.CurrentUserIdentityContext
 import ai.rojan.designlab.domain.repository.CurrentUserIdentityContextRepository
 import ai.rojan.designlab.domain.repository.OtpIssued
 import ai.rojan.designlab.domain.repository.OwnedSalonAccess
+import ai.rojan.designlab.domain.repository.SalonMembershipAccess
 import ai.rojan.designlab.domain.repository.TokenRepository
 import ai.rojan.designlab.presentation.common.UiState
 import ai.rojan.designlab.reception.domain.auth.ActiveSalonUiState
@@ -70,6 +71,74 @@ class ReceptionAuthViewModelTest {
         specialistLinks = emptyList(),
     )
 
+    private fun identityContextWithMembership(role: String, active: Boolean) = emptyIdentityContext().copy(
+        memberships = listOf(
+            SalonMembershipAccess(
+                membershipId = "m1", salonId = "s1", salonName = "Salon One",
+                active = true, membershipActive = active, role = role, permissions = setOf("MANAGE_BOOKINGS"),
+            ),
+        ),
+    )
+
+    // --- Reception Authentication Fix (Phase 4): the real gate is an active -----
+    // --- SalonRole.RECEPTIONIST membership, never the global role --------------
+
+    @Test
+    fun `a customer with no salon membership at all is rejected, not left Authenticated`() = runTest {
+        val viewModel = ReceptionAuthViewModel(
+            FakeAuthSessionRepository(initialPersonId = receptionUser.id),
+            FakeBackendAuthRepository(currentUserResult = Result.success(receptionUser)),
+            FakeTokenRepository(),
+            FakeCurrentUserIdentityContextRepository(Result.success(emptyIdentityContext())),
+            FakeActiveSalonContextRepository(),
+        )
+
+        assertEquals(ReceptionAuthState.Unauthenticated, viewModel.authState.value)
+        assertTrue(viewModel.errorMessage.value?.isNotBlank() == true)
+    }
+
+    @Test
+    fun `an account with an active RECEPTIONIST membership is accepted and its salon resolved`() = runTest {
+        val viewModel = ReceptionAuthViewModel(
+            FakeAuthSessionRepository(initialPersonId = receptionUser.id),
+            FakeBackendAuthRepository(currentUserResult = Result.success(receptionUser)),
+            FakeTokenRepository(),
+            FakeCurrentUserIdentityContextRepository(Result.success(identityContextWithMembership("RECEPTIONIST", active = true))),
+            FakeActiveSalonContextRepository(),
+        )
+
+        assertTrue(viewModel.authState.value is ReceptionAuthState.Authenticated)
+        val salonState = viewModel.activeSalonState.value
+        assertTrue(salonState is ActiveSalonUiState.Active)
+        assertEquals("s1", (salonState as ActiveSalonUiState.Active).context.salonId)
+    }
+
+    @Test
+    fun `a MANAGER-role membership alone does not grant Reception access - RECEPTIONIST only`() = runTest {
+        val viewModel = ReceptionAuthViewModel(
+            FakeAuthSessionRepository(initialPersonId = receptionUser.id),
+            FakeBackendAuthRepository(currentUserResult = Result.success(receptionUser)),
+            FakeTokenRepository(),
+            FakeCurrentUserIdentityContextRepository(Result.success(identityContextWithMembership("MANAGER", active = true))),
+            FakeActiveSalonContextRepository(),
+        )
+
+        assertEquals(ReceptionAuthState.Unauthenticated, viewModel.authState.value)
+    }
+
+    @Test
+    fun `a disabled RECEPTIONIST membership is rejected - inactive membership, not CurrentUserIdentityContext OwnedSalonAccess active`() = runTest {
+        val viewModel = ReceptionAuthViewModel(
+            FakeAuthSessionRepository(initialPersonId = receptionUser.id),
+            FakeBackendAuthRepository(currentUserResult = Result.success(receptionUser)),
+            FakeTokenRepository(),
+            FakeCurrentUserIdentityContextRepository(Result.success(identityContextWithMembership("RECEPTIONIST", active = false))),
+            FakeActiveSalonContextRepository(),
+        )
+
+        assertEquals(ReceptionAuthState.Unauthenticated, viewModel.authState.value)
+    }
+
     // --- The actual bug fix ----------------------------------------------
 
     @Test
@@ -114,7 +183,8 @@ class ReceptionAuthViewModelTest {
 
     @Test
     fun `retryIdentityResolution re-attempts and can resolve to Active after a prior failure`() = runTest {
-        val owned = OwnedSalonAccess(salonId = "s1", salonName = "Salon One", active = true, permissions = setOf("MANAGE_OWN_BOOKINGS"))
+        // Reception Authentication Fix (Phase 4): must be an active RECEPTIONIST membership, not
+        // merely an owned salon - the real gate retry re-applies is membership-based now.
         val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.failure(IllegalStateException("404")))
 
         val viewModel = ReceptionAuthViewModel(
@@ -126,7 +196,7 @@ class ReceptionAuthViewModelTest {
         )
         assertTrue(viewModel.activeSalonState.value is ActiveSalonUiState.Error)
 
-        identityContextRepository.result = Result.success(emptyIdentityContext().copy(ownedSalons = listOf(owned)))
+        identityContextRepository.result = Result.success(identityContextWithMembership("RECEPTIONIST", active = true))
         viewModel.retryIdentityResolution()
 
         val state = viewModel.activeSalonState.value
@@ -153,7 +223,11 @@ class ReceptionAuthViewModelTest {
     }
 
     @Test
-    fun `zero available salons still resolves to Error, unaffected by the failure-path fix`() = runTest {
+    fun `zero memberships on a successful fetch is rejected outright, not shown as a retry-able Error - Reception Authentication Fix Phase 4`() = runTest {
+        // Superseded by the Phase 4 gate: a successful fetch showing no RECEPTIONIST membership
+        // at all is a definitive, confirmed rejection (logged out, clear message), not a transient
+        // "no salon found yet, retry" Error state - that distinction matters because the latter
+        // implies the account almost has access, which a plain customer never does.
         val identityContextRepository = FakeCurrentUserIdentityContextRepository(Result.success(emptyIdentityContext()))
 
         val viewModel = ReceptionAuthViewModel(
@@ -164,7 +238,7 @@ class ReceptionAuthViewModelTest {
             FakeActiveSalonContextRepository(),
         )
 
-        assertTrue(viewModel.activeSalonState.value is ActiveSalonUiState.Error)
+        assertEquals(ReceptionAuthState.Unauthenticated, viewModel.authState.value)
     }
 
     // --- Baseline gate coverage (same shape as ManagerAuthViewModelTest, scoped to Reception's own class) ---

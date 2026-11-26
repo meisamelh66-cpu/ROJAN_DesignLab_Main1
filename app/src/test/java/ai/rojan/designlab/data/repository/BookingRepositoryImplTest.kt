@@ -182,6 +182,7 @@ class BookingRepositoryImplTest {
 
 private class FakeBookingApi(
     private val confirm: () -> BookingResponseDto = { error("confirmBooking not used by this test") },
+    private val checkIn: () -> BookingResponseDto = { error("checkInBooking not used by this test") },
     private val complete: () -> BookingResponseDto = { error("completeBooking not used by this test") },
     private val reschedule: (RescheduleBookingRequestDto) -> BookingResponseDto =
         { error("rescheduleBooking not used by this test") },
@@ -199,6 +200,8 @@ private class FakeBookingApi(
     override suspend fun cancelBooking(bookingId: String): BookingResponseDto = cancel()
 
     override suspend fun confirmBooking(bookingId: String): BookingResponseDto = confirm()
+
+    override suspend fun checkInBooking(bookingId: String): BookingResponseDto = checkIn()
 
     override suspend fun completeBooking(bookingId: String): BookingResponseDto = complete()
 

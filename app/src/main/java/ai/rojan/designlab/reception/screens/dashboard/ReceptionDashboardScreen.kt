@@ -94,6 +94,7 @@ fun ReceptionDashboardScreen(
                     booking = booking,
                     isProcessing = processingBookingId == booking.id,
                     onConfirmClick = { viewModel.confirmBooking(booking.id) },
+                    onCheckInClick = { viewModel.checkInBooking(booking.id) },
                     onCompleteClick = { viewModel.completeBooking(booking.id) },
                 )
             }
@@ -122,6 +123,7 @@ private fun BookingRow(
     booking: Booking,
     isProcessing: Boolean,
     onConfirmClick: () -> Unit,
+    onCheckInClick: () -> Unit,
     onCompleteClick: () -> Unit,
 ) {
     ReceptionGlassSurface(modifier = Modifier.fillMaxWidth(), shape = RojanShapes.Small) {
@@ -158,8 +160,9 @@ private fun BookingRow(
                 }
             }
 
-            // PENDING -> Confirm, CONFIRMED -> Complete, CANCELLED/COMPLETED -> no action (terminal states).
-            if (booking.status == BookingStatus.PENDING || booking.status == BookingStatus.CONFIRMED) {
+            // PENDING -> Confirm. CONFIRMED -> Check-in (optional) and Complete (skips check-in).
+            // CHECKED_IN -> Complete. CANCELLED/COMPLETED -> no action (terminal states).
+            if (booking.status == BookingStatus.PENDING || booking.status == BookingStatus.CONFIRMED || booking.status == BookingStatus.CHECKED_IN) {
                 Spacer(modifier = Modifier.height(RojanDimens.SpaceSM))
                 when (booking.status) {
                     BookingStatus.PENDING -> PremiumButton(
@@ -168,7 +171,23 @@ private fun BookingRow(
                         enabled = !isProcessing,
                         loading = isProcessing,
                     )
-                    BookingStatus.CONFIRMED -> PremiumButton(
+                    BookingStatus.CONFIRMED -> {
+                        // Reception Check-in (Phase 4): either action is valid from CONFIRMED.
+                        PremiumButton(
+                            text = "ورود مشتری",
+                            onClick = onCheckInClick,
+                            enabled = !isProcessing,
+                            loading = isProcessing,
+                        )
+                        Spacer(modifier = Modifier.height(RojanDimens.SpaceXS))
+                        PremiumButton(
+                            text = "ثبت انجام‌شدن",
+                            onClick = onCompleteClick,
+                            enabled = !isProcessing,
+                            loading = isProcessing,
+                        )
+                    }
+                    BookingStatus.CHECKED_IN -> PremiumButton(
                         text = "ثبت انجام‌شدن",
                         onClick = onCompleteClick,
                         enabled = !isProcessing,
@@ -185,6 +204,7 @@ private val BookingStatus.displayLabel: String
     get() = when (this) {
         BookingStatus.PENDING -> "در انتظار"
         BookingStatus.CONFIRMED -> "تأییدشده"
+        BookingStatus.CHECKED_IN -> "مشتری حاضر است"
         BookingStatus.CANCELLED -> "لغوشده"
         BookingStatus.COMPLETED -> "انجام‌شده"
     }

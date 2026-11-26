@@ -228,6 +228,8 @@ private class FakeBookingRepository(private val myBookingsResult: Result<PagedRe
         private set
     var lastConfirmedBookingId: String? = null
         private set
+    var lastCheckedInBookingId: String? = null
+        private set
     var lastCompletedBookingId: String? = null
         private set
 
@@ -249,6 +251,11 @@ private class FakeBookingRepository(private val myBookingsResult: Result<PagedRe
 
     override suspend fun confirmBooking(bookingId: String): Result<Booking> {
         lastConfirmedBookingId = bookingId
+        return myBookingsResult.map { it.content.first() }
+    }
+
+    override suspend fun checkInBooking(bookingId: String): Result<Booking> {
+        lastCheckedInBookingId = bookingId
         return myBookingsResult.map { it.content.first() }
     }
 

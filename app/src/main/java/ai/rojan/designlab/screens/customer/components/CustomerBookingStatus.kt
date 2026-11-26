@@ -31,6 +31,7 @@ import ai.rojan.designlab.ui.theme.RojanTypography
 fun BookingStatus.label(): String = when (this) {
     BookingStatus.PENDING -> "در انتظار تایید"
     BookingStatus.CONFIRMED -> "تایید شده"
+    BookingStatus.CHECKED_IN -> "در حال انجام"
     BookingStatus.COMPLETED -> "انجام شده"
     BookingStatus.CANCELLED -> "لغو شده"
 }
@@ -42,6 +43,7 @@ fun BookingStatus.label(): String = when (this) {
 val BookingStatus.tint: Color
     @Composable get() = when (this) {
         BookingStatus.CONFIRMED -> CustomerAccent
+        BookingStatus.CHECKED_IN -> CustomerAccent
         BookingStatus.PENDING -> HomeColors.TextMuted
         BookingStatus.COMPLETED -> HomeColors.TextSecondary
         BookingStatus.CANCELLED -> RojanErrorText

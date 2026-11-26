@@ -76,6 +76,31 @@ class ManagerAppointmentDetailViewModelTest {
     }
 
     @Test
+    fun `checkInBooking replaces the appointment with the real backend response on success - Reception Check-in Phase 4`() = runTest {
+        val appointment = pendingAppointment().copy(status = AppointmentStatus.CONFIRMED)
+        val repository = FakeAppointmentRepository(initial = appointment)
+        val viewModel = ManagerAppointmentDetailViewModel(repository, appointment.id)
+
+        viewModel.checkInBooking()
+
+        assertEquals(AppointmentStatus.CHECKED_IN, viewModel.appointment.value?.status)
+        assertEquals(false, viewModel.isSubmitting.value)
+        assertEquals(null, viewModel.errorMessage.value)
+        assertEquals(1, repository.checkInCallCount)
+    }
+
+    @Test
+    fun `completeBooking still works directly from CHECKED_IN - check-in is optional, not mandatory`() = runTest {
+        val appointment = pendingAppointment().copy(status = AppointmentStatus.CHECKED_IN)
+        val repository = FakeAppointmentRepository(initial = appointment)
+        val viewModel = ManagerAppointmentDetailViewModel(repository, appointment.id)
+
+        viewModel.completeBooking()
+
+        assertEquals(AppointmentStatus.COMPLETED, viewModel.appointment.value?.status)
+    }
+
+    @Test
     fun `a real backend rejection surfaces a Persian error message and leaves the appointment unchanged`() = runTest {
         val appointment = pendingAppointment()
         val repository = FakeAppointmentRepository(
@@ -107,11 +132,14 @@ class ManagerAppointmentDetailViewModelTest {
     private class FakeAppointmentRepository(
         initial: Appointment,
         private val confirmResult: (() -> Result<Appointment>)? = null,
+        private val checkInResult: (() -> Result<Appointment>)? = null,
         private val completeResult: (() -> Result<Appointment>)? = null,
     ) : AppointmentRepository {
         private var stored = initial
 
         var confirmCallCount = 0
+            private set
+        var checkInCallCount = 0
             private set
         var completeCallCount = 0
             private set
@@ -134,6 +162,13 @@ class ManagerAppointmentDetailViewModelTest {
         override suspend fun confirm(id: String): Result<Appointment> {
             confirmCallCount++
             val result = confirmResult?.invoke() ?: Result.success(stored.copy(status = AppointmentStatus.CONFIRMED))
+            result.getOrNull()?.let { stored = it }
+            return result
+        }
+
+        override suspend fun checkIn(id: String): Result<Appointment> {
+            checkInCallCount++
+            val result = checkInResult?.invoke() ?: Result.success(stored.copy(status = AppointmentStatus.CHECKED_IN))
             result.getOrNull()?.let { stored = it }
             return result
         }

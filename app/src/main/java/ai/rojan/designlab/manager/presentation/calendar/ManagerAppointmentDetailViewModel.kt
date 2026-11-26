@@ -44,7 +44,10 @@ class ManagerAppointmentDetailViewModel(
     /** Moves this booking from `PENDING` to `CONFIRMED` — only meaningful while [appointment] is `PENDING`; the screen gates the button on that, this does not re-check it. */
     fun confirmBooking() = mutate { appointmentRepository.confirm(it) }
 
-    /** Moves this booking from `CONFIRMED` to `COMPLETED` — only meaningful while [appointment] is `CONFIRMED`; the screen gates the button on that, this does not re-check it. */
+    /** Reception Check-in (Phase 4): moves this booking from `CONFIRMED` to `CHECKED_IN` — optional, only meaningful while [appointment] is `CONFIRMED`; the screen gates the button on that, this does not re-check it. */
+    fun checkInBooking() = mutate { appointmentRepository.checkIn(it) }
+
+    /** Moves this booking from `CONFIRMED` (or `CHECKED_IN`) to `COMPLETED` — only meaningful while [appointment] is in one of those states; the screen gates the button on that, this does not re-check it. */
     fun completeBooking() = mutate { appointmentRepository.complete(it) }
 
     private fun mutate(call: suspend (id: String) -> Result<Appointment>) {

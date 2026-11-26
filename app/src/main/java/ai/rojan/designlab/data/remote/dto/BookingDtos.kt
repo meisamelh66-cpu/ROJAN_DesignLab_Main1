@@ -6,6 +6,9 @@ import kotlinx.serialization.Serializable
 enum class NetworkBookingStatus {
     PENDING,
     CONFIRMED,
+
+    /** Reception Check-in (Phase 4): optional - a booking can also go straight from CONFIRMED to COMPLETED. */
+    CHECKED_IN,
     CANCELLED,
     COMPLETED,
 }

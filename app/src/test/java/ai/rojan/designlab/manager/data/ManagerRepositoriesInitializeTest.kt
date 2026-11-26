@@ -88,6 +88,7 @@ class ManagerRepositoriesInitializeTest {
             notes: String?,
         ) = error("unused")
         override suspend fun confirm(id: String) = error("unused")
+        override suspend fun checkIn(id: String) = error("unused")
         override suspend fun complete(id: String) = error("unused")
     }
 

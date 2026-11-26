@@ -37,6 +37,9 @@ data class SalonMembershipAccess(
     val salonId: String,
     val salonName: String,
     val active: Boolean,
+
+    /** The membership's own enabled/disabled state - distinct from [active] above (the salon's). */
+    val membershipActive: Boolean,
     val role: String,
     val permissions: Set<String>,
 )

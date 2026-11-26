@@ -36,6 +36,16 @@ data class MembershipAccessDto(
     val salonId: String,
     val salonName: String,
     val active: Boolean,
+
+    /**
+     * Reception Authentication Fix (Phase 4): the membership's own enabled/disabled state -
+     * distinct from [active] above (the salon's) - was never carried through to this app at all
+     * before this field existed. [permissions] is already empty server-side when this is `false`
+     * (mirrors the backend's own `MembershipAccessDto` doc comment), but this app checks the flag
+     * directly rather than inferring "disabled" from an empty permission set, which could also
+     * mean "this role genuinely has no permissions" for an unrelated reason.
+     */
+    val membershipActive: Boolean,
     val role: String,
     val permissions: Set<String>,
 )

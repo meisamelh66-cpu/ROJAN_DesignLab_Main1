@@ -204,6 +204,9 @@ private class RescheduleFakeBookingRepository(
     override suspend fun confirmBooking(bookingId: String): Result<Booking> =
         error("not used by RescheduleAppointmentViewModel")
 
+    override suspend fun checkInBooking(bookingId: String): Result<Booking> =
+        error("not used by RescheduleAppointmentViewModel")
+
     override suspend fun completeBooking(bookingId: String): Result<Booking> =
         error("not used by RescheduleAppointmentViewModel")
 

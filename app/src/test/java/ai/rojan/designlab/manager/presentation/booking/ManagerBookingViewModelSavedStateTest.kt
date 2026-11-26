@@ -178,6 +178,7 @@ class ManagerBookingViewModelSavedStateTest {
         override suspend fun getBooking(bookingId: String) = error("not used by these tests")
         override suspend fun cancelBooking(bookingId: String) = error("not used by these tests")
         override suspend fun confirmBooking(bookingId: String) = error("not used by these tests")
+        override suspend fun checkInBooking(bookingId: String) = error("not used by these tests")
         override suspend fun completeBooking(bookingId: String) = error("not used by these tests")
         override suspend fun rescheduleBooking(bookingId: String, newStartTime: String) = error("not used by these tests")
         override suspend fun salonBookings(salonId: String, page: Int, size: Int, status: BookingStatus?) =

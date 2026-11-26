@@ -73,6 +73,7 @@ private enum class ManagerCalendarViewMode { DAILY, WEEKLY }
 private enum class AppointmentStatus(val label: String, val color: Color) {
     PENDING("در انتظار", ManagerColors.Gold),
     CONFIRMED("تایید شده", ManagerColors.Turquoise),
+    CHECKED_IN("مشتری حاضر است", ManagerColors.Turquoise),
     COMPLETED("انجام شده", ManagerColors.Turquoise),
     CANCELLED("لغو شده", RojanErrorText),
 }
@@ -80,6 +81,7 @@ private enum class AppointmentStatus(val label: String, val color: Color) {
 private fun BookingStatus.toDisplayStatus(): AppointmentStatus = when (this) {
     BookingStatus.PENDING -> AppointmentStatus.PENDING
     BookingStatus.CONFIRMED -> AppointmentStatus.CONFIRMED
+    BookingStatus.CHECKED_IN -> AppointmentStatus.CHECKED_IN
     BookingStatus.COMPLETED -> AppointmentStatus.COMPLETED
     BookingStatus.CANCELLED -> AppointmentStatus.CANCELLED
 }
